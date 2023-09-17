@@ -33,7 +33,7 @@ class CanvasData3D(CanvasPart3D):
             offset(tuple  of length 4): See :meth:`.WaveData.setOffset`
             filter(filter): See :meth:`.WaveData.setFilter`
         """
-        func = {"volume": self._appendVolume, "surface": self._appendSurface}
+        func = {"line": self._appendLine, "volume": self._appendVolume, "surface": self._appendSurface}
         # When multiple data is passed
         if isinstance(wave, list) or isinstance(wave, tuple):
             return [self.append(ww) for ww in wave]
@@ -55,7 +55,20 @@ class CanvasData3D(CanvasPart3D):
         return obj
 
     def __checkType(self, wav):
-        return "surface"
+        if "tetra" in wav.note["elements"].keys():
+            return "volume"
+        if "hexa" in wav.note["elements"].keys():
+            return "volume"
+        if "pyramid" in wav.note["elements"].keys():
+            return "volume"
+        if "prism" in wav.note["elements"].keys():
+            return "volume"
+        elif "triangle" in wav.note["elements"].keys():
+            return "surface"
+        elif "quad" in wav.note["elements"].keys():
+            return "surface"
+        elif "line" in wav.note["elements"].keys():
+            return "line"
         raise RuntimeError("[Graph] Can't append this data. shape = " + str(wav.data.shape))
 
     @ saveCanvas
@@ -163,10 +176,13 @@ class CanvasData3D(CanvasPart3D):
         raise NotImplementedError(str(type(self)) + " does not implement _remove(data) method.")
 
     def _appendVolume(self, wave):
-        warnings.warn(str(type(self)) + " does not implement _append1d(wave, axis) method.", NotImplementedWarning)
+        warnings.warn(str(type(self)) + " does not implement _appendVolume(wave) method.", NotImplementedWarning)
 
     def _appendSurface(self, wave):
-        warnings.warn(str(type(self)) + " does not implement _append2d(wave, axis) method.", NotImplementedWarning)
+        warnings.warn(str(type(self)) + " does not implement _appendSurface(wave) method.", NotImplementedWarning)
+
+    def _appendLine(self, wave):
+        warnings.warn(str(type(self)) + " does not implement _appendLine(wave) method.", NotImplementedWarning)
 
     def _rayTrace(self, data, start, end):
         warnings.warn(str(type(self)) + " does not implement _rayTrace(data) method.", NotImplementedWarning)

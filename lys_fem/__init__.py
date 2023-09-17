@@ -1,4 +1,4 @@
-from .FEMGUI import FEMGUI
+from .gui import FEMGUI
 
 
 def _makeMenu():

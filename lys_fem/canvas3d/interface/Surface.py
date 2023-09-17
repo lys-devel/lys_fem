@@ -14,6 +14,16 @@ class SurfaceData(WaveData3D):
 
     """
 
+    @saveCanvas
+    def setColor(self, color, type="scalars"):
+        self.__setAppearance("colorType", type)
+        self.__setAppearance("color", color)
+        self._setColor(color, type)
+
+    def showEdges(self, b):
+        self.__setAppearance("showEdges", b)
+        self._showEdges(b)
+
     def __setAppearance(self, key, value):
         self._appearance[key] = value
 
@@ -22,3 +32,9 @@ class SurfaceData(WaveData3D):
 
     def _loadAppearance(self, appearance):
         pass
+
+    def _setColor(self, color, type):
+        warnings.warn(str(type(self)) + " does not implement _setColor(color, type) method.", NotImplementedWarning)
+
+    def _showEdges(self, b):
+        warnings.warn(str(type(self)) + " does not implement _showEdges(b) method.", NotImplementedWarning)

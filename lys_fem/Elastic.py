@@ -1,16 +1,30 @@
 
 import itertools
 
-from mpi4py import MPI
 import mfem.par as mfem
 
+from mpi4py import MPI
+import gmsh
+import numpy as np
 
-def generateMesh(file="beam-tri.mesh"):
+
+def generateMesh(file):
     mesh = mfem.Mesh(file, 1, 1)
-    for x in range(2):
-        mesh.UniformRefinement()
+    if len([i for i in mesh.bdr_attributes]) == 0:  # For 1D mesh, we have to set boundary manually.
+        # Load file by gmsh
+        model = gmsh.model()
+        model.add("Default")
+        model.setCurrent("Default")
+        gmsh.merge(file)
+
+        # Get all boundary nodes
+        s = set(np.array([model.mesh.getNodes(*obj, includeBoundary=True)[0][:2] for obj in model.getEntities(1)]).flatten())
+
+        # Set the boundary nodes to mesh object.
+        for v in s:
+            mesh.AddBdrPoint(v, v)
+        mesh.SetAttributes()
     pmesh = mfem.ParMesh(MPI.COMM_WORLD, mesh)
-    pmesh.UniformRefinement()
     return pmesh
 
 
@@ -73,7 +87,7 @@ class StressIntegrator(mfem.LinearFormIntegrator):
             mfem.add(elvect, ip.weight * val, self.divshape, elvect)
 
 
-class ElasticModel:
+class ElasticModel(mfem.SecondOrderTimeDependentOperator):
     def __init__(self, mesh, dim, mat, order=1):
         # Define a parallel finite element space on the parallel mesh.
         self._mesh = mesh
@@ -81,11 +95,13 @@ class ElasticModel:
         self._fec = mfem.H1_FECollection(order, dim)
         self._fespace = mfem.ParFiniteElementSpace(mesh, self._fec, dim, mfem.Ordering.byVDIM)
         self._mat = mat
+        self._dirichlet = []
+        super().__init__(self._fespace.GetTrueVSize(), 0)
 
     def solve(self, solver=None):
         if solver is None:
             solver = LinearSolver(2)
-        x = mfem.GridFunction(self._fespace)
+        x = mfem.ParGridFunction(self._fespace)
         x.Assign(0.0)
         a = self._assemble_a()
         b = self._assemble_b()
@@ -105,6 +121,12 @@ class ElasticModel:
 
     def setDirichletBoundary(self, boundaries):
         self._dirichlet = boundaries
+
+    def _assemble_m(self):
+        m = mfem.ParBilinearForm(self._fespace)
+        m.AddDomainIntegrator(mfem.VectorMassIntegrator())
+        m.Assemble()
+        return m
 
     def _assemble_a(self):
         # 11. Set up the parallel bilinear form a(.,.) on the finite element space
@@ -127,6 +149,8 @@ class ElasticModel:
         return b
 
     def _essential_tdof_list(self):
+        if len(self._dirichlet) == 0:
+            return mfem.intArray()
         ess_bdr = mfem.intArray(self._mesh.bdr_attributes.Max())
         ess_bdr.Assign(0)  # ess_bdr = [0,0,0]
         for i in self._dirichlet:
@@ -135,25 +159,81 @@ class ElasticModel:
         self._fespace.GetEssentialTrueDofs(ess_bdr, ess_tdof_list)  # ess_tdof_list = list of dofs
         return ess_tdof_list
 
+    def setInitialValue(self, x=None, xt=None):
+        self._x_gf = mfem.ParGridFunction(self._fespace)
+        self._xt_gf = mfem.ParGridFunction(self._fespace)
+        self._x_gf.Assign(0.0)
+        self._xt_gf.Assign(0.0)
+
+    def step(self, t, dt):
+        if t == 0:
+            self._ode_solver = mfem.GeneralizedAlpha2Solver(1)
+            self._ode_solver.Init(self)
+
+            self._x = mfem.Vector()
+            self._x_gf.GetTrueDofs(self._x)
+
+            self._xt = mfem.Vector()  # dx/dt
+            self._xt_gf.GetTrueDofs(self._xt)
+
+            self._K_op = self._assemble_a()
+            self._M_op = self._assemble_m()
+            ess_tdof_list = self._essential_tdof_list()
+
+            self._K0 = mfem.HypreParMatrix()
+            self._K = mfem.HypreParMatrix()
+            dummy = mfem.intArray()
+            self._K_op.FormSystemMatrix(dummy, self._K0)
+            self._K_op.FormSystemMatrix(ess_tdof_list, self._K)
+
+            self._M = mfem.HypreParMatrix()
+            self._M_op.FormSystemMatrix(ess_tdof_list, self._M)
+
+            self._M_solver, self._M_prec = self._getDefaultSolver(self._M)
+            self._T = None
+
+        return self._ode_solver.Step(self._x, self._xt, t, dt)
+
+    def Mult(self, u, du_dt, d2udt2):
+        # Compute d2udt2 = M^{-1}*-K(u)
+        z = mfem.Vector(u.Size())
+        self._K.Mult(u, z)
+        z.Neg()  # z = -z
+        self._M_solver.Mult(z, d2udt2)
+
+    def ImplicitSolve(self, fac0, fac1, u, dudt, d2udt2):
+        # Solve the equation: d2udt2 = M^{-1}*[-K(u + fac0*d2udt2)]
+        if self._T is None:
+            self._T = mfem.Add(1.0, self._M, fac0, self._K)
+            self._T_solver, self._T_prec = self._getDefaultSolver(self._T)
+        z = mfem.Vector(u.Size())
+        self._K0.Mult(u, z)
+        z.Neg()
+
+        # iterate over Array<int> :D
+        for j in self._essential_tdof_list():
+            z[j] = 0.0
+
+        self._T_solver.Mult(z, d2udt2)
+
+    def _getDefaultSolver(self, A, rel_tol=1e-8):
+        prec = mfem.HypreBoomerAMG(A)
+        solver = mfem.CGSolver(MPI.COMM_WORLD)
+        solver.iterative_mode = False
+        solver.SetRelTol(rel_tol)
+        solver.SetAbsTol(0.0)
+        solver.SetMaxIter(100)
+        solver.SetPrintLevel(0)
+        solver.SetPreconditioner(prec)
+        solver.SetOperator(A)
+        return solver, prec
+
 
 class Material:
     def __init__(self, mesh):
         self._mesh = mesh
 
-    def getLambda(self):
-        lamb = mfem.Vector(self._mesh.attributes.Max())
-        lamb[0] = 50
-        lamb[1] = 1.0
-        return mfem.PWConstCoefficient(lamb)
-
-    def getMu(self):
-        lamb = mfem.Vector(self._mesh.attributes.Max())
-        lamb[0] = 50
-        lamb[1] = 1.0
-        return mfem.PWConstCoefficient(lamb)
-
     def getC(self, i, j, k, l):
-        c = mfem.Vector(self._mesh.attributes.Max())
         res = 0
         if i == j and k == l:
             res += 1
@@ -161,9 +241,7 @@ class Material:
             res += 1
         if i == l and j == k:
             res += 1
-        c[0] = res * 50
-        c[1] = res
-        return mfem.PWConstCoefficient(c)
+        return mfem.ConstantCoefficient(res)
 
     def calcMatrix(self):
         return [[[[self.getC(i, j, k, l) for l in range(3)] for k in range(3)] for j in range(3)] for i in range(3)]

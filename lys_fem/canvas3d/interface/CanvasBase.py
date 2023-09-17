@@ -91,6 +91,25 @@ class CanvasBase3D(object):
         """
         self.loadCanvas.emit(dictionary)
 
+    def delayUpdate(self):
+        """
+        This method should be used (as [*with*] block) when the canvas is heavily modified to avoid drawing repeatedly.
+        """
+        return _CanvasLocker3D(self)
+
+
+class _CanvasLocker3D:
+    def __init__(self, canvas):
+        self.canvas = canvas
+
+    def __enter__(self):
+        self.canvas._saveflg = True
+        self.canvas.enableRendering(False)
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.canvas._saveflg = False
+        self.canvas.enableRendering(True)
+
 
 class CanvasPart3D(QtCore.QObject):
     """
