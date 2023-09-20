@@ -38,7 +38,7 @@ class FEMProject:
 
     @property
     def models(self):
-        return self._modles
+        return self._models
 
     def getMeshWave(self, dim=None, nomesh=False):
         if dim is None:
@@ -53,6 +53,51 @@ class FEMProject:
 class ElasticModelGenerator:
     def __init__(self):
         self._nvar = 3
+        self._init = [InitialCondition("Default", self._nvar, domains="all")]
 
     def setVariableDimension(self, dim):
         self._nvar = dim
+
+    def variableDimension(self):
+        return self._nvar
+
+    @property
+    def initialConditions(self):
+        return self._init
+
+    def addInitialCondition(self, init=None):
+        if init is None:
+            i = 0
+            while "Initial value" + str(i) not in [c.name for c in self._init]:
+                i += 1
+            name = "Initial value" + str(i)
+            init = InitialCondition(name, self._nvar)
+
+
+class InitialCondition:
+    def __init__(self, name, nvar, value=None, domains=None):
+        self._name = name
+        if value is None:
+            value = ["0"] * nvar
+        self._value = value
+        if domains is None:
+            domains = []
+        self._domains = domains
+
+    def setDimension(self, dim):
+        if len(self._value) > dim:
+            self._value = self._value[:2]
+        while len(self._value) < dim:
+            self._value.append("0")
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def domains(self):
+        return self._domains
+
+    @property
+    def values(self):
+        return self._value

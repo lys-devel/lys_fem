@@ -34,7 +34,7 @@ class FEMGUI(LysSubWindow):
         self._medit = MeshEditor(self._obj.mesher)
         self._medit.showMesh.connect(self._showMesh)
         self._mat = TreeStyleEditor(MaterialTree(self._obj, self._canvas))
-        self._model = TreeStyleEditor(ModelTree(self._obj._models))
+        self._model = TreeStyleEditor(ModelTree(self._obj, self._canvas))
         tab = QtWidgets.QTabWidget()
         tab.addTab(self._gedit, "Geometry")
         tab.addTab(self._medit, "Mesh")
