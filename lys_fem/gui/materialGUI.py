@@ -43,7 +43,7 @@ class _MaterialGUI(FEMTreeItem):
     def __init__(self, material, parent):
         super().__init__(parent)
         self._material = material
-        self._children = [_ElasticParamsGUI(p) for p in material]
+        self._children = [_ElasticParamsGUI(self, p) for p in material]
         self._default = False
 
     def setDefault(self, b):
@@ -59,7 +59,7 @@ class _MaterialGUI(FEMTreeItem):
 
     @property
     def widget(self):
-        wid = _MaterialWidget(self.canvas(), self.fem(), self._material.domains)
+        wid = _MaterialWidget(self.canvas(), self.fem(), self._material.domains, default=self._default)
         wid.selectionChanged.connect(self.__set)
         return wid
 
@@ -75,9 +75,9 @@ class _MaterialGUI(FEMTreeItem):
 
     def __add(self):
         self.beginInsertRow(len(self._children))
-        p = ElasticParameters()
+        p = ElasticParameters(1, [1, 2])
         self._material.append(p)
-        self._children.append(_ElasticParamsGUI(p, self))
+        self._children.append(_ElasticParamsGUI(self, p))
         self.endInsertRow()
 
     def remove(self, param):
@@ -92,15 +92,19 @@ class _MaterialGUI(FEMTreeItem):
 
 
 class _MaterialWidget(QtWidgets.QWidget):
-    selectionChanged = QtCore.pyqtSignal(list)
+    selectionChanged = QtCore.pyqtSignal(object)
 
-    def __init__(self, canvas, fem, domains):
+    def __init__(self, canvas, fem, domains, default=False):
         super().__init__()
-        self.__initlayout(canvas, fem, domains)
+        self.__initlayout(canvas, fem, domains, default)
 
-    def __initlayout(self, canvas, fem, domains):
-        self._domain = GeometrySelector("Target Domains", fem.dimension, canvas, fem, domains)
+    def __initlayout(self, canvas, fem, domains, default):
+        if default:
+            self._domain = GeometrySelector("Target Domains", fem.dimension, canvas, fem, domains, acceptedTypes=["All"])
+        else:
+            self._domain = GeometrySelector("Target Domains", fem.dimension, canvas, fem, domains)
         self._domain.selectionChanged.connect(self.selectionChanged)
+
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._domain)
@@ -108,8 +112,8 @@ class _MaterialWidget(QtWidgets.QWidget):
 
 
 class _ElasticParamsGUI(FEMTreeItem):
-    def __init__(self, param, parent):
-        super().__init__(parent)
+    def __init__(self, parent, param):
+        super().__init__(parent=parent)
         self._param = param
 
     @property
@@ -121,3 +125,41 @@ class _ElasticParamsGUI(FEMTreeItem):
         menu = QtWidgets.QMenu()
         menu.addAction(QtWidgets.QAction("Remove parameters", self.treeWidget(), triggered=lambda: self.parent.remove(self)))
         return menu
+
+    @property
+    def widget(self):
+        return _ElasticParamsWidget(self._param)
+
+
+class _ElasticParamsWidget(QtWidgets.QWidget):
+    def __init__(self, param):
+        super().__init__()
+        self._param = param
+        self.__initlayout()
+
+    def __initlayout(self):
+        self._rho = QtWidgets.QLineEdit()
+        self._rho.setText(str(self._param.rho))
+        self._rho.textChanged.connect(self.__set)
+
+        self._lamb = QtWidgets.QLineEdit()
+        self._lamb.setText(str(self._param.C[0]))
+        self._lamb.textChanged.connect(self.__set)
+
+        self._mu = QtWidgets.QLineEdit()
+        self._mu.setText(str(self._param.C[1]))
+        self._mu.textChanged.connect(self.__set)
+
+        layout = QtWidgets.QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(QtWidgets.QLabel("rho"))
+        layout.addWidget(self._rho)
+        layout.addWidget(QtWidgets.QLabel("lambda"))
+        layout.addWidget(self._lamb)
+        layout.addWidget(QtWidgets.QLabel("mu"))
+        layout.addWidget(self._mu)
+        self.setLayout(layout)
+
+    def __set(self):
+        self._param.rho = self._rho.text()
+        self._param.C = [self._lamb.text(), self._mu.text()]

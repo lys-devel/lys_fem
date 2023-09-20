@@ -4,7 +4,7 @@ from lys.Qt import QtCore
 class MaterialList(QtCore.QObject):
     itemChanged = QtCore.pyqtSignal()
 
-    def __init__(self, materials):
+    def __init__(self, materials=[]):
         super().__init__()
         self._list = materials
 
@@ -25,15 +25,25 @@ class MaterialList(QtCore.QObject):
     def __iter__(self):
         return iter(self._list)
 
+    def saveAsDictionary(self):
+        return {"materials": [m.saveAsDictionary() for m in self._list]}
+
+    def loadFromDictionary(self, d):
+        self._list = [Material.loadFromDictionary(m) for m in d["materials"]]
+
 
 class Material(QtCore.QObject):
     itemChanged = QtCore.pyqtSignal()
 
-    def __init__(self, name):
+    def __init__(self, name, domains=None, params=None):
         super().__init__()
         self._name = name
-        self._list = []
-        self._domains = []
+        if domains is None:
+            domains = []
+        self._domains = domains
+        if params is None:
+            params = []
+        self._list = params
 
     @property
     def name(self):
@@ -62,9 +72,47 @@ class Material(QtCore.QObject):
 
     @domains.setter
     def domains(self, value):
-        self._domains = list(value)
+        if value == "all":
+            self._domains = "all"
+        else:
+            self._domains = list(value)
+
+    def saveAsDictionary(self):
+        return {"name": self._name, "domains": self.domains, "params": [p.saveAsDictionary() for p in self._list]}
+
+    @staticmethod
+    def loadFromDictionary(d):
+        params = [FEMParameter.loadFromDictionary(p) for p in d["params"]]
+        return Material(d["name"], d["domains"], params)
 
 
-class ElasticParameters:
-    def __init__(self, value=0):
-        self._func = value
+class FEMParameter:
+    def saveAsDictionary(self):
+        d = vars(self)
+        d["paramsName"] = self.name
+        return d
+
+    @staticmethod
+    def loadFromDictionary(d):
+        cls_list = set(sum(materialParameters.values(), []))
+        cls_dict = {value.name: value for value in cls_list}
+
+        d = dict(d)
+        cls = cls_dict[d["paramsName"]]
+        del d["paramsName"]
+        return cls(**d)
+
+
+class ElasticParameters(FEMParameter):
+    def __init__(self, rho, C, type="lame"):
+        self.rho = rho
+        self.C = C
+        self.type = type
+
+    @classmethod
+    @property
+    def name(cls):
+        return "Elasticity"
+
+
+materialParameters = {"Acoustics": [ElasticParameters]}

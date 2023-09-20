@@ -36,10 +36,13 @@ class _pyvistaSurface(SurfaceData):
         super().__init__(canvas, wave)
         faces = [np.ravel(np.hstack([np.ones((len(faces), 1), dtype=int) * _num_list[key], faces])) for key, faces in wave.note["elements"].items()]
         self._mesh = pv.PolyData(wave.x, np.hstack(faces))
+        self._edges = self._mesh.extract_feature_edges(boundary_edges=True)
         self._obj = canvas.plotter.add_mesh(self._mesh)
+        self._obje = canvas.plotter.add_mesh(self._edges, color='k', line_width=3)
 
     def remove(self):
         self.canvas().plotter.remove_actor(self._obj)
+        self.canvas().plotter.remove_actor(self._obje)
 
     def rayTrace(self, start, end):
         return self._mesh.ray_trace(start, end, first_point=True)[0]

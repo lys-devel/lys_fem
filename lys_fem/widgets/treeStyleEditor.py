@@ -114,7 +114,7 @@ class TreeItem(object):
         if parent is not None:
             self._parent = weakref.ref(parent)
         self._treeWidget = None
-        self._treeModel = None
+        self.__treeModel = None
 
     @property
     def name(self):
@@ -145,7 +145,7 @@ class TreeItem(object):
 
     def _setTreeWidget(self, tree, model):
         self._treeWidget = weakref.ref(tree)
-        self._treeModel = weakref.ref(model)
+        self.__treeModel = weakref.ref(model)
 
     def treeWidget(self):
         if self._treeWidget is None:
@@ -154,16 +154,16 @@ class TreeItem(object):
             return self._treeWidget()
 
     def _treeModel(self):
-        if self._treeModel is None:
-            return self.parent.treeModel()
+        if self.__treeModel is None:
+            return self.parent._treeModel()
         else:
-            return self._treeModel()
+            return self.__treeModel()
 
     def _treeIndex(self):
         if self.parent is None:
             return QtCore.QModelIndex()
         else:
-            return self._treeModel().createIndex(self.treeRow(), 0, self)
+            return self._treeModel().createIndex(self.parent.children.index(self), 0, self)
 
     def beginRemoveRow(self, row):
         self._treeModel().beginRemoveRows(self._treeIndex(), row, row)

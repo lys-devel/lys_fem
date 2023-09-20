@@ -3,55 +3,110 @@ from lys.Qt import QtCore, QtWidgets, QtGui
 
 
 class GeometrySelector(QtWidgets.QWidget):
-    selectionChanged = QtCore.pyqtSignal(list)
+    selectionChanged = QtCore.pyqtSignal(object)
 
-    def __init__(self, title, dim, canvas, fem, selected=[]):
+    def __init__(self, title, dim, canvas, fem, selected=[], acceptedTypes=["All", "Selected"], autoStart=True):
         super().__init__()
         self._dim = dim
-        self._selected = list(selected)
+        if selected == "all":
+            self._selected = []
+        else:
+            self._selected = list(selected)
         self._canvas = canvas
         self._fem = fem
-        self.__initlayout(title)
+        self.__initlayout(title, selected, acceptedTypes)
+        if autoStart:
+            if selected == "all":
+                self.__showGeometry()
+            else:
+                self.startSelection()
 
-    def __initlayout(self, title):
+    def __initlayout(self, title, selected, acceptedTypes):
+        self._type = QtWidgets.QComboBox()
+        self._type.addItems(acceptedTypes)
+        if selected != "all":
+            self._type.setCurrentText("Selected")
+        self._type.currentTextChanged.connect(self.__typeChanged)
+
+        h = QtWidgets.QHBoxLayout()
+        h.addWidget(QtWidgets.QLabel("Target"))
+        h.addWidget(self._type)
+
         self._model = _SelectionModel(self, title)
         self._tree = QtWidgets.QTreeView()
         self._tree.setModel(self._model)
 
-        buttons = QtWidgets.QHBoxLayout()
-        buttons.addWidget(QtWidgets.QPushButton("Start Selection", clicked=self.__startSelection))
+        self._selectBtn = QtWidgets.QPushButton("Start Selection", clicked=self.__start)
+        self._selectBtn.setCheckable(True)
 
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.addLayout(h)
         layout.addWidget(self._tree)
-        layout.addLayout(buttons)
+        layout.addWidget(self._selectBtn)
         self.setLayout(layout)
+        self.__setEnabled()
 
     @property
     def selectedItems(self):
         return self._selected
 
-    def __startSelection(self):
-        types = {1: "line", 2: "surface", 3: "volume"}
+    def __typeChanged(self, text):
+        if text == "All":
+            self.selectionChanged.emit("all")
+            self.__showGeometry()
+        else:
+            self.selectionChanged.emit(self.selectedItems)
+            self.startSelection()
+        self.__setEnabled()
+
+    def __setEnabled(self):
+        if self._type.currentText() == "All":
+            self._tree.hide()
+            self._selectBtn.hide()
+        else:
+            self._tree.show()
+            self._selectBtn.show()
+
+    def __showGeometry(self):
         mesh = self._fem.getMeshWave(self._dim)
-        self._canvas.clear()
-        objs = self._canvas.append(mesh)
-        for obj, m in zip(objs, mesh):
-            if m.note["tag"] in self._selected:
-                obj.setColor("#ff0000", type="color")
-            else:
-                obj.setColor('#333333', type="color")
-        self._canvas.startPicker(types[self._dim])
-        self._canvas.objectPicked.connect(self.__picked)
+        with self._canvas.delayUpdate():
+            self._canvas.clear()
+            objs = self._canvas.append(mesh)
+            for obj, m in zip(objs, mesh):
+                if m.note["tag"] in self._selected or self._type.currentText() == "All":
+                    obj.setColor("#adff2f", type="color")
+                else:
+                    obj.setColor('#cccccc', type="color")
+
+    def startSelection(self):
+        self._selectBtn.setChecked(True)
+        self.__start()
+
+    def __start(self):
+        if self._selectBtn.isChecked():
+            types = {1: "line", 2: "surface", 3: "volume"}
+            self.__showGeometry()
+            self._canvas.startPicker(types[self._dim])
+            self._canvas.objectPicked.connect(self.__picked)
+            self._canvas.pickingFinished.connect(self.__finishSelection)
+        else:
+            self._canvas.endPicker()
+
+    def __finishSelection(self):
+        self._canvas.objectPicked.disconnect(self.__picked)
+        self._canvas.pickingFinished.disconnect(self.__finishSelection)
+        self._selectBtn.setChecked(False)
 
     def __picked(self, item):
         tag = item.getWave().note["tag"]
         if tag in self._selected:
             self._selected.remove(tag)
-            item.setColor('#333333', type="color")
+            item.setColor('#cccccc', type="color")
         else:
             self._selected.append(tag)
-            item.setColor('#ff0000', type="color")
+            self._selected = sorted(self._selected)
+            item.setColor('#adff2f', type="color")
         self._model.layoutChanged.emit()
         self.selectionChanged.emit(self._selected)
 

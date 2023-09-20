@@ -16,6 +16,9 @@ class CanvasData3D(CanvasPart3D):
     dataChanged = QtCore.pyqtSignal()
     """pyqtSignal that is emittd when data is added/removed/changed."""
 
+    dataCleared = QtCore.pyqtSignal()
+    """Emitted when clear method is called"""
+
     def __init__(self, canvas):
         super().__init__(canvas)
         self._Datalist = []
@@ -95,6 +98,7 @@ class CanvasData3D(CanvasPart3D):
         """
         while len(self._Datalist) != 0:
             self.remove(self._Datalist[0])
+        self.dataCleared.emit()
 
     def getWaveData(self, type="all"):
         """

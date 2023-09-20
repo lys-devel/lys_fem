@@ -1,3 +1,4 @@
+import os
 from lys.Qt import QtCore, QtWidgets
 from lys.widgets import LysSubWindow
 
@@ -22,7 +23,8 @@ class FEMGUI(LysSubWindow):
 
     def __initProj(self):
         self._obj = FEMProject(2)
-        self.__load("test.dic")
+        if os.path.exists("test.dic"):
+            self.__load("test.dic")
 
     def __initUI(self):
         self._canvas = Canvas3d()

@@ -47,6 +47,7 @@ class ObjectPicker(CanvasPart3D):
     def __init__(self, parent):
         super().__init__(parent)
         self.canvas().plotter.track_click_position(self.__pick)
+        self.canvas().dataCleared.connect(self.endPicker)
         self.__type = None
 
     def startPicker(self, objType):
