@@ -7,7 +7,10 @@ from ..fem import Material, ElasticParameters
 class MaterialTree(FEMTreeItem):
     def __init__(self, obj, canvas):
         super().__init__(fem=obj, canvas=canvas)
-        self._materials = obj._materials
+        self.setMaterials(obj.materials)
+
+    def setMaterials(self, materials):
+        self._materials = materials
         self._children = [_MaterialGUI(m, self) for m in self._materials]
         self._children[0].setDefault(True)
 
@@ -75,7 +78,7 @@ class _MaterialGUI(FEMTreeItem):
 
     def __add(self):
         self.beginInsertRow(len(self._children))
-        p = ElasticParameters(1, [1, 2])
+        p = ElasticParameters("1", ["1", "2"])
         self._material.append(p)
         self._children.append(_ElasticParamsGUI(self, p))
         self.endInsertRow()

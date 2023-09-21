@@ -8,10 +8,11 @@ gmsh.option.setNumber("General.Terminal", 0)
 class GeometryGenerator(QtCore.QObject):
     updated = QtCore.pyqtSignal()
 
-    def __init__(self, dim):
+    def __init__(self, order=None):
         super().__init__()
-        self._order = []
-        self.addCommand({1: AddLine, 2: AddRect, 3: AddBox}[dim]())
+        if order is None:
+            order = []
+        self._order = order
 
     def addCommand(self, command):
         self._order.append(command)
@@ -40,8 +41,10 @@ class GeometryGenerator(QtCore.QObject):
     def saveAsDictionary(self):
         return {"geometries": [c.saveAsDictionary() for c in self.commands]}
 
-    def loadFromDictionary(self, d):
-        self._order = [GeometryOrder.loadFromDictionary(dic) for dic in d.get("geometries", [])]
+    @staticmethod
+    def loadFromDictionary(d):
+        order = [GeometryOrder.loadFromDictionary(dic) for dic in d.get("geometries", [])]
+        return GeometryGenerator(order)
 
 
 class GeometryOrder(object):

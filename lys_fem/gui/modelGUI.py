@@ -1,16 +1,19 @@
-from lys.Qt import QtWidgets
+from lys.Qt import QtWidgets, QtCore
 from ..widgets import FEMTreeItem, GeometrySelector
 
 
 class ModelTree(FEMTreeItem):
     def __init__(self, obj, canvas):
         super().__init__(fem=obj, canvas=canvas)
-        self._models = obj.models
-        self._children = [_ElasticGUI(m, self) for m in obj.models]
+        self.setModels(obj.models)
 
     @property
     def children(self):
         return self._children
+
+    def setModels(self, models):
+        self._models = models
+        self._children = [_ElasticGUI(m, self) for m in models]
 
 
 class _ElasticGUI(FEMTreeItem):
@@ -85,6 +88,7 @@ class _ElasticBoundary(FEMTreeItem):
 class _InitialConditions(FEMTreeItem):
     def __init__(self, model, parent):
         super().__init__(parent)
+        self._model = model
         self._children = [_InitialCondition(i, self) for i in model.initialConditions]
         self._children[0].setDefault(True)
 
@@ -95,6 +99,25 @@ class _InitialConditions(FEMTreeItem):
     @property
     def children(self):
         return self._children
+
+    @property
+    def menu(self):
+        self._menu = QtWidgets.QMenu()
+        self._menu.addAction(QtWidgets.QAction("Add initial condition", self.treeWidget(), triggered=self.__add))
+        return self._menu
+
+    def __add(self):
+        self.beginInsertRow(len(self._children))
+        i = self._model.addInitialCondition()
+        self._children.append(_InitialCondition(i, self))
+        self.endInsertRow()
+
+    def remove(self, init):
+        i = self._children.index(init)
+        self.beginRemoveRow(i)
+        self._model.initialConditions.remove(self._model.initialConditions[i])
+        self._children.remove(init)
+        self.endRemoveRow()
 
 
 class _InitialCondition(FEMTreeItem):
@@ -112,10 +135,29 @@ class _InitialCondition(FEMTreeItem):
 
     @property
     def widget(self):
-        return _InitialConditionWidget(self._init, self.fem(), self.canvas(), self._default)
+        w = _InitialConditionWidget(self._init, self.fem(), self.canvas(), self._default)
+        w.selectionChanged.connect(self.__domainChanged)
+        w.valueChanged.connect(self.__valueChanged)
+        return w
+
+    def __domainChanged(self, selected):
+        self._init.domains = selected
+
+    def __valueChanged(self, value):
+        self._init.values = value
+
+    @property
+    def menu(self):
+        if not self._default:
+            self._menu = QtWidgets.QMenu()
+            self._menu.addAction(QtWidgets.QAction("Remove", self.treeWidget(), triggered=lambda: self.parent.remove(self)))
+            return self._menu
 
 
 class _InitialConditionWidget(QtWidgets.QWidget):
+    selectionChanged = QtCore.pyqtSignal(object)
+    valueChanged = QtCore.pyqtSignal(object)
+
     def __init__(self, init, fem, canvas, default):
         super().__init__()
         self._init = init
@@ -127,9 +169,12 @@ class _InitialConditionWidget(QtWidgets.QWidget):
             self._selector = GeometrySelector("Target Domains", fem.dimension, canvas, fem, self._init.domains, acceptedTypes=["All"])
         else:
             self._selector = GeometrySelector("Target Domains", fem.dimension, canvas, fem, self._init.domains)
+        self._selector.selectionChanged.connect(self.selectionChanged)
+
         self._widgets = [QtWidgets.QLineEdit() for _ in range(dim)]
         for wid, val in zip(self._widgets, self._init.values):
             wid.setText(val)
+            wid.textChanged.connect(self.__valueChanged)
         grid = QtWidgets.QGridLayout()
         for i, wid in enumerate(self._widgets):
             grid.addWidget(QtWidgets.QLabel("Dim " + str(i)), i, 0, 1, 1)
@@ -140,3 +185,6 @@ class _InitialConditionWidget(QtWidgets.QWidget):
         layout.addWidget(self._selector)
         layout.addLayout(grid)
         self.setLayout(layout)
+
+    def __valueChanged(self):
+        self.valueChanged.emit([w.text() for w in self._widgets])

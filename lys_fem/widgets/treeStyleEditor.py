@@ -62,6 +62,10 @@ class TreeStyleEditor(QtWidgets.QWidget):
     def layout(self):
         return self._layout
 
+    @property
+    def rootItem(self):
+        return self._root
+
 
 class _TreeModel(QtCore.QAbstractItemModel):
     def __init__(self, root):

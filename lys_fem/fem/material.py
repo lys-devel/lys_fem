@@ -1,70 +1,25 @@
-from lys.Qt import QtCore
+import itertools
+import numpy as np
 
 
-class MaterialList(QtCore.QObject):
-    itemChanged = QtCore.pyqtSignal()
-
-    def __init__(self, materials=[]):
-        super().__init__()
-        self._list = materials
-
-    def append(self, item):
-        self._list.append(item)
-        self.itemChanged.emit()
-
-    def remove(self, item):
-        self._list.remove(item)
-        self.itemChanged.emit()
-
-    def __len__(self):
-        return len(self._list)
-
-    def __getitem__(self, i):
-        return self._list[i]
-
-    def __iter__(self):
-        return iter(self._list)
-
-    def saveAsDictionary(self):
-        return {"materials": [m.saveAsDictionary() for m in self._list]}
-
-    def loadFromDictionary(self, d):
-        self._list = [Material.loadFromDictionary(m) for m in d["materials"]]
-
-
-class Material(QtCore.QObject):
-    itemChanged = QtCore.pyqtSignal()
-
+class Material(list):
     def __init__(self, name, domains=None, params=None):
-        super().__init__()
         self._name = name
         if domains is None:
             domains = []
         self._domains = domains
         if params is None:
             params = []
-        self._list = params
+        super().__init__(params)
+
+    def __getitem__(self, name_param):
+        for p in self:
+            if p.name == name_param:
+                return p
 
     @property
     def name(self):
         return self._name
-
-    def append(self, item):
-        self._list.append(item)
-        self.itemChanged.emit()
-
-    def remove(self, item):
-        self._list.remove(item)
-        self.itemChanged.emit()
-
-    def __len__(self):
-        return len(self._list)
-
-    def __getitem__(self, i):
-        return self._list[i]
-
-    def __iter__(self):
-        return iter(self._list)
 
     @property
     def domains(self):
@@ -78,7 +33,7 @@ class Material(QtCore.QObject):
             self._domains = list(value)
 
     def saveAsDictionary(self):
-        return {"name": self._name, "domains": self.domains, "params": [p.saveAsDictionary() for p in self._list]}
+        return {"name": self._name, "domains": self.domains, "params": [p.saveAsDictionary() for p in self]}
 
     @staticmethod
     def loadFromDictionary(d):
@@ -113,6 +68,24 @@ class ElasticParameters(FEMParameter):
     @property
     def name(cls):
         return "Elasticity"
+
+    def getParameters(self):
+        return {"rho": self.rho, "C": self._constructC()}
+
+    def _constructC(self):
+        if self.type == "lame":
+            return [[self._lame(i, j) for j in range(6)] for i in range(6)]
+
+    def _lame(self, i, j):
+        res = "0"
+        if i < 3 and j < 3:
+            res += "+" + self.C[0]
+        if i == j:
+            if i < 3:
+                res += "+ 2 *" + self.C[1]
+            else:
+                res += "+" + self.C[1]
+        return res
 
 
 materialParameters = {"Acoustics": [ElasticParameters]}

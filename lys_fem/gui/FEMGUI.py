@@ -5,6 +5,7 @@ from lys.widgets import LysSubWindow
 from ..fem import FEMProject, OccMesher
 from ..widgets import TreeStyleEditor
 from ..canvas3d import Canvas3d
+from .. import mf
 
 from .geometryGUI import GeometryEditor
 from .meshGUI import MeshEditor
@@ -18,7 +19,8 @@ class FEMGUI(LysSubWindow):
         self.setWindowTitle("Finite-element calculation")
         self.__initProj()
         self.__initUI()
-        self._showGeometry()
+        self._refresh()
+        self._gedit.showGeometry()
         self.closed.connect(self.__save)
 
     def __initProj(self):
@@ -28,13 +30,11 @@ class FEMGUI(LysSubWindow):
 
     def __initUI(self):
         self._canvas = Canvas3d()
-
-        self._gedit = GeometryEditor(self._obj.geometryGenerator)
-        self._gedit.showGeometry.connect(self._showGeometry)
-        self._medit = MeshEditor(self._obj.mesher)
-        self._medit.showMesh.connect(self._showMesh)
+        self._gedit = GeometryEditor(self._obj, self._canvas)
+        self._medit = MeshEditor(self._obj, self._canvas)
         self._mat = TreeStyleEditor(MaterialTree(self._obj, self._canvas))
         self._model = TreeStyleEditor(ModelTree(self._obj, self._canvas))
+
         tab = QtWidgets.QTabWidget()
         tab.addTab(self._gedit, "Geometry")
         tab.addTab(self._medit, "Mesh")
@@ -50,6 +50,11 @@ class FEMGUI(LysSubWindow):
         self.setWidget(w)
         self.adjustSize()
 
+    def _refresh(self):
+        self._gedit.setGeometry(self._obj.geometryGenerator)
+        self._mat.rootItem.setMaterials(self._obj.materials)
+        self._model.rootItem.setModels(self._obj.models)
+
     def __save(self):
         d = self._obj.saveAsDictionary()
         with open("test.dic", "w") as f:
@@ -60,19 +65,5 @@ class FEMGUI(LysSubWindow):
             d = eval(f.read())
         self._obj.loadFromDictionary(d)
 
-    def _showGeometry(self):
-        geom = self._gedit.generate()
-        with self._canvas.delayUpdate():
-            self._canvas.clear()
-            self._canvas.append(OccMesher().getMeshWave(geom, dim=self._obj.dimension))
-
-    def _showMesh(self):
-        mesh = self._obj.getMeshWave()
-        with self._canvas.delayUpdate():
-            self._canvas.clear()
-            obj = self._canvas.append(mesh)
-            for o in obj:
-                o.showEdges(True)
-
     def __test(self):
-        self._obj.geometryGenerator.generateGeometry().export("test.msh", self._obj.dimension)
+        mf.run(self._obj)

@@ -2,11 +2,11 @@ from lys.Qt import QtCore, QtWidgets
 
 
 class MeshEditor(QtWidgets.QWidget):
-    showMesh = QtCore.pyqtSignal()
-
-    def __init__(self, mesher):
+    def __init__(self, obj, canvas):
         super().__init__()
-        self._mesher = mesher
+        self._obj = obj
+        self._canvas = canvas
+        self._mesher = obj.mesher
         self.__initlayout()
 
     def __initlayout(self):
@@ -16,6 +16,14 @@ class MeshEditor(QtWidgets.QWidget):
 
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self._refine)
-        layout.addWidget(QtWidgets.QPushButton("Generate Mesh", clicked=self.showMesh.emit))
+        layout.addWidget(QtWidgets.QPushButton("Generate Mesh", clicked=self._showMesh))
         layout.addStretch()
         self.setLayout(layout)
+
+    def _showMesh(self):
+        mesh = self._obj.getMeshWave()
+        with self._canvas.delayUpdate():
+            self._canvas.clear()
+            obj = self._canvas.append(mesh)
+            for o in obj:
+                o.showEdges(True)

@@ -3,28 +3,29 @@ import functools
 from lys.Qt import QtCore, QtWidgets, QtGui
 
 from ..fem.geometry import geometryCommands
-from ..widgets import TreeItem, TreeStyleEditor
+from ..fem import OccMesher
+from ..widgets import FEMTreeItem, TreeStyleEditor
 
 from .geometryOrderGUI import geometryCommandGUIs
 
 
 class GeometryEditor(QtWidgets.QWidget):
-    showGeometry = QtCore.pyqtSignal()
-
-    def __init__(self, geom):
+    def __init__(self, obj, canvas):
         super().__init__()
-        self._geom = geom
+        self._canvas = canvas
+        self._obj = obj
+        self._geom = obj.geometryGenerator
         self.__initlayout()
 
     def __initlayout(self):
-        self._tr = TreeStyleEditor(GeometryTree(self._geom))
-        self._geom.updated.connect(self._tr.update)
+        self._gt = GeometryTree(self._obj, self._canvas)
+        self._tr = TreeStyleEditor(self._gt)
 
         self._generateAll = QtWidgets.QCheckBox("Generate all")
         self._generateAll.setChecked(True)
 
         h = QtWidgets.QHBoxLayout()
-        h.addWidget(QtWidgets.QPushButton("Update", clicked=self.showGeometry.emit))
+        h.addWidget(QtWidgets.QPushButton("Update", clicked=self.showGeometry))
         h.addWidget(self._generateAll)
 
         self._tr.layout.insertLayout(1, h)
@@ -34,7 +35,13 @@ class GeometryEditor(QtWidgets.QWidget):
         layout.addWidget(self._tr)
         self.setLayout(layout)
 
-    def generate(self):
+    def showGeometry(self):
+        geom = self._generate()
+        with self._canvas.delayUpdate():
+            self._canvas.clear()
+            self._canvas.append(OccMesher().getMeshWave(geom, dim=self._obj.dimension))
+
+    def _generate(self):
         if self._generateAll.isChecked():
             res = self._geom.generateGeometry()
         else:
@@ -43,10 +50,17 @@ class GeometryEditor(QtWidgets.QWidget):
                 res = self._geom.generateGeometry(indexes[0].row())
         return res
 
+    def setGeometry(self, geom):
+        self._geom = geom
+        self._gt.setGeometry(geom)
 
-class GeometryTree(TreeItem):
-    def __init__(self, geom):
-        super().__init__()
+
+class GeometryTree(FEMTreeItem):
+    def __init__(self, obj, canvas):
+        super().__init__(fem=obj, canvas=canvas)
+        self.setGeometry(obj.geometryGenerator)
+
+    def setGeometry(self, geom):
         self._geom = geom
         self._children = [GeometryTreeItem(c, self) for c in self._geom.commands]
 
@@ -64,12 +78,21 @@ class GeometryTree(TreeItem):
         return self._menu
 
     def __selected(self, itemType):
+        self.beginInsertRow(len(self._children))
         c = itemType()
         self._geom.addCommand(c)
         self._children.append(GeometryTreeItem(c, self))
+        self.endInsertRow()
+
+    def remove(self, item):
+        i = self._children.index(item)
+        self.beginRemoveRow(i)
+        self._geom.commands.remove(self._geom.commands[i])
+        self._children.remove(item)
+        self.endRemoveRow()
 
 
-class GeometryTreeItem(TreeItem):
+class GeometryTreeItem(FEMTreeItem):
     def __init__(self, item, parent):
         super().__init__(parent)
         self._item = item
@@ -80,7 +103,9 @@ class GeometryTreeItem(TreeItem):
 
     @property
     def menu(self):
-        return self.parent.menu
+        menu = self.parent.menu
+        menu.addAction(QtWidgets.QAction("Remove", self.treeWidget(), triggered=lambda: self.parent.remove(self)))
+        return menu
 
     @property
     def widget(self):
