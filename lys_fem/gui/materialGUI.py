@@ -62,7 +62,7 @@ class _MaterialGUI(FEMTreeItem):
 
     @property
     def widget(self):
-        wid = _MaterialWidget(self.canvas(), self.fem(), self._material.domains, default=self._default)
+        wid = _MaterialWidget(self.canvas(), self.fem(), self._material.domains)
         wid.selectionChanged.connect(self.__set)
         return wid
 
@@ -78,9 +78,9 @@ class _MaterialGUI(FEMTreeItem):
                 sub.addAction(QtWidgets.QAction(p.name, self.treeWidget(), triggered=lambda b, x=p: self.__add(x)))
         return menu
 
-    def __add(self, cls):
+    def __add(self, param):
         self.beginInsertRow(len(self._children))
-        p = cls.default
+        p = param()
         self._material.append(p)
         self._children.append(_ParameterGUI(self, p))
         self.endInsertRow()
@@ -99,15 +99,12 @@ class _MaterialGUI(FEMTreeItem):
 class _MaterialWidget(QtWidgets.QWidget):
     selectionChanged = QtCore.pyqtSignal(object)
 
-    def __init__(self, canvas, fem, domains, default=False):
+    def __init__(self, canvas, fem, domains):
         super().__init__()
-        self.__initlayout(canvas, fem, domains, default)
+        self.__initlayout(canvas, fem, domains)
 
-    def __initlayout(self, canvas, fem, domains, default):
-        if default:
-            self._domain = GeometrySelector("Target Domains", fem.dimension, canvas, fem, domains, acceptedTypes=["All"])
-        else:
-            self._domain = GeometrySelector("Target Domains", fem.dimension, canvas, fem, domains)
+    def __initlayout(self, canvas, fem, domains):
+        self._domain = GeometrySelector("Target Domains", fem.dimension, canvas, fem, domains)
         self._domain.selectionChanged.connect(self.selectionChanged)
 
         layout = QtWidgets.QVBoxLayout()

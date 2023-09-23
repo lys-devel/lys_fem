@@ -56,7 +56,7 @@ class InitialCondition:
         self.values = value
 
     def saveAsDictionary(self):
-        return {"name": self._name, "domains": self._domains, "values": self._value}
+        return {"type": self.name, "name": self.objName, "domains": self._domains, "values": self._value}
 
     @staticmethod
     def loadFromDictionary(d):

@@ -10,6 +10,7 @@ from .CanvasBase import CanvasPart3D, saveCanvas
 from .WaveData import WaveData3D
 from .Volume import VolumeData
 from .Surface import SurfaceData
+from .Line import LineData
 
 
 class CanvasData3D(CanvasPart3D):
@@ -113,6 +114,8 @@ class CanvasData3D(CanvasPart3D):
             return [data for data in self._Datalist if isinstance(data, VolumeData)]
         elif type == "surface":
             return [data for data in self._Datalist if isinstance(data, SurfaceData)]
+        elif type == "line":
+            return [data for data in self._Datalist if isinstance(data, LineData)]
 
     def getVolume(self):
         """
@@ -125,6 +128,12 @@ class CanvasData3D(CanvasPart3D):
         Return all SurfaceData in the canvas.
         """
         return self.getWaveData("surface")
+
+    def getLine(self):
+        """
+        Return all LineData in the canvas.
+        """
+        return self.getWaveData("line")
 
     def rayTrace(self, start, end, type="all"):
         data = self.getWaveData(type)

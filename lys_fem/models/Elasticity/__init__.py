@@ -3,4 +3,4 @@ from .material import ElasticParameters
 from .model import ElasticModel
 
 addMaterialParameter("Acoustics", ElasticParameters)
-addModel("Elasticity", ElasticModel)
+addModel("Acoustics", ElasticModel)

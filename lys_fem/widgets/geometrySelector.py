@@ -74,10 +74,7 @@ class GeometrySelector(QtWidgets.QWidget):
             self._canvas.clear()
             objs = self._canvas.append(mesh)
             for obj, m in zip(objs, mesh):
-                if m.note["tag"] in self._selected or self._type.currentText() == "All":
-                    obj.setColor("#adff2f", type="color")
-                else:
-                    obj.setColor('#cccccc', type="color")
+                self.__setColor(obj, m.note["tag"] in self._selected or self._type.currentText() == "All")
 
     def startSelection(self):
         self._selectBtn.setChecked(True)
@@ -102,13 +99,23 @@ class GeometrySelector(QtWidgets.QWidget):
         tag = item.getWave().note["tag"]
         if tag in self._selected:
             self._selected.remove(tag)
-            item.setColor('#cccccc', type="color")
+            self.__setColor(item, False)
         else:
             self._selected.append(tag)
             self._selected = sorted(self._selected)
-            item.setColor('#adff2f', type="color")
+            self.__setColor(item, True)
         self._model.layoutChanged.emit()
         self.selectionChanged.emit(self._selected)
+
+    def __setColor(self, obj, selected):
+        if selected:
+            color = "#adff2f"
+        else:
+            color = "#cccccc"
+        if self._dim < 2:
+            obj.setColor(color)
+        else:
+            obj.setColor(color, type="color")
 
 
 class _SelectionModel(QtCore.QAbstractItemModel):

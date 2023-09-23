@@ -1,9 +1,6 @@
 
 import itertools
-import numpy as np
-
 import mfem.par as mfem
-from mpi4py import MPI
 
 from .coef import generateCoefficient
 
@@ -26,7 +23,7 @@ class ElasticModel(mfem.SecondOrderTimeDependentOperator):
         # Define a parallel finite element space on the parallel mesh.
         self._mesh = mesh
         self._dim = mesh.Dimension()
-        self._fec = mfem.H1_FECollection(order, nvar)
+        self._fec = mfem.H1_FECollection(order, self._dim)
         self._fespace = mfem.ParFiniteElementSpace(mesh, self._fec, nvar, mfem.Ordering.byVDIM)
         self._mat = mat
         self._dirichlet = []
@@ -44,19 +41,22 @@ class ElasticModel(mfem.SecondOrderTimeDependentOperator):
         else:
             self._xt_gf.ProjectCoefficient(xt)
 
+    def getInitialValue(self):
+        return self._x_gf, self._xt_gf
+
     def setBoundaryStress(self, n_sigma):
         self._boundary_stress = n_sigma
 
     def setDirichletBoundary(self, boundaries):
         self._dirichlet = boundaries
 
-    def _assemble_m(self):
+    def assemble_m(self):
         m = mfem.ParBilinearForm(self._fespace)
         m.AddDomainIntegrator(mfem.VectorMassIntegrator())
         m.Assemble()
         return m
 
-    def _assemble_a(self):
+    def assemble_a(self):
         # 11. Set up the parallel bilinear form a(.,.) on the finite element space
         #     corresponding to the linear elasticity integrator with piece-wise
         #     constants coefficient lambda and mu.
@@ -65,7 +65,7 @@ class ElasticModel(mfem.SecondOrderTimeDependentOperator):
         a.Assemble()
         return a
 
-    def _assemble_b(self):
+    def assemble_b(self):
         f = mfem.VectorArrayCoefficient(self._mesh.Dimension())
         for d in range(self._dim):
             pull_force = mfem.Vector(self._boundary_stress.T[d])
@@ -76,7 +76,7 @@ class ElasticModel(mfem.SecondOrderTimeDependentOperator):
         b.Assemble()
         return b
 
-    def _essential_tdof_list(self):
+    def essential_tdof_list(self):
         if len(self._dirichlet) == 0:
             return mfem.intArray()
         ess_bdr = mfem.intArray(self._mesh.bdr_attributes.Max())
@@ -86,86 +86,6 @@ class ElasticModel(mfem.SecondOrderTimeDependentOperator):
         ess_tdof_list = mfem.intArray()
         self._fespace.GetEssentialTrueDofs(ess_bdr, ess_tdof_list)  # ess_tdof_list = list of dofs
         return ess_tdof_list
-
-    def solve(self):
-        x = mfem.ParGridFunction(self._fespace)
-        x.Assign(0.0)
-        a = self._assemble_a()
-        b = self._assemble_b()
-        ess_tdof_list = self._essential_tdof_list()
-
-        A = mfem.HypreParMatrix()
-        B = mfem.Vector()
-        X = mfem.Vector()
-        a.FormLinearSystem(ess_tdof_list, x, b, A, X, B)
-
-        solver = self._getDefaultSolver(A)
-        solver.Mult(B, X)  # Solve AX=B
-        a.RecoverFEMSolution(X, b, x)
-        return x
-
-    def step(self, t, dt):
-        if t == 0:
-            self._ode_solver = mfem.GeneralizedAlpha2Solver(1)
-            self._ode_solver.Init(self)
-
-            self._x = mfem.Vector()
-            self._x_gf.GetTrueDofs(self._x)
-
-            self._xt = mfem.Vector()  # dx/dt
-            self._xt_gf.GetTrueDofs(self._xt)
-
-            self._K_op = self._assemble_a()
-            self._M_op = self._assemble_m()
-            ess_tdof_list = self._essential_tdof_list()
-
-            self._K0 = mfem.HypreParMatrix()
-            self._K = mfem.HypreParMatrix()
-            dummy = mfem.intArray()
-            self._K_op.FormSystemMatrix(dummy, self._K0)
-            self._K_op.FormSystemMatrix(ess_tdof_list, self._K)
-
-            self._M = mfem.HypreParMatrix()
-            self._M_op.FormSystemMatrix(ess_tdof_list, self._M)
-
-            self._M_solver, self._M_prec = self._getDefaultSolver(self._M)
-            self._T = None
-
-        return self._ode_solver.Step(self._x, self._xt, t, dt)
-
-    def Mult(self, u, du_dt, d2udt2):
-        # Compute d2udt2 = M^{-1}*-K(u)
-        z = mfem.Vector(u.Size())
-        self._K.Mult(u, z)
-        z.Neg()  # z = -z
-        self._M_solver.Mult(z, d2udt2)
-
-    def ImplicitSolve(self, fac0, fac1, u, dudt, d2udt2):
-        # Solve the equation: d2udt2 = M^{-1}*[-K(u + fac0*d2udt2)]
-        if self._T is None:
-            self._T = mfem.Add(1.0, self._M, fac0, self._K)
-            self._T_solver, self._T_prec = self._getDefaultSolver(self._T)
-        z = mfem.Vector(u.Size())
-        self._K0.Mult(u, z)
-        z.Neg()
-
-        # iterate over Array<int> :D
-        for j in self._essential_tdof_list():
-            z[j] = 0.0
-
-        self._T_solver.Mult(z, d2udt2)
-
-    def _getDefaultSolver(self, A, rel_tol=1e-8):
-        prec = mfem.HypreBoomerAMG(A)
-        solver = mfem.CGSolver(MPI.COMM_WORLD)
-        solver.iterative_mode = False
-        solver.SetRelTol(rel_tol)
-        solver.SetAbsTol(0.0)
-        solver.SetMaxIter(100)
-        solver.SetPrintLevel(0)
-        solver.SetPreconditioner(prec)
-        solver.SetOperator(A)
-        return solver, prec
 
 
 class _ElasticityIntegrator(mfem.BilinearFormIntegrator):

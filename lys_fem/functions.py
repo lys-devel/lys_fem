@@ -5,9 +5,11 @@ def addMaterialParameter(group, param):
     materialParameters[group].append(param)
 
 
-def addModel(name, model):
+def addModel(group, model):
     from .fem.model import models
-    models[name] = model
+    if group not in models:
+        models[group] = []
+    models[group].append(model)
 
 
 def addGeometry(group, geom):

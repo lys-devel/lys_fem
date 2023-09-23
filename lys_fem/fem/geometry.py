@@ -43,7 +43,7 @@ class GeometryGenerator(QtCore.QObject):
 
     @staticmethod
     def loadFromDictionary(d):
-        order = [GeometryOrder.loadFromDictionary(dic) for dic in d.get("geometries", [])]
+        order = [FEMGeometry.loadFromDictionary(dic) for dic in d.get("geometries", [])]
         return GeometryGenerator(order)
 
 

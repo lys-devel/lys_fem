@@ -2,7 +2,7 @@ import numpy as np
 import pyvista as pv
 from lys.Qt import QtGui
 
-from ..interface import CanvasData3D, VolumeData, SurfaceData
+from ..interface import CanvasData3D, VolumeData, SurfaceData, LineData
 
 _key_list = {"triangle": pv.CellType.TRIANGLE, "tetra": pv.CellType.TETRA, "hexa": pv.CellType.HEXAHEDRON, "quad": pv.CellType.QUAD, "pyramid": pv.CellType.PYRAMID, "prism": pv.CellType.WEDGE}
 _num_list = {"line": 2, "triangle": 3, "tetra": 4, "hexa": 8, "quad": 4, "pyramid": 5, "prism": 6}
@@ -62,25 +62,56 @@ class _pyvistaSurface(SurfaceData):
         pass
 
 
-class _pyvistaLine(SurfaceData):
+class _pyvistaLine(LineData):
     """Implementation of LineData for matplotlib"""
 
     def __init__(self, canvas, wave):
         super().__init__(canvas, wave)
-        faces = [np.ravel(np.hstack([np.ones((len(faces), 1), dtype=int) * _num_list[key], faces])) for key, faces in wave.note["elements"].items()]
-        self._mesh = pv.PolyData(wave.x, lines=np.hstack(faces))
-        self._obj = canvas.plotter.add_mesh(self._mesh, show_edges=True)
+        self._p0 = np.array([wave.x[i] for i, _ in list(wave.note["elements"].values())[0]])
+        self._p1 = np.array([wave.x[i] for _, i in list(wave.note["elements"].values())[0]])
+        lines = [np.ravel(np.hstack([np.ones((len(faces), 1), dtype=int) * _num_list[key], faces])) for key, faces in wave.note["elements"].items()]
+        self._mesh = pv.PolyData(wave.x, lines=np.hstack(lines))
+        self._obj = canvas.plotter.add_mesh(self._mesh, line_width=3)
 
     def remove(self):
         self.canvas().plotter.remove_actor(self._obj)
 
+    def _setColor(self, color):
+        c = QtGui.QColor(color)
+        self._obj.GetProperty().SetColor([c.redF(), c.greenF(), c.blueF()])
+
     def rayTrace(self, start, end):
-        return self._mesh.ray_trace(start, end, first_point=True)[0]
+        x0, x1 = start, (end - start) / np.linalg.norm(end - start)
+        res, d_min = [], None
+        for y0, y1 in zip(self._p0, self._p1 - self._p0):
+            pos, d = self._findNearest(x0, x1, y0, y1)
+            if d is None:
+                continue
+            if np.arctan(d / np.linalg.norm(pos - x0)) * 180 / 3.1415 > 2:
+                continue
+            elif d_min is None:
+                res, d_min = pos, d
+            elif d < d_min:
+                res, d_min = pos, d
+        return res
+
+    def _findNearest(self, x0, x1, y0, y1):
+        Ai = np.linalg.inv([[x1.dot(x1), -x1.dot(y1)], [x1.dot(y1), -y1.dot(y1)]])
+        t, s = Ai.dot([(y0 - x0).dot(x1), (y0 - x0).dot(y1)])
+        if t < 0:
+            return None, None
+        if s < 0 or s > 1:
+            return None, None
+        p1, p2 = x0 + t * x1, y0 + s * y1
+        return p2, np.linalg.norm(p2 - p1)
 
     def _updateData(self):
         return
 
     def _setVisible(self, visible):
+        pass
+
+    def _extractSegments(self):
         pass
 
 

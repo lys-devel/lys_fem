@@ -4,15 +4,12 @@ models = {}
 
 class FEMModel:
     def saveAsDictionary(self):
-        model = None
-        for key, m in models.items():
-            if isinstance(self, m):
-                model = key
-                continue
-        return {"model": model}
+        return {"model": self.name}
 
     @staticmethod
     def loadFromDictionary(d):
-        model = models[d["model"]]
+        cls_list = set(sum(models.values(), []))
+        cls_dict = {m.name: m for m in cls_list}
+        model = cls_dict[d["model"]]
         del d["model"]
         return model.loadFromDictionary(d)

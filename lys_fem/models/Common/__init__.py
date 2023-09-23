@@ -1,4 +1,3 @@
 from . import geometry
 from .initialCondition import InitialCondition
-
-print("import common")
+from .boundaryConditions import DirichletBoundary, NeumannBoundary

@@ -3,7 +3,7 @@ from lys_fem import FEMParameter
 
 
 class ElasticParameters(FEMParameter):
-    def __init__(self, rho, C, type="lame"):
+    def __init__(self, rho="1", C=["1", "1"], type="lame"):
         self.rho = rho
         self.C = C
         self.type = type
@@ -16,10 +16,6 @@ class ElasticParameters(FEMParameter):
     def getParameters(self):
         return {"rho": self.rho, "C": self._constructC()}
 
-    @classmethod
-    @property
-    def default(self):
-        return ElasticParameters(1, [1, 1])
 
     def widget(self):
         return _ElasticParamsWidget(self)
