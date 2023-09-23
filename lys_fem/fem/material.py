@@ -1,5 +1,5 @@
-import itertools
-import numpy as np
+
+materialParameters = {}
 
 
 class Material(list):
@@ -12,10 +12,13 @@ class Material(list):
             params = []
         super().__init__(params)
 
-    def __getitem__(self, name_param):
-        for p in self:
-            if p.name == name_param:
-                return p
+    def __getitem__(self, i):
+        if isinstance(i, str):
+            for p in self:
+                if p.name == i:
+                    return p
+        else:
+            return super().__getitem__(i)
 
     @property
     def name(self):
@@ -56,36 +59,3 @@ class FEMParameter:
         cls = cls_dict[d["paramsName"]]
         del d["paramsName"]
         return cls(**d)
-
-
-class ElasticParameters(FEMParameter):
-    def __init__(self, rho, C, type="lame"):
-        self.rho = rho
-        self.C = C
-        self.type = type
-
-    @classmethod
-    @property
-    def name(cls):
-        return "Elasticity"
-
-    def getParameters(self):
-        return {"rho": self.rho, "C": self._constructC()}
-
-    def _constructC(self):
-        if self.type == "lame":
-            return [[self._lame(i, j) for j in range(6)] for i in range(6)]
-
-    def _lame(self, i, j):
-        res = "0"
-        if i < 3 and j < 3:
-            res += "+" + self.C[0]
-        if i == j:
-            if i < 3:
-                res += "+ 2 *" + self.C[1]
-            else:
-                res += "+" + self.C[1]
-        return res
-
-
-materialParameters = {"Acoustics": [ElasticParameters]}

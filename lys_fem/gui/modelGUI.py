@@ -1,5 +1,5 @@
-from lys.Qt import QtWidgets, QtCore
-from ..widgets import FEMTreeItem, GeometrySelector
+from lys.Qt import QtWidgets
+from ..widgets import FEMTreeItem
 
 
 class ModelTree(FEMTreeItem):
@@ -13,18 +13,18 @@ class ModelTree(FEMTreeItem):
 
     def setModels(self, models):
         self._models = models
-        self._children = [_ElasticGUI(m, self) for m in models]
+        self._children = [_ModelGUI(m, self) for m in models]
 
 
-class _ElasticGUI(FEMTreeItem):
+class _ModelGUI(FEMTreeItem):
     def __init__(self, model, parent):
         super().__init__(parent)
         self._model = model
-        self._children = [_ElasticDomain(model, self), _ElasticBoundary(model, self), _InitialConditions(model, self)]
+        self._children = [_DomainGUI(model, self), _BoundaryGUI(model, self), _InitialConditionGUI(model, self)]
 
     @property
     def name(self):
-        return "Elasticity"
+        return self._model.name
 
     @property
     def children(self):
@@ -32,32 +32,10 @@ class _ElasticGUI(FEMTreeItem):
 
     @property
     def widget(self):
-        return _ElasticityWidget(self._model)
+        return self._model.widget(self.fem(), self.canvas())
 
 
-class _ElasticityWidget(QtWidgets.QWidget):
-    def __init__(self, model):
-        super().__init__()
-        self._model = model
-        self.__initlayout()
-
-    def __initlayout(self):
-        self._dim = QtWidgets.QSpinBox()
-        self._dim.setRange(1, 3)
-        self._dim.setValue(self._model.variableDimension())
-        self._dim.valueChanged.connect(self.__changeDim)
-
-        layout = QtWidgets.QHBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(QtWidgets.QLabel("Variable dimension"))
-        layout.addWidget(self._dim)
-        self.setLayout(layout)
-
-    def __changeDim(self, value):
-        self._model.setVariableDimension(self._dim.value())
-
-
-class _ElasticDomain(FEMTreeItem):
+class _DomainGUI(FEMTreeItem):
     def __init__(self, model, parent):
         super().__init__(parent)
         self._children = []
@@ -71,7 +49,7 @@ class _ElasticDomain(FEMTreeItem):
         return self._children
 
 
-class _ElasticBoundary(FEMTreeItem):
+class _BoundaryGUI(FEMTreeItem):
     def __init__(self, model, parent):
         super().__init__(parent)
         self._children = []
@@ -85,12 +63,11 @@ class _ElasticBoundary(FEMTreeItem):
         return self._children
 
 
-class _InitialConditions(FEMTreeItem):
+class _InitialConditionGUI(FEMTreeItem):
     def __init__(self, model, parent):
         super().__init__(parent)
         self._model = model
         self._children = [_InitialCondition(i, self) for i in model.initialConditions]
-        self._children[0].setDefault(True)
 
     @property
     def name(self):
@@ -103,12 +80,13 @@ class _InitialConditions(FEMTreeItem):
     @property
     def menu(self):
         self._menu = QtWidgets.QMenu()
-        self._menu.addAction(QtWidgets.QAction("Add initial condition", self.treeWidget(), triggered=self.__add))
+        for i in self._model.initialConditionTypes:
+            self._menu.addAction(QtWidgets.QAction("Add " + i.name, self.treeWidget(), triggered=lambda x, y=i: self.__add(y)))
         return self._menu
 
-    def __add(self):
+    def __add(self, type):
         self.beginInsertRow(len(self._children))
-        i = self._model.addInitialCondition()
+        i = self._model.addInitialCondition(type)
         self._children.append(_InitialCondition(i, self))
         self.endInsertRow()
 
@@ -124,27 +102,14 @@ class _InitialCondition(FEMTreeItem):
     def __init__(self, init, parent):
         super().__init__(parent)
         self._init = init
-        self._default = False
-
-    def setDefault(self, b):
-        self._default = b
 
     @property
     def name(self):
-        return self._init.name
+        return self._init.objName
 
     @property
     def widget(self):
-        w = _InitialConditionWidget(self._init, self.fem(), self.canvas(), self._default)
-        w.selectionChanged.connect(self.__domainChanged)
-        w.valueChanged.connect(self.__valueChanged)
-        return w
-
-    def __domainChanged(self, selected):
-        self._init.domains = selected
-
-    def __valueChanged(self, value):
-        self._init.values = value
+        return self._init.widget(self.fem(), self.canvas())
 
     @property
     def menu(self):
@@ -152,39 +117,3 @@ class _InitialCondition(FEMTreeItem):
             self._menu = QtWidgets.QMenu()
             self._menu.addAction(QtWidgets.QAction("Remove", self.treeWidget(), triggered=lambda: self.parent.remove(self)))
             return self._menu
-
-
-class _InitialConditionWidget(QtWidgets.QWidget):
-    selectionChanged = QtCore.pyqtSignal(object)
-    valueChanged = QtCore.pyqtSignal(object)
-
-    def __init__(self, init, fem, canvas, default):
-        super().__init__()
-        self._init = init
-        self.__initlayout(fem, canvas, default)
-
-    def __initlayout(self, fem, canvas, default):
-        dim = len(self._init.values)
-        if default:
-            self._selector = GeometrySelector("Target Domains", fem.dimension, canvas, fem, self._init.domains, acceptedTypes=["All"])
-        else:
-            self._selector = GeometrySelector("Target Domains", fem.dimension, canvas, fem, self._init.domains)
-        self._selector.selectionChanged.connect(self.selectionChanged)
-
-        self._widgets = [QtWidgets.QLineEdit() for _ in range(dim)]
-        for wid, val in zip(self._widgets, self._init.values):
-            wid.setText(val)
-            wid.textChanged.connect(self.__valueChanged)
-        grid = QtWidgets.QGridLayout()
-        for i, wid in enumerate(self._widgets):
-            grid.addWidget(QtWidgets.QLabel("Dim " + str(i)), i, 0, 1, 1)
-            grid.addWidget(wid, i, 1, 1, 3)
-
-        layout = QtWidgets.QVBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self._selector)
-        layout.addLayout(grid)
-        self.setLayout(layout)
-
-    def __valueChanged(self):
-        self.valueChanged.emit([w.text() for w in self._widgets])

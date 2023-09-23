@@ -1,7 +1,7 @@
 from lys.Qt import QtWidgets, QtCore
 
 from ..widgets import FEMTreeItem, GeometrySelector
-from ..fem import Material, ElasticParameters
+from ..fem import Material, materialParameters
 
 
 class MaterialTree(FEMTreeItem):
@@ -46,7 +46,7 @@ class _MaterialGUI(FEMTreeItem):
     def __init__(self, material, parent):
         super().__init__(parent)
         self._material = material
-        self._children = [_ElasticParamsGUI(self, p) for p in material]
+        self._children = [_ParameterGUI(self, p) for p in material]
         self._default = False
 
     def setDefault(self, b):
@@ -72,15 +72,17 @@ class _MaterialGUI(FEMTreeItem):
         if not self._default:
             menu.addAction(QtWidgets.QAction("Remove material", self.treeWidget(), triggered=lambda: self.parent.remove(self)))
         menu.addSeparator()
-        add = menu.addMenu("Add new parameter")
-        add.addAction(QtWidgets.QAction("Elasticity", self.treeWidget(), triggered=self.__add))
+        for grp, params in materialParameters.items():
+            sub = menu.addMenu(grp)
+            for p in params:
+                sub.addAction(QtWidgets.QAction(p.name, self.treeWidget(), triggered=lambda b, x=p: self.__add(x)))
         return menu
 
-    def __add(self):
+    def __add(self, cls):
         self.beginInsertRow(len(self._children))
-        p = ElasticParameters("1", ["1", "2"])
+        p = cls.default
         self._material.append(p)
-        self._children.append(_ElasticParamsGUI(self, p))
+        self._children.append(_ParameterGUI(self, p))
         self.endInsertRow()
 
     def remove(self, param):
@@ -114,14 +116,14 @@ class _MaterialWidget(QtWidgets.QWidget):
         self.setLayout(layout)
 
 
-class _ElasticParamsGUI(FEMTreeItem):
+class _ParameterGUI(FEMTreeItem):
     def __init__(self, parent, param):
         super().__init__(parent=parent)
         self._param = param
 
     @property
     def name(self):
-        return "Elasticity"
+        return self._param.name
 
     @property
     def menu(self):
@@ -131,38 +133,4 @@ class _ElasticParamsGUI(FEMTreeItem):
 
     @property
     def widget(self):
-        return _ElasticParamsWidget(self._param)
-
-
-class _ElasticParamsWidget(QtWidgets.QWidget):
-    def __init__(self, param):
-        super().__init__()
-        self._param = param
-        self.__initlayout()
-
-    def __initlayout(self):
-        self._rho = QtWidgets.QLineEdit()
-        self._rho.setText(str(self._param.rho))
-        self._rho.textChanged.connect(self.__set)
-
-        self._lamb = QtWidgets.QLineEdit()
-        self._lamb.setText(str(self._param.C[0]))
-        self._lamb.textChanged.connect(self.__set)
-
-        self._mu = QtWidgets.QLineEdit()
-        self._mu.setText(str(self._param.C[1]))
-        self._mu.textChanged.connect(self.__set)
-
-        layout = QtWidgets.QVBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(QtWidgets.QLabel("rho"))
-        layout.addWidget(self._rho)
-        layout.addWidget(QtWidgets.QLabel("lambda"))
-        layout.addWidget(self._lamb)
-        layout.addWidget(QtWidgets.QLabel("mu"))
-        layout.addWidget(self._mu)
-        self.setLayout(layout)
-
-    def __set(self):
-        self._param.rho = self._rho.text()
-        self._param.C = [self._lamb.text(), self._mu.text()]
+        return self._param.widget()

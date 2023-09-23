@@ -1,7 +1,7 @@
 from .geometry import GeometryGenerator
 from .mesh import OccMesher
 from .material import Material
-from .model import ElasticModelGenerator, FEMModel
+from .model import FEMModel
 
 
 class FEMProject:
@@ -10,7 +10,7 @@ class FEMProject:
         self._geom = GeometryGenerator()
         self._mesher = OccMesher()
         self._materials = [Material("Material1", domains="all")]
-        self._models = [ElasticModelGenerator()]
+        self._models = []
 
     def saveAsDictionary(self):
         d = {"dimension": self._dim}

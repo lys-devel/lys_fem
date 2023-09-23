@@ -1,4 +1,6 @@
 from .gui import FEMGUI
+from .functions import addMaterialParameter, addModel, addGeometry
+from . import models
 
 
 def _makeMenu():
