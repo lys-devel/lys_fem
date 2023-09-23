@@ -1,5 +1,6 @@
 from lys.Qt import QtWidgets
-from ...fem import FEMModel
+from lys_fem import FEMModel
+
 from ..Common import InitialCondition
 
 

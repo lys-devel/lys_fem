@@ -6,8 +6,6 @@ from ..fem.geometry import geometryCommands
 from ..fem import OccMesher
 from ..widgets import FEMTreeItem, TreeStyleEditor
 
-from .geometryOrderGUI import geometryCommandGUIs
-
 
 class GeometryEditor(QtWidgets.QWidget):
     def __init__(self, obj, canvas):
@@ -109,4 +107,4 @@ class GeometryTreeItem(FEMTreeItem):
 
     @property
     def widget(self):
-        return geometryCommandGUIs[self._item.__class__](self._item)
+        return self._item.widget()

@@ -1,5 +1,5 @@
 from lys.Qt import QtWidgets
-from lys_fem.fem import FEMParameter
+from lys_fem import FEMParameter
 
 
 class ElasticParameters(FEMParameter):

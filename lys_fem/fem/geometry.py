@@ -47,7 +47,7 @@ class GeometryGenerator(QtCore.QObject):
         return GeometryGenerator(order)
 
 
-class GeometryOrder(object):
+class FEMGeometry(object):
     def saveAsDictionary(self):
         return {"type": self.type, "args": self.args}
 
@@ -58,45 +58,4 @@ class GeometryOrder(object):
                 return t(*d["args"])
 
 
-class AddBox(GeometryOrder):
-    def __init__(self, x=0, y=0, z=0, dx=1, dy=1, dz=1):
-        self.args = [x, y, z, dx, dy, dz]
-
-    def execute(self, model):
-        model.occ.addBox(*self.args)
-
-    @classmethod
-    @property
-    def type(cls):
-        return "Add box"
-
-
-class AddRect(GeometryOrder):
-    def __init__(self, x=0, y=0, z=0, dx=1, dy=1):
-        self.args = [x, y, z, dx, dy]
-
-    def execute(self, model):
-        model.occ.addRectangle(*self.args)
-
-    @classmethod
-    @property
-    def type(cls):
-        return "Add rectangle"
-
-
-class AddLine(GeometryOrder):
-    def __init__(self, x1=0, y1=0, z1=0, x2=1, y2=0, z2=0):
-        self.args = (x1, y1, z1, x2, y2, z2)
-
-    def execute(self, model):
-        p1t = model.occ.addPoint(*self.args[:3])
-        p2t = model.occ.addPoint(*self.args[3:])
-        model.occ.addLine(p1t, p2t)
-
-    @classmethod
-    @property
-    def type(cls):
-        return "Add line"
-
-
-geometryCommands = {"Add 3D": [AddBox], "Add 2D": [AddRect], "Add 1D": [AddLine]}
+geometryCommands = {}

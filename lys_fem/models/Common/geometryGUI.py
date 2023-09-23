@@ -1,10 +1,8 @@
 from lys.Qt import QtWidgets
 from lys.widgets import ScientificSpinBox
 
-from ..fem.geometry import AddBox, AddRect, AddLine
 
-
-class AddBoxGUI(QtWidgets.QWidget):
+class BoxGUI(QtWidgets.QWidget):
     def __init__(self, obj):
         super().__init__()
         self._obj = obj
@@ -33,7 +31,7 @@ class AddBoxGUI(QtWidgets.QWidget):
         self._obj.args = [w.value() for w in self._values]
 
 
-class AddRectGUI(QtWidgets.QWidget):
+class RectGUI(QtWidgets.QWidget):
     def __init__(self, obj):
         super().__init__()
         self._obj = obj
@@ -60,7 +58,7 @@ class AddRectGUI(QtWidgets.QWidget):
         self._obj.args = [w.value() for w in self._values]
 
 
-class AddLineGUI(QtWidgets.QWidget):
+class LineGUI(QtWidgets.QWidget):
     def __init__(self, obj):
         super().__init__()
         self._obj = obj
@@ -90,6 +88,3 @@ class AddLineGUI(QtWidgets.QWidget):
     def __changed(self):
         self._obj.p1 = [w.value() for w in self._values[:3]]
         self._obj.p2 = [w.value() for w in self._values[3:6]]
-
-
-geometryCommandGUIs = {AddBox: AddBoxGUI, AddRect: AddRectGUI, AddLine: AddLineGUI}
