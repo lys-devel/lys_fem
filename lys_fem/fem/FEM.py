@@ -9,7 +9,7 @@ class FEMProject:
         self._dim = dim
         self._geom = GeometryGenerator()
         self._mesher = OccMesher()
-        self._materials = [Material("Material1", domains="all")]
+        self._materials = [Material("Material1")]
         self._models = []
 
     def saveAsDictionary(self):

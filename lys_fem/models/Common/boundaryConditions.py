@@ -1,10 +1,13 @@
 from lys.Qt import QtWidgets, QtCore
+from lys_fem import GeometrySelection
 from lys_fem.widgets import GeometrySelector
 
 
 class DirichletBoundary:
-    def __init__(self, name, boundaries=[]):
+    def __init__(self, name, boundaries=None):
         self._name = name
+        if boundaries is None:
+            boundaries = GeometrySelection("Surface")
         self._bdrs = boundaries
 
     @property
@@ -28,11 +31,12 @@ class DirichletBoundary:
         self._bdrs = value
 
     def saveAsDictionary(self):
-        return {"type": self.name, "name": self.objName, "bdrs": self.boundaries}
+        return {"type": self.name, "name": self.objName, "bdrs": self.boundaries.saveAsDictionary()}
 
     @staticmethod
     def loadFromDictionary(d):
-        return DirichletBoundary(d["name"], boundaries=d["bdrs"])
+        bdrs = GeometrySelection.loadFromDictionary(d["bdrs"])
+        return DirichletBoundary(d["name"], boundaries=bdrs)
 
 
 class NeumannBoundary:
@@ -52,13 +56,8 @@ class _DirichletBoundaryWidget(QtWidgets.QWidget):
         self.__initlayout(fem, canvas)
 
     def __initlayout(self, fem, canvas):
-        self._selector = GeometrySelector("Target Boundaries", fem.dimension - 1, canvas, fem, self._cond.boundaries)
-        self._selector.selectionChanged.connect(self.__selectionChanged)
-
+        self._selector = GeometrySelector(canvas, fem, self._cond.boundaries)
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._selector)
         self.setLayout(layout)
-
-    def __selectionChanged(self, bdrs):
-        self._cond.boundaries = bdrs

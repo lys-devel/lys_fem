@@ -11,8 +11,9 @@ def generateModel(fem, geom, mesh, mat):
     attrs = [tag for dim, tag in geom.getEntities(fem.dimension)]
     coefs = {}
     for init in fem.models[0].initialConditions:
-        for d in attrs if init.domains == "all" else init.domains:
-            coefs[d] = init.values
+        for d in attrs:
+            if init.domains.check(d):
+                coefs[d] = init.values
     c = generateCoefficient(coefs, geom)
     model.setInitialValue(c)
     return model

@@ -4,6 +4,9 @@ from ..Common import BaseModel
 
 
 class ElasticModel(BaseModel):
+    def __init__(self, nvar=3, *args, **kwargs):
+        super().__init__(nvar, *args, **kwargs)
+
     @classmethod
     @property
     def name(cls):

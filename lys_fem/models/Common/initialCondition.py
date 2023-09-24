@@ -1,15 +1,16 @@
 from lys.Qt import QtWidgets, QtCore
+from lys_fem import GeometrySelection
 from lys_fem.widgets import GeometrySelector
 
 
 class InitialCondition:
     def __init__(self, name, nvar, value=None, domains=None):
-        self._name = name
         if value is None:
             value = ["0"] * nvar
-        self._value = value
         if domains is None:
-            domains = []
+            domains = GeometrySelection("Domain")
+        self._name = name
+        self._value = value
         self._domains = domains
 
     def setDimension(self, dim):
@@ -31,10 +32,6 @@ class InitialCondition:
     def domains(self):
         return self._domains
 
-    @domains.setter
-    def domains(self, value):
-        self._domains = value
-
     @property
     def values(self):
         return self._value
@@ -45,27 +42,23 @@ class InitialCondition:
 
     def widget(self, fem, canvas):
         w = _InitialConditionWidget(self, fem, canvas)
-        w.selectionChanged.connect(self.__domainChanged)
         w.valueChanged.connect(self.__valueChanged)
         return w
-
-    def __domainChanged(self, selected):
-        self.domains = selected
 
     def __valueChanged(self, value):
         self.values = value
 
     def saveAsDictionary(self):
-        return {"type": self.name, "name": self.objName, "domains": self._domains, "values": self._value}
+        return {"type": self.name, "name": self.objName, "domains": self._domains.saveAsDictionary(), "values": self._value}
 
     @staticmethod
     def loadFromDictionary(d):
         values = d["values"]
-        return InitialCondition(d["name"], len(values), value=values, domains=d["domains"])
+        domain = GeometrySelection.loadFromDictionary(d["domains"])
+        return InitialCondition(d["name"], len(values), value=values, domains=domain)
 
 
 class _InitialConditionWidget(QtWidgets.QWidget):
-    selectionChanged = QtCore.pyqtSignal(object)
     valueChanged = QtCore.pyqtSignal(object)
 
     def __init__(self, init, fem, canvas):
@@ -75,9 +68,7 @@ class _InitialConditionWidget(QtWidgets.QWidget):
 
     def __initlayout(self, fem, canvas):
         dim = len(self._init.values)
-        self._selector = GeometrySelector("Target Domains", fem.dimension, canvas, fem, self._init.domains)
-        self._selector.selectionChanged.connect(self.selectionChanged)
-
+        self._selector = GeometrySelector(canvas, fem, self._init.domains)
         self._widgets = [QtWidgets.QLineEdit() for _ in range(dim)]
         for wid, val in zip(self._widgets, self._init.values):
             wid.setText(val)

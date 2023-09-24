@@ -62,9 +62,7 @@ class _MaterialGUI(FEMTreeItem):
 
     @property
     def widget(self):
-        wid = _MaterialWidget(self.canvas(), self.fem(), self._material.domains)
-        wid.selectionChanged.connect(self.__set)
-        return wid
+        return _MaterialWidget(self.canvas(), self.fem(), self._material)
 
     @property
     def menu(self):
@@ -92,24 +90,18 @@ class _MaterialGUI(FEMTreeItem):
         self._children.remove(param)
         self.endRemoveRow()
 
-    def __set(self, selected):
-        self._material.domains = selected
-
 
 class _MaterialWidget(QtWidgets.QWidget):
-    selectionChanged = QtCore.pyqtSignal(object)
-
-    def __init__(self, canvas, fem, domains):
+    def __init__(self, canvas, fem, mat):
         super().__init__()
-        self.__initlayout(canvas, fem, domains)
+        self._material = mat
+        self.__initlayout(canvas, fem, mat)
 
-    def __initlayout(self, canvas, fem, domains):
-        self._domain = GeometrySelector("Target Domains", fem.dimension, canvas, fem, domains)
-        self._domain.selectionChanged.connect(self.selectionChanged)
-
+    def __initlayout(self, canvas, fem, mat):
+        domain = GeometrySelector(canvas, fem, mat.domains)
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self._domain)
+        layout.addWidget(domain)
         self.setLayout(layout)
 
 

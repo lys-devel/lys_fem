@@ -1,3 +1,4 @@
+from .geometry import GeometrySelection
 
 materialParameters = {}
 
@@ -6,8 +7,9 @@ class Material(list):
     def __init__(self, name, domains=None, params=None):
         self._name = name
         if domains is None:
-            domains = []
-        self._domains = domains
+            self._domains = GeometrySelection("Domain")
+        else:
+            self._domains = domains
         if params is None:
             params = []
         super().__init__(params)
@@ -30,18 +32,15 @@ class Material(list):
 
     @domains.setter
     def domains(self, value):
-        if value == "all":
-            self._domains = "all"
-        else:
-            self._domains = list(value)
+        self._domains = value
 
     def saveAsDictionary(self):
-        return {"name": self._name, "domains": self.domains, "params": [p.saveAsDictionary() for p in self]}
+        return {"name": self._name, "domains": self.domains.saveAsDictionary(), "params": [p.saveAsDictionary() for p in self]}
 
     @staticmethod
     def loadFromDictionary(d):
         params = [FEMParameter.loadFromDictionary(p) for p in d["params"]]
-        return Material(d["name"], d["domains"], params)
+        return Material(d["name"], GeometrySelection.loadFromDictionary(d["domains"]), params)
 
 
 class FEMParameter:

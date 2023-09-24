@@ -1,4 +1,4 @@
-from .fem import FEMGeometry, FEMParameter, FEMModel
+from .fem import FEMGeometry, FEMParameter, FEMModel, GeometrySelection
 from .functions import addMaterialParameter, addModel, addGeometry
 from . import models
 

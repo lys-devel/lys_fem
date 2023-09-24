@@ -8,7 +8,7 @@ class BaseModel(FEMModel):
     def __init__(self, nvar, initialConditions=None, boundaryConditions=None, domainConditions=None):
         self._nvar = nvar
         if initialConditions is None:
-            initialConditions = [InitialCondition("Default", self._nvar, domains="all")]
+            initialConditions = []
         if boundaryConditions is None:
             boundaryConditions = []
         if domainConditions is None:

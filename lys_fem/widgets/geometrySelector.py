@@ -3,20 +3,16 @@ from lys.Qt import QtCore, QtWidgets, QtGui
 
 
 class GeometrySelector(QtWidgets.QWidget):
-    selectionChanged = QtCore.pyqtSignal(object)
-
-    def __init__(self, title, dim, canvas, fem, selected=[], acceptedTypes=["All", "Selected"], autoStart=True):
+    def __init__(self, canvas, fem, selected, acceptedTypes=["All", "Selected"], autoStart=True):
         super().__init__()
-        self._dim = dim
-        if selected == "all":
-            self._selected = []
-        else:
-            self._selected = list(selected)
+        dimDict = {"Domain": fem.dimension, "Surface": fem.dimension - 1}
+        self._dim = dimDict[selected.geometryType]
+        self._selected = selected
         self._canvas = canvas
         self._fem = fem
-        self.__initlayout(title, selected, acceptedTypes)
+        self.__initlayout(selected.geometryType, selected, acceptedTypes)
         if autoStart:
-            if selected == "all":
+            if selected.selectionType() == "all":
                 self.__showGeometry()
             else:
                 self.startSelection()
@@ -24,15 +20,14 @@ class GeometrySelector(QtWidgets.QWidget):
     def __initlayout(self, title, selected, acceptedTypes):
         self._type = QtWidgets.QComboBox()
         self._type.addItems(acceptedTypes)
-        if selected != "all":
-            self._type.setCurrentText("Selected")
+        self._type.setCurrentText(selected.selectionType())
         self._type.currentTextChanged.connect(self.__typeChanged)
 
         h = QtWidgets.QHBoxLayout()
         h.addWidget(QtWidgets.QLabel("Target"))
         h.addWidget(self._type)
 
-        self._model = _SelectionModel(self, title)
+        self._model = _SelectionModel(selected, title)
         self._tree = QtWidgets.QTreeView()
         self._tree.setModel(self._model)
 
@@ -47,17 +42,14 @@ class GeometrySelector(QtWidgets.QWidget):
         self.setLayout(layout)
         self.__setEnabled()
 
-    @property
-    def selectedItems(self):
-        return self._selected
-
     def __typeChanged(self, text):
         if text == "All":
-            self.selectionChanged.emit("all")
+            self._selected.setSelection("all")
             self.__showGeometry()
         else:
-            self.selectionChanged.emit(self.selectedItems)
+            self._selected.setSelection([])
             self.startSelection()
+        self._model.layoutChanged.emit()
         self.__setEnabled()
 
     def __setEnabled(self):
@@ -74,7 +66,7 @@ class GeometrySelector(QtWidgets.QWidget):
             self._canvas.clear()
             objs = self._canvas.append(mesh)
             for obj, m in zip(objs, mesh):
-                self.__setColor(obj, m.note["tag"] in self._selected or self._type.currentText() == "All")
+                self.__setColor(obj, self._selected.check(m.note["tag"]))
 
     def startSelection(self):
         self._selectBtn.setChecked(True)
@@ -97,15 +89,13 @@ class GeometrySelector(QtWidgets.QWidget):
 
     def __picked(self, item):
         tag = item.getWave().note["tag"]
-        if tag in self._selected:
+        if self._selected.check(tag):
             self._selected.remove(tag)
             self.__setColor(item, False)
         else:
             self._selected.append(tag)
-            self._selected = sorted(self._selected)
             self.__setColor(item, True)
         self._model.layoutChanged.emit()
-        self.selectionChanged.emit(self._selected)
 
     def __setColor(self, obj, selected):
         if selected:
@@ -126,14 +116,14 @@ class _SelectionModel(QtCore.QAbstractItemModel):
 
     def data(self, index, role):
         if index.isValid() and role == QtCore.Qt.DisplayRole:
-            return self.selector.selectedItems[index.row()]
+            return self.selection.getSelection()[index.row()]
         return QtCore.QVariant()
 
     def rowCount(self, parent):
         if parent.isValid():
             return 0
         else:
-            return len(self.selector.selectedItems)
+            return len(self.selection.getSelection())
 
     def columnCount(self, parent):
         return 1
@@ -152,5 +142,5 @@ class _SelectionModel(QtCore.QAbstractItemModel):
                 return self._title
 
     @property
-    def selector(self):
+    def selection(self):
         return self._parent()

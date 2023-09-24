@@ -27,6 +27,7 @@ def __generateCoefForParameter(pname, mats, group, fem, geom):
         p = m[group]
         if p is None:
             continue
-        for d in attrs if m.domains == "all" else m.domains:
-            coefs[d] = p.getParameters()[pname]
+        for d in attrs:
+            if m.domains.check(d):
+                coefs[d] = p.getParameters()[pname]
     return generateCoefficient(coefs, geom)

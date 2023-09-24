@@ -58,4 +58,47 @@ class FEMGeometry(object):
                 return t(*d["args"])
 
 
+class GeometrySelection(object):
+    def __init__(self, geometryType="Domain", selection=[]):
+        self._geom = geometryType
+        self._selection = list(selection)
+
+    def check(self, item):
+        if self._selection == "all":
+            return True
+        else:
+            return item in self._selection
+
+    def getSelection(self, geom=None):
+        if geom is None:
+            return self._selection
+
+    def setSelection(self, value):
+        self._selection = value
+
+    def append(self, value):
+        self._selection.append(value)
+        self._selection = sorted(self._selection)
+
+    def remove(self, value):
+        self._selection.remove(value)
+
+    def selectionType(self):
+        if self._selection == "all":
+            return "All"
+        else:
+            return "Selected"
+
+    @property
+    def geometryType(self):
+        return self._geom
+
+    def saveAsDictionary(self):
+        return {"selection": self._selection, "geometryType": self._geom}
+
+    @staticmethod
+    def loadFromDictionary(d):
+        return GeometrySelection(d["geometryType"], d["selection"])
+
+
 geometryCommands = {}
