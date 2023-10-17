@@ -1,5 +1,9 @@
 import numpy as np
-import mfem.par as mfem
+from lys_fem import mf
+if mf.parallel:
+    import mfem.par as mfem
+else:
+    import mfem.ser as mfem
 
 
 def generateCoefficient(coefs, geom, type=None):
