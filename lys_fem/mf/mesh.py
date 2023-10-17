@@ -1,7 +1,12 @@
-import mfem.par as mfem
 import gmsh
 import numpy as np
-from mpi4py import MPI
+from lys_fem import mf
+
+if mf.parallel:
+    import mfem.par as mfem
+    from mpi4py import MPI
+else:
+    import mfem.ser as mfem
 
 
 def generateMesh(file):
@@ -20,5 +25,6 @@ def generateMesh(file):
         for v in s:
             mesh.AddBdrPoint(v, v)
         mesh.SetAttributes()
-    pmesh = mfem.ParMesh(MPI.COMM_WORLD, mesh)
-    return pmesh
+    if mf.parallel:
+        mesh = mfem.ParMesh(MPI.COMM_WORLD, mesh)
+    return mesh

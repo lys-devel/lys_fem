@@ -37,7 +37,7 @@ class _ModelGUI(FEMTreeItem):
     def __init__(self, model, parent):
         super().__init__(parent)
         self._model = model
-        self._children = [_DomainGUI(model, self), _BoundaryGUI(model, self), _InitialConditionGUI(model, self)]
+        self._children = [_DomainGUI(model, self), _BoundaryGUI(model, self), _InitialConditionGUI(model, self), _SolverGUI(model, self)]
 
     @property
     def name(self):
@@ -155,6 +155,20 @@ class _InitialConditionGUI(FEMTreeItem):
         self._model.initialConditions.remove(self._model.initialConditions[i])
         self._children.remove(init)
         self.endRemoveRow()
+
+
+class _SolverGUI(FEMTreeItem):
+    def __init__(self, model, parent):
+        super().__init__(parent)
+        self._model = model
+
+    @property
+    def name(self):
+        return "Solver"
+
+    @property
+    def widget(self):
+        return self._model.solverWidget()
 
 
 class _DomainCondition(FEMTreeItem):

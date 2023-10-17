@@ -5,7 +5,6 @@ from lys.widgets import LysSubWindow
 from ..fem import FEMProject, OccMesher
 from ..widgets import TreeStyleEditor
 from ..canvas3d import Canvas3d
-from .. import mf
 
 from .geometryGUI import GeometryEditor
 from .meshGUI import MeshEditor
@@ -66,4 +65,5 @@ class FEMGUI(LysSubWindow):
         self._obj.loadFromDictionary(d)
 
     def __test(self):
+        from .. import mf
         mf.run(self._obj)
