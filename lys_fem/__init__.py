@@ -1,3 +1,4 @@
+import simtools
 from .fem import FEMGeometry, FEMParameter, FEMModel, GeometrySelection, FEMSolver
 from .functions import addMaterialParameter, addModel, addGeometry, addSolver
 from . import models
@@ -5,13 +6,13 @@ from . import models
 
 def _makeMenu():
     from lys import glb
-    from .gui import FEMGUI
     if glb.mainWindow() is not None:
+        from .gui import FEMGUI
         menu = glb.mainWindow().menuBar()
-        calc = menu.addMenu('Calculators')
-
-        act = calc.addAction("FEM")
-        act.triggered.connect(FEMGUI)
+        for m in menu.actions():
+            if m.text() == "Calculators":
+                act = m.menu().addAction("FEM")
+                act.triggered.connect(FEMGUI)
 
 
 _makeMenu()

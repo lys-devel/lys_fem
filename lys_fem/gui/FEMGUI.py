@@ -1,9 +1,10 @@
 import os
-from lys.Qt import QtCore, QtWidgets
+from lys.Qt import QtWidgets
 from lys.widgets import LysSubWindow
+from simtools import qsub
 
-from ..fem import FEMProject, OccMesher
-from ..widgets import TreeStyleEditor
+from ..fem import FEMProject
+from ..widgets import TreeStyleEditor, FEMFileSystemView
 from ..canvas3d import Canvas3d
 
 from .geometryGUI import GeometryEditor
@@ -14,22 +15,44 @@ from .solverGUI import SolverTree
 
 
 class FEMGUI(LysSubWindow):
+    _tmpPath = "FEM/.tmp.dic"
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Finite-element calculation")
         self.__initProj()
         self.__initUI()
-        self._refresh()
         self._gedit.showGeometry()
         self.closed.connect(self.__save)
 
     def __initProj(self):
         self._obj = FEMProject(2)
-        if os.path.exists("test.dic"):
-            self.__load("test.dic")
+        if os.path.exists(self._tmpPath):
+            self.__load(self._tmpPath)
 
     def __initUI(self):
+        self._view = FEMFileSystemView()
+        # self.__createContextMenus()
+        input = self.__initInputUI()
+
+        tab = QtWidgets.QTabWidget()
+        tab.addTab(self._view, "Project")
+        tab.addTab(input, "Calculation")
+
+        self.setWidget(tab)
+        self.adjustSize()
+
+    def __initInputUI(self):
         self._canvas = Canvas3d()
+
+        buttons = QtWidgets.QHBoxLayout()
+        buttons.addWidget(QtWidgets.QPushButton("New Project", clicked=self.__new))
+        buttons.addWidget(QtWidgets.QPushButton("Submit", clicked=self.__submit))
+
+        vb = QtWidgets.QVBoxLayout()
+        vb.addWidget(self._canvas)
+        vb.addLayout(buttons)
+
         self._gedit = GeometryEditor(self._obj, self._canvas)
         self._medit = MeshEditor(self._obj, self._canvas)
         self._mat = TreeStyleEditor(MaterialTree(self._obj, self._canvas))
@@ -45,21 +68,22 @@ class FEMGUI(LysSubWindow):
 
         lay = QtWidgets.QHBoxLayout()
         lay.addWidget(tab)
-        lay.addWidget(self._canvas)
-        lay.addWidget(QtWidgets.QPushButton("test", clicked=self.__test))
+        lay.addLayout(vb)
         w = QtWidgets.QWidget()
         w.setLayout(lay)
-        self.setWidget(w)
-        self.adjustSize()
+        return w
 
     def _refresh(self):
         self._gedit.setGeometry(self._obj.geometryGenerator)
         self._mat.rootItem.setMaterials(self._obj.materials)
         self._model.rootItem.setModels(self._obj.models)
+        self._solver.rootItem.setSolvers(self._obj.solvers)
 
-    def __save(self):
+    def __save(self, path=None):
         d = self._obj.saveAsDictionary()
-        with open("test.dic", "w") as f:
+        if path is None:
+            path = self._tmpPath
+        with open(path, "w") as f:
             f.write(str(d))
 
     def __load(self, file):
@@ -67,6 +91,15 @@ class FEMGUI(LysSubWindow):
             d = eval(f.read())
         self._obj.loadFromDictionary(d)
 
-    def __test(self):
-        from .. import mf
-        mf.run(self._obj)
+    def __new(self):
+        dim, ok = QtWidgets.QInputDialog.getInt(self, "Dimension", "Enter the dimension of simulation.", value=3, min=1, max=3)
+        if ok:
+            self._obj = FEMProject(dim)
+            self._refresh()
+
+    def __submit(self):
+        text, ok = QtWidgets.QInputDialog.getText(self, "Submit", "Enter the name.", text="test")
+        if ok:
+            os.makedirs("FEM/" + text, exist_ok=True)
+            self.__save(path="FEM/" + text + "/input.dic")
+            qsub.execute("python -m lys_fem.mf --input input.dic --mpi=True", "FEM/" + text, ncore=4)

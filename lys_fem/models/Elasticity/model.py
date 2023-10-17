@@ -12,6 +12,10 @@ class ElasticModel(BaseModel):
     def name(cls):
         return "Elasticity"
 
+    @property
+    def variableName(self):
+        return "u"
+
     def widget(self, fem, canvas):
         return _ElasticityWidget(self)
 

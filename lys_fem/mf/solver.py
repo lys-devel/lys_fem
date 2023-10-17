@@ -1,4 +1,3 @@
-
 from . import mfem
 
 
@@ -15,11 +14,14 @@ class StationarySolver:
 
     def execute(self):
         subSolvers = {"Linear Solver": LinearSolver}
+        sol = {}
         for i, sub in enumerate(self._solver.subSolvers):
             model = self._models[self._fem.models.index(sub.target)]
             solver = subSolvers[sub.name](model)
-            x = solver.solve()
+            sol[sub.target.variableName] = solver.solve()
             mfem.print_("Step", i, ":", model.name, "model has been solved by", solver.name)
+        for key, value in sol.items():
+            mfem.Save(value, key)
 
     @classmethod
     @property

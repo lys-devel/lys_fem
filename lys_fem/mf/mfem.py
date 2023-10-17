@@ -23,6 +23,8 @@ if mf.parallel:
         solver = mfem_orig.CGSolver(MPI.COMM_WORLD)
         return solver, prec
 
+    def Save(x, name):
+        x.Save(name + '.{:0>6d}'.format(MPI.COMM_WORLD.rank))
 
 else:
     import mfem.ser as mfem_orig
@@ -33,6 +35,9 @@ else:
         prec = mfem_orig.GSSmoother()
         solver = mfem_orig.CGSolver()
         return solver, prec
+
+    def Save(x, name):
+        x.Save(name)
 
 
 def print_initialize():

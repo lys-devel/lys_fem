@@ -62,11 +62,11 @@ class GeometryTree(FEMTreeItem):
         self._geom = geom
         self._children = [GeometryTreeItem(c, self) for c in self._geom.commands]
 
-    @property
+    @ property
     def children(self):
         return self._children
 
-    @property
+    @ property
     def menu(self):
         self._menu = QtWidgets.QMenu()
         for key, commands in geometryCommands.items():
@@ -95,16 +95,16 @@ class GeometryTreeItem(FEMTreeItem):
         super().__init__(parent)
         self._item = item
 
-    @property
+    @ property
     def name(self):
         return self._item.type
 
-    @property
+    @ property
     def menu(self):
         menu = self.parent.menu
         menu.addAction(QtWidgets.QAction("Remove", self.treeWidget(), triggered=lambda: self.parent.remove(self)))
         return menu
 
-    @property
+    @ property
     def widget(self):
         return self._item.widget()
