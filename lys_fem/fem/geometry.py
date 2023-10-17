@@ -59,9 +59,14 @@ class FEMGeometry(object):
 
 
 class GeometrySelection(object):
-    def __init__(self, geometryType="Domain", selection=[]):
+    def __init__(self, geometryType="Domain", selection=None):
+        if selection is None:
+            selection = []
         self._geom = geometryType
-        self._selection = list(selection)
+        if isinstance(selection, str):
+            self._selection = selection
+        else:
+            self._selection = list(selection)
 
     def check(self, item):
         if self._selection == "all":

@@ -1,6 +1,47 @@
 
-import mfem.par as mfem
-from mpi4py import MPI
+from . import mfem
+
+
+def generateSolver(fem, models):
+    solverDict = {s.name: s for s in [StationarySolver]}
+    return [solverDict[s.name](fem, s, models) for s in fem.solvers]
+
+
+class StationarySolver:
+    def __init__(self, fem, solver, models):
+        self._fem = fem
+        self._solver = solver
+        self._models = models
+
+    def execute(self):
+        subSolvers = {"Linear Solver": LinearSolver}
+        for i, sub in enumerate(self._solver.subSolvers):
+            model = self._models[self._fem.models.index(sub.target)]
+            solver = subSolvers[sub.name](model)
+            x = solver.solve()
+            mfem.print_("Step", i, ":", model.name, "model has been solved by", solver.name)
+
+    @classmethod
+    @property
+    def name(cls):
+        return "Stationary Solver"
+
+
+class TimeDependentSolver:
+    def __init__(self, solver):
+        self._solver = solver
+
+    @classmethod
+    @property
+    def name(cls):
+        return "Stationary Solver"
+
+    def execute(self):
+        t, dt = 0.0, 0.01
+        for ti in range(51):
+            t, dt = model.step(t, dt)
+            print(ti, t)
+            # oper.SetParameters(u)
 
 
 class LinearSolver:
@@ -13,19 +54,18 @@ class LinearSolver:
         b = self._model.assemble_b()
         ess_tdof_list = self._model.essential_tdof_list()
 
-        A = mfem.HypreParMatrix()
+        A = mfem.SparseMatrix()
         B = mfem.Vector()
         X = mfem.Vector()
         a.FormLinearSystem(ess_tdof_list, x, b, A, X, B)
 
-        solver = self._getDefaultSolver(A)
+        solver, prec = self._getDefaultSolver(A)
         solver.Mult(B, X)  # Solve AX=B
         a.RecoverFEMSolution(X, b, x)
         return x
 
     def _getDefaultSolver(self, A, rel_tol=1e-8):
-        prec = mfem.HypreBoomerAMG(A)
-        solver = mfem.CGSolver(MPI.COMM_WORLD)
+        solver, prec = mfem.getSolver()
         solver.iterative_mode = False
         solver.SetRelTol(rel_tol)
         solver.SetAbsTol(0.0)
@@ -34,6 +74,10 @@ class LinearSolver:
         solver.SetPreconditioner(prec)
         solver.SetOperator(A)
         return solver, prec
+
+    @property
+    def name(self):
+        return "Linear Solver"
 
 
 class GeneralizedAlphaSolver(mfem.SecondOrderTimeDependentOperator):
