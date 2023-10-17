@@ -1,11 +1,11 @@
 from lys.Qt import QtWidgets
 from lys_fem import FEMModel
 
-from . import InitialCondition, DirichletBoundary, NeumannBoundary
+from . import InitialCondition, DirichletBoundary, NeumannBoundary, LinearSolver
 
 
 class BaseModel(FEMModel):
-    def __init__(self, nvar, initialConditions=None, boundaryConditions=None, domainConditions=None):
+    def __init__(self, nvar, initialConditions=None, boundaryConditions=None, domainConditions=None, solver=None):
         self._nvar = nvar
         if initialConditions is None:
             initialConditions = []
@@ -13,9 +13,12 @@ class BaseModel(FEMModel):
             boundaryConditions = []
         if domainConditions is None:
             domainConditions = []
+        if solver is None:
+            solver = LinearSolver()
         self._init = initialConditions
         self._bdrs = boundaryConditions
         self._dcs = domainConditions
+        self._solver = solver
 
     def setVariableDimension(self, dim):
         self._nvar = dim
@@ -51,6 +54,18 @@ class BaseModel(FEMModel):
     @property
     def initialConditions(self):
         return self._init
+
+    @classmethod
+    @property
+    def solverTypes(self):
+        return [LinearSolver]
+
+    @property
+    def solver(self):
+        return self._solver
+
+    def solverWidget(self):
+        return _solverWidget(self)
 
     def addDomainCondition(self, cond):
         i = 1
@@ -100,3 +115,22 @@ class BaseModel(FEMModel):
         c = cls_dict[d["type"]]
         del d["type"]
         return c.loadFromDictionary(d)
+
+
+class _solverWidget(QtWidgets.QWidget):
+    def __init__(self, model):
+        super().__init__()
+        self._model = model
+        self.__initlayout()
+
+    def __initlayout(self):
+        self._combo = QtWidgets.QComboBox()
+        self._combo.addItems([s.name for s in self._model.solverTypes])
+
+        h = QtWidgets.QHBoxLayout()
+        h.addWidget(QtWidgets.QLabel("Solver type"))
+        h.addWidget(self._combo)
+
+        layout = QtWidgets.QVBoxLayout()
+        layout.addLayout(h)
+        self.setLayout(layout)
