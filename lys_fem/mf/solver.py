@@ -2,6 +2,7 @@
 import mfem.par as mfem
 from mpi4py import MPI
 
+
 class LinearSolver:
     def __init__(self, model):
         self._model = model
@@ -36,7 +37,7 @@ class LinearSolver:
 
 
 class GeneralizedAlphaSolver(mfem.SecondOrderTimeDependentOperator):
-    def __init__(self, model, value):
+    def __init__(self, model, value=10):
         super().__init__(model._fespace.GetTrueVSize(), 0)
         self._model = model
         self._initialized = False
@@ -52,9 +53,9 @@ class GeneralizedAlphaSolver(mfem.SecondOrderTimeDependentOperator):
         x_gf.GetTrueDofs(self._x)
         xt_gf.GetTrueDofs(self._xt)
 
-        self._K_op = self.assemble_a()
-        self._M_op = self.assemble_m()
-        ess_tdof_list = self.essential_tdof_list()
+        self._K_op = self._model.assemble_a()
+        self._M_op = self._model.assemble_m()
+        ess_tdof_list = self._model.essential_tdof_list()
 
         self._K0 = mfem.HypreParMatrix()
         self._K = mfem.HypreParMatrix()
@@ -92,7 +93,7 @@ class GeneralizedAlphaSolver(mfem.SecondOrderTimeDependentOperator):
         z.Neg()
 
         # iterate over Array<int> :D
-        for j in self._essential_tdof_list():
+        for j in self._model.essential_tdof_list():
             z[j] = 0.0
 
         self._T_solver.Mult(z, d2udt2)

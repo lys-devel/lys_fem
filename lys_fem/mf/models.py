@@ -68,12 +68,12 @@ class ElasticModel(mfem.SecondOrderTimeDependentOperator):
 
     def assemble_b(self):
         f = mfem.VectorArrayCoefficient(self._mesh.Dimension())
-        for d in range(self._dim):
-            pull_force = mfem.Vector(self._boundary_stress.T[d])
-            f.Set(d, mfem.PWConstCoefficient(pull_force))
+        # for d in range(self._dim):
+        #    pull_force = mfem.Vector(self._boundary_stress.T[d])
+        #    f.Set(d, mfem.PWConstCoefficient(pull_force))
 
         b = mfem.ParLinearForm(self._fespace)
-        b.AddBoundaryIntegrator(mfem.VectorBoundaryLFIntegrator(f))
+        # b.AddBoundaryIntegrator(mfem.VectorBoundaryLFIntegrator(f))
         b.Assemble()
         return b
 

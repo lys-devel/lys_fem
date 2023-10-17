@@ -4,7 +4,7 @@ from mpi4py import MPI
 from .mesh import generateMesh
 from .material import generateMaterial
 from .models import generateModel
-from .solver import LinearSolver
+from .solver import LinearSolver, GeneralizedAlphaSolver
 
 
 def print_(*args):
@@ -14,6 +14,9 @@ def print_(*args):
 
 def run_mfem(file):
     from ..fem import FEMProject
+    if isinstance(file, str):
+        with open(file, "r") as f:
+            file = eval(f.read())
     fem = FEMProject(2)
     fem.loadFromDictionary(file)
     run(fem)
@@ -30,11 +33,11 @@ def run(fem):
     print_("Material generated for ", str([name for name in material.keys()]))
     model = generateModel(fem, geom, mesh, material)
     print_("Model generated:")
-    solver = LinearSolver(model)
-    x = solver.solve()
-    return
+    #solver = LinearSolver(model)
+    #x = solver.solve()
+    solver = GeneralizedAlphaSolver(model)
     t, dt = 0.0, 0.01
     for ti in range(51):
-        t, dt = model.step(t, dt)
+        t, dt = solver.step(t, dt)
         print(ti, t)
         # oper.SetParameters(u)
