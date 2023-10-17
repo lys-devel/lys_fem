@@ -17,3 +17,10 @@ def addGeometry(group, geom):
     if group not in geometryCommands:
         geometryCommands[group] = []
     geometryCommands[group].append(geom)
+
+
+def addSolver(group, solver):
+    from .fem.solver import solvers
+    if group not in solvers:
+        solvers[group] = []
+    solvers[group].append(solver)

@@ -1,2 +1,2 @@
-from . import Common
-from . import Elasticity
+from . import common
+from . import elasticity

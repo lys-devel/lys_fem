@@ -1,5 +1,5 @@
-from .fem import FEMGeometry, FEMParameter, FEMModel, GeometrySelection
-from .functions import addMaterialParameter, addModel, addGeometry
+from .fem import FEMGeometry, FEMParameter, FEMModel, GeometrySelection, FEMSolver
+from .functions import addMaterialParameter, addModel, addGeometry, addSolver
 from . import models
 
 

@@ -10,6 +10,7 @@ from .geometryGUI import GeometryEditor
 from .meshGUI import MeshEditor
 from .materialGUI import MaterialTree
 from .modelGUI import ModelTree
+from .solverGUI import SolverTree
 
 
 class FEMGUI(LysSubWindow):
@@ -33,12 +34,14 @@ class FEMGUI(LysSubWindow):
         self._medit = MeshEditor(self._obj, self._canvas)
         self._mat = TreeStyleEditor(MaterialTree(self._obj, self._canvas))
         self._model = TreeStyleEditor(ModelTree(self._obj, self._canvas))
+        self._solver = TreeStyleEditor(SolverTree(self._obj, self._canvas))
 
         tab = QtWidgets.QTabWidget()
         tab.addTab(self._gedit, "Geometry")
         tab.addTab(self._medit, "Mesh")
         tab.addTab(self._mat, "Material")
         tab.addTab(self._model, "Model")
+        tab.addTab(self._solver, "Solver")
 
         lay = QtWidgets.QHBoxLayout()
         lay.addWidget(tab)
