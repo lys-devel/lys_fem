@@ -112,11 +112,15 @@ class _TreeModel(QtCore.QAbstractItemModel):
 
 
 class TreeItem(object):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, children=None):
         super().__init__()
         self._parent = None
         if parent is not None:
             self._parent = weakref.ref(parent)
+        if children is not None:
+            self._children = children
+        else:
+            self._children = []
         self._treeWidget = None
         self.__treeModel = None
 
@@ -133,7 +137,7 @@ class TreeItem(object):
 
     @property
     def children(self):
-        return []
+        return self._children
 
     @property
     def widget(self):
@@ -159,7 +163,10 @@ class TreeItem(object):
 
     def _treeModel(self):
         if self.__treeModel is None:
-            return self.parent._treeModel()
+            if self.parent is None:
+                return None
+            else:
+                return self.parent._treeModel()
         else:
             return self.__treeModel()
 
@@ -170,21 +177,45 @@ class TreeItem(object):
             return self._treeModel().createIndex(self.parent.children.index(self), 0, self)
 
     def beginRemoveRow(self, row):
-        self._treeModel().beginRemoveRows(self._treeIndex(), row, row)
+        m = self._treeModel()
+        if m is not None:
+            m.beginRemoveRows(self._treeIndex(), row, row)
 
     def endRemoveRow(self):
-        self._treeModel().endRemoveRows()
+        m = self._treeModel()
+        if m is not None:
+            m.endRemoveRows()
 
     def beginInsertRow(self, row):
-        self._treeModel().beginInsertRows(self._treeIndex(), row, row)
+        m = self._treeModel()
+        if m is not None:
+            m.beginInsertRows(self._treeIndex(), row, row)
 
     def endInsertRow(self):
-        self._treeModel().endInsertRows()
+        m = self._treeModel()
+        if m is not None:
+            m.endInsertRows()
+
+    def append(self, item):
+        self.beginInsertRow(len(self.children))
+        self._children.append(item)
+        self.endInsertRow()
+
+    def remove(self, item):
+        index = self._children.index(item)
+        self.beginRemoveRow(index)
+        self._children.remove(item)
+        self.endRemoveRow()
+        return index
+
+    def clear(self):
+        while len(self._children) != 0:
+            self.remove(self._children[0])
 
 
 class FEMTreeItem(TreeItem):
-    def __init__(self, parent=None, fem=None, canvas=None):
-        super().__init__(parent)
+    def __init__(self, parent=None, fem=None, canvas=None, children=None):
+        super().__init__(parent, children=children)
         self._canvas = canvas
         self._obj = fem
 

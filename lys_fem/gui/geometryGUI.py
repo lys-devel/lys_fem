@@ -1,6 +1,4 @@
-import functools
-
-from lys.Qt import QtCore, QtWidgets, QtGui
+from lys.Qt import QtWidgets
 
 from ..fem.geometry import geometryCommands
 from ..fem import OccMesher
@@ -59,12 +57,18 @@ class GeometryTree(FEMTreeItem):
         self.setGeometry(obj.geometryGenerator)
 
     def setGeometry(self, geom):
+        self.clear()
         self._geom = geom
-        self._children = [GeometryTreeItem(c, self) for c in self._geom.commands]
+        for c in self._geom.commands:
+            super().append(GeometryTreeItem(c, self))
 
-    @ property
-    def children(self):
-        return self._children
+    def append(self, item):
+        super().append(GeometryTreeItem(item, self))
+        self._geom.addCommand(item)
+
+    def remove(self, item):
+        i = super().remove(item)
+        self._geom.commands.remove(self._geom.commands[i])
 
     @ property
     def menu(self):
@@ -72,22 +76,8 @@ class GeometryTree(FEMTreeItem):
         for key, commands in geometryCommands.items():
             sub = self._menu.addMenu(key)
             for item in commands:
-                sub.addAction(QtWidgets.QAction(item.type, self.treeWidget(), triggered=functools.partial(lambda i: self.__selected(i), i=item)))
+                sub.addAction(QtWidgets.QAction(item.type, self.treeWidget(), triggered=lambda i, j=item: self.append(j())))
         return self._menu
-
-    def __selected(self, itemType):
-        self.beginInsertRow(len(self._children))
-        c = itemType()
-        self._geom.addCommand(c)
-        self._children.append(GeometryTreeItem(c, self))
-        self.endInsertRow()
-
-    def remove(self, item):
-        i = self._children.index(item)
-        self.beginRemoveRow(i)
-        self._geom.commands.remove(self._geom.commands[i])
-        self._children.remove(item)
-        self.endRemoveRow()
 
 
 class GeometryTreeItem(FEMTreeItem):

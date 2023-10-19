@@ -8,153 +8,123 @@ class ModelTree(FEMTreeItem):
         super().__init__(fem=obj, canvas=canvas)
         self.setModels(obj.models)
 
-    @property
-    def children(self):
-        return self._children
-
     def setModels(self, models):
+        self.clear()
         self._models = models
-        self._children = [_ModelGUI(m, self) for m in models]
+        for m in models:
+            super().append(_ModelGUI(m, self))
 
-    @property
+    def append(self, m):
+        self._models.append(m)
+        super().append(_ModelGUI(m, self))
+
+    def remove(self, m):
+        i = super().remove(m)
+        self._models.remove(self._models[i])
+
+    @ property
     def menu(self):
         self._menu = QtWidgets.QMenu()
         for group, ms in models.items():
             sub = self._menu.addMenu(group)
             for m in ms:
-                sub.addAction(QtWidgets.QAction("Add " + m.name, self.treeWidget(), triggered=lambda x, y=m: self.__add(y)))
+                sub.addAction(QtWidgets.QAction("Add " + m.name, self.treeWidget(), triggered=lambda x, y=m: self.append(y())))
         return self._menu
-
-    def __add(self, model):
-        self.beginInsertRow(len(self._children))
-        m = model()
-        self._models.append(m)
-        self._children.append(_ModelGUI(m, self))
-        self.endInsertRow()
 
 
 class _ModelGUI(FEMTreeItem):
     def __init__(self, model, parent):
-        super().__init__(parent)
+        super().__init__(parent, children=[_DomainGUI(model, self), _BoundaryGUI(model, self), _InitialConditionGUI(model, self)])
         self._model = model
-        self._children = [_DomainGUI(model, self), _BoundaryGUI(model, self), _InitialConditionGUI(model, self)]
 
-    @property
+    @ property
     def name(self):
         return self._model.name
 
-    @property
-    def children(self):
-        return self._children
-
-    @property
+    @ property
     def widget(self):
         return self._model.widget(self.fem(), self.canvas())
+
+    @property
+    def menu(self):
+        menu = self.parent.menu
+        menu.addAction(QtWidgets.QAction("Remove", self.treeWidget(), triggered=lambda: self.parent.remove(self)))
+        return menu
 
 
 class _DomainGUI(FEMTreeItem):
     def __init__(self, model, parent):
-        super().__init__(parent)
+        super().__init__(parent, children=[_DomainCondition(d, self) for d in model.domainConditions])
         self._model = model
-        self._children = [_DomainCondition(d, self) for d in model.domainConditions]
 
-    @property
+    def append(self, type):
+        i = self._model.addDomainCondition(type)
+        super().append(_DomainCondition(i, self))
+
+    def remove(self, init):
+        i = super().remove(init)
+        self._model.domainConditions.remove(self._model.domainConditions[i])
+
+    @ property
     def name(self):
         return "Domain Conditions"
 
-    @property
-    def children(self):
-        return self._children
-
-    @property
+    @ property
     def menu(self):
         self._menu = QtWidgets.QMenu()
         for i in self._model.domainConditionTypes:
-            self._menu.addAction(QtWidgets.QAction("Add " + i.name, self.treeWidget(), triggered=lambda x, y=i: self.__add(y)))
+            self._menu.addAction(QtWidgets.QAction("Add " + i.name, self.treeWidget(), triggered=lambda x, y=i: self.append(y)))
         return self._menu
-
-    def __add(self, type):
-        self.beginInsertRow(len(self._children))
-        i = self._model.addDomainCondition(type)
-        self._children.append(_DomainCondition(i, self))
-        self.endInsertRow()
-
-    def remove(self, init):
-        i = self._children.index(init)
-        self.beginRemoveRow(i)
-        self._model.domainConditions.remove(self._model.domainConditions[i])
-        self._children.remove(init)
-        self.endRemoveRow()
 
 
 class _BoundaryGUI(FEMTreeItem):
     def __init__(self, model, parent):
-        super().__init__(parent)
+        super().__init__(parent, children=[_BoundaryCondition(b, self) for b in model.boundaryConditions])
         self._model = model
-        self._children = [_BoundaryCondition(b, self) for b in model.boundaryConditions]
 
-    @property
+    def append(self, type):
+        i = self._model.addBoundaryCondition(type)
+        super().append(_BoundaryCondition(i, self))
+
+    def remove(self, init):
+        i = super().remove(init)
+        self._model.boundaryConditions.remove(self._model.boundaryConditions[i])
+
+    @ property
     def name(self):
         return "Boundary Conditions"
 
-    @property
-    def children(self):
-        return self._children
-
-    @property
+    @ property
     def menu(self):
         self._menu = QtWidgets.QMenu()
         for i in self._model.boundaryConditionTypes:
-            self._menu.addAction(QtWidgets.QAction("Add " + i.name, self.treeWidget(), triggered=lambda x, y=i: self.__add(y)))
+            self._menu.addAction(QtWidgets.QAction("Add " + i.name, self.treeWidget(), triggered=lambda x, y=i: self.append(y)))
         return self._menu
-
-    def __add(self, type):
-        self.beginInsertRow(len(self._children))
-        i = self._model.addBoundaryCondition(type)
-        self._children.append(_BoundaryCondition(i, self))
-        self.endInsertRow()
-
-    def remove(self, init):
-        i = self._children.index(init)
-        self.beginRemoveRow(i)
-        self._model.boundaryConditions.remove(self._model.boundaryConditions[i])
-        self._children.remove(init)
-        self.endRemoveRow()
 
 
 class _InitialConditionGUI(FEMTreeItem):
     def __init__(self, model, parent):
-        super().__init__(parent)
+        super().__init__(parent, children=[_InitialCondition(i, self) for i in model.initialConditions])
         self._model = model
-        self._children = [_InitialCondition(i, self) for i in model.initialConditions]
 
-    @property
+    def append(self, type):
+        i = self._model.addInitialCondition(type)
+        super().append(_InitialCondition(i, self))
+
+    def remove(self, init):
+        i = super().remove(init)
+        self._model.initialConditions.remove(self._model.initialConditions[i])
+
+    @ property
     def name(self):
         return "Initial Conditions"
 
-    @property
-    def children(self):
-        return self._children
-
-    @property
+    @ property
     def menu(self):
         self._menu = QtWidgets.QMenu()
         for i in self._model.initialConditionTypes:
-            self._menu.addAction(QtWidgets.QAction("Add " + i.name, self.treeWidget(), triggered=lambda x, y=i: self.__add(y)))
+            self._menu.addAction(QtWidgets.QAction("Add " + i.name, self.treeWidget(), triggered=lambda x, y=i: self.append(y)))
         return self._menu
-
-    def __add(self, type):
-        self.beginInsertRow(len(self._children))
-        i = self._model.addInitialCondition(type)
-        self._children.append(_InitialCondition(i, self))
-        self.endInsertRow()
-
-    def remove(self, init):
-        i = self._children.index(init)
-        self.beginRemoveRow(i)
-        self._model.initialConditions.remove(self._model.initialConditions[i])
-        self._children.remove(init)
-        self.endRemoveRow()
 
 
 class _DomainCondition(FEMTreeItem):
@@ -162,15 +132,15 @@ class _DomainCondition(FEMTreeItem):
         super().__init__(parent)
         self._cond = cond
 
-    @property
+    @ property
     def name(self):
         return self._cond.objName
 
-    @property
+    @ property
     def widget(self):
         return self._cond.widget(self.fem(), self.canvas())
 
-    @property
+    @ property
     def menu(self):
         self._menu = QtWidgets.QMenu()
         self._menu.addAction(QtWidgets.QAction("Remove", self.treeWidget(), triggered=lambda: self.parent.remove(self)))
@@ -182,15 +152,15 @@ class _BoundaryCondition(FEMTreeItem):
         super().__init__(parent)
         self._bdr = bdr
 
-    @property
+    @ property
     def name(self):
         return self._bdr.objName
 
-    @property
+    @ property
     def widget(self):
         return self._bdr.widget(self.fem(), self.canvas())
 
-    @property
+    @ property
     def menu(self):
         self._menu = QtWidgets.QMenu()
         self._menu.addAction(QtWidgets.QAction("Remove", self.treeWidget(), triggered=lambda: self.parent.remove(self)))
@@ -202,15 +172,15 @@ class _InitialCondition(FEMTreeItem):
         super().__init__(parent)
         self._init = init
 
-    @property
+    @ property
     def name(self):
         return self._init.objName
 
-    @property
+    @ property
     def widget(self):
         return self._init.widget(self.fem(), self.canvas())
 
-    @property
+    @ property
     def menu(self):
         self._menu = QtWidgets.QMenu()
         self._menu.addAction(QtWidgets.QAction("Remove", self.treeWidget(), triggered=lambda: self.parent.remove(self)))

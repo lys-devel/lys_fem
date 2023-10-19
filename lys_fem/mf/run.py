@@ -16,7 +16,7 @@ def run(fem):
     mfem.print_("Material generated for", str([name for name in material.keys()]))
     models = generateModel(fem, geom, mesh, material)
     mfem.print_("Model generated for", str([m.name for m in models]))
-    solvers = generateSolver(fem, models)
+    solvers = generateSolver(fem, mesh, models)
     mfem.print_("Solver generated for", str([s.name for s in solvers]))
     mfem.print_()
 

@@ -33,6 +33,14 @@ class FEMProject:
         if "solvers" in d:
             self._solvers = [FEMSolver.loadFromDictionary(self, dic) for dic in d["solvers"]]
 
+    @classmethod
+    def fromFile(cls, file):
+        res = FEMProject(2)
+        with open(file) as f:
+            d = eval(f.read())
+        res.loadFromDictionary(d)
+        return res
+
     @property
     def dimension(self):
         return self._dim

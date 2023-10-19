@@ -10,55 +10,52 @@ class MaterialTree(FEMTreeItem):
         self.setMaterials(obj.materials)
 
     def setMaterials(self, materials):
+        self.clear()
         self._materials = materials
-        self._children = [_MaterialGUI(m, self) for m in self._materials]
-        self._children[0].setDefault(True)
+        for m in self._materials:
+            super().append(_MaterialGUI(m, self))
+        self.children[0].setDefault(True)
 
-    @property
-    def children(self):
-        return self._children
+    def append(self, material=None):
+        if not isinstance(material, Material):
+            i = 1
+            while "Material" + str(i) in [m.name for m in self._materials]:
+                i += 1
+            material = Material("Material" + str(i))
+        self._materials.append(material)
+        super().append(_MaterialGUI(material, self))
+
+    def remove(self, material):
+        i = super().remove(material)
+        self._materials.remove(self._materials[i])
 
     @property
     def menu(self):
         self._menu = QtWidgets.QMenu()
-        self._menu.addAction(QtWidgets.QAction("Add new material", self.treeWidget(), triggered=self.__add))
+        self._menu.addAction(QtWidgets.QAction("Add new material", self.treeWidget(), triggered=self.append))
         return self._menu
-
-    def __add(self):
-        i = 1
-        while "Material" + str(i) in [m.name for m in self._materials]:
-            i += 1
-        self.beginInsertRow(len(self._children))
-        m = Material("Material" + str(i))
-        self._materials.append(m)
-        self._children.append(_MaterialGUI(m, self))
-        self.endInsertRow()
-
-    def remove(self, material):
-        i = self._children.index(material)
-        self.beginRemoveRow(i)
-        self._materials.remove(self._materials[i])
-        self._children.remove(material)
-        self.endRemoveRow()
 
 
 class _MaterialGUI(FEMTreeItem):
     def __init__(self, material, parent):
-        super().__init__(parent)
+        super().__init__(parent, children=[_ParameterGUI(self, p) for p in material])
         self._material = material
-        self._children = [_ParameterGUI(self, p) for p in material]
         self._default = False
 
     def setDefault(self, b):
         self._default = b
 
+    def append(self, p):
+        self._material.append(p)
+        super().append(_ParameterGUI(self, p))
+
+    def remove(self, param):
+        i = super().remove(param)
+        self._material.remove(self._material[i])
+
     @property
     def name(self):
         return self._material.name
-
-    @property
-    def children(self):
-        return self._children
 
     @property
     def widget(self):
@@ -73,22 +70,8 @@ class _MaterialGUI(FEMTreeItem):
         for grp, params in materialParameters.items():
             sub = menu.addMenu(grp)
             for p in params:
-                sub.addAction(QtWidgets.QAction(p.name, self.treeWidget(), triggered=lambda b, x=p: self.__add(x)))
+                sub.addAction(QtWidgets.QAction(p.name, self.treeWidget(), triggered=lambda b, x=p: self.append(x())))
         return menu
-
-    def __add(self, param):
-        self.beginInsertRow(len(self._children))
-        p = param()
-        self._material.append(p)
-        self._children.append(_ParameterGUI(self, p))
-        self.endInsertRow()
-
-    def remove(self, param):
-        i = self._children.index(param)
-        self.beginRemoveRow(i)
-        self._material.remove(self._material[i])
-        self._children.remove(param)
-        self.endRemoveRow()
 
 
 class _MaterialWidget(QtWidgets.QWidget):

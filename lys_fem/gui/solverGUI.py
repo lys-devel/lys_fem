@@ -8,13 +8,15 @@ class SolverTree(FEMTreeItem):
         super().__init__(fem=obj, canvas=canvas)
         self.setSolvers(obj.solvers)
 
-    @property
-    def children(self):
-        return self._children
-
     def setSolvers(self, solvers):
+        self.clear()
         self._solvers = solvers
-        self._children = [_SolverGUI(s, self) for s in solvers]
+        for s in solvers:
+            super().append(_SolverGUI(s, self))
+
+    def remove(self, init):
+        i = super().remove(init)
+        self._solvers.remove(self._solvers[i])
 
     @property
     def menu(self):
@@ -22,37 +24,26 @@ class SolverTree(FEMTreeItem):
         for group, sols in solvers.items():
             sub = self._menu.addMenu(group)
             for s in sols:
-                sub.addAction(QtWidgets.QAction("Add " + s.name, self.treeWidget(), triggered=lambda x, y=s: self.__add(y)))
+                sub.addAction(QtWidgets.QAction("Add " + s.name, self.treeWidget(), triggered=lambda x, y=s: self.__add(y())))
         return self._menu
 
-    def __add(self, solver):
-        self.beginInsertRow(len(self._children))
-        s = solver()
+    def __add(self, s):
         self._solvers.append(s)
-        self._children.append(_SolverGUI(s, self))
-        self.endInsertRow()
-
-    def remove(self, init):
-        i = self._children.index(init)
-        self.beginRemoveRow(i)
-        self._solvers.remove(self._solvers[i])
-        self._children.remove(init)
-        self.endRemoveRow()
+        super().append(_SolverGUI(s, self))
 
 
 class _SolverGUI(FEMTreeItem):
     def __init__(self, solver, parent):
-        super().__init__(parent)
+        super().__init__(parent, children=[_SubSolver(d, self) for d in solver.subSolvers])
         self._solver = solver
-        self._children = [_SubSolver(d, self) for d in solver.subSolvers]
+
+    def remove(self, init):
+        i = super().remove(init)
+        self._solver.subSolvers.remove(self._solver.subSolvers[i])
 
     @property
     def name(self):
         return self._solver.name
-
-    @property
-    def children(self):
-        return self._children
 
     @property
     def menu(self):
@@ -63,17 +54,8 @@ class _SolverGUI(FEMTreeItem):
         return self._menu
 
     def __add(self, type):
-        self.beginInsertRow(len(self._children))
         i = self._solver.addSubSolver(type)
-        self._children.append(_SubSolver(i, self))
-        self.endInsertRow()
-
-    def remove(self, init):
-        i = self._children.index(init)
-        self.beginRemoveRow(i)
-        self._solver.subSolvers.remove(self._solver.subSolvers[i])
-        self._children.remove(init)
-        self.endRemoveRow()
+        super().append(_SubSolver(i, self))
 
 
 class _SubSolver(FEMTreeItem):

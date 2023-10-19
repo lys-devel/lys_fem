@@ -1,16 +1,20 @@
+import os
 from . import mfem
 
 
-def generateSolver(fem, models):
+def generateSolver(fem, mesh, models):
     solverDict = {s.name: s for s in [StationarySolver]}
-    return [solverDict[s.name](fem, s, models) for s in fem.solvers]
+    return [solverDict[s.name](fem, mesh, s, models, "Solver" + str(i)) for i, s in enumerate(fem.solvers)]
 
 
 class StationarySolver:
-    def __init__(self, fem, solver, models):
+    def __init__(self, fem, mesh, solver, models, dirname):
         self._fem = fem
+        self._mesh = mesh
         self._solver = solver
         self._models = models
+        self._dirname = dirname
+        os.makedirs("Solutions/" + self._dirname, exist_ok=True)
 
     def execute(self):
         subSolvers = {"Linear Solver": LinearSolver}
@@ -18,10 +22,10 @@ class StationarySolver:
         for i, sub in enumerate(self._solver.subSolvers):
             model = self._models[self._fem.models.index(sub.target)]
             solver = subSolvers[sub.name](model)
-            sol[sub.target.variableName] = solver.solve()
+            s = solver.solve()
+            sol[sub.target.variableName] = mfem.getData(s, self._mesh)
             mfem.print_("Step", i, ":", model.name, "model has been solved by", solver.name)
-        for key, value in sol.items():
-            mfem.Save(value, key)
+        mfem.saveData("Solutions/" + self._dirname + "/stationary.npz", sol)
 
     @classmethod
     @property

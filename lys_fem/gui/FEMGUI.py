@@ -12,6 +12,7 @@ from .meshGUI import MeshEditor
 from .materialGUI import MaterialTree
 from .modelGUI import ModelTree
 from .solverGUI import SolverTree
+from .solutionGUI import SolutionTree
 
 
 class FEMGUI(LysSubWindow):
@@ -23,7 +24,7 @@ class FEMGUI(LysSubWindow):
         self.__initProj()
         self.__initUI()
         self._gedit.showGeometry()
-        self.closed.connect(self.__save)
+        self.closed.connect(lambda x: self.__save())
 
     def __initProj(self):
         self._obj = FEMProject(2)
@@ -31,13 +32,12 @@ class FEMGUI(LysSubWindow):
             self.__load(self._tmpPath)
 
     def __initUI(self):
-        self._view = FEMFileSystemView()
-        # self.__createContextMenus()
         input = self.__initInputUI()
+        output = self.__initOutputUI()
 
         tab = QtWidgets.QTabWidget()
-        tab.addTab(self._view, "Project")
         tab.addTab(input, "Calculation")
+        tab.addTab(output, "Results")
 
         self.setWidget(tab)
         self.adjustSize()
@@ -73,6 +73,21 @@ class FEMGUI(LysSubWindow):
         w.setLayout(lay)
         return w
 
+    def __initOutputUI(self):
+        self._canvas_out = Canvas3d()
+        self._tree = SolutionTree(self._canvas_out)
+        self._edit = TreeStyleEditor(self._tree)
+        self._view = FEMFileSystemView()
+        self._view.selectionChanged.connect(lambda: self._tree.setSolutionPath(self._view.getCurrentPath()))
+
+        lay = QtWidgets.QHBoxLayout()
+        lay.addWidget(self._view)
+        lay.addWidget(self._edit)
+        lay.addWidget(self._canvas_out)
+        w = QtWidgets.QWidget()
+        w.setLayout(lay)
+        return w
+
     def _refresh(self):
         self._gedit.setGeometry(self._obj.geometryGenerator)
         self._mat.rootItem.setMaterials(self._obj.materials)
@@ -102,4 +117,4 @@ class FEMGUI(LysSubWindow):
         if ok:
             os.makedirs("FEM/" + text, exist_ok=True)
             self.__save(path="FEM/" + text + "/input.dic")
-            qsub.execute("python -m lys_fem.mf --input input.dic --mpi=True", "FEM/" + text, ncore=4)
+            qsub.execute("python -m lys_fem.mf --input input.dic --mpi=True", "FEM/" + text, ncore=2)
