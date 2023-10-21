@@ -7,6 +7,19 @@ from .solver import FEMSolver
 
 class FEMProject:
     def __init__(self, dim):
+        self.reset(dim)
+
+    def saveAsDictionary(self):
+        d = {"dimension": self._dim}
+        d["geometries"] = self._geom.saveAsDictionary()
+        d["mesh"] = self._mesher.saveAsDictionary()
+        d["materials"] = [m.saveAsDictionary() for m in self._materials]
+        d["models"] = [m.saveAsDictionary() for m in self._models]
+        d["solvers"] = [s.saveAsDictionary(self) for s in self._solvers]
+        d["submit"] = self._submit
+        return d
+
+    def reset(self, dim=3):
         self._dim = dim
         self._geom = GeometryGenerator()
         self._mesher = OccMesher()
@@ -15,19 +28,12 @@ class FEMProject:
         self._solvers = []
         self._submit = {}
 
-    def saveAsDictionary(self):
-        d = {"dimension": self._dim}
-        d["geometries"] = self._geom.saveAsDictionary()
-        d["materials"] = [m.saveAsDictionary() for m in self._materials]
-        d["models"] = [m.saveAsDictionary() for m in self._models]
-        d["solvers"] = [s.saveAsDictionary(self) for s in self._solvers]
-        d["submit"] = self._submit
-        return d
-
     def loadFromDictionary(self, d):
         self._dim = d.get("dimension", 3)
         if "geometries" in d:
             self._geom = GeometryGenerator.loadFromDictionary(d["geometries"])
+        if "mesh" in d:
+            self._mesher = OccMesher.loadFromDictionary(d["mesh"])
         if "materials" in d:
             self._materials = [Material.loadFromDictionary(dic) for dic in d["materials"]]
         if "models" in d:

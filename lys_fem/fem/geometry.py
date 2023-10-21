@@ -26,12 +26,12 @@ class GeometryGenerator(QtCore.QObject):
             order.execute(model)
         model.occ.removeAllDuplicates()
         model.occ.synchronize()
-        for obj in model.getEntities(3):
-            model.add_physical_group(dim=3, tags=[obj[1]])
-        for obj in model.getEntities(2):
-            model.add_physical_group(dim=2, tags=[obj[1]])
-        for obj in model.getEntities(1):
-            model.add_physical_group(dim=1, tags=[obj[1]])
+        for i, obj in enumerate(model.getEntities(3)):
+            model.add_physical_group(dim=3, tags=[obj[1]], tag=i + 1)
+        for i, obj in enumerate(model.getEntities(2)):
+            model.add_physical_group(dim=2, tags=[obj[1]], tag=i + 1)
+        for i, obj in enumerate(model.getEntities(1)):
+            model.add_physical_group(dim=1, tags=[obj[1]], tag=i + 1)
         return model
 
     @property

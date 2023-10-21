@@ -58,7 +58,6 @@ class LinearSolver:
 
     def solve(self):
         x, _ = self._model.getInitialValue()
-        return x
         a = self._model.assemble_a()
         b = self._model.assemble_b()
         ess_tdof_list = self._model.essential_tdof_list()
@@ -79,7 +78,7 @@ class LinearSolver:
         solver.SetRelTol(rel_tol)
         solver.SetAbsTol(0.0)
         solver.SetMaxIter(100)
-        solver.SetPrintLevel(0)
+        solver.SetPrintLevel(1)
         solver.SetPreconditioner(prec)
         solver.SetOperator(A)
         return solver, prec

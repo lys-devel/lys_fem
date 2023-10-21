@@ -10,7 +10,8 @@ class ElasticModel(mfem.SecondOrderTimeDependentOperator):
         self._fec = mfem.H1_FECollection(order, self._dim)
         self._fespace = mfem.FiniteElementSpace(mesh, self._fec, model.variableDimension(), mfem.Ordering.byVDIM)
         self._mat = mat
-        self._dirichlet = []
+        self._bdr_stress = None
+        self._dirichlet = None
         super().__init__(self._fespace.GetTrueVSize(), 0)
 
     @classmethod
@@ -33,11 +34,11 @@ class ElasticModel(mfem.SecondOrderTimeDependentOperator):
     def getInitialValue(self):
         return self._x_gf, self._xt_gf
 
-    def setBoundaryStress(self, n_sigma):
-        self._boundary_stress = n_sigma
+    def setBoundaryStress(self, stress):
+        self._bdr_stress = stress
 
-    def setDirichletBoundary(self, boundaries):
-        self._dirichlet = boundaries
+    def setDirichletBoundary(self, dirichlet_dict):
+        self._dirichlet = dirichlet_dict
 
     def assemble_m(self):
         m = mfem.ParBilinearForm(self._fespace)
@@ -46,34 +47,30 @@ class ElasticModel(mfem.SecondOrderTimeDependentOperator):
         return m
 
     def assemble_a(self):
-        # 11. Set up the parallel bilinear form a(.,.) on the finite element space
-        #     corresponding to the linear elasticity integrator with piece-wise
-        #     constants coefficient lambda and mu.
         a = mfem.BilinearForm(self._fespace)
         a.AddDomainIntegrator(_ElasticityIntegrator(self._mat["Elasticity"]["C"]))
         a.Assemble()
         return a
 
     def assemble_b(self):
-        f = mfem.VectorArrayCoefficient(self._mesh.Dimension())
-        # for d in range(self._dim):
-        #    pull_force = mfem.Vector(self._boundary_stress.T[d])
-        #    f.Set(d, mfem.PWConstCoefficient(pull_force))
-
         b = mfem.LinearForm(self._fespace)
-        # b.AddBoundaryIntegrator(mfem.VectorBoundaryLFIntegrator(f))
+        if self._bdr_stress is not None:
+            b.AddBoundaryIntegrator(mfem.VectorBoundaryLFIntegrator(self._bdr_stress))
         b.Assemble()
         return b
 
     def essential_tdof_list(self):
-        if len(self._dirichlet) == 0:
+        if self._dirichlet is None:
             return mfem.intArray()
-        ess_bdr = mfem.intArray(self._mesh.bdr_attributes.Max())
-        ess_bdr.Assign(0)  # ess_bdr = [0,0,0]
-        for i in self._dirichlet:
-            ess_bdr[i] = 1  # ess_bdr = [1,0,0]
-        ess_tdof_list = mfem.intArray()
-        self._fespace.GetEssentialTrueDofs(ess_bdr, ess_tdof_list)  # ess_tdof_list = list of dofs
+        res = []
+        for axis, b in self._dirichlet.items():
+            ess_bdr = mfem.intArray(self._mesh.bdr_attributes.Max())
+            ess_bdr.Assign(0)
+            for i in b:
+                ess_bdr[i - 1] = 1
+            ess_tdof_list = mfem.intArray()
+            self._fespace.GetEssentialTrueDofs(ess_bdr, ess_tdof_list, axis)
+            res.extend([i for i in ess_tdof_list])
         return ess_tdof_list
 
 

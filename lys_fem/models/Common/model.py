@@ -70,7 +70,9 @@ class BaseModel(FEMModel):
             i += 1
         name = bdr.name + str(i)
         if bdr == DirichletBoundary:
-            obj = bdr(name)
+            obj = bdr(name, [False] * self._nvar)
+        elif bdr == NeumannBoundary:
+            obj = bdr(name, ["0"] * self._nvar)
         self._bdrs.append(obj)
         return obj
 

@@ -3,23 +3,48 @@ import numpy as np
 
 import gmsh
 from lys import Wave
+from .geometry import GeometrySelection
 
 
 class OccMesher(object):
     _keys = {1: "line", 2: "triangle", 3: "quad", 4: "tetra", 5: "hexa", 6: "prism", 7: "pyramid"}
 
-    def __init__(self):
+    def __init__(self, refinement=0, partialRefine=None, periodicity=None):
         super().__init__()
-        self._refine = 0
-        self._partialRefine = {}
+        self._refine = refinement
+        if partialRefine is None:
+            partialRefine = {}
+        self._partialRefine = partialRefine
+        if periodicity is None:
+            periodicity = []
+        self._periodicity = periodicity
 
     def setPartialRefinement(self, dim, tag, factor):
         self._partialRefine[(dim, tag)] = factor
 
+    @property
+    def refinement(self):
+        return self._refine
+
     def setRefinement(self, n):
         self._refine = n
 
+    @property
+    def periodicPairs(self):
+        return self._periodicity
+
     def _generate(self, model):
+        # Set periodicities
+        if len(model.getPhysicalGroups(3)) != 0:
+            sdim = 2
+        else:
+            sdim = 1
+        ent = [tag for dim, tag in model.getEntities(sdim)]
+        for pair in self._periodicity:
+            for p1, p2 in zip(pair[0].getSelection(), pair[1].getSelection()):
+                t = self.__getTransform(model, sdim, ent[p1 - 1], ent[p2 - 1])
+                model.mesh.setPeriodic(sdim, [ent[p1 - 1]], [ent[p2 - 1]], t)
+
         # prepare partial refinement
         self._refineData = []
         if len(self._partialRefine) != 0:
@@ -35,11 +60,24 @@ class OccMesher(object):
                     tagSet = set(edges)
                 self._refineData.append((tagSet, factor))
             model.mesh.setSizeCallback(self.__callback)
+
         # generate and refine
         model.mesh.setTransfiniteAutomatic()
         model.mesh.generate()
         for _ in range(self._refine):
             model.mesh.refine()
+
+    def __getTransform(self, model, sdim, e1, e2):
+        """
+        Consider only parallel shift.
+        """
+        c1 = np.array([model.getValue(*obj, []) for obj in model.getBoundary([(sdim, e1)], recursive=True)])
+        c2 = np.array([model.getValue(*obj, []) for obj in model.getBoundary([(sdim, e2)], recursive=True)])
+        for c in c2:
+            shift = c1[0] - c
+            dist = max([min(np.linalg.norm(c2 - (d - shift), axis=1)) for d in c1])
+            if dist < 1e-3:
+                return [1, 0, 0, shift[0], 0, 1, 0, shift[1], 0, 0, 1, shift[2], 0, 0, 0, 1]
 
     def __callback(self, dim, tag, x, y, z, lc):
         if dim == 1:
@@ -84,3 +122,12 @@ class OccMesher(object):
         self._generate(model)
         gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
         gmsh.write(file)
+
+    def saveAsDictionary(self):
+        pairs = [(p[0].saveAsDictionary(), p[1].saveAsDictionary()) for p in self._periodicity]
+        return {"refine": self.refinement, "partial": self._partialRefine, "periodicity": pairs}
+
+    @classmethod
+    def loadFromDictionary(cls, d):
+        pairs = [(GeometrySelection.loadFromDictionary(p[0]), GeometrySelection.loadFromDictionary(p[1])) for p in d.get("periodicity", [])]
+        return OccMesher(d["refine"], d["partial"], pairs)

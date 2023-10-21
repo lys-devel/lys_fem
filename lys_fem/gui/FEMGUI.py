@@ -91,6 +91,7 @@ class FEMGUI(LysSubWindow):
 
     def _refresh(self):
         self._gedit.setGeometry(self._obj.geometryGenerator)
+        self._medit.setMesher(self._obj.mesher)
         self._mat.rootItem.setMaterials(self._obj.materials)
         self._model.rootItem.setModels(self._obj.models)
         self._solver.rootItem.setSolvers(self._obj.solvers)
@@ -110,7 +111,7 @@ class FEMGUI(LysSubWindow):
     def __new(self):
         dim, ok = QtWidgets.QInputDialog.getInt(self, "Dimension", "Enter the dimension of simulation.", value=3, min=1, max=3)
         if ok:
-            self._obj = FEMProject(dim)
+            self._obj.reset(dim)
             self._refresh()
 
     def __submit(self):
@@ -123,11 +124,11 @@ class FEMGUI(LysSubWindow):
             self.__save(path=path + "/input.dic")
             ncore = 1 if sub["type"] == "Serial" else sub["ncore"]
             if sub["type"] == "Serial":
-                qsub.execute("python -m lys_fem.mf --input input.dic", path, ncore=ncore)
+                qsub.execute("python -m lys_fem.mf", path, ncore=ncore)
             if sub["type"] == "Parallel":
-                qsub.execute("python -m lys_fem.mf --input input.dic --mpi=True", path, ncore=ncore)
+                qsub.execute("python -m lys_fem.mf --mpi=True", path, ncore=ncore)
             elif sub["type"] == "qsub":
-                command = "python -m lys_fem.mf --input input.dic --mpi=True"
+                command = "python -m lys_fem.mf --mpi=True"
                 qsub.submit(command, path=path, ncore=ncore, nodes=sub["nnodes"], name="mfem", queue=sub["queue"])
 
     def __loadProj(self):
@@ -135,7 +136,7 @@ class FEMGUI(LysSubWindow):
         ok = d.exec_()
         if ok:
             path = "FEM/" + d.result + "/input.dic"
-            self._obj = FEMProject.fromFile(path)
+            self.__load(path)
             self._refresh()
 
 
