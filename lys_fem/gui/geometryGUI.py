@@ -35,7 +35,9 @@ class GeometryEditor(QtWidgets.QWidget):
         geom = self._generate()
         with self._canvas.delayUpdate():
             self._canvas.clear()
-            self._canvas.append(OccMesher().getMeshWave(geom, dim=self._obj.dimension))
+            for m in OccMesher().getMeshWave(geom, dim=self._obj.dimension):
+                obj = self._canvas.append(m)
+                obj.setColor("#cccccc", type="color")
 
     def _generate(self):
         if self._generateAll.isChecked():

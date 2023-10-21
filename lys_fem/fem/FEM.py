@@ -13,6 +13,7 @@ class FEMProject:
         self._materials = [Material("Material1")]
         self._models = []
         self._solvers = []
+        self._submit = {}
 
     def saveAsDictionary(self):
         d = {"dimension": self._dim}
@@ -20,6 +21,7 @@ class FEMProject:
         d["materials"] = [m.saveAsDictionary() for m in self._materials]
         d["models"] = [m.saveAsDictionary() for m in self._models]
         d["solvers"] = [s.saveAsDictionary(self) for s in self._solvers]
+        d["submit"] = self._submit
         return d
 
     def loadFromDictionary(self, d):
@@ -32,6 +34,8 @@ class FEMProject:
             self._models = [FEMModel.loadFromDictionary(dic) for dic in d["models"]]
         if "solvers" in d:
             self._solvers = [FEMSolver.loadFromDictionary(self, dic) for dic in d["solvers"]]
+        if "submit" in d:
+            self._submit = d["submit"]
 
     @classmethod
     def fromFile(cls, file):
@@ -64,6 +68,10 @@ class FEMProject:
     @property
     def solvers(self):
         return self._solvers
+
+    @property
+    def submitSetting(self):
+        return self._submit
 
     def getMeshWave(self, dim=None, nomesh=False):
         if dim is None:

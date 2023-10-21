@@ -40,6 +40,7 @@ class _pyvistaSurface(SurfaceData):
         self._edges = self._mesh.extract_feature_edges(boundary_edges=True)
         self._obj = canvas.plotter.add_mesh(self._mesh, scalars=wave.data)
         self._obje = canvas.plotter.add_mesh(self._edges, color='k', line_width=3)
+        self._type = "scalars"
 
     def remove(self):
         self.canvas().plotter.remove_actor(self._obj)
@@ -51,9 +52,15 @@ class _pyvistaSurface(SurfaceData):
     def _setColor(self, color, type):
         if type == "color":
             c = QtGui.QColor(color)
-            self._obj.GetProperty().SetColor([c.redF(), c.greenF(), c.blueF()])
-        if type == "scalors":
-            self.canvas.plotter.update_scalars(color, self._obj)
+            if self._type == "scalars":
+                self.canvas().plotter.remove_actor(self._obj)
+                self._obj = self.canvas().plotter.add_mesh(self._mesh, color=[c.redF(), c.greenF(), c.blueF()])
+            else:
+                self._obj.GetProperty().SetColor([c.redF(), c.greenF(), c.blueF()])
+            self._type = "color"
+        if type == "scalars":
+            self.canvas().plotter.update_scalars(color, self._obj)
+            self._type = "scalars"
 
     def _showEdges(self, b):
         self._obj.GetProperty().show_edges = b

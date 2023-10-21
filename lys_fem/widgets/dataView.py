@@ -7,8 +7,8 @@ class FEMFile(CommonFileParser):
 
 
 class FEMFileSystemView(CommonFileSystemView):
-    def __init__(self):
-        super().__init__(FEMFile)
+    def __init__(self, **args):
+        super().__init__(FEMFile, **args)
 
 
 class FEMFileDialog(CommonFileDialog):
