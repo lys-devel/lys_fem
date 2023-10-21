@@ -34,10 +34,11 @@ class _pyvistaSurface(SurfaceData):
 
     def __init__(self, canvas, wave):
         super().__init__(canvas, wave)
+        self._wave = wave
         faces = [np.ravel(np.hstack([np.ones((len(faces), 1), dtype=int) * _num_list[key], faces])) for key, faces in wave.note["elements"].items()]
         self._mesh = pv.PolyData(wave.x, np.hstack(faces))
         self._edges = self._mesh.extract_feature_edges(boundary_edges=True)
-        self._obj = canvas.plotter.add_mesh(self._mesh)
+        self._obj = canvas.plotter.add_mesh(self._mesh, scalars=wave.data)
         self._obje = canvas.plotter.add_mesh(self._edges, color='k', line_width=3)
 
     def remove(self):
@@ -51,6 +52,8 @@ class _pyvistaSurface(SurfaceData):
         if type == "color":
             c = QtGui.QColor(color)
             self._obj.GetProperty().SetColor([c.redF(), c.greenF(), c.blueF()])
+        if type == "scalors":
+            self.canvas.plotter.update_scalars(color, self._obj)
 
     def _showEdges(self, b):
         self._obj.GetProperty().show_edges = b

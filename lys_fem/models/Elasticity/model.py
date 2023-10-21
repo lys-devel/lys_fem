@@ -1,3 +1,5 @@
+import numpy as np
+from lys import Wave
 from lys.Qt import QtWidgets
 
 from ..common import BaseModel
@@ -18,6 +20,9 @@ class ElasticModel(BaseModel):
 
     def widget(self, fem, canvas):
         return _ElasticityWidget(self)
+
+    def resultWidget(self, fem, canvas, path):
+        return _ElasticSolutionWidget(fem, canvas, path)
 
     def saveAsDictionary(self):
         d = super().saveAsDictionary()
@@ -51,3 +56,53 @@ class _ElasticityWidget(QtWidgets.QWidget):
 
     def __changeDim(self, value):
         self._model.setVariableDimension(self._dim.value())
+
+
+class _ElasticSolutionWidget(QtWidgets.QWidget):
+    def __init__(self, fem, canvas, path):
+        super().__init__()
+        self._fem = fem
+        self._canvas = canvas
+        self._path = path
+        self.__initlayout()
+
+    def __initlayout(self):
+        self._list = QtWidgets.QComboBox()
+        self._list.addItems(["ux", "uy", "uz"])
+
+        buttons = QtWidgets.QHBoxLayout()
+        buttons.addWidget(QtWidgets.QPushButton("Show", clicked=self.__show))
+
+        layout = QtWidgets.QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._list)
+        layout.addLayout(buttons)
+        self.setLayout(layout)
+
+    def __show(self):
+        data = self.__loadData()
+        with self._canvas.delayUpdate():
+            self._canvas.clear()
+            for w in data:
+                self._canvas.append(w)
+
+    def __loadData(self):
+        var = self._list.currentText()
+        data = np.load(self._path + "/stationary.npz")
+        mesh = np.load(self._path + "/stationary_mesh.npz")
+        if var == "ux":
+            val = data["u"][:, 0]
+        if var == "uy":
+            val = data["u"][:, 1]
+        if var == "uz":
+            val = data["u"][:, 2]
+        res = []
+        i = 0
+        while 'coords' + str(i) in mesh:
+            values = val[mesh["nodes" + str(i)]]
+            coords = mesh["coords" + str(i)]
+            keys_valid = [key for key in ["point", "line", "triangle", "quad", "tetra", "hexa", "prism", "pyramid"] if key + str(i) in mesh]
+            elems = {key: mesh[key + str(i)] for key in keys_valid}
+            res.append(Wave(values, coords, elements=elems))
+            i += 1
+        return res

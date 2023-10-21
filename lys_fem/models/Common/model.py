@@ -55,9 +55,6 @@ class BaseModel(FEMModel):
     def initialConditions(self):
         return self._init
 
-    def resultWidget(self, fem, canvas):
-        return QtWidgets.QLabel("test")
-
     def addDomainCondition(self, cond):
         i = 1
         while cond.name + str(i) in [c.objName for c in self._dcs]:

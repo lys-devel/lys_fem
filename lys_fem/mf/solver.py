@@ -25,7 +25,9 @@ class StationarySolver:
             s = solver.solve()
             sol[sub.target.variableName] = mfem.getData(s, self._mesh)
             mfem.print_("Step", i, ":", model.name, "model has been solved by", solver.name)
+        meshes = mfem.getMesh(self._mesh, self._fem.dimension)
         mfem.saveData("Solutions/" + self._dirname + "/stationary.npz", sol)
+        mfem.saveData("Solutions/" + self._dirname + "/stationary_mesh.npz", meshes)
 
     @classmethod
     @property
@@ -56,6 +58,7 @@ class LinearSolver:
 
     def solve(self):
         x, _ = self._model.getInitialValue()
+        return x
         a = self._model.assemble_a()
         b = self._model.assemble_b()
         ess_tdof_list = self._model.essential_tdof_list()

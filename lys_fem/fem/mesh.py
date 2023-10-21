@@ -53,17 +53,19 @@ class OccMesher(object):
         result = []
         for dim, grp in model.getPhysicalGroups(dim):
             coords_group = np.zeros((0, 3))
+            nodes_group = np.zeros((0,), dtype=int)
             elements = {}
             for obj in model.getEntitiesForPhysicalGroup(dim, grp):
-                coords, elem = self.__getMeshForEntity(model, dim, obj)
+                coords, elem, nodes = self.__getMeshForEntity(model, dim, obj)
                 coords_group = np.vstack([coords_group, np.reshape(coords, (-1, 3))])
+                nodes_group = np.hstack([nodes_group, nodes], dtype=int)
                 for type, nodetag in elem.items():
                     key = self._keys[type]
                     if key not in elements:
                         elements[key] = nodetag
                     else:
                         elements[key] = np.vstack([elements[key], nodetag])
-            result.append(Wave(np.empty((coords_group.shape[0],)), coords_group, elements=elements, tag=grp))
+            result.append(Wave(np.empty((coords_group.shape[0],)), coords_group, elements=elements, tag=grp, nodes=nodes_group))
         return result
 
     def __getMeshForEntity(self, model, dim, obj):
@@ -76,7 +78,7 @@ class OccMesher(object):
             nodetag = sorter[np.searchsorted(nodes, nodetag, sorter=sorter)]
             nodetag = np.reshape(nodetag, (-1, nNodes))
             elem[type] = nodetag
-        return np.reshape(coords, (-1, 3)), elem
+        return np.reshape(coords, (-1, 3)), elem, nodes
 
     def export(self, model, file):
         self._generate(model)
