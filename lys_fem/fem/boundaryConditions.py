@@ -1,5 +1,5 @@
 from lys.Qt import QtWidgets
-from lys_fem import GeometrySelection
+from .geometry import GeometrySelection
 from lys_fem.widgets import GeometrySelector
 
 

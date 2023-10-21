@@ -2,10 +2,10 @@ import numpy as np
 from lys import Wave
 from lys.Qt import QtWidgets
 
-from ..common import BaseModel
+from lys_fem import FEMModel
 
 
-class ElasticModel(BaseModel):
+class ElasticModel(FEMModel):
     def __init__(self, nvar=3, *args, **kwargs):
         super().__init__(nvar, *args, **kwargs)
 
