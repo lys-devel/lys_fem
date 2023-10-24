@@ -3,16 +3,17 @@ from .. import mfem
 
 
 class ElasticModel(mfem.SecondOrderTimeDependentOperator):
-    def __init__(self, model, mesh, mat, order=1):
+    def __init__(self, fec, model, mesh, mat):
         # Define a parallel finite element space on the parallel mesh.
         self._mesh = mesh
         self._dim = mesh.Dimension()
-        self._fec = mfem.H1_FECollection(order, self._dim)
+        self._fec = fec
         self._fespace = mfem.FiniteElementSpace(mesh, self._fec, model.variableDimension(), mfem.Ordering.byVDIM)
         self._mat = mat
         self._bdr_stress = None
         self._dirichlet = None
         super().__init__(self._fespace.GetTrueVSize(), 0)
+
 
     @classmethod
     @property
@@ -41,7 +42,7 @@ class ElasticModel(mfem.SecondOrderTimeDependentOperator):
         self._dirichlet = dirichlet_dict
 
     def assemble_m(self):
-        m = mfem.ParBilinearForm(self._fespace)
+        m = mfem.BilinearForm(self._fespace)
         m.AddDomainIntegrator(mfem.VectorMassIntegrator())
         m.Assemble()
         return m

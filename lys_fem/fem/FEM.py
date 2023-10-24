@@ -1,7 +1,7 @@
 from .geometry import GeometryGenerator
 from .mesh import OccMesher
 from .material import Material
-from .model import FEMModel
+from .model import FEMModel, loadModel
 from .solver import FEMSolver
 
 
@@ -37,7 +37,7 @@ class FEMProject:
         if "materials" in d:
             self._materials = [Material.loadFromDictionary(dic) for dic in d["materials"]]
         if "models" in d:
-            self._models = [FEMModel.loadFromDictionary(dic) for dic in d["models"]]
+            self._models = [loadModel(dic) for dic in d["models"]]
         if "solvers" in d:
             self._solvers = [FEMSolver.loadFromDictionary(self, dic) for dic in d["solvers"]]
         if "submit" in d:

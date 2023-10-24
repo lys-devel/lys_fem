@@ -1,3 +1,4 @@
+import os
 import numpy as np
 from lys import Wave
 from lys.Qt import QtWidgets
@@ -23,17 +24,6 @@ class ElasticModel(FEMModel):
 
     def resultWidget(self, fem, canvas, path):
         return _ElasticSolutionWidget(fem, canvas, path)
-
-    def saveAsDictionary(self):
-        d = super().saveAsDictionary()
-        d["nvar"] = self._nvar
-        return d
-
-    @classmethod
-    def loadFromDictionary(cls, d):
-        nvar = d["nvar"]
-        init, bdr, domain = cls._loadConditions(d)
-        return ElasticModel(nvar, init, bdr, domain)
 
 
 class _ElasticityWidget(QtWidgets.QWidget):
@@ -69,6 +59,9 @@ class _ElasticSolutionWidget(QtWidgets.QWidget):
     def __initlayout(self):
         self._list = QtWidgets.QComboBox()
         self._list.addItems(["ux", "uy", "uz"])
+        self._time = QtWidgets.QSpinBox()
+        self._time.setRange(0, 10000000)
+        self._time.valueChanged.connect(self.__show)
 
         buttons = QtWidgets.QHBoxLayout()
         buttons.addWidget(QtWidgets.QPushButton("Show", clicked=self.__show))
@@ -76,6 +69,7 @@ class _ElasticSolutionWidget(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._list)
+        layout.addWidget(self._time)
         layout.addLayout(buttons)
         self.setLayout(layout)
 
@@ -84,12 +78,22 @@ class _ElasticSolutionWidget(QtWidgets.QWidget):
         with self._canvas.delayUpdate():
             self._canvas.clear()
             for w in data:
-                self._canvas.append(w)
+                o = self._canvas.append(w)
+                o.showEdges(True)
 
     def __loadData(self):
         var = self._list.currentText()
-        data = np.load(self._path + "/stationary.npz")
-        mesh = np.load(self._path + "/stationary_mesh.npz")
+        if os.path.exists(self._path + "/stationary.npz") and False:
+            data = np.load(self._path + "/stationary.npz")
+            mesh = np.load(self._path + "/stationary_mesh.npz")
+        else:
+            data = np.load(self._path + "/tdep" + str(self._time.value()) + ".npz")
+            i = 0
+            meshes = []
+            while os.path.exists(self._path + "/tdep_mesh" + str(i) + ".npz"):
+                meshes.append(np.load(self._path + "/tdep_mesh" + str(i) + ".npz"))
+                i += 1
+            mesh = np.load(self._path + "/tdep_mesh.npz")
         if var == "ux":
             val = data["u"][:, 0]
         if var == "uy":
@@ -97,12 +101,8 @@ class _ElasticSolutionWidget(QtWidgets.QWidget):
         if var == "uz":
             val = data["u"][:, 2]
         res = []
-        i = 0
-        while 'coords' + str(i) in mesh:
-            values = val[mesh["nodes" + str(i)]]
-            coords = mesh["coords" + str(i)]
-            keys_valid = [key for key in ["point", "line", "triangle", "quad", "tetra", "hexa", "prism", "pyramid"] if key + str(i) in mesh]
-            elems = {key: mesh[key + str(i)] for key in keys_valid}
-            res.append(Wave(values, coords, elements=elems))
-            i += 1
+        for mesh in meshes:
+            keys = ["point", "line", "triangle", "quad", "tetra", "hexa", "prism", "pyramid"]
+            elems = {key: mesh[key] for key in keys if key in mesh}
+            res.append(Wave(val[mesh["nodes"]], mesh["coords"], elements=elems))
         return res

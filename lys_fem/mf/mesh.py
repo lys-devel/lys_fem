@@ -11,7 +11,7 @@ else:
 
 def generateMesh(file):
     if mf.parallel:
-        MPI.COMM_WORLD.scatter(0, root=0)
+        MPI.COMM_WORLD.scatter([0] * MPI.COMM_WORLD.size, root=0)
     mesh = mfem.Mesh(file, 1, 1)
     if len([i for i in mesh.bdr_attributes]) == 0:  # For 1D mesh, we have to set boundary manually.
         # Load file by gmsh

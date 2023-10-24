@@ -58,6 +58,33 @@ class RectGUI(QtWidgets.QWidget):
         self._obj.args = [w.value() for w in self._values]
 
 
+class DiskGUI(QtWidgets.QWidget):
+    def __init__(self, obj):
+        super().__init__()
+        self._obj = obj
+        self.__initlayout()
+        for v, w in zip(self._obj.args, self._values):
+            w.setValue(v)
+
+    def __initlayout(self):
+        self._values = [ScientificSpinBox(valueChanged=self.__changed) for i in range(5)]
+        grid = QtWidgets.QGridLayout()
+        grid.addWidget(QtWidgets.QLabel("x"), 0, 0)
+        grid.addWidget(QtWidgets.QLabel("y"), 0, 1)
+        grid.addWidget(QtWidgets.QLabel("z"), 0, 2)
+        grid.addWidget(self._values[0], 1, 0)
+        grid.addWidget(self._values[1], 1, 1)
+        grid.addWidget(self._values[2], 1, 2)
+        grid.addWidget(QtWidgets.QLabel("rx"), 2, 0)
+        grid.addWidget(QtWidgets.QLabel("ry"), 2, 1)
+        grid.addWidget(self._values[3], 3, 0)
+        grid.addWidget(self._values[4], 3, 1)
+        self.setLayout(grid)
+
+    def __changed(self):
+        self._obj.args = [w.value() for w in self._values]
+
+
 class LineGUI(QtWidgets.QWidget):
     def __init__(self, obj):
         super().__init__()

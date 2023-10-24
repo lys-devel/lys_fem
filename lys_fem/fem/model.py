@@ -86,6 +86,7 @@ class FEMModel:
 
     def saveAsDictionary(self):
         d = {"model": self.name}
+        d["nvar"] = self._nvar
         d["init"] = [i.saveAsDictionary() for i in self.initialConditions]
         d["bdr"] = [b.saveAsDictionary() for b in self.boundaryConditions]
         d["domain"] = [d.saveAsDictionary() for d in self.domainConditions]
@@ -105,10 +106,16 @@ class FEMModel:
         del d["type"]
         return c.loadFromDictionary(d)
 
-    @staticmethod
-    def loadFromDictionary(d):
-        cls_list = set(sum(models.values(), []))
-        cls_dict = {m.name: m for m in cls_list}
-        model = cls_dict[d["model"]]
-        del d["model"]
-        return model.loadFromDictionary(d)
+    @classmethod
+    def loadFromDictionary(cls, d):
+        nvar = d["nvar"]
+        init, bdr, domain = cls._loadConditions(d)
+        return cls(nvar, init, bdr, domain)
+
+
+def loadModel(d):
+    cls_list = set(sum(models.values(), []))
+    cls_dict = {m.name: m for m in cls_list}
+    model = cls_dict[d["model"]]
+    del d["model"]
+    return model.loadFromDictionary(d)

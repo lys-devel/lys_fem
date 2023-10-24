@@ -3,7 +3,7 @@ from . import mfem
 
 
 def generateSolver(fem, mesh, models):
-    solverDict = {s.name: s for s in [StationarySolver]}
+    solverDict = {s.name: s for s in [StationarySolver, TimeDependentSolver]}
     return [solverDict[s.name](fem, mesh, s, models, "Solver" + str(i)) for i, s in enumerate(fem.solvers)]
 
 
@@ -16,7 +16,7 @@ class StationarySolver:
         self._dirname = dirname
         os.makedirs("Solutions/" + self._dirname, exist_ok=True)
 
-    def execute(self):
+    def execute(self, fec):
         subSolvers = {"Linear Solver": LinearSolver}
         sol = {}
         for i, sub in enumerate(self._solver.subSolvers):
@@ -25,7 +25,7 @@ class StationarySolver:
             s = solver.solve()
             sol[sub.target.variableName] = mfem.getData(s, self._mesh)
             mfem.print_("Step", i, ":", model.name, "model has been solved by", solver.name)
-        meshes = mfem.getMesh(self._mesh, self._fem.dimension)
+        meshes = mfem.getMesh(fec, self._mesh, self._fem.dimension)
         mfem.saveData("Solutions/" + self._dirname + "/stationary.npz", sol)
         mfem.saveData("Solutions/" + self._dirname + "/stationary_mesh.npz", meshes)
 
@@ -36,20 +36,35 @@ class StationarySolver:
 
 
 class TimeDependentSolver:
-    def __init__(self, solver):
+    def __init__(self, fem, mesh, solver, models, dirname):
+        self._fem = fem
+        self._mesh = mesh
         self._solver = solver
+        self._models = models
+        self._dirname = dirname
+        os.makedirs("Solutions/" + self._dirname, exist_ok=True)
+
+    def execute(self, fec):
+        subSolvers = {"Generalized Alpha Solver": GeneralizedAlphaSolver}
+        solvers = [subSolvers[sub.name](self._models[self._fem.models.index(sub.target)]) for sub in self._solver.subSolvers]
+        meshes = mfem.getMesh(fec, self._mesh)
+        for i, m in enumerate(meshes):
+            mfem.saveData("Solutions/" + self._dirname + "/tdep_mesh" + str(i) + ".npz", m.dictionary())
+        t = 0
+        for i, dt in enumerate(self._solver.getStepList()):
+            mfem.print_("t =", t)
+            sol = {}
+            for s, sub in zip(solvers, self._solver.subSolvers):
+                x = s.step(t, dt)
+                sol[sub.variableName] = mfem.getData(x, self._mesh)
+            sol["time"] = t
+            mfem.saveData("Solutions/" + self._dirname + "/tdep" + str(i) + ".npz", sol)
+            t = t + dt
 
     @classmethod
     @property
     def name(cls):
-        return "Stationary Solver"
-
-    def execute(self):
-        t, dt = 0.0, 0.01
-        for ti in range(51):
-            t, dt = model.step(t, dt)
-            print(ti, t)
-            # oper.SetParameters(u)
+        return "Time Dependent Solver"
 
 
 class LinearSolver:
@@ -67,21 +82,10 @@ class LinearSolver:
         X = mfem.Vector()
         a.FormLinearSystem(ess_tdof_list, x, b, A, X, B)
 
-        solver, prec = self._getDefaultSolver(A)
+        solver, prec = _getDefaultSolver(A)
         solver.Mult(B, X)  # Solve AX=B
         a.RecoverFEMSolution(X, b, x)
         return x
-
-    def _getDefaultSolver(self, A, rel_tol=1e-8):
-        solver, prec = mfem.getSolver()
-        solver.iterative_mode = False
-        solver.SetRelTol(rel_tol)
-        solver.SetAbsTol(0.0)
-        solver.SetMaxIter(100)
-        solver.SetPrintLevel(1)
-        solver.SetPreconditioner(prec)
-        solver.SetOperator(A)
-        return solver, prec
 
     @property
     def name(self):
@@ -99,26 +103,26 @@ class GeneralizedAlphaSolver(mfem.SecondOrderTimeDependentOperator):
         self._ode_solver = mfem.GeneralizedAlpha2Solver(self._value)
         self._ode_solver.Init(self)
 
-        x_gf, xt_gf = self._model.getInitialValue()
+        self._x_gf, self._xt_gf = self._model.getInitialValue()
         self._x = mfem.Vector()
         self._xt = mfem.Vector()  # dx/dt
-        x_gf.GetTrueDofs(self._x)
-        xt_gf.GetTrueDofs(self._xt)
+        self._x_gf.GetTrueDofs(self._x)
+        self._xt_gf.GetTrueDofs(self._xt)
 
         self._K_op = self._model.assemble_a()
         self._M_op = self._model.assemble_m()
         ess_tdof_list = self._model.essential_tdof_list()
 
-        self._K0 = mfem.HypreParMatrix()
-        self._K = mfem.HypreParMatrix()
+        self._K0 = mfem.SparseMatrix()
+        self._K = mfem.SparseMatrix()
         dummy = mfem.intArray()
         self._K_op.FormSystemMatrix(dummy, self._K0)
         self._K_op.FormSystemMatrix(ess_tdof_list, self._K)
 
-        self._M = mfem.HypreParMatrix()
+        self._M = mfem.SparseMatrix()
         self._M_op.FormSystemMatrix(ess_tdof_list, self._M)
 
-        self._M_solver, self._M_prec = self._getDefaultSolver(self._M)
+        self._M_solver, self._M_prec = _getDefaultSolver(self._M)
         self._T = None
 
         self._initialized = True
@@ -126,7 +130,9 @@ class GeneralizedAlphaSolver(mfem.SecondOrderTimeDependentOperator):
     def step(self, t, dt):
         if not self._initialized:
             self._initialize()
-        return self._ode_solver.Step(self._x, self._xt, t, dt)
+        self._ode_solver.Step(self._x, self._xt, t, dt)
+        self._x_gf.SetFromTrueDofs(self._x)
+        return self._x_gf
 
     def Mult(self, u, du_dt, d2udt2):
         # Compute d2udt2 = M^{-1}*-K(u)
@@ -139,7 +145,7 @@ class GeneralizedAlphaSolver(mfem.SecondOrderTimeDependentOperator):
         # Solve the equation: d2udt2 = M^{-1}*[-K(u + fac0*d2udt2)]
         if self._T is None:
             self._T = mfem.Add(1.0, self._M, fac0, self._K)
-            self._T_solver, self._T_prec = self._getDefaultSolver(self._T)
+            self._T_solver, self._T_prec = _getDefaultSolver(self._T)
         z = mfem.Vector(u.Size())
         self._K0.Mult(u, z)
         z.Neg()
@@ -150,14 +156,14 @@ class GeneralizedAlphaSolver(mfem.SecondOrderTimeDependentOperator):
 
         self._T_solver.Mult(z, d2udt2)
 
-    def _getDefaultSolver(self, A, rel_tol=1e-8):
-        prec = mfem.HypreBoomerAMG(A)
-        solver = mfem.CGSolver(MPI.COMM_WORLD)
-        solver.iterative_mode = False
-        solver.SetRelTol(rel_tol)
-        solver.SetAbsTol(0.0)
-        solver.SetMaxIter(100)
-        solver.SetPrintLevel(0)
-        solver.SetPreconditioner(prec)
-        solver.SetOperator(A)
-        return solver, prec
+
+def _getDefaultSolver(A, rel_tol=1e-8):
+    solver, prec = mfem.getSolver()
+    solver.iterative_mode = False
+    solver.SetRelTol(rel_tol)
+    solver.SetAbsTol(0.0)
+    solver.SetMaxIter(100)
+    solver.SetPrintLevel(1)
+    solver.SetPreconditioner(prec)
+    solver.SetOperator(A)
+    return solver, prec

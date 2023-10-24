@@ -46,6 +46,10 @@ class _SolverGUI(FEMTreeItem):
         return self._solver.name
 
     @property
+    def widget(self):
+        return self._solver.widget()
+
+    @property
     def menu(self):
         self._menu = QtWidgets.QMenu()
         for i in self._solver.subSolverTypes:

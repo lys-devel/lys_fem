@@ -2,14 +2,14 @@
 
 from .model import models as modelList
 from .coef import generateCoefficient
-from ..models import DirichletBoundary, NeumannBoundary
+from ..fem import DirichletBoundary, NeumannBoundary
 
 
-def generateModel(fem, geom, mesh, mat):
+def generateModel(fec, fem, geom, mesh, mat):
     _modelDict = {m.name: m for m in modelList}
     models = []
     for m in fem.models:
-        model = _modelDict[m.name](m, mesh, mat)
+        model = _modelDict[m.name](fec, m, mesh, mat)
 
         # Initial conditions
         attrs = [tag for dim, tag in geom.getEntities(fem.dimension)]

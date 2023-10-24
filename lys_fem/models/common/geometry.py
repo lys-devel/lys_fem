@@ -1,6 +1,6 @@
 
 from lys_fem import addGeometry, FEMGeometry
-from .geometryGUI import BoxGUI, RectGUI, LineGUI
+from .geometryGUI import BoxGUI, RectGUI, LineGUI, DiskGUI
 
 
 class Box(FEMGeometry):
@@ -35,6 +35,22 @@ class Rect(FEMGeometry):
         return RectGUI(self)
 
 
+class Disk(FEMGeometry):
+    def __init__(self, x=0, y=0, z=0, rx=1, ry=1):
+        self.args = [x, y, z, rx, ry]
+
+    def execute(self, model):
+        model.occ.addDisk(*self.args)
+
+    @classmethod
+    @property
+    def type(cls):
+        return "disk"
+
+    def widget(self):
+        return DiskGUI(self)
+
+
 class Line(FEMGeometry):
     def __init__(self, x1=0, y1=0, z1=0, x2=1, y2=0, z2=0):
         self.args = (x1, y1, z1, x2, y2, z2)
@@ -55,4 +71,5 @@ class Line(FEMGeometry):
 
 addGeometry("Add 3D", Box)
 addGeometry("Add 2D", Rect)
+addGeometry("Add 2D", Disk)
 addGeometry("Add 1D", Line)
