@@ -28,7 +28,12 @@ class ScalarCoef(mfem.PyCoefficient):
         self._coefs = coefs
         self._funcs = _generateFuncs(coefs, dim)
 
+    def Eval(self, T, ip):
+        self._attr = T.Attribute
+        return super().Eval(T, ip)
+
     def EvalValue(self, x):
+        return _eval_attr(x, self._funcs, self._attr, self._default)
         return _eval(x, self._funcs, self._geom, self._geomDim, 0)
 
 
@@ -43,7 +48,12 @@ class VectorCoef(mfem.VectorPyCoefficient):
         self._funcs = _generateFuncs(coefs, dim)
         self._default = np.array([0] * size, dtype=float)
 
+    def Eval(self, K, T, ip):
+        self._attr = T.Attribute
+        return super().Eval(K, T, ip)
+
     def EvalValue(self, x):
+        return _eval_attr(x, self._funcs, self._attr, self._default)
         return _eval(x, self._funcs, self._geom, self._geomDim, self._default)
 
 
@@ -58,8 +68,12 @@ class MatrixCoef(mfem.MatrixPyCoefficient):
         self._funcs = _generateFuncs(coefs, dim)
         self._default = np.zeros((size, size), dtype=float)
 
+    def Eval(self, K, T, ip):
+        self._attr = T.Attribute
+        return super().Eval(K, T, ip)
+
     def EvalValue(self, x):
-        return _eval(x, self._funcs, self._geom, self._geomDim, self._default)
+        return _eval_attr(x, self._funcs, self._attr, self._default)
 
 
 def _generateFuncs(coefs, dim):
@@ -73,6 +87,13 @@ def _generateFunc(funcStr, dim):
     if dim > 2:
         vars += ",z"
     return eval("lambda " + vars + ": " + funcStr)
+
+
+def _eval_attr(x, funcs, attr, default):
+    if attr not in funcs:
+        return default
+    else:
+        return np.vectorize(lambda f: f(*x), otypes=[float])(funcs[attr])
 
 
 def _eval(x, funcs, geom, dim, default):

@@ -1,4 +1,5 @@
 import itertools
+import numpy as np
 from .. import mfem
 
 
@@ -13,7 +14,6 @@ class ElasticModel(mfem.SecondOrderTimeDependentOperator):
         self._bdr_stress = None
         self._dirichlet = None
         super().__init__(self._fespace.GetTrueVSize(), 0)
-
 
     @classmethod
     @property
@@ -49,6 +49,7 @@ class ElasticModel(mfem.SecondOrderTimeDependentOperator):
 
     def assemble_a(self):
         a = mfem.BilinearForm(self._fespace)
+        #a.AddDomainIntegrator(mfem.ElasticityIntegrator(mfem.ConstantCoefficient(1), mfem.ConstantCoefficient(1)))
         a.AddDomainIntegrator(_ElasticityIntegrator(self._mat["Elasticity"]["C"]))
         a.Assemble()
         return a
@@ -84,6 +85,8 @@ class _ElasticityIntegrator(mfem.BilinearFormIntegrator):
         self._Ce = mfem.DenseMatrix()
 
     def AssembleElementMatrix(self, el, trans, elmat):
+        import time
+        start = time.time()
         # Initialize variables
         dof, dim = el.GetDof(), el.GetDim()
         self.dshape.SetSize(dof, dim)
@@ -91,6 +94,7 @@ class _ElasticityIntegrator(mfem.BilinearFormIntegrator):
         elmat.SetSize(dof * dim)
         elmat.Assign(0.0)
 
+        print("debug0-------------", time.time() - start)
         ir = mfem.IntRules.Get(el.GetGeomType(), 2 * el.GetOrder())
         for p in range(ir.GetNPoints()):
             ip = ir.IntPoint(p)
@@ -101,12 +105,29 @@ class _ElasticityIntegrator(mfem.BilinearFormIntegrator):
             el.CalcDShape(ip, self.dshape)
             mfem.Mult(self.dshape, trans.InverseJacobian(), self.gshape)
 
-            # calculate element matrix
-            self.C.Eval(self._Ce, trans, ip)
-            for i, j, k, l in itertools.product(range(dim), range(dim), range(dim), range(dim)):
-                p, q = self.__map(i, j), self.__map(k, l)
-                for n, m in itertools.product(range(dof), range(dof)):
-                    elmat[dof * i + m, dof * k + n] += self._Ce[p, q] * w * self.gshape[n, l] * self.gshape[m, j]
+            print("debug1", time.time() - start)
+            C = self.__getC(trans, ip, dim)
+            print("debug2", time.time() - start)
+            g = self.__getGShape(self.gshape, dof, dim)
+            print("debug3", time.time() - start)
+            res = np.einsum("ijkl,nl,mj->imkn", C, g, g).reshape((dim * dof, dim * dof))
+            print("debug4", time.time() - start)
+            elmat.Add(w, mfem.DenseMatrix(res))
+            print("debug5", time.time() - start)
+
+    def __getC(self, trans, ip, dim):
+        self.C.Eval(self._Ce, trans, ip)
+        res = np.empty((dim, dim, dim, dim))
+        for i, j, k, l in itertools.product(range(dim), range(dim), range(dim), range(dim)):
+            p, q = self.__map(i, j), self.__map(k, l)
+            res[i, j, k, l] = self._Ce[p, q]
+        return res
+
+    def __getGShape(self, gshape, dof, dim):
+        res = np.empty((dof, dim))
+        for i, j in itertools.product(range(dof), range(dim)):
+            res[i, j] = gshape[i, j]
+        return res
 
     def __map(self, i, j):
         if i == j:

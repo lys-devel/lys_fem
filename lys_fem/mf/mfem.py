@@ -68,7 +68,7 @@ def print_initialize():
 
 class _Mesh:
     _key_list = {0: "point", 1: "line", 2: "triangle", 3: "quad", 4: "tetra", 5: "hexa", 6: "prism", 7: "pyramid"}
-    _num_list = {"point": 1, "line": 2, "triangle": 3, "quad": 4, "tetra": 4, "hexa": 6, "prism": 6, "pyramid": 5}
+    _num_list = {"point": 1, "line": 2, "triangle": 3, "quad": 4, "tetra": 4, "hexa": 8, "prism": 6, "pyramid": 5}
 
     def __init__(self, coordinates, elementGroups, nodes_parent):
         self.elementGroups = elementGroups

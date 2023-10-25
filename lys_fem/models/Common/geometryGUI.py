@@ -28,6 +28,7 @@ class BoxGUI(QtWidgets.QWidget):
         self.setLayout(grid)
 
     def __changed(self):
+        print([w.value() for w in self._values])
         self._obj.args = [w.value() for w in self._values]
 
 

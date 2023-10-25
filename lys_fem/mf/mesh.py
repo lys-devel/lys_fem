@@ -9,9 +9,13 @@ else:
     import mfem.ser as mfem
 
 
-def generateMesh(file):
+def generateMesh(fem, geom, file="mesh.msh"):
     if mf.parallel:
+        if MPI.COMM_WORLD.rank == 0:
+            fem.mesher.export(geom, file)
         MPI.COMM_WORLD.scatter([0] * MPI.COMM_WORLD.size, root=0)
+    else:
+        fem.mesher.export(geom, file)
     mesh = mfem.Mesh(file, 1, 1)
     if len([i for i in mesh.bdr_attributes]) == 0:  # For 1D mesh, we have to set boundary manually.
         # Load file by gmsh

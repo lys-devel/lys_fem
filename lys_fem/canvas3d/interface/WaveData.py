@@ -164,3 +164,36 @@ class WaveData3D(CanvasPart3D):
 
     def _loadAppearance(self, appearance):
         raise NotImplementedError(str(type(self)) + " does not implement _loadAppearance(appearance) method.")
+
+
+class MeshData3D(WaveData3D):
+    @saveCanvas
+    def setColor(self, color=None, type="scalars"):
+        self.__setAppearance("colorType", type)
+        self.__setAppearance("color", color)
+        self._setColor(color, type)
+
+    def showEdges(self, b):
+        """
+        Show edges of the mesh.
+
+        Args:
+            b(bool): Whether the edges of the mesh are shown.
+        """
+        self.__setAppearance("showEdges", b)
+        self._showEdges(b)
+
+    def __setAppearance(self, key, value):
+        self._appearance[key] = value
+
+    def __getAppearance(self, key, default=None):
+        return self._appearance.get(key, default)
+
+    def _loadAppearance(self, appearance):
+        pass
+
+    def _setColor(self, color, type):
+        warnings.warn(str(type(self)) + " does not implement _setColor(color, type) method.", NotImplementedWarning)
+
+    def _showEdges(self, b):
+        warnings.warn(str(type(self)) + " does not implement _showEdges(b) method.", NotImplementedWarning)

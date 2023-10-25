@@ -13,11 +13,19 @@ class _pyvistaVolume(VolumeData):
 
     def __init__(self, canvas, wave):
         super().__init__(canvas, wave)
-        mesh = pv.UnstructuredGrid({_key_list[key]: item for key, item in wave.note["elements"].items()}, wave.x)
-        self._obj = canvas.plotter.add_mesh(mesh, show_edges=True)
+        self._wave = wave
+        self._mesh = pv.UnstructuredGrid({_key_list[key]: item for key, item in wave.note["elements"].items()}, wave.x)
+        self._edges = self._mesh.extract_feature_edges(boundary_edges=True)
+        self._obj = canvas.plotter.add_mesh(self._mesh, scalars=wave.data)
+        self._obje = canvas.plotter.add_mesh(self._edges, color='k', line_width=3)
+        self._type = "scalars"
 
     def remove(self):
         self.canvas().plotter.remove_actor(self._obj)
+        self.canvas().plotter.remove_actor(self._obje)
+
+    def rayTrace(self, start, end):
+        return self._mesh.extract_surface().ray_trace(start, end, first_point=True)[0]
 
     def _updateData(self):
         return
@@ -25,8 +33,21 @@ class _pyvistaVolume(VolumeData):
     def _setVisible(self, visible):
         pass
 
-    def _setColor(self, color):
-        pass
+    def _setColor(self, color, type):
+        if type == "color":
+            c = QtGui.QColor(color)
+            if self._type == "scalars":
+                self.canvas().plotter.remove_actor(self._obj)
+                self._obj = self.canvas().plotter.add_mesh(self._mesh, color=[c.redF(), c.greenF(), c.blueF()])
+            else:
+                self._obj.GetProperty().SetColor([c.redF(), c.greenF(), c.blueF()])
+            self._type = "color"
+        if type == "scalars":
+            self.canvas().plotter.update_scalars(color, self._obj)
+            self._type = "scalars"
+
+    def _showEdges(self, b):
+        self._obj.GetProperty().show_edges = b
 
 
 class _pyvistaSurface(SurfaceData):

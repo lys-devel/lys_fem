@@ -83,9 +83,13 @@ class _ElasticSolutionWidget(QtWidgets.QWidget):
 
     def __loadData(self):
         var = self._list.currentText()
-        if os.path.exists(self._path + "/stationary.npz") and False:
+        if os.path.exists(self._path + "/stationary.npz"):
             data = np.load(self._path + "/stationary.npz")
-            mesh = np.load(self._path + "/stationary_mesh.npz")
+            i = 0
+            meshes = []
+            while os.path.exists(self._path + "/stationary_mesh" + str(i) + ".npz"):
+                meshes.append(np.load(self._path + "/stationary_mesh" + str(i) + ".npz"))
+                i += 1
         else:
             data = np.load(self._path + "/tdep" + str(self._time.value()) + ".npz")
             i = 0
@@ -93,7 +97,6 @@ class _ElasticSolutionWidget(QtWidgets.QWidget):
             while os.path.exists(self._path + "/tdep_mesh" + str(i) + ".npz"):
                 meshes.append(np.load(self._path + "/tdep_mesh" + str(i) + ".npz"))
                 i += 1
-            mesh = np.load(self._path + "/tdep_mesh.npz")
         if var == "ux":
             val = data["u"][:, 0]
         if var == "uy":

@@ -17,17 +17,25 @@ class StationarySolver:
         os.makedirs("Solutions/" + self._dirname, exist_ok=True)
 
     def execute(self, fec):
+        import time
+        start = time.time()
         subSolvers = {"Linear Solver": LinearSolver}
+        mfem.print_("Saving mesh...")
+        meshes = mfem.getMesh(fec, self._mesh)
+        print(time.time() - start)
+        for i, m in enumerate(meshes):
+            mfem.saveData("Solutions/" + self._dirname + "/stationary_mesh" + str(i) + ".npz", m.dictionary())
         sol = {}
         for i, sub in enumerate(self._solver.subSolvers):
+            mfem.print_("Assembling...")
             model = self._models[self._fem.models.index(sub.target)]
             solver = subSolvers[sub.name](model)
+            print(time.time() - start)
             s = solver.solve()
             sol[sub.target.variableName] = mfem.getData(s, self._mesh)
             mfem.print_("Step", i, ":", model.name, "model has been solved by", solver.name)
-        meshes = mfem.getMesh(fec, self._mesh, self._fem.dimension)
+            print(time.time() - start)
         mfem.saveData("Solutions/" + self._dirname + "/stationary.npz", sol)
-        mfem.saveData("Solutions/" + self._dirname + "/stationary_mesh.npz", meshes)
 
     @classmethod
     @property
@@ -45,11 +53,20 @@ class TimeDependentSolver:
         os.makedirs("Solutions/" + self._dirname, exist_ok=True)
 
     def execute(self, fec):
+        import time
+        start = time.time()
         subSolvers = {"Generalized Alpha Solver": GeneralizedAlphaSolver}
         solvers = [subSolvers[sub.name](self._models[self._fem.models.index(sub.target)]) for sub in self._solver.subSolvers]
+        mfem.print_(time.time() - start)
+        mfem.print_("Saving mesh...")
         meshes = mfem.getMesh(fec, self._mesh)
         for i, m in enumerate(meshes):
             mfem.saveData("Solutions/" + self._dirname + "/tdep_mesh" + str(i) + ".npz", m.dictionary())
+        mfem.print_(time.time() - start)
+        mfem.print_("Assembling...")
+        for s in solvers:
+            s.initialize()
+        mfem.print_(time.time() - start)
         t = 0
         for i, dt in enumerate(self._solver.getStepList()):
             mfem.print_("t =", t)
@@ -70,22 +87,21 @@ class TimeDependentSolver:
 class LinearSolver:
     def __init__(self, model):
         self._model = model
+        self.x, _ = self._model.getInitialValue()
+        self.a = self._model.assemble_a()
+        self.b = self._model.assemble_b()
+        self.ess_tdof_list = self._model.essential_tdof_list()
 
     def solve(self):
-        x, _ = self._model.getInitialValue()
-        a = self._model.assemble_a()
-        b = self._model.assemble_b()
-        ess_tdof_list = self._model.essential_tdof_list()
-
         A = mfem.SparseMatrix()
         B = mfem.Vector()
         X = mfem.Vector()
-        a.FormLinearSystem(ess_tdof_list, x, b, A, X, B)
+        self.a.FormLinearSystem(self.ess_tdof_list, self.x, self.b, A, X, B)
 
         solver, prec = _getDefaultSolver(A)
         solver.Mult(B, X)  # Solve AX=B
-        a.RecoverFEMSolution(X, b, x)
-        return x
+        self.a.RecoverFEMSolution(X, self.b, self.x)
+        return self.x
 
     @property
     def name(self):
@@ -99,7 +115,9 @@ class GeneralizedAlphaSolver(mfem.SecondOrderTimeDependentOperator):
         self._initialized = False
         self._value = value
 
-    def _initialize(self):
+    def initialize(self):
+        import time
+        start = time.time()
         self._ode_solver = mfem.GeneralizedAlpha2Solver(self._value)
         self._ode_solver.Init(self)
 
@@ -108,10 +126,14 @@ class GeneralizedAlphaSolver(mfem.SecondOrderTimeDependentOperator):
         self._xt = mfem.Vector()  # dx/dt
         self._x_gf.GetTrueDofs(self._x)
         self._xt_gf.GetTrueDofs(self._xt)
+        mfem.print_("debug001", time.time() - start)
 
         self._K_op = self._model.assemble_a()
+        mfem.print_("debug002", time.time() - start)
         self._M_op = self._model.assemble_m()
+        mfem.print_("debug003", time.time() - start)
         ess_tdof_list = self._model.essential_tdof_list()
+        mfem.print_("debug004", time.time() - start)
 
         self._K0 = mfem.SparseMatrix()
         self._K = mfem.SparseMatrix()
@@ -129,7 +151,7 @@ class GeneralizedAlphaSolver(mfem.SecondOrderTimeDependentOperator):
 
     def step(self, t, dt):
         if not self._initialized:
-            self._initialize()
+            self.initialize()
         self._ode_solver.Step(self._x, self._xt, t, dt)
         self._x_gf.SetFromTrueDofs(self._x)
         return self._x_gf
@@ -163,7 +185,7 @@ def _getDefaultSolver(A, rel_tol=1e-8):
     solver.SetRelTol(rel_tol)
     solver.SetAbsTol(0.0)
     solver.SetMaxIter(100)
-    solver.SetPrintLevel(1)
+    solver.SetPrintLevel(0)
     solver.SetPreconditioner(prec)
     solver.SetOperator(A)
     return solver, prec

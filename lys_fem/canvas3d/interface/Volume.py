@@ -3,10 +3,10 @@ import warnings
 from lys.errors import NotImplementedWarning
 
 from .CanvasBase import saveCanvas
-from .WaveData import WaveData3D
+from .WaveData import MeshData3D
 
 
-class VolumeData(WaveData3D):
+class VolumeData(MeshData3D):
     """
     Interface to access volume data in the canvas.
 
@@ -20,29 +20,5 @@ class VolumeData(WaveData3D):
     def __getAppearance(self, key, default=None):
         return self._appearance.get(key, default)
 
-    @saveCanvas
-    def setColor(self, color):
-        """
-        Set color of the line.
-
-        Args:
-            color(str): rgb color string such as #ff0000.
-        """
-        self._setColor(color)
-        self.__setAppearance('LineColor', color)
-
-    def getColor(self):
-        """
-        Get color of the line.
-
-        Return:
-            str: color string such as #ff0000
-        """
-        return self.__getAppearance('LineColor')
-
     def _loadAppearance(self, appearance):
-        if 'LineColor' in appearance:
-            self.setColor(appearance['LineColor'])
-
-    def _setColor(self, color):
-        warnings.warn(str(type(self)) + " does not implement _setColor(color) method.", NotImplementedWarning)
+        pass
