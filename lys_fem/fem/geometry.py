@@ -32,6 +32,8 @@ class GeometryGenerator(QtCore.QObject):
             model.add_physical_group(dim=2, tags=[obj[1]], tag=i + 1)
         for i, obj in enumerate(model.getEntities(1)):
             model.add_physical_group(dim=1, tags=[obj[1]], tag=i + 1)
+        for i, obj in enumerate(model.getEntities(0)):
+            model.add_physical_group(dim=0, tags=[obj[1]], tag=i + 1)
         return model
 
     @property

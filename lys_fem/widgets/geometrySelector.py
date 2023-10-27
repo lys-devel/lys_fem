@@ -7,6 +7,7 @@ class GeometrySelector(QtWidgets.QWidget):
         super().__init__()
         dimDict = {"Domain": fem.dimension, "Surface": fem.dimension - 1}
         self._dim = dimDict[selected.geometryType]
+        self._geomType = selected.geometryType
         self._selected = selected
         self._canvas = canvas
         self._fem = fem
@@ -67,6 +68,11 @@ class GeometrySelector(QtWidgets.QWidget):
             objs = self._canvas.append(mesh)
             for obj, m in zip(objs, mesh):
                 self.__setColor(obj, self._selected.check(m.note["tag"]))
+            if self._geomType == "Surface" and self._dim != 2:
+                mesh = self._fem.getMeshWave(self._dim + 1)
+                objs = self._canvas.append(mesh)
+                for obj, m in zip(objs, mesh):
+                    self.__setColor(obj, False)
 
     def startSelection(self):
         self._selectBtn.setChecked(True)
@@ -74,7 +80,7 @@ class GeometrySelector(QtWidgets.QWidget):
 
     def __start(self):
         if self._selectBtn.isChecked():
-            types = {1: "line", 2: "surface", 3: "volume"}
+            types = {0: "point", 1: "line", 2: "surface", 3: "volume"}
             self.__showGeometry()
             self._canvas.startPicker(types[self._dim])
             self._canvas.objectPicked.connect(self.__picked)
@@ -102,10 +108,7 @@ class GeometrySelector(QtWidgets.QWidget):
             color = "#adff2f"
         else:
             color = "#cccccc"
-        if self._dim < 2:
-            obj.setColor(color)
-        else:
-            obj.setColor(color, type="color")
+        obj.setColor(color, type="color")
 
 
 class _SelectionModel(QtCore.QAbstractItemModel):

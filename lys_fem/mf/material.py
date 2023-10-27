@@ -30,4 +30,4 @@ def __generateCoefForParameter(pname, mats, group, fem, geom):
         for d in attrs:
             if m.domains.check(d):
                 coefs[d] = p.getParameters()[pname]
-    return generateCoefficient(coefs, geom)
+    return generateCoefficient(coefs, fem.dimension)

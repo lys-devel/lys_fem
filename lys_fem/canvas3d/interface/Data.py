@@ -11,6 +11,7 @@ from .WaveData import WaveData3D
 from .Volume import VolumeData
 from .Surface import SurfaceData
 from .Line import LineData
+from .Point import PointData
 
 
 class CanvasData3D(CanvasPart3D):
@@ -37,7 +38,7 @@ class CanvasData3D(CanvasPart3D):
             offset(tuple  of length 4): See :meth:`.WaveData.setOffset`
             filter(filter): See :meth:`.WaveData.setFilter`
         """
-        func = {"line": self._appendLine, "volume": self._appendVolume, "surface": self._appendSurface}
+        func = {"point": self._appendPoint, "line": self._appendLine, "volume": self._appendVolume, "surface": self._appendSurface}
         # When multiple data is passed
         if isinstance(wave, list) or isinstance(wave, tuple):
             return [self.append(ww) for ww in wave]
@@ -73,6 +74,8 @@ class CanvasData3D(CanvasPart3D):
             return "surface"
         elif "line" in wav.note["elements"].keys():
             return "line"
+        elif "point" in wav.note["elements"].keys():
+            return "point"
         raise RuntimeError("[Graph] Can't append this data. shape = " + str(wav.data.shape))
 
     @ saveCanvas
@@ -116,6 +119,8 @@ class CanvasData3D(CanvasPart3D):
             return [data for data in self._Datalist if isinstance(data, SurfaceData)]
         elif type == "line":
             return [data for data in self._Datalist if isinstance(data, LineData)]
+        elif type == "point":
+            return [data for data in self._Datalist if isinstance(data, PointData)]
 
     def getVolume(self):
         """
@@ -134,6 +139,12 @@ class CanvasData3D(CanvasPart3D):
         Return all LineData in the canvas.
         """
         return self.getWaveData("line")
+
+    def getPoint(self):
+        """
+        Return all PointData in the canvas.
+        """
+        return self.getWaveData("point")
 
     def rayTrace(self, start, end, type="all"):
         data = self.getWaveData(type)
@@ -196,6 +207,9 @@ class CanvasData3D(CanvasPart3D):
 
     def _appendLine(self, wave):
         warnings.warn(str(type(self)) + " does not implement _appendLine(wave) method.", NotImplementedWarning)
+
+    def _appendPoint(self, wave):
+        warnings.warn(str(type(self)) + " does not implement _appendPoint(wave) method.", NotImplementedWarning)
 
     def _rayTrace(self, data, start, end):
         warnings.warn(str(type(self)) + " does not implement _rayTrace(data) method.", NotImplementedWarning)

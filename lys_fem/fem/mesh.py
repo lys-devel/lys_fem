@@ -7,7 +7,7 @@ from .geometry import GeometrySelection
 
 
 class OccMesher(object):
-    _keys = {1: "line", 2: "triangle", 3: "quad", 4: "tetra", 5: "hexa", 6: "prism", 7: "pyramid"}
+    _keys = {15: "point", 1: "line", 2: "triangle", 3: "quad", 4: "tetra", 5: "hexa", 6: "prism", 7: "pyramid"}
 
     def __init__(self, refinement=0, partialRefine=None, periodicity=None):
         super().__init__()

@@ -53,7 +53,7 @@ class Disk(FEMGeometry):
 
 class Line(FEMGeometry):
     def __init__(self, x1=0, y1=0, z1=0, x2=1, y2=0, z2=0):
-        self.args = (x1, y1, z1, x2, y2, z2)
+        self.args = [x1, y1, z1, x2, y2, z2]
 
     def execute(self, model):
         p1t = model.occ.addPoint(*self.args[:3])

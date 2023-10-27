@@ -22,7 +22,7 @@ class StationarySolver:
         subSolvers = {"Linear Solver": LinearSolver}
         mfem.print_("Saving mesh...")
         meshes = mfem.getMesh(fec, self._mesh)
-        print(time.time() - start)
+        mfem.print_("Mesh:", time.time() - start)
         for i, m in enumerate(meshes):
             mfem.saveData("Solutions/" + self._dirname + "/stationary_mesh" + str(i) + ".npz", m.dictionary())
         sol = {}
@@ -30,11 +30,11 @@ class StationarySolver:
             mfem.print_("Assembling...")
             model = self._models[self._fem.models.index(sub.target)]
             solver = subSolvers[sub.name](model)
-            print(time.time() - start)
+            mfem.print_("Assemble:", time.time() - start)
             s = solver.solve()
             sol[sub.target.variableName] = mfem.getData(s, self._mesh)
             mfem.print_("Step", i, ":", model.name, "model has been solved by", solver.name)
-            print(time.time() - start)
+            mfem.print_("total:", time.time() - start)
         mfem.saveData("Solutions/" + self._dirname + "/stationary.npz", sol)
 
     @classmethod

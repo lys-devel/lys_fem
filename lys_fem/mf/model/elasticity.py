@@ -49,8 +49,9 @@ class ElasticModel(mfem.SecondOrderTimeDependentOperator):
 
     def assemble_a(self):
         a = mfem.BilinearForm(self._fespace)
-        #a.AddDomainIntegrator(mfem.ElasticityIntegrator(mfem.ConstantCoefficient(1), mfem.ConstantCoefficient(1)))
-        a.AddDomainIntegrator(_ElasticityIntegrator(self._mat["Elasticity"]["C"]))
+        i = mfem.ElasticityIntegrator(mfem.ConstantCoefficient(1), mfem.ConstantCoefficient(1))
+        # a.AddDomainIntegrator()
+        a.AddDomainIntegrator(_ElasticityIntegrator(self._mat["Elasticity"]["C"], i))
         a.Assemble()
         return a
 
@@ -73,20 +74,19 @@ class ElasticModel(mfem.SecondOrderTimeDependentOperator):
             ess_tdof_list = mfem.intArray()
             self._fespace.GetEssentialTrueDofs(ess_bdr, ess_tdof_list, axis)
             res.extend([i for i in ess_tdof_list])
-        return ess_tdof_list
+        return mfem.intArray(res)
 
 
 class _ElasticityIntegrator(mfem.BilinearFormIntegrator):
-    def __init__(self, C):
+    def __init__(self, C, i):
         super().__init__()
         self.C = C
         self.dshape = mfem.DenseMatrix()
         self.gshape = mfem.DenseMatrix()
         self._Ce = mfem.DenseMatrix()
+        self._i = i
 
     def AssembleElementMatrix(self, el, trans, elmat):
-        import time
-        start = time.time()
         # Initialize variables
         dof, dim = el.GetDof(), el.GetDim()
         self.dshape.SetSize(dof, dim)
@@ -94,8 +94,8 @@ class _ElasticityIntegrator(mfem.BilinearFormIntegrator):
         elmat.SetSize(dof * dim)
         elmat.Assign(0.0)
 
-        print("debug0-------------", time.time() - start)
         ir = mfem.IntRules.Get(el.GetGeomType(), 2 * el.GetOrder())
+        res = np.zeros((dim, dof, dim, dof), dtype=float)
         for p in range(ir.GetNPoints()):
             ip = ir.IntPoint(p)
             trans.SetIntPoint(ip)
@@ -105,15 +105,10 @@ class _ElasticityIntegrator(mfem.BilinearFormIntegrator):
             el.CalcDShape(ip, self.dshape)
             mfem.Mult(self.dshape, trans.InverseJacobian(), self.gshape)
 
-            print("debug1", time.time() - start)
             C = self.__getC(trans, ip, dim)
-            print("debug2", time.time() - start)
-            g = self.__getGShape(self.gshape, dof, dim)
-            print("debug3", time.time() - start)
-            res = np.einsum("ijkl,nl,mj->imkn", C, g, g).reshape((dim * dof, dim * dof))
-            print("debug4", time.time() - start)
-            elmat.Add(w, mfem.DenseMatrix(res))
-            print("debug5", time.time() - start)
+            g = w * self.__getGShape(self.gshape, dof, dim)
+            res += np.tensordot(np.tensordot(C, g, (3, 1)), g, (1, 1)).transpose(0, 3, 1, 2)  # equivalent to eingsum ijkl,nl,mj->imkn
+        elmat.Add(1, mfem.DenseMatrix(res.reshape((dim * dof, dim * dof))))
 
     def __getC(self, trans, ip, dim):
         self.C.Eval(self._Ce, trans, ip)
@@ -133,18 +128,18 @@ class _ElasticityIntegrator(mfem.BilinearFormIntegrator):
         if i == j:
             return i
         if (i == 0 and j == 1) or (i == 1 and j == 0):
-            return 4
+            return 3
         if (i == 1 and j == 2) or (i == 2 and j == 1):
-            return 5
+            return 4
         if (i == 0 and j == 2) or (i == 2 and j == 0):
-            return 6
+            return 5
 
 
 # class StressIntegrator(mfem.VectorDomainLFIntegrator):
 class StressIntegrator(mfem.LinearFormIntegrator):
     def __init__(self):
         # super().__init__()
-        #self.divshape = mfem.Vector()
+        # self.divshape = mfem.Vector()
         pass
 
     def AssembleRHSElementVect(self, el, Tr, elvect):

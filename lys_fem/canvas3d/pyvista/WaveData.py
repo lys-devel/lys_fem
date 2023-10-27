@@ -2,7 +2,7 @@ import numpy as np
 import pyvista as pv
 from lys.Qt import QtGui
 
-from ..interface import CanvasData3D, VolumeData, SurfaceData, LineData
+from ..interface import CanvasData3D, VolumeData, SurfaceData, LineData, PointData
 
 _key_list = {"triangle": pv.CellType.TRIANGLE, "tetra": pv.CellType.TETRA, "hexa": pv.CellType.HEXAHEDRON, "quad": pv.CellType.QUAD, "pyramid": pv.CellType.PYRAMID, "prism": pv.CellType.WEDGE}
 _num_list = {"line": 2, "triangle": 3, "tetra": 4, "hexa": 8, "quad": 4, "pyramid": 5, "prism": 6}
@@ -98,18 +98,44 @@ class _pyvistaLine(LineData):
 
     def __init__(self, canvas, wave):
         super().__init__(canvas, wave)
+        self._wave = wave
         self._p0 = np.array([wave.x[i] for i, _ in list(wave.note["elements"].values())[0]])
         self._p1 = np.array([wave.x[i] for _, i in list(wave.note["elements"].values())[0]])
         lines = [np.ravel(np.hstack([np.ones((len(faces), 1), dtype=int) * _num_list[key], faces])) for key, faces in wave.note["elements"].items()]
         self._mesh = pv.PolyData(wave.x, lines=np.hstack(lines))
-        self._obj = canvas.plotter.add_mesh(self._mesh, line_width=3)
+        self._obj = canvas.plotter.add_mesh(self._mesh, line_width=4, scalars=wave.data)
+        value, counts = np.unique(wave.note["elements"]["line"], return_counts=True)
+        self._obje = canvas.plotter.add_points(wave.x[value[counts == 1]], render_points_as_spheres=True, point_size=7, color="k")
+        self._type = "scalars"
+        self._mesh_points = None
 
     def remove(self):
         self.canvas().plotter.remove_actor(self._obj)
+        self.canvas().plotter.remove_actor(self._obje)
+        if self._mesh_points is not None:
+            self.canvas().plotter.remove_actor(self._mesh_points)
 
-    def _setColor(self, color):
-        c = QtGui.QColor(color)
-        self._obj.GetProperty().SetColor([c.redF(), c.greenF(), c.blueF()])
+    def _setColor(self, color, type):
+        if type == "color":
+            c = QtGui.QColor(color)
+            if self._type == "scalars":
+                self.canvas().plotter.remove_actor(self._obj)
+                self._obj = self.canvas().plotter.add_mesh(self._mesh, color=[c.redF(), c.greenF(), c.blueF()], line_width=4)
+            else:
+                self._obj.GetProperty().SetColor([c.redF(), c.greenF(), c.blueF()])
+            self._type = "color"
+        if type == "scalars":
+            self.canvas().plotter.update_scalars(color, self._obj)
+            self._type = "scalars"
+
+    def _showEdges(self, b):
+        if b:
+            if self._mesh_points is None:
+                self._mesh_points = self.canvas().plotter.add_points(self._wave.x, render_points_as_spheres=True, point_size=5, color="k")
+        else:
+            if self._mesh_points is not None:
+                self.canvas().plotter.remove_actor(self._mesh_points)
+                self._mesh_points = None
 
     def rayTrace(self, start, end):
         x0, x1 = start, (end - start) / np.linalg.norm(end - start)
@@ -146,6 +172,51 @@ class _pyvistaLine(LineData):
         pass
 
 
+class _pyvistaPoint(PointData):
+    """Implementation of LineData for matplotlib"""
+
+    def __init__(self, canvas, wave):
+        super().__init__(canvas, wave)
+        self._wave = wave
+        self._obj = canvas.plotter.add_points(wave.x, scalars=wave.data, render_points_as_spheres=True, point_size=17, color="k")
+        self._type = "scalars"
+
+    def remove(self):
+        self.canvas().plotter.remove_actor(self._obj)
+
+    def _setColor(self, color, type):
+        if type == "color":
+            c = QtGui.QColor(color)
+            if self._type == "scalars":
+                self.canvas().plotter.remove_actor(self._obj)
+                self._obj = self.canvas().plotter.add_points(self._wave.x, color=[c.redF(), c.greenF(), c.blueF()], render_points_as_spheres=True, point_size=17)
+            else:
+                self._obj.GetProperty().SetColor([c.redF(), c.greenF(), c.blueF()])
+            self._type = "color"
+        if type == "scalars":
+            self.canvas().plotter.update_scalars(color, self._obj)
+            self._type = "scalars"
+
+    def rayTrace(self, start, end):
+        x0, v = start, (end - start) / np.linalg.norm(end - start)  # line y = x0 + tv
+        d = self._wave.x - x0
+        t_c = d.dot(v)
+        dist = [np.linalg.norm(d - t * v) for t in t_c]
+        i = np.argmin(dist)
+        if np.arctan(np.linalg.norm(dist[i]) / np.linalg.norm(t_c[i] * v)) * 180 / 3.1415 > 2:
+            return []
+        return [self._wave.x[i]]
+
+    def _updateData(self):
+        return
+
+    def _setVisible(self, visible):
+        pass
+
+    def _extractSegments(self):
+        pass
+
+
 class _pyvistaData(CanvasData3D):
     def _appendVolume(self, wave):
         return _pyvistaVolume(self.canvas(), wave)
@@ -155,6 +226,9 @@ class _pyvistaData(CanvasData3D):
 
     def _appendLine(self, wave):
         return _pyvistaLine(self.canvas(), wave)
+
+    def _appendPoint(self, wave):
+        return _pyvistaPoint(self.canvas(), wave)
 
     def _rayTrace(self, data, start, end):
         return data.rayTrace(start, end)

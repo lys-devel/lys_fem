@@ -91,9 +91,7 @@ class LineGUI(QtWidgets.QWidget):
         super().__init__()
         self._obj = obj
         self.__initlayout()
-        for v, w in zip(self._obj.p1, self._values[:3]):
-            w.setValue(v)
-        for v, w in zip(self._obj.p2, self._values[3:6]):
+        for v, w in zip(self._obj.args, self._values):
             w.setValue(v)
 
     def __initlayout(self):
@@ -114,5 +112,4 @@ class LineGUI(QtWidgets.QWidget):
         self.setLayout(grid)
 
     def __changed(self):
-        self._obj.p1 = [w.value() for w in self._values[:3]]
-        self._obj.p2 = [w.value() for w in self._values[3:6]]
+        self._obj.args = [w.value() for w in self._values]
