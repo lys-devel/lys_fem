@@ -80,7 +80,7 @@ class FEMModel:
         while init.name + str(i) in [c.objName for c in self._init]:
             i += 1
         name = init.name + str(i)
-        obj = init(name, self._nvar)
+        obj = init(name, [0] * self._nvar)
         self._init.append(obj)
         return obj
 

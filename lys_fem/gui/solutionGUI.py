@@ -14,12 +14,12 @@ class SolutionTree(FEMTreeItem):
         self._obj = FEMProject.fromFile("FEM/" + path + "/input.dic")
         dirs = os.listdir("FEM/" + path + "/Solutions")
         for d, sol in zip(dirs, self._obj.solvers):
-            self.append(_SolutionGUI(self, self._obj, d, sol, path="FEM/" + path + "/Solutions/" + d))
+            self.append(_SolutionGUI(self, self._obj, d, sol, path="FEM/" + path, solverName=d))
 
 
 class _SolutionGUI(FEMTreeItem):
-    def __init__(self, parent, fem, solution, solver, path):
-        super().__init__(parent=parent, children=[_ModelGUI(self, m, path) for m in fem.models])
+    def __init__(self, parent, fem, solution, solver, path, solverName):
+        super().__init__(parent=parent, children=[_ModelGUI(self, m, path, solverName) for m in fem.models])
         self._solution = solution
         self._solver = solver
 
@@ -29,10 +29,11 @@ class _SolutionGUI(FEMTreeItem):
 
 
 class _ModelGUI(FEMTreeItem):
-    def __init__(self, parent, model, path):
+    def __init__(self, parent, model, path, solverName):
         super().__init__(parent=parent)
         self._model = model
         self._path = path
+        self._solver = solverName
 
     @property
     def name(self):
@@ -40,4 +41,4 @@ class _ModelGUI(FEMTreeItem):
 
     @property
     def widget(self):
-        return self._model.resultWidget(self.fem(), self.canvas(), self._path)
+        return self._model.resultWidget(self.fem(), self.canvas(), self._path, self._solver, self._model)

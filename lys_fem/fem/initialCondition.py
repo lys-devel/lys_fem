@@ -4,14 +4,13 @@ from lys_fem.widgets import GeometrySelector
 
 
 class InitialCondition:
-    def __init__(self, name, nvar, value=None, domains=None):
-        if value is None:
-            value = ["0"] * nvar
-        if domains is None:
-            domains = GeometrySelection("Domain")
+    def __init__(self, name, value, domains=None):
+        if isinstance(domains, GeometrySelection):
+            self._domains = domains
+        else:
+            self._domains = GeometrySelection("Domain", domains)
         self._name = name
-        self._value = value
-        self._domains = domains
+        self._value = [str(v) for v in value]
 
     def setDimension(self, dim):
         if len(self._value) > dim:
@@ -55,7 +54,7 @@ class InitialCondition:
     def loadFromDictionary(d):
         values = d["values"]
         domain = GeometrySelection.loadFromDictionary(d["domains"])
-        return InitialCondition(d["name"], len(values), value=values, domains=domain)
+        return InitialCondition(d["name"], value=values, domains=domain)
 
 
 class _InitialConditionWidget(QtWidgets.QWidget):

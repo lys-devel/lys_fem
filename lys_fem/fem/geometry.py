@@ -14,7 +14,7 @@ class GeometryGenerator(QtCore.QObject):
             order = []
         self._order = order
 
-    def addCommand(self, command):
+    def add(self, command):
         self._order.append(command)
         self.updated.emit()
 

@@ -3,25 +3,17 @@ from .geometry import GeometrySelection
 from lys_fem.widgets import GeometrySelector
 
 
-class DirichletBoundary:
-    def __init__(self, name, components, boundaries=None):
+class BoundaryCondition:
+    def __init__(self, name, boundaries=None):
         self._name = name
-        if boundaries is None:
-            boundaries = GeometrySelection("Surface")
-        self._bdrs = boundaries
-        self._comps = components
+        if isinstance(boundaries, GeometrySelection):
+            self._bdrs = boundaries
+        else:
+            self._bdrs = GeometrySelection("Surface", boundaries)
 
     @property
     def objName(self):
         return self._name
-
-    @classmethod
-    @property
-    def name(cls):
-        return "Dirichlet Boundary"
-
-    def widget(self, fem, canvas):
-        return _DirichletBoundaryWidget(self, fem, canvas)
 
     @property
     def boundaries(self):
@@ -30,6 +22,20 @@ class DirichletBoundary:
     @boundaries.setter
     def boundaries(self, value):
         self._bdrs = value
+
+
+class DirichletBoundary(BoundaryCondition):
+    def __init__(self, name, components, boundaries=None):
+        super().__init__(name, boundaries)
+        self._comps = components
+
+    @classmethod
+    @property
+    def name(cls):
+        return "Dirichlet Boundary"
+
+    def widget(self, fem, canvas):
+        return _DirichletBoundaryWidget(self, fem, canvas)
 
     @property
     def components(self):
@@ -50,15 +56,8 @@ class DirichletBoundary:
 
 class NeumannBoundary:
     def __init__(self, name, values, boundaries=None):
-        self._name = name
+        super().__init__(name, boundaries)
         self._value = values
-        if boundaries is None:
-            boundaries = GeometrySelection("Surface")
-        self._bdrs = boundaries
-
-    @property
-    def objName(self):
-        return self._name
 
     @classmethod
     @property
@@ -71,14 +70,6 @@ class NeumannBoundary:
     @property
     def values(self):
         return self._value
-
-    @property
-    def boundaries(self):
-        return self._bdrs
-
-    @boundaries.setter
-    def boundaries(self, value):
-        self._bdrs = value
 
     def saveAsDictionary(self):
         return {"type": self.name, "name": self.objName, "values": self._value, "bdrs": self.boundaries.saveAsDictionary()}

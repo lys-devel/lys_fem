@@ -1,4 +1,5 @@
 import os
+import shutil
 from . import mfem
 
 
@@ -7,35 +8,42 @@ def generateSolver(fem, mesh, models):
     return [solverDict[s.name](fem, mesh, s, models, "Solver" + str(i)) for i, s in enumerate(fem.solvers)]
 
 
-class StationarySolver:
-    def __init__(self, fem, mesh, solver, models, dirname):
-        self._fem = fem
+class SolverBase:
+    def __init__(self, mesh, dirname):
+        self._subSolvers = {"Linear Solver": LinearSolver}
         self._mesh = mesh
+        self._dirname = "Solutions/" + dirname
+        if os.path.exists(self._dirname):
+            shutil.rmtree(self._dirname)
+        os.makedirs(self._dirname, exist_ok=True)
+
+    def exportMesh(self, fec):
+        meshes = mfem.getMesh(fec, self._mesh)
+        for i, m in enumerate(meshes):
+            mfem.saveData(self._dirname + "/mesh" + str(i) + ".npz", m.dictionary())
+
+
+class StationarySolver(SolverBase):
+    def __init__(self, fem, mesh, solver, models, dirname):
+        super().__init__(mesh, dirname)
+        self._fem = fem
         self._solver = solver
         self._models = models
-        self._dirname = dirname
-        os.makedirs("Solutions/" + self._dirname, exist_ok=True)
 
     def execute(self, fec):
-        import time
-        start = time.time()
-        subSolvers = {"Linear Solver": LinearSolver}
-        mfem.print_("Saving mesh...")
-        meshes = mfem.getMesh(fec, self._mesh)
-        mfem.print_("Mesh:", time.time() - start)
-        for i, m in enumerate(meshes):
-            mfem.saveData("Solutions/" + self._dirname + "/stationary_mesh" + str(i) + ".npz", m.dictionary())
+        self.exportMesh(fec)
         sol = {}
         for i, sub in enumerate(self._solver.subSolvers):
-            mfem.print_("Assembling...")
             model = self._models[self._fem.models.index(sub.target)]
-            solver = subSolvers[sub.name](model)
-            mfem.print_("Assemble:", time.time() - start)
+            sol[sub.target.variableName] = mfem.getData(model.getInitialValue()[0], self._mesh)
+        mfem.saveData(self._dirname + "/data0.npz", sol)
+        for i, sub in enumerate(self._solver.subSolvers):
+            model = self._models[self._fem.models.index(sub.target)]
+            solver = self._subSolvers[sub.name](model)
             s = solver.solve()
             sol[sub.target.variableName] = mfem.getData(s, self._mesh)
             mfem.print_("Step", i, ":", model.name, "model has been solved by", solver.name)
-            mfem.print_("total:", time.time() - start)
-        mfem.saveData("Solutions/" + self._dirname + "/stationary.npz", sol)
+        mfem.saveData(self._dirname + "/data1.npz", sol)
 
     @classmethod
     @property

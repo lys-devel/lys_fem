@@ -10,7 +10,7 @@ class GeometryEditor(QtWidgets.QWidget):
         super().__init__()
         self._canvas = canvas
         self._obj = obj
-        self._geom = obj.geometryGenerator
+        self._geom = obj.geometries
         self.__initlayout()
 
     def __initlayout(self):
@@ -56,7 +56,7 @@ class GeometryEditor(QtWidgets.QWidget):
 class GeometryTree(FEMTreeItem):
     def __init__(self, obj, canvas):
         super().__init__(fem=obj, canvas=canvas)
-        self.setGeometry(obj.geometryGenerator)
+        self.setGeometry(obj.geometries)
 
     def setGeometry(self, geom):
         self.clear()
@@ -66,7 +66,7 @@ class GeometryTree(FEMTreeItem):
 
     def append(self, item):
         super().append(GeometryTreeItem(item, self))
-        self._geom.addCommand(item)
+        self._geom.add(item)
 
     def remove(self, item):
         i = super().remove(item)

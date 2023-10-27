@@ -56,7 +56,7 @@ class FEMProject:
         return self._dim
 
     @property
-    def geometryGenerator(self):
+    def geometries(self):
         return self._geom
 
     @property

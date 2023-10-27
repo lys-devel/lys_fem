@@ -1,9 +1,5 @@
-import os
-import numpy as np
-from lys import Wave
 from lys.Qt import QtWidgets
-
-from lys_fem import FEMModel
+from lys_fem import FEMModel, FEMSolution
 
 
 class ElasticModel(FEMModel):
@@ -19,11 +15,19 @@ class ElasticModel(FEMModel):
     def variableName(self):
         return "u"
 
+    def eval(self, data, fem, var):
+        if var == "ux":
+            return data["u"][:, 0]
+        if var == "uy":
+            return data["u"][:, 1]
+        if var == "uz":
+            return data["u"][:, 2]
+
     def widget(self, fem, canvas):
         return _ElasticityWidget(self)
 
-    def resultWidget(self, fem, canvas, path):
-        return _ElasticSolutionWidget(fem, canvas, path)
+    def resultWidget(self, *args, **kwargs):
+        return _ElasticSolutionWidget(*args, **kwargs)
 
 
 class _ElasticityWidget(QtWidgets.QWidget):
@@ -49,11 +53,13 @@ class _ElasticityWidget(QtWidgets.QWidget):
 
 
 class _ElasticSolutionWidget(QtWidgets.QWidget):
-    def __init__(self, fem, canvas, path):
+    def __init__(self, fem, canvas, path, solver, model):
         super().__init__()
         self._fem = fem
         self._canvas = canvas
         self._path = path
+        self._solver = solver
+        self._model = model
         self.__initlayout()
 
     def __initlayout(self):
@@ -83,29 +89,5 @@ class _ElasticSolutionWidget(QtWidgets.QWidget):
 
     def __loadData(self):
         var = self._list.currentText()
-        if os.path.exists(self._path + "/stationary.npz"):
-            data = np.load(self._path + "/stationary.npz")
-            i = 0
-            meshes = []
-            while os.path.exists(self._path + "/stationary_mesh" + str(i) + ".npz"):
-                meshes.append(np.load(self._path + "/stationary_mesh" + str(i) + ".npz"))
-                i += 1
-        else:
-            data = np.load(self._path + "/tdep" + str(self._time.value()) + ".npz")
-            i = 0
-            meshes = []
-            while os.path.exists(self._path + "/tdep_mesh" + str(i) + ".npz"):
-                meshes.append(np.load(self._path + "/tdep_mesh" + str(i) + ".npz"))
-                i += 1
-        if var == "ux":
-            val = data["u"][:, 0]
-        if var == "uy":
-            val = data["u"][:, 1]
-        if var == "uz":
-            val = data["u"][:, 2]
-        res = []
-        for mesh in meshes:
-            keys = ["point", "line", "triangle", "quad", "tetra", "hexa", "prism", "pyramid"]
-            elems = {key: mesh[key] for key in keys if key in mesh}
-            res.append(Wave(val[mesh["nodes"]], mesh["coords"], elements=elems))
-        return res
+        sol = FEMSolution(self._path)
+        return sol.eval(var, model=self._model, data_number=self._time.value(), solver=self._solver)

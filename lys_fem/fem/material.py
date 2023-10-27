@@ -6,10 +6,10 @@ materialParameters = {}
 class Material(list):
     def __init__(self, name, domains=None, params=None):
         self._name = name
-        if domains is None:
-            self._domains = GeometrySelection("Domain")
-        else:
+        if isinstance(domains, GeometrySelection):
             self._domains = domains
+        else:
+            self._domains = GeometrySelection("Domain", domains)
         if params is None:
             params = []
         super().__init__(params)
