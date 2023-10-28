@@ -44,10 +44,16 @@ class Material(list):
 
 
 class FEMParameter:
+    def __init__(self, name):
+        self._name = name
+
     def saveAsDictionary(self):
         d = vars(self)
         d["paramsName"] = self.name
         return d
+
+    def getParameters(self):
+        return vars(self)
 
     @staticmethod
     def loadFromDictionary(d):

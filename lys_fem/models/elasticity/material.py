@@ -16,7 +16,6 @@ class ElasticParameters(FEMParameter):
     def getParameters(self):
         return {"rho": self.rho, "C": self._constructC()}
 
-
     def widget(self):
         return _ElasticParamsWidget(self)
 

@@ -3,7 +3,7 @@ import numpy as np
 from .. import mfem
 
 
-class ElasticModel(mfem.SecondOrderTimeDependentOperator):
+class ElasticModel:
     def __init__(self, fec, model, mesh, mat):
         # Define a parallel finite element space on the parallel mesh.
         self._mesh = mesh
@@ -13,7 +13,6 @@ class ElasticModel(mfem.SecondOrderTimeDependentOperator):
         self._mat = mat
         self._bdr_stress = None
         self._dirichlet = None
-        super().__init__(self._fespace.GetTrueVSize(), 0)
 
     @classmethod
     @property

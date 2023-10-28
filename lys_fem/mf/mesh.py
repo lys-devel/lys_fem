@@ -18,20 +18,24 @@ def generateMesh(fem, geom, file="mesh.msh"):
         fem.mesher.export(geom, file)
     mesh = mfem.Mesh(file, 1, 1)
     if len([i for i in mesh.bdr_attributes]) == 0:  # For 1D mesh, we have to set boundary manually.
-        # Load file by gmsh
-        model = gmsh.model()
-        model.add("Default")
-        model.setCurrent("Default")
-        gmsh.merge(file)
-
-        # Get all boundary nodes
-        s = set(np.array([model.mesh.getNodes(*obj, includeBoundary=True)[0][:2] for obj in model.getEntities(1)]).flatten())
-
-        # Set the boundary nodes to mesh object.
-        for v in s:
-            mesh.AddBdrPoint(v, v)
-        mesh.SetAttributes()
+        _createBoundaryFor1D(mesh, file)
     nv = mesh.GetNV()
     if mf.parallel:
         mesh = mfem.ParMesh(MPI.COMM_WORLD, mesh)
     return mesh, nv
+
+
+def _createBoundaryFor1D(mesh, file):
+    # Load file by gmsh
+    model = gmsh.model()
+    model.add("Default")
+    model.setCurrent("Default")
+    gmsh.merge(file)
+
+    # Get all boundary nodes
+    s = set(np.array([model.mesh.getNodes(*obj, includeBoundary=True)[0][:2] for obj in model.getEntities(1)]).flatten())
+
+    # Set the boundary nodes to mesh object.
+    for v in s:
+        mesh.AddBdrPoint(v, v)
+    mesh.SetAttributes()

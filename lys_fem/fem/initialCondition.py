@@ -1,6 +1,6 @@
 from lys.Qt import QtWidgets, QtCore
 from .geometry import GeometrySelection
-from lys_fem.widgets import GeometrySelector
+from lys_fem.widgets import GeometrySelector, VectorFunctionWidget
 
 
 class InitialCondition:
@@ -66,22 +66,14 @@ class _InitialConditionWidget(QtWidgets.QWidget):
         self.__initlayout(fem, canvas)
 
     def __initlayout(self, fem, canvas):
-        dim = len(self._init.values)
         self._selector = GeometrySelector(canvas, fem, self._init.domains)
-        self._widgets = [QtWidgets.QLineEdit() for _ in range(dim)]
-        for wid, val in zip(self._widgets, self._init.values):
-            wid.setText(val)
-            wid.textChanged.connect(self.__valueChanged)
-        grid = QtWidgets.QGridLayout()
-        for i, wid in enumerate(self._widgets):
-            grid.addWidget(QtWidgets.QLabel("Dim " + str(i)), i, 0, 1, 1)
-            grid.addWidget(wid, i, 1, 1, 3)
+        self._value = VectorFunctionWidget("Initial values", self._init.values, valueChanged=self.__valueChanged)
 
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._selector)
-        layout.addLayout(grid)
+        layout.addWidget(self._value)
         self.setLayout(layout)
 
-    def __valueChanged(self):
-        self.valueChanged.emit([w.text() for w in self._widgets])
+    def __valueChanged(self, vector):
+        self.valueChanged.emit(vector)

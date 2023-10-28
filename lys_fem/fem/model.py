@@ -110,7 +110,7 @@ class FEMModel:
     def loadFromDictionary(cls, d):
         nvar = d["nvar"]
         init, bdr, domain = cls._loadConditions(d)
-        return cls(nvar, init, bdr, domain)
+        return cls(nvar=nvar, initialConditions=init, boundaryConditions=bdr, domainConditions=domain)
 
 
 def loadModel(d):
