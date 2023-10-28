@@ -1,5 +1,6 @@
 from lys.Qt import QtWidgets
 from lys_fem import FEMParameter
+from lys_fem.widgets import ScalarFunctionWidget
 
 
 class ElasticParameters(FEMParameter):
@@ -16,9 +17,6 @@ class ElasticParameters(FEMParameter):
     def getParameters(self):
         return {"rho": self.rho, "C": self._constructC()}
 
-    def widget(self):
-        return _ElasticParamsWidget(self)
-
     def _constructC(self):
         if self.type == "lame":
             return [[self._lame(i, j) for j in range(6)] for i in range(6)]
@@ -34,6 +32,9 @@ class ElasticParameters(FEMParameter):
                 res += "+" + self.C[1]
         return res
 
+    def widget(self):
+        return _ElasticParamsWidget(self)
+
 
 class _ElasticParamsWidget(QtWidgets.QWidget):
     def __init__(self, param):
@@ -42,25 +43,14 @@ class _ElasticParamsWidget(QtWidgets.QWidget):
         self.__initlayout()
 
     def __initlayout(self):
-        self._rho = QtWidgets.QLineEdit()
-        self._rho.setText(str(self._param.rho))
-        self._rho.textChanged.connect(self.__set)
-
-        self._lamb = QtWidgets.QLineEdit()
-        self._lamb.setText(str(self._param.C[0]))
-        self._lamb.textChanged.connect(self.__set)
-
-        self._mu = QtWidgets.QLineEdit()
-        self._mu.setText(str(self._param.C[1]))
-        self._mu.textChanged.connect(self.__set)
+        self._rho = ScalarFunctionWidget("Density rho", self._param.rho, valueChanged=self.__set)
+        self._lamb = ScalarFunctionWidget("Lame const. lambda", self._param.C[0], valueChanged=self.__set)
+        self._mu = ScalarFunctionWidget("Lame const. mu", self._param.C[1], valueChanged=self.__set)
 
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(QtWidgets.QLabel("rho"))
         layout.addWidget(self._rho)
-        layout.addWidget(QtWidgets.QLabel("lambda"))
         layout.addWidget(self._lamb)
-        layout.addWidget(QtWidgets.QLabel("mu"))
         layout.addWidget(self._mu)
         self.setLayout(layout)
 

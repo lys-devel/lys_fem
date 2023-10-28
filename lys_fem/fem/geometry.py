@@ -1,13 +1,10 @@
 import gmsh
-from lys.Qt import QtCore
 
 gmsh.initialize()
 gmsh.option.setNumber("General.Terminal", 0)
 
 
-class GeometryGenerator(QtCore.QObject):
-    updated = QtCore.pyqtSignal()
-
+class GeometryGenerator:
     def __init__(self, order=None):
         super().__init__()
         if order is None:
@@ -16,7 +13,6 @@ class GeometryGenerator(QtCore.QObject):
 
     def add(self, command):
         self._order.append(command)
-        self.updated.emit()
 
     def generateGeometry(self, n=None):
         model = gmsh.model()

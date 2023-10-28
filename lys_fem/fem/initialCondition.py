@@ -1,6 +1,4 @@
-from lys.Qt import QtWidgets, QtCore
 from .geometry import GeometrySelection
-from lys_fem.widgets import GeometrySelector, VectorFunctionWidget
 
 
 class InitialCondition:
@@ -40,12 +38,8 @@ class InitialCondition:
         self._value = value
 
     def widget(self, fem, canvas):
-        w = _InitialConditionWidget(self, fem, canvas)
-        w.valueChanged.connect(self.__valueChanged)
-        return w
-
-    def __valueChanged(self, value):
-        self.values = value
+        from ..gui import InitialConditionWidget
+        return InitialConditionWidget(self, fem, canvas)
 
     def saveAsDictionary(self):
         return {"type": self.name, "name": self.objName, "domains": self._domains.saveAsDictionary(), "values": self._value}
@@ -55,25 +49,3 @@ class InitialCondition:
         values = d["values"]
         domain = GeometrySelection.loadFromDictionary(d["domains"])
         return InitialCondition(d["name"], value=values, domains=domain)
-
-
-class _InitialConditionWidget(QtWidgets.QWidget):
-    valueChanged = QtCore.pyqtSignal(object)
-
-    def __init__(self, init, fem, canvas):
-        super().__init__()
-        self._init = init
-        self.__initlayout(fem, canvas)
-
-    def __initlayout(self, fem, canvas):
-        self._selector = GeometrySelector(canvas, fem, self._init.domains)
-        self._value = VectorFunctionWidget("Initial values", self._init.values, valueChanged=self.__valueChanged)
-
-        layout = QtWidgets.QVBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self._selector)
-        layout.addWidget(self._value)
-        self.setLayout(layout)
-
-    def __valueChanged(self, vector):
-        self.valueChanged.emit(vector)

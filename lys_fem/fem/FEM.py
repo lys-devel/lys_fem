@@ -1,7 +1,7 @@
 from .geometry import GeometryGenerator
 from .mesh import OccMesher
 from .material import Material
-from .model import FEMModel, loadModel
+from .model import loadModel
 from .solver import FEMSolver
 
 

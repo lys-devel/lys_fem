@@ -1,5 +1,7 @@
 import os
-from ..fem import FEMProject
+from lys.Qt import QtWidgets
+
+from ..fem import FEMProject, FEMSolution
 from ..widgets import FEMTreeItem
 
 
@@ -41,4 +43,45 @@ class _ModelGUI(FEMTreeItem):
 
     @property
     def widget(self):
-        return self._model.resultWidget(self.fem(), self.canvas(), self._path, self._solver, self._model)
+        return _FEMSolutionWidget(self.fem(), self.canvas(), self._path, self._solver, self._model)
+
+
+class _FEMSolutionWidget(QtWidgets.QWidget):
+    def __init__(self, fem, canvas, path, solver, model):
+        super().__init__()
+        self._fem = fem
+        self._canvas = canvas
+        self._path = path
+        self._solver = solver
+        self._model = model
+        self.__initlayout()
+
+    def __initlayout(self):
+        self._list = QtWidgets.QComboBox()
+        self._list.addItems(self._model.evalList())
+        self._time = QtWidgets.QSpinBox()
+        self._time.setRange(0, 10000000)
+        self._time.valueChanged.connect(self.__show)
+
+        buttons = QtWidgets.QHBoxLayout()
+        buttons.addWidget(QtWidgets.QPushButton("Show", clicked=self.__show))
+
+        layout = QtWidgets.QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._list)
+        layout.addWidget(self._time)
+        layout.addLayout(buttons)
+        self.setLayout(layout)
+
+    def __show(self):
+        data = self.__loadData()
+        with self._canvas.delayUpdate():
+            self._canvas.clear()
+            for w in data:
+                o = self._canvas.append(w)
+                o.showEdges(True)
+
+    def __loadData(self):
+        var = self._list.currentText()
+        sol = FEMSolution(self._path)
+        return sol.eval(var, model=self._model, data_number=self._time.value(), solver=self._solver)

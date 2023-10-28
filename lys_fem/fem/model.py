@@ -1,5 +1,3 @@
-from lys.Qt import QtWidgets
-
 from .initialCondition import InitialCondition
 from .boundaryConditions import DirichletBoundary, NeumannBoundary
 
@@ -84,6 +82,10 @@ class FEMModel:
         self._init.append(obj)
         return obj
 
+    def widget(self, fem, canvas):
+        from ..gui import FEMModelWidget
+        return FEMModelWidget(self)
+
     def saveAsDictionary(self):
         d = {"model": self.name}
         d["nvar"] = self._nvar
@@ -91,6 +93,12 @@ class FEMModel:
         d["bdr"] = [b.saveAsDictionary() for b in self.boundaryConditions]
         d["domain"] = [d.saveAsDictionary() for d in self.domainConditions]
         return d
+
+    @classmethod
+    def loadFromDictionary(cls, d):
+        nvar = d["nvar"]
+        init, bdr, domain = cls._loadConditions(d)
+        return cls(nvar=nvar, initialConditions=init, boundaryConditions=bdr, domainConditions=domain)
 
     @classmethod
     def _loadConditions(cls, d):
@@ -106,11 +114,16 @@ class FEMModel:
         del d["type"]
         return c.loadFromDictionary(d)
 
+
+class FEMFixedModel(FEMModel):
     @classmethod
     def loadFromDictionary(cls, d):
-        nvar = d["nvar"]
         init, bdr, domain = cls._loadConditions(d)
-        return cls(nvar=nvar, initialConditions=init, boundaryConditions=bdr, domainConditions=domain)
+        return cls(initialConditions=init, boundaryConditions=bdr, domainConditions=domain)
+
+    def widget(self, fem, canvas):
+        from ..gui import FEMFixedModelWidget
+        return FEMFixedModelWidget(self)
 
 
 def loadModel(d):
