@@ -16,13 +16,14 @@ class ScalarCoef(mfem.PyCoefficient):
     def __init__(self, coefs, dim):
         super().__init__()
         self._funcs = _generateFuncs(coefs, dim)
+        self._default = 0.0
 
     def Eval(self, T, ip):
         self._attr = T.Attribute
         return super().Eval(T, ip)
 
     def EvalValue(self, x):
-        return _eval_attr(x, self._funcs, self._attr, self._default)
+        return float(_eval_attr(x, self._funcs, self._attr, self._default))
 
 
 class VectorCoef(mfem.VectorPyCoefficient):

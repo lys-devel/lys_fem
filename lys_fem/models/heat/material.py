@@ -15,6 +15,9 @@ class HeatConductionParameters(FEMParameter):
     def name(cls):
         return "Heat Conduction"
 
+    def getParameters(self, dim):
+        return {"C_v": self.C_v, "k": np.array(self.k)[:dim, :dim].tolist()}
+
     def widget(self):
         return _HeatConductionWidget(self)
 

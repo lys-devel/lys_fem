@@ -1,16 +1,13 @@
 import gmsh
 import numpy as np
-from lys_fem import mf
+from . import mfem
 
-if mf.parallel:
-    import mfem.par as mfem
+if mfem.isParallel():
     from mpi4py import MPI
-else:
-    import mfem.ser as mfem
 
 
 def generateMesh(fem, geom, file="mesh.msh"):
-    if mf.parallel:
+    if mfem.isParallel():
         if MPI.COMM_WORLD.rank == 0:
             fem.mesher.export(geom, file)
         MPI.COMM_WORLD.scatter([0] * MPI.COMM_WORLD.size, root=0)
@@ -20,7 +17,7 @@ def generateMesh(fem, geom, file="mesh.msh"):
     if len([i for i in mesh.bdr_attributes]) == 0:  # For 1D mesh, we have to set boundary manually.
         _createBoundaryFor1D(mesh, file)
     nv = mesh.GetNV()
-    if mf.parallel:
+    if mfem.isParallel():
         mesh = mfem.ParMesh(MPI.COMM_WORLD, mesh)
     return mesh, nv
 

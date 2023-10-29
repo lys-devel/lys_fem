@@ -1,89 +1,35 @@
 import itertools
 import numpy as np
-from .. import mfem
+
+from lys_fem.mf import mfem, MFEMModel
 
 
-class ElasticModel:
+class MFEMElasticModel(MFEMModel):
     def __init__(self, fec, model, mesh, mat):
-        # Define a parallel finite element space on the parallel mesh.
-        self._mesh = mesh
-        self._dim = mesh.Dimension()
-        self._fec = fec
-        self._fespace = mfem.FiniteElementSpace(mesh, self._fec, model.variableDimension(), mfem.Ordering.byVDIM)
+        super().__init__(fec, model, mesh)
         self._mat = mat
-        self._bdr_stress = None
-        self._dirichlet = None
-
-    @classmethod
-    @property
-    def name(self):
-        return "Elasticity"
-
-    def setInitialValue(self, x=None, xt=None):
-        self._x_gf = mfem.GridFunction(self._fespace)
-        self._xt_gf = mfem.GridFunction(self._fespace)
-        if x is None:
-            self._x_gf.Assign(0.0)
-        else:
-            self._x_gf.ProjectCoefficient(x)
-        if xt is None:
-            self._xt_gf.Assign(0.0)
-        else:
-            self._xt_gf.ProjectCoefficient(xt)
-
-    def getInitialValue(self):
-        return self._x_gf, self._xt_gf
-
-    def setBoundaryStress(self, stress):
-        self._bdr_stress = stress
-
-    def setDirichletBoundary(self, dirichlet_dict):
-        self._dirichlet = dirichlet_dict
 
     def assemble_m(self):
-        m = mfem.BilinearForm(self._fespace)
+        m = mfem.BilinearForm(self.space)
         m.AddDomainIntegrator(mfem.VectorMassIntegrator())
         m.Assemble()
         return m
 
     def assemble_a(self):
-        a = mfem.BilinearForm(self._fespace)
-        i = mfem.ElasticityIntegrator(mfem.ConstantCoefficient(1), mfem.ConstantCoefficient(1))
-        # a.AddDomainIntegrator()
-        a.AddDomainIntegrator(_ElasticityIntegrator(self._mat["Elasticity"]["C"], i))
+        a = mfem.BilinearForm(self.space)
+        # a.AddDomainIntegrator(mfem.ElasticityIntegrator(mfem.ConstantCoefficient(1), mfem.ConstantCoefficient(1)))
+        a.AddDomainIntegrator(_ElasticityIntegrator(self._mat["Elasticity"]["C"]))
         a.Assemble()
         return a
 
-    def assemble_b(self):
-        b = mfem.LinearForm(self._fespace)
-        if self._bdr_stress is not None:
-            b.AddBoundaryIntegrator(mfem.VectorBoundaryLFIntegrator(self._bdr_stress))
-        b.Assemble()
-        return b
-
-    def essential_tdof_list(self):
-        if self._dirichlet is None:
-            return mfem.intArray()
-        res = []
-        for axis, b in self._dirichlet.items():
-            ess_bdr = mfem.intArray(self._mesh.bdr_attributes.Max())
-            ess_bdr.Assign(0)
-            for i in b:
-                ess_bdr[i - 1] = 1
-            ess_tdof_list = mfem.intArray()
-            self._fespace.GetEssentialTrueDofs(ess_bdr, ess_tdof_list, axis)
-            res.extend([i for i in ess_tdof_list])
-        return mfem.intArray(res)
-
 
 class _ElasticityIntegrator(mfem.BilinearFormIntegrator):
-    def __init__(self, C, i):
+    def __init__(self, C):
         super().__init__()
         self.C = C
         self.dshape = mfem.DenseMatrix()
         self.gshape = mfem.DenseMatrix()
         self._Ce = mfem.DenseMatrix()
-        self._i = i
 
     def AssembleElementMatrix(self, el, trans, elmat):
         # Initialize variables

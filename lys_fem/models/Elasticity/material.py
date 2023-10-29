@@ -14,7 +14,7 @@ class ElasticParameters(FEMParameter):
     def name(cls):
         return "Elasticity"
 
-    def getParameters(self):
+    def getParameters(self, dim):
         return {"rho": self.rho, "C": self._constructC()}
 
     def _constructC(self):

@@ -85,7 +85,7 @@ class TimeDependentSolver(FEMSolver):
     @classmethod
     @property
     def subSolverTypes(cls):
-        return [GeneralizedAlphaSolver]
+        return [BackwardEulerSolver, GeneralizedAlphaSolver]
 
     def saveAsDictionary(self, fem):
         d = super().saveAsDictionary()
@@ -135,7 +135,7 @@ class LinearSolver(FEMSolver):
         self.target = target
 
     def widget(self, fem, canvas=None):
-        return _LinearSolverWidget(self, fem)
+        return _SolverTargetWidget(self, fem)
 
     def saveAsDictionary(self, fem):
         if self.target in fem.models:
@@ -165,7 +165,7 @@ class LinearSolver(FEMSolver):
         return "Linear Solver"
 
 
-class _LinearSolverWidget(QtWidgets.QWidget):
+class _SolverTargetWidget(QtWidgets.QWidget):
     def __init__(self, solver, fem):
         super().__init__()
         self._solver = solver
@@ -250,6 +250,41 @@ class _GeneralizedAlphaSolverWidget(QtWidgets.QWidget):
 
     def __change(self, value):
         self._solver.target = self._fem.models[value - 1]
+
+
+class BackwardEulerSolver(FEMSolver):
+    def __init__(self, target=None):
+        self.target = target
+
+    def widget(self, fem, canvas=None):
+        return _SolverTargetWidget(self, fem)
+
+    def saveAsDictionary(self, fem):
+        if self.target in fem.models:
+            return {"modelIndex": fem.models.index(self.target)}
+        else:
+            return {}
+
+    @property
+    def variableName(self):
+        return self.target.variableName
+
+    @classmethod
+    def loadFromDictionary(cls, fem, d):
+        if "modelIndex" in d:
+            return BackwardEulerSolver(fem.models[d["modelIndex"]])
+        else:
+            return BackwardEulerSolver()
+
+    @classmethod
+    @property
+    def name(cls):
+        return "Backward Euler Solver"
+
+    @classmethod
+    @property
+    def objName(cls):
+        return "Backward Euler Solver"
 
 
 solvers = {"Stationary": [StationarySolver], "Time dependent": [TimeDependentSolver]}

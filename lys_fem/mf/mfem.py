@@ -1,9 +1,20 @@
 import datetime
 import numpy as np
 from scipy.spatial import KDTree
-from lys_fem import mf
 
-if mf.parallel:
+
+def isParallel():
+    try:
+        from mpi4py import MPI
+    except ModuleNotFoundError:
+        return False
+    if MPI.COMM_WORLD.size == 1:
+        return False
+    else:
+        return True
+
+
+if isParallel():
     from mfem.par import *
     import mfem.par as mfem_orig
     from mpi4py import MPI
@@ -15,7 +26,7 @@ if mf.parallel:
     SparseMatrix = mfem_orig.HypreParMatrix
 
     def print_(*args):
-        if mf.parallel:
+        if isParallel():
             if MPI.COMM_WORLD.rank != 0:
                 return
         print(*args)
@@ -60,7 +71,7 @@ else:
 
 def print_initialize():
     print_("\n---------------------Initialization--------------------------")
-    if mf.parallel:
+    if isParallel():
         print_("lys_fem starts at", datetime.datetime.now(), " with ", str(MPI.COMM_WORLD.size), "processors")
     else:
         print_("lys_fem starts at", datetime.datetime.now(), "in serial mode")

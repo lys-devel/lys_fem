@@ -8,9 +8,9 @@ def generateMaterial(fem, geom):
     for m in mats:
         for p in m:
             if p.name in groups:
-                groups[p.name] |= set(p.getParameters().keys())
+                groups[p.name] |= set(p.getParameters(fem.dimension).keys())
             else:
-                groups[p.name] = set(p.getParameters().keys())
+                groups[p.name] = set(p.getParameters(fem.dimension).keys())
 
     # create coefficient for respective parameter
     res = {}
@@ -29,5 +29,5 @@ def __generateCoefForParameter(pname, mats, group, fem, geom):
             continue
         for d in attrs:
             if m.domains.check(d):
-                coefs[d] = p.getParameters()[pname]
+                coefs[d] = p.getParameters(fem.dimension)[pname]
     return generateCoefficient(coefs, fem.dimension)
