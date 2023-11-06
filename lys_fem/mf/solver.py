@@ -1,5 +1,6 @@
 import os
 import shutil
+import numpy as np
 from . import mfem
 
 
@@ -10,12 +11,13 @@ def generateSolver(fem, mesh, models):
 
 class SolverBase:
     def __init__(self, mesh, models, dirname):
-        self._subSolvers = {"Linear Solver": LinearSolver, "Generalized Alpha Solver": GeneralizedAlphaSolver, "Backward Euler Solver": BackwardEulerSolver}
+        self._subSolvers = {"Linear Solver": NewtonSolver, "CG Solver": CGSolver, "Newton Solver": NewtonSolver, "Generalized Alpha Solver": GeneralizedAlphaSolver, "Backward Euler Solver": BackwardEulerSolver}
         self._mesh = mesh
         self._models = models
         self._dirname = "Solutions/" + dirname
-        if os.path.exists(self._dirname):
-            shutil.rmtree(self._dirname)
+        if mfem.isRoot:
+            if os.path.exists(self._dirname):
+                shutil.rmtree(self._dirname)
         os.makedirs(self._dirname, exist_ok=True)
 
     def exportMesh(self, fec):
@@ -43,10 +45,15 @@ class StationarySolver(SolverBase):
         sol = {}
         for i, sub in enumerate(self._solver.subSolvers):
             model = self._models[self._fem.models.index(sub.target)]
-            solver = self._subSolvers[sub.name](model)
-            s = solver.solve()
-            sol[sub.target.variableName] = mfem.getData(s, self._mesh)
-            mfem.print_("Step", i, ":", model.name, "model has been solved by", solver.name)
+
+            eq = FEMEquation(model)
+            A, B, X = eq.getStationaryEquation()
+            solver = self._subSolvers[sub.name](A)
+            solver.Mult(B, X)
+            eq.a.RecoverFEMSolution(X, eq.b, eq.x)
+
+            sol[sub.target.variableName] = mfem.getData(eq.x, self._mesh)
+            mfem.print_("Step", i, ":", model.name, "model has been solved")
         mfem.saveData(self._dirname + "/data1.npz", sol)
 
     @classmethod
@@ -84,7 +91,8 @@ class TimeDependentSolver(SolverBase):
         return "Time Dependent Solver"
 
 
-class LinearSolver:
+class FEMEquation:
+    # translate bilinear, linearforms and gridfunctions to true-dof matrices and vectors
     def __init__(self, model):
         self._model = model
         self.x, _ = self._model.getInitialValue()
@@ -92,20 +100,51 @@ class LinearSolver:
         self.b = self._model.assemble_b()
         self.ess_tdof_list = self._model.essential_tdof_list()
 
-    def solve(self):
-        A = mfem.SparseMatrix()
-        B = mfem.Vector()
-        X = mfem.Vector()
-        self.a.FormLinearSystem(self.ess_tdof_list, self.x, self.b, A, X, B)
+    def getStationaryEquation(self):
+        if isinstance(self.a, mfem.BilinearForm):
+            A = mfem.SparseMatrix()
+            B = mfem.Vector()
+            X = mfem.Vector()
+            self.a.FormLinearSystem(self.ess_tdof_list, self.x, self.b, A, X, B)
+            return A, B, X
+        else:
+            A, B, X = self.a.FormLinearSystem(self.x, self.b)
+            return A, B, X
 
-        solver, prec = _getDefaultSolver(A)
-        solver.Mult(B, X)  # Solve AX=B
-        self.a.RecoverFEMSolution(X, self.b, self.x)
-        return self.x
 
-    @property
-    def name(self):
-        return "Linear Solver"
+class _SubSolverBase:
+    def __init__(self, A, solver, prec=None):
+        self.solver, self.prec = mfem.getSolver(solver=solver, prec=prec)
+        self._A = A
+        self.solver.SetOperator(self._A)
+
+    def Mult(self, B, X):
+        self.solver.Mult(B, X)
+
+
+class CGSolver(_SubSolverBase):
+    def __init__(self, A):
+        super().__init__(A, solver="CG", prec="GS")
+
+
+class NewtonSolver(_SubSolverBase):
+    class _DummyOperator(mfem.PyOperator):
+        def __init__(self, A):
+            super().__init__(A.Height())
+            self._A = A
+
+        def Mult(self, x, y):
+            self._A.Mult(x, y)
+
+        def GetGradient(self, x):
+            return self._A
+
+    def __init__(self, A):
+        if isinstance(A, mfem.SparseMatrix):
+            A = self._DummyOperator(A)
+        super().__init__(A, "Newton")
+        self.J_solver, self.J_prec = mfem.getSolver(solver="GMRES", prec="GS")
+        self.solver.SetSolver(self.J_solver)
 
 
 class BackwardEulerSolver(mfem.PyTimeDependentOperator):
@@ -170,8 +209,6 @@ class GeneralizedAlphaSolver(mfem.SecondOrderTimeDependentOperator):
         self._value = value
 
     def initialize(self):
-        import time
-        start = time.time()
         self._ode_solver = mfem.GeneralizedAlpha2Solver(self._value)
         self._ode_solver.Init(self)
 
@@ -234,7 +271,7 @@ def _getDefaultSolver(A, rel_tol=1e-8):
     solver.iterative_mode = False
     solver.SetRelTol(rel_tol)
     solver.SetAbsTol(0.0)
-    solver.SetMaxIter(100)
+    solver.SetMaxIter(10)
     solver.SetPrintLevel(0)
     solver.SetPreconditioner(prec)
     solver.SetOperator(A)

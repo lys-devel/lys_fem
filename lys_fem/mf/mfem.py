@@ -24,6 +24,7 @@ if isParallel():
     BilinearForm = mfem_orig.ParBilinearForm
     LinearForm = mfem_orig.ParLinearForm
     SparseMatrix = mfem_orig.HypreParMatrix
+    isRoot = MPI.COMM_WORLD.rank == 0
 
     def print_(*args):
         if isParallel():
@@ -31,9 +32,26 @@ if isParallel():
                 return
         print(*args)
 
-    def getSolver(solver="Default", prec="Default"):
-        prec = mfem_orig.HypreSmoother()
-        solver = mfem_orig.CGSolver(MPI.COMM_WORLD)
+    def getSolver(solver="CG", prec=None, rel_tol=1e-8):
+        if prec == "GS":
+            prec = mfem_orig.HypreBoomerAMG()
+        elif prec == "D":
+            prec = mfem_orig.HypreSmoother()
+        if solver == "CG":
+            solver = mfem_orig.CGSolver(MPI.COMM_WORLD)
+        elif solver == "GMRES":
+            solver = mfem_orig.GMRESSolver(MPI.COMM_WORLD)
+        elif solver == "MINRES":
+            solver = mfem_orig.MINRESSolver(MPI.COMM_WORLD)
+        elif solver == "Newton":
+            solver = mfem_orig.NewtonSolver(MPI.COMM_WORLD)
+        solver.iterative_mode = False
+        solver.SetRelTol(rel_tol)
+        solver.SetAbsTol(0.0)
+        solver.SetMaxIter(500)
+        solver.SetPrintLevel(0)
+        if pres is not None:
+            solver.SetPreconditioner(prec)
         return solver, prec
 
     def getMesh(fec, mesh):
@@ -49,14 +67,33 @@ if isParallel():
         if MPI.COMM_WORLD.rank == 0:
             np.savez(file, **data)
 
+
 else:
     import mfem.ser as mfem_orig
     from mfem.ser import *
     print_ = print
+    isRoot = True
 
-    def getSolver(solver="Default", prec="Default"):
-        prec = mfem_orig.GSSmoother()
-        solver = mfem_orig.CGSolver()
+    def getSolver(solver="CG", prec=None, rel_tol=1e-8):
+        if prec == "GS":
+            prec = mfem_orig.GSSmoother()
+        elif prec == "D":
+            prec = mfem_orig.DSmoother()
+        if solver == "CG":
+            solver = mfem_orig.CGSolver()
+        elif solver == "GMRES":
+            solver = mfem_orig.GMRESSolver()
+        elif solver == "MINRES":
+            solver = mfem_orig.MINRESSolver()
+        elif solver == "Newton":
+            solver = mfem_orig.NewtonSolver()
+        solver.iterative_mode = False
+        solver.SetRelTol(rel_tol)
+        solver.SetAbsTol(0.0)
+        solver.SetMaxIter(500)
+        solver.SetPrintLevel(0)
+        if prec is not None:
+            solver.SetPreconditioner(prec)
         return solver, prec
 
     def getMesh(fec, mesh):

@@ -165,6 +165,76 @@ class LinearSolver(FEMSolver):
         return "Linear Solver"
 
 
+class CGSolver(FEMSolver):
+    def __init__(self, target=None):
+        self.target = target
+
+    def widget(self, fem, canvas=None):
+        return _SolverTargetWidget(self, fem)
+
+    def saveAsDictionary(self, fem):
+        if self.target in fem.models:
+            return {"modelIndex": fem.models.index(self.target)}
+        else:
+            return {}
+
+    @property
+    def variableName(self):
+        return self.target.variableName
+
+    @classmethod
+    def loadFromDictionary(cls, fem, d):
+        if "modelIndex" in d:
+            return CGSolver(fem.models[d["modelIndex"]])
+        else:
+            return CGSolver()
+
+    @classmethod
+    @property
+    def name(cls):
+        return "CG Solver"
+
+    @classmethod
+    @property
+    def objName(cls):
+        return "CG Solver"
+
+
+class NewtonSolver(FEMSolver):
+    def __init__(self, target=None):
+        self.target = target
+
+    def widget(self, fem, canvas=None):
+        return _SolverTargetWidget(self, fem)
+
+    def saveAsDictionary(self, fem):
+        if self.target in fem.models:
+            return {"modelIndex": fem.models.index(self.target)}
+        else:
+            return {}
+
+    @property
+    def variableName(self):
+        return self.target.variableName
+
+    @classmethod
+    def loadFromDictionary(cls, fem, d):
+        if "modelIndex" in d:
+            return NewtonSolver(fem.models[d["modelIndex"]])
+        else:
+            return NewtonSolver()
+
+    @classmethod
+    @property
+    def name(cls):
+        return "Newton Solver"
+
+    @classmethod
+    @property
+    def objName(cls):
+        return "Newton Solver"
+
+
 class _SolverTargetWidget(QtWidgets.QWidget):
     def __init__(self, solver, fem):
         super().__init__()
