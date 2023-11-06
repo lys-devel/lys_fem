@@ -2,8 +2,27 @@ from lys.Qt import QtWidgets
 
 
 class FEMSolver:
-    def saveAsDictionary(self):
-        return {"solver": self.name}
+    def __init__(self, models, subSolvers):
+        self._models = models
+        self._subs = subSolvers
+
+    def addModel(self, model, solver):
+        self._models.append(model)
+        self._subs.adppend(solver)
+
+    @property
+    def subSolvers(self):
+        return self._subs
+
+    @property
+    def models(self):
+        return self._models
+
+    def saveAsDictionary(self, fem):
+        d = {"solver": self.name}
+        d["models"] = [fem.models.index(self.target)]
+        d["subs"] = [s.saveAsDictionary() for s in self._subs]
+        return d
 
     @staticmethod
     def loadFromDictionary(fem, d):
@@ -13,52 +32,31 @@ class FEMSolver:
         del d["solver"]
         return solver.loadFromDictionary(fem, d)
 
+    @classmethod
+    def _loadModels(cls, fem, d):
+        models = [fem.models[index]for index in d["models"]]
+        subs = [subSolvers[sub["type"]].loadFromDictionary(sub) for sub in d["subs"]]
+        return models, subs
+
 
 class StationarySolver(FEMSolver):
-    def __init__(self, subs=None):
-        if subs is None:
-            subs = []
-        self._subs = subs
-
     @classmethod
     @property
     def name(cls):
         return "Stationary Solver"
 
-    @property
-    def subSolvers(self):
-        return self._subs
-
     def widget(self):
         return QtWidgets.QWidget()
 
-    def addSubSolver(self, sub):
-        obj = sub()
-        self._subs.append(obj)
-        return obj
-
-    @classmethod
-    @property
-    def subSolverTypes(cls):
-        return [LinearSolver]
-
-    def saveAsDictionary(self, fem):
-        d = super().saveAsDictionary()
-        d["subs"] = {s.name: s.saveAsDictionary(fem) for s in self._subs}
-        return d
-
     @classmethod
     def loadFromDictionary(cls, fem, d):
-        types = {t.name: t for t in cls.subSolverTypes}
-        subs = [types[name].loadFromDictionary(fem, s) for name, s in d["subs"].items()]
-        return StationarySolver(subs)
+        models, subs = cls._loadModels(fem, d)
+        return StationarySolver(models, subs)
 
 
 class TimeDependentSolver(FEMSolver):
-    def __init__(self, step=1, stop=100, subs=None):
-        if subs is None:
-            subs = []
-        self._subs = subs
+    def __init__(self, models, tSolvers, step=1, stop=100):
+        super().__init__(models, tSolvers)
         self._step = step
         self._stop = stop
 
@@ -73,32 +71,102 @@ class TimeDependentSolver(FEMSolver):
     def getStepList(self):
         return [self._step] * int(self._stop / self._step)
 
-    @property
-    def subSolvers(self):
-        return self._subs
-
-    def addSubSolver(self, sub):
-        obj = sub()
-        self._subs.append(obj)
-        return obj
-
-    @classmethod
-    @property
-    def subSolverTypes(cls):
-        return [BackwardEulerSolver, GeneralizedAlphaSolver]
-
     def saveAsDictionary(self, fem):
         d = super().saveAsDictionary()
-        d["subs"] = {s.name: s.saveAsDictionary(fem) for s in self._subs}
         d["step"] = self._step
         d["stop"] = self._stop
         return d
 
     @classmethod
     def loadFromDictionary(cls, fem, d):
-        types = {t.name: t for t in cls.subSolverTypes}
-        subs = [types[name].loadFromDictionary(fem, s) for name, s in d["subs"].items()]
-        return TimeDependentSolver(d["step"], d["stop"], subs)
+        models, subs = cls._loadModels(fem, d)
+        return TimeDependentSolver(models, subs, d["step"], d["stop"])
+
+
+class FEMSubSolver:
+    def widget(self, fem, canvas=None):
+        return QtWidgets.QWidget()
+
+    def saveAsDictionary(self):
+        return {"type": self.name()}
+
+    @classmethod
+    def loadFromDictionary(cls, d):
+        return cls()
+
+
+class CGSolver(FEMSubSolver):
+    @classmethod
+    @property
+    def name(cls):
+        return "CG Solver"
+
+
+class NewtonSolver(FEMSubSolver):
+    @classmethod
+    @property
+    def name(cls):
+        return "Newton Solver"
+
+
+class FEMTimeDependentSolver(FEMSubSolver):
+    def __init__(self, femSolver=NewtonSolver()):
+        self._solver = femSolver
+
+    @property
+    def femSolver(self):
+        return self._solver
+
+    def saveAsDictionary(self):
+        d = super().saveAsDictionary()
+        d["solver"] = self._solver.saveAsDictionary()
+        return d
+
+    @classmethod
+    def loadFromDictionary(cls, d):
+        s = d["solver"]
+        subSolvers[s["type"]].loadFromDictionary(s)
+        return cls(d["solver"])
+
+
+class GeneralizedAlphaSolver(FEMTimeDependentSolver):
+    @classmethod
+    @property
+    def name(cls):
+        return "Generalized Alpha Solver"
+
+
+class BackwardEulerSolver(FEMTimeDependentSolver):
+    @classmethod
+    @property
+    def name(cls):
+        return "Backward Euler Solver"
+
+
+class _SolverTargetWidget(QtWidgets.QWidget):
+    def __init__(self, solver, fem):
+        super().__init__()
+        self._solver = solver
+        self._fem = fem
+        self.__initlayout(fem)
+
+    def __initlayout(self, fem):
+        self._targ = QtWidgets.QComboBox()
+        self._targ.addItem("")
+        self._targ.addItems([m.name for m in fem.models])
+        if self._solver.target in fem.models:
+            index = fem.models.index(self._solver.target)
+            self._targ.setCurrentIndex(index + 1)
+        self._targ.currentIndexChanged.connect(self.__change)
+
+        layout = QtWidgets.QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(QtWidgets.QLabel("Target"))
+        layout.addWidget(self._targ)
+        self.setLayout(layout)
+
+    def __change(self, value):
+        self._solver.target = self._fem.models[value - 1]
 
 
 class _TimeDependentSolverWidget(QtWidgets.QWidget):
@@ -130,231 +198,6 @@ class _TimeDependentSolverWidget(QtWidgets.QWidget):
         self._solver._stop = self._stop.value()
 
 
-class LinearSolver(FEMSolver):
-    def __init__(self, target=None):
-        self.target = target
-
-    def widget(self, fem, canvas=None):
-        return _SolverTargetWidget(self, fem)
-
-    def saveAsDictionary(self, fem):
-        if self.target in fem.models:
-            return {"modelIndex": fem.models.index(self.target)}
-        else:
-            return {}
-
-    @property
-    def variableName(self):
-        return self.target.variableName
-
-    @classmethod
-    def loadFromDictionary(cls, fem, d):
-        if "modelIndex" in d:
-            return LinearSolver(fem.models[d["modelIndex"]])
-        else:
-            return LinearSolver()
-
-    @classmethod
-    @property
-    def name(cls):
-        return "Linear Solver"
-
-    @classmethod
-    @property
-    def objName(cls):
-        return "Linear Solver"
-
-
-class CGSolver(FEMSolver):
-    def __init__(self, target=None):
-        self.target = target
-
-    def widget(self, fem, canvas=None):
-        return _SolverTargetWidget(self, fem)
-
-    def saveAsDictionary(self, fem):
-        if self.target in fem.models:
-            return {"modelIndex": fem.models.index(self.target)}
-        else:
-            return {}
-
-    @property
-    def variableName(self):
-        return self.target.variableName
-
-    @classmethod
-    def loadFromDictionary(cls, fem, d):
-        if "modelIndex" in d:
-            return CGSolver(fem.models[d["modelIndex"]])
-        else:
-            return CGSolver()
-
-    @classmethod
-    @property
-    def name(cls):
-        return "CG Solver"
-
-    @classmethod
-    @property
-    def objName(cls):
-        return "CG Solver"
-
-
-class NewtonSolver(FEMSolver):
-    def __init__(self, target=None):
-        self.target = target
-
-    def widget(self, fem, canvas=None):
-        return _SolverTargetWidget(self, fem)
-
-    def saveAsDictionary(self, fem):
-        if self.target in fem.models:
-            return {"modelIndex": fem.models.index(self.target)}
-        else:
-            return {}
-
-    @property
-    def variableName(self):
-        return self.target.variableName
-
-    @classmethod
-    def loadFromDictionary(cls, fem, d):
-        if "modelIndex" in d:
-            return NewtonSolver(fem.models[d["modelIndex"]])
-        else:
-            return NewtonSolver()
-
-    @classmethod
-    @property
-    def name(cls):
-        return "Newton Solver"
-
-    @classmethod
-    @property
-    def objName(cls):
-        return "Newton Solver"
-
-
-class _SolverTargetWidget(QtWidgets.QWidget):
-    def __init__(self, solver, fem):
-        super().__init__()
-        self._solver = solver
-        self._fem = fem
-        self.__initlayout(fem)
-
-    def __initlayout(self, fem):
-        self._targ = QtWidgets.QComboBox()
-        self._targ.addItem("")
-        self._targ.addItems([m.name for m in fem.models])
-        if self._solver.target in fem.models:
-            index = fem.models.index(self._solver.target)
-            self._targ.setCurrentIndex(index + 1)
-        self._targ.currentIndexChanged.connect(self.__change)
-
-        layout = QtWidgets.QHBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(QtWidgets.QLabel("Target"))
-        layout.addWidget(self._targ)
-        self.setLayout(layout)
-
-    def __change(self, value):
-        self._solver.target = self._fem.models[value - 1]
-
-
-class GeneralizedAlphaSolver(FEMSolver):
-    def __init__(self, target=None):
-        self.target = target
-
-    def widget(self, fem, canvas=None):
-        return _GeneralizedAlphaSolverWidget(self, fem)
-
-    def saveAsDictionary(self, fem):
-        if self.target in fem.models:
-            return {"modelIndex": fem.models.index(self.target)}
-        else:
-            return {}
-
-    @property
-    def variableName(self):
-        return self.target.variableName
-
-    @classmethod
-    def loadFromDictionary(cls, fem, d):
-        if "modelIndex" in d:
-            return GeneralizedAlphaSolver(fem.models[d["modelIndex"]])
-        else:
-            return GeneralizedAlphaSolver()
-
-    @classmethod
-    @property
-    def name(cls):
-        return "Generalized Alpha Solver"
-
-    @classmethod
-    @property
-    def objName(cls):
-        return "Generalized Alpha Solver"
-
-
-class _GeneralizedAlphaSolverWidget(QtWidgets.QWidget):
-    def __init__(self, solver, fem):
-        super().__init__()
-        self._solver = solver
-        self._fem = fem
-        self.__initlayout(fem)
-
-    def __initlayout(self, fem):
-        self._targ = QtWidgets.QComboBox()
-        self._targ.addItem("")
-        self._targ.addItems([m.name for m in fem.models])
-        if self._solver.target in fem.models:
-            index = fem.models.index(self._solver.target)
-            self._targ.setCurrentIndex(index + 1)
-        self._targ.currentIndexChanged.connect(self.__change)
-
-        layout = QtWidgets.QHBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(QtWidgets.QLabel("Target"))
-        layout.addWidget(self._targ)
-        self.setLayout(layout)
-
-    def __change(self, value):
-        self._solver.target = self._fem.models[value - 1]
-
-
-class BackwardEulerSolver(FEMSolver):
-    def __init__(self, target=None):
-        self.target = target
-
-    def widget(self, fem, canvas=None):
-        return _SolverTargetWidget(self, fem)
-
-    def saveAsDictionary(self, fem):
-        if self.target in fem.models:
-            return {"modelIndex": fem.models.index(self.target)}
-        else:
-            return {}
-
-    @property
-    def variableName(self):
-        return self.target.variableName
-
-    @classmethod
-    def loadFromDictionary(cls, fem, d):
-        if "modelIndex" in d:
-            return BackwardEulerSolver(fem.models[d["modelIndex"]])
-        else:
-            return BackwardEulerSolver()
-
-    @classmethod
-    @property
-    def name(cls):
-        return "Backward Euler Solver"
-
-    @classmethod
-    @property
-    def objName(cls):
-        return "Backward Euler Solver"
-
-
 solvers = {"Stationary": [StationarySolver], "Time dependent": [TimeDependentSolver]}
+subSolvers = {c.name: c for c in [CGSolver, NewtonSolver]}
+tSolvers = {c.name: c for c in [BackwardEulerSolver, GeneralizedAlphaSolver]}

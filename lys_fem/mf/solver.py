@@ -5,13 +5,15 @@ from . import mfem
 
 
 def generateSolver(fem, mesh, models):
-    solverDict = {s.name: s for s in [StationarySolver, TimeDependentSolver]}
-    return [solverDict[s.name](fem, mesh, s, models, "Solver" + str(i)) for i, s in enumerate(fem.solvers)]
+    solvers = {"Stationary Solver": StationarySolver, "Time Dependent Solver": TimeDependentSolver}
+    return [solvers[s.name](fem, s, mesh, models, "Solver" + str(i)) for i, s in enumerate(fem.solvers)]
 
 
 class SolverBase:
-    def __init__(self, mesh, models, dirname):
-        self._subSolvers = {"Linear Solver": CGSolver, "CG Solver": CGSolver, "Newton Solver": NewtonSolver, "Generalized Alpha Solver": GeneralizedAlphaSolver, "Backward Euler Solver": BackwardEulerSolver}
+    def __init__(self, femSolver, mesh, models, dirname):
+        self._subSolvers = {"Linear Solver": CGSolver, "CG Solver": CGSolver, "Newton Solver": NewtonSolver}
+        self._tSolvers = {"Generalized Alpha Solver": GeneralizedAlphaSolver, "Backward Euler Solver": BackwardEulerSolver}
+        self._femSolver = femSolver
         self._mesh = mesh
         self._models = models
         self._dirname = "Solutions/" + dirname
@@ -31,56 +33,56 @@ class SolverBase:
             sol[m.variableName] = mfem.getData(m.getInitialValue()[0], self._mesh)
         mfem.saveData(self._dirname + "/data0.npz", sol)
 
+    def exportSolution(self, index, solution):
+        mfem.saveData(self._dirname + "/data" + str(index), solution)
+
+    @property
+    def name(self):
+        return self._femSolver.name
+
 
 class StationarySolver(SolverBase):
-    def __init__(self, fem, mesh, solver, models, dirname):
-        super().__init__(mesh, models, dirname)
+    def __init__(self, fem, femSolver, mesh, models, dirname):
+        super().__init__(femSolver, mesh, models, dirname)
         self._fem = fem
-        self._solver = solver
-        self._models = models
+        self._solver = [self._subSolvers[s.name](s) for s in femSolver.subSolvers]
+        self._models = [models[fem.models.index(m)] for m in femSolver.models]
 
     def execute(self, fec):
         self.exportMesh(fec)
         self.exportInitialValues()
         sol = {}
-        for i, sub in enumerate(self._solver.subSolvers):
-            model = self._models[self._fem.models.index(sub.target)]
-
-            A, B, X = model.assemble()
-            solver = self._subSolvers[sub.name](A)
-            solver.Mult(B, X)
-
-            sol[sub.target.variableName] = mfem.getData(model.RecoverFEMSolution(X), self._mesh)
-            mfem.print_("Step", i, ":", model.name, "model has been solved")
-        mfem.saveData(self._dirname + "/data1.npz", sol)
-
-    @classmethod
-    @property
-    def name(cls):
-        return "Stationary Solver"
+        for solver, model in zip(self._solver, self._models):
+            x = solver.solve(model)
+            sol[model.variableName] = mfem.getData(x, self._mesh)
+            mfem.print_(model.name, "model has been solved by", solver.name)
+        self.exportSolution(1, sol)
 
 
 class TimeDependentSolver(SolverBase):
-    def __init__(self, fem, mesh, solver, models, dirname):
-        super().__init__(mesh, models, dirname)
+    def __init__(self, fem, femSolver, mesh, models, dirname):
+        super().__init__(femSolver, mesh, models, dirname)
         self._fem = fem
-        self._solver = solver
+        self._femSolver = femSolver
+        self._models = [models[fem.models.index(m)] for m in femSolver.models]
+        self._tsolver = []
+        for s, m in zip(femSolver.subSolvers, self._models):
+            sub1, sub2 = self._subSolvers[s.femSolver.name](s), self._subSolvers[s.femSolver.name](s)
+            tsol = self._tSolvers[s.name](m.space.GetTrueVSize(), sub1, sub2)
+            self._tsolver.append(tsol)
 
     def execute(self, fec):
-        solvers = [self._subSolvers[sub.name](self._models[self._fem.models.index(sub.target)]) for sub in self._solver.subSolvers]
         self.exportMesh(fec)
         self.exportInitialValues()
-        for s in solvers:
-            s.initialize()
         t = 0
-        for i, dt in enumerate(self._solver.getStepList()):
+        for i, dt in enumerate(self._femSolver.getStepList()):
             mfem.print_("t =", t)
             sol = {}
-            for s, sub in zip(solvers, self._solver.subSolvers):
-                x = s.step(t, dt)
-                sol[sub.variableName] = mfem.getData(x, self._mesh)
+            for model, solver in zip(self._models, self._tsolver):
+                x = solver.step(model, t, dt)
+                sol[model.variableName] = mfem.getData(x, self._mesh)
             sol["time"] = t
-            mfem.saveData(self._dirname + "/data" + str(i + 1) + ".npz", sol)
+            self.exportSolution(i + 1, sol)
             t = t + dt
 
     @classmethod
@@ -89,81 +91,71 @@ class TimeDependentSolver(SolverBase):
         return "Time Dependent Solver"
 
 
-
 class _SubSolverBase:
-    def __init__(self, A, solver, prec=None):
+    def __init__(self, sol, solver, prec=None):
+        self._sol = sol
         self.solver, self.prec = mfem.getSolver(solver=solver, prec=prec)
-        self._A = A
-        self.solver.SetOperator(self._A)
+
+    def SetOperator(self, A):
+        self.solver.SetOperator(A)
 
     def Mult(self, B, X):
         self.solver.Mult(B, X)
 
+    def solve(self, model):
+        A, B, X = model.assemble()
+        self.solver.SetOperator(A)
+        self.solver.Mult(B, X)
+        return model.RecoverFEMSolution(X)
+
+    @property
+    def name(self):
+        return self._sol.name
+
 
 class CGSolver(_SubSolverBase):
-    def __init__(self, A):
-        super().__init__(A, solver="CG", prec="GS")
+    def __init__(self, sol):
+        super().__init__(sol, solver="CG", prec="GS")
 
 
 class NewtonSolver(_SubSolverBase):
-    def __init__(self, A):
-        super().__init__(A, "Newton")
+    def __init__(self, sol):
+        super().__init__(sol, solver="Newton")
         self.J_solver, self.J_prec = mfem.getSolver(solver="GMRES", prec="GS")
         self.solver.SetSolver(self.J_solver)
 
 
-class BackwardEulerSolver(mfem.PyTimeDependentOperator):
-    def __init__(self, model):
-        super().__init__(model._fespace.GetTrueVSize(), 0)
-        self._model = model
-        self._initialized = False
-
-    def initialize(self):
-        self._ode_solver = mfem.BackwardEulerSolver()
+class TimeDependentOperator(mfem.PyTimeDependentOperator):
+    def __init__(self, size, solM, solT, ode_solver):
+        super().__init__(size, 0)
+        self.Mi = solM
+        self.Ti = solT
+        self._ode_solver = ode_solver
         self._ode_solver.Init(self)
 
-        self._x_gf, _ = self._model.getInitialValue()
-        self._x = mfem.Vector()
-        self._x_gf.GetTrueDofs(self._x)
-
-        self._K_op = self._model.assemble_a()
-        self._M_op = self._model.assemble_m()
-        ess_tdof_list = self._model.essential_tdof_list()
-
-        self._K = mfem.SparseMatrix()
-        self._K_op.FormSystemMatrix(ess_tdof_list, self._K)
-
-        self._M = mfem.SparseMatrix()
-        self._M_op.FormSystemMatrix(ess_tdof_list, self._M)
-
-        self._M_solver, self._M_prec = _getDefaultSolver(self._M)
-        self._T = None
-
-        self._initialized = True
-
-    def step(self, t, dt):
-        if not self._initialized:
-            self.initialize()
-        self._ode_solver.Step(self._x, t, dt)
-        self._x_gf.SetFromTrueDofs(self._x)
-        return self._x_gf
+    def step(self, model, t, dt):
+        self.K, self.b, x = model.assemble_t(dt, self.Mi, self.Ti)
+        self._ode_solver.Step(x, t, dt)
+        return model.RecoverFEMSolution(x)
 
     def Mult(self, u, du_dt):
         # Compute: du_dt = M^{-1}*-K(u)
         z = mfem.Vector(u.Size())
-        self._K.Mult(u, z)
+        self.K.Mult(u, z)
         z.Neg()   # z = -z
-        self.M_solver.Mult(z, du_dt)
+        self.Mi.Mult(z, du_dt)
 
     def ImplicitSolve(self, dt, u, du_dt):
         # Solve the equation: du_dt = M^{-1}*[-K(u + dt*du_dt)]
-        if self._T is None:
-            self._T = mfem.Add(1.0, self._M, dt, self._K)
-            self._T_solver, self._T_prec = _getDefaultSolver(self._T)
         z = mfem.Vector(u.Size())
-        self._K.Mult(u, z)
+        self.K.Mult(u, z)
         z.Neg()
-        self._T_solver.Mult(z, du_dt)
+        self.Ti.Mult(z, du_dt)
+
+
+class BackwardEulerSolver(TimeDependentOperator):
+    def __init__(self, size, solver_M, solver_T):
+        super().__init__(size, solver_M, solver_T, mfem.BackwardEulerSolver())
 
 
 class GeneralizedAlphaSolver(mfem.SecondOrderTimeDependentOperator):

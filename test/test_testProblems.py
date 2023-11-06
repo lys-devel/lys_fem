@@ -37,7 +37,7 @@ class testProblems_test(unittest.TestCase):
         p.models.append(model)
 
         # solver
-        stationary = StationarySolver([CGSolver(model)])
+        stationary = StationarySolver([model], [CGSolver])
         p.solvers.append(stationary)
 
         # solve
@@ -65,7 +65,7 @@ class testProblems_test(unittest.TestCase):
         p.models.append(model)
 
         # solver
-        stationary = StationarySolver([NewtonSolver(model)])
+        stationary = StationarySolver([model], [NewtonSolver])
         p.solvers.append(stationary)
 
         # solve

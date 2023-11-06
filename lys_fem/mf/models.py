@@ -107,11 +107,16 @@ class MFEMModel:
     def variableName(self):
         return self._model.variableName
 
-class MFEMLinearModel(MFEMModel):       
+
+class MFEMLinearModel(MFEMModel):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._init = False
+
     def assemble(self):
         self.a = self.assemble_a()
         self.b = self.assemble_b()
-        self.x,_ = self.getInitialValue()
+        self.x, _ = self.getInitialValue()
         self.ess_tdof_list = self.essential_tdof_list()
 
         self.A = mfem.SparseMatrix()
@@ -120,8 +125,36 @@ class MFEMLinearModel(MFEMModel):
         self.a.FormLinearSystem(self.ess_tdof_list, self.x, self.b, self.A, self.X, self.B)
         return self.A, self.B, self.X
 
+    def assemble_t(self, dt, sol_M, sol_T):
+        if not self._init:
+            self.m = self.assemble_m()
+            self.k = self.assemble_a()
+            self.b = self.assemble_b()
+            self.x, _ = self.getInitialValue()
+            self.ess_tdof_list = self.essential_tdof_list()
+
+            self.M = mfem.SparseMatrix()
+            self.K = mfem.SparseMatrix()
+            self.T = mfem.SparseMatrix()
+            self.B = mfem.Vector()
+            self.X = mfem.Vector()
+
+            self.m.FormSystemMatrix(self.ess_tdof_list, self.M)
+            self.k.FormSystemMatrix(self.ess_tdof_list, self.K)
+            self.T = mfem.Add(1.0, self.M, dt, self.K)
+            # self.b.GetTrueDofs(self.B)
+            self.x.GetTrueDofs(self.X)
+
+            sol_M.SetOperator(self.M)
+            sol_T.SetOperator(self.T)
+            self._init = True
+        return self.K, self.B, self.X
+
     def RecoverFEMSolution(self, X):
-        self.a.RecoverFEMSolution(X, self.b, self.x)
+        if self._init:
+            self.x.SetFromTrueDofs(X)
+        else:
+            self.a.RecoverFEMSolution(X, self.b, self.x)
         return self.x
 
 

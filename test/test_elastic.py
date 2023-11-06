@@ -5,7 +5,7 @@ import shutil
 from numpy.testing import assert_array_almost_equal
 
 from lys_fem import geometry, mf
-from lys_fem.fem import FEMProject, Material, DirichletBoundary, InitialCondition, StationarySolver, LinearSolver, FEMSolution
+from lys_fem.fem import FEMProject, Material, DirichletBoundary, InitialCondition, StationarySolver, CGSolver, FEMSolution
 from lys_fem.models import elasticity
 
 
@@ -41,7 +41,7 @@ class elasticity_test(unittest.TestCase):
         p.models.append(model)
 
         # solver
-        stationary = StationarySolver([LinearSolver(model)])
+        stationary = StationarySolver([model], [CGSolver()])
         p.solvers.append(stationary)
 
         # solve
@@ -73,7 +73,7 @@ class elasticity_test(unittest.TestCase):
         p.models.append(model)
 
         # solver
-        stationary = StationarySolver([LinearSolver(model)])
+        stationary = StationarySolver([model], [CGSolver])
         p.solvers.append(stationary)
 
         # solve
@@ -105,7 +105,7 @@ class elasticity_test(unittest.TestCase):
         p.models.append(model)
 
         # solver
-        stationary = StationarySolver([LinearSolver(model)])
+        stationary = StationarySolver([model], [CGSolver])
         p.solvers.append(stationary)
 
         # solve
