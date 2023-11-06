@@ -106,3 +106,34 @@ class MFEMModel:
     @property
     def variableName(self):
         return self._model.variableName
+
+class MFEMLinearModel(MFEMModel):       
+    def assemble(self):
+        self.a = self.assemble_a()
+        self.b = self.assemble_b()
+        self.x,_ = self.getInitialValue()
+        self.ess_tdof_list = self.essential_tdof_list()
+
+        self.A = mfem.SparseMatrix()
+        self.B = mfem.Vector()
+        self.X = mfem.Vector()
+        self.a.FormLinearSystem(self.ess_tdof_list, self.x, self.b, self.A, self.X, self.B)
+        return self.A, self.B, self.X
+
+    def RecoverFEMSolution(self, X):
+        self.a.RecoverFEMSolution(X, self.b, self.x)
+        return self.x
+
+
+class MFEMNonlinearModel(MFEMModel):
+    def assemble(self):
+        self.x, _ = self.getInitialValue()
+        self.a = self.assemble_a()
+        self.b = self.assemble_b()
+        self.ess_tdof_list = self.essential_tdof_list()
+        B, X = self.a.initializeRHS(self.ess_tdof_list, self.x, self.b)
+        return self.a, B, X
+
+    def RecoverFEMSolution(self, X):
+        self.a.RecoverFEMSolution(X, self.b, self.x)
+        return self.x

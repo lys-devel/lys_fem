@@ -1,7 +1,7 @@
-from lys_fem.mf import mfem, MFEMModel
+from lys_fem.mf import mfem, MFEMLinearModel
 
 
-class MFEMHeatConductionModel(MFEMModel):
+class MFEMHeatConductionModel(MFEMLinearModel):
     def __init__(self, fec, model, mesh, mat):
         super().__init__(fec, model, mesh)
         self._mat = mat

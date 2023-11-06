@@ -1,20 +1,18 @@
-import numpy as np
-import itertools
-from lys_fem.mf import mfem, MFEMModel
+from lys_fem.mf import mfem, MFEMLinearModel, MFEMNonlinearModel
 
 
-class MFEMLinearTestModel(MFEMModel):
+class MFEMLinearTestModel(MFEMLinearModel):
     def __init__(self, fec, model, mesh, mat):
         super().__init__(fec, model, mesh)
 
     def assemble_a(self):
         a = mfem.BilinearForm(self.space)
-        a.AddDomainIntegrator(mfem.DiffusionIntegrator(mfem.ConstantCoefficient(1)))
+        a.AddDomainIntegrator(mfem.DiffusionIntegrator())
         a.Assemble()
         return a
 
 
-class MFEMNonlinearTestModel(MFEMModel):
+class MFEMNonlinearTestModel(MFEMNonlinearModel):
     def __init__(self, fec, model, mesh, mat):
         super().__init__(fec, model, mesh)
 
@@ -49,13 +47,13 @@ class _NonlinearOperator(mfem.PyOperator):
         self.da.AddDomainIntegrator(mfem.MixedScalarWeakDerivativeIntegrator(self.dx_c))
         self.da.Assemble()
 
-    def FormLinearSystem(self, x, b):
+    def initializeRHS(self, ess_tdof_list, x, b):
         self._assemble(x)
         A = mfem.SparseMatrix()
         self.B = mfem.Vector()
         self.X = mfem.Vector()
-        self.a.FormLinearSystem(self._model.essential_tdof_list(), x, b, A, self.X, self.B)
-        return self, self.B, self.X
+        self.a.FormLinearSystem(ess_tdof_list, x, b, A, self.X, self.B)
+        return self.B, self.X
 
     def Mult(self, x, y):
         if self._init is False:

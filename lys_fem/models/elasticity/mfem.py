@@ -1,10 +1,10 @@
 import itertools
 import numpy as np
 
-from lys_fem.mf import mfem, MFEMModel
+from lys_fem.mf import mfem, MFEMLinearModel
 
 
-class MFEMElasticModel(MFEMModel):
+class MFEMElasticModel(MFEMLinearModel):
     def __init__(self, fec, model, mesh, mat):
         super().__init__(fec, model, mesh)
         self._mat = mat
@@ -16,44 +16,11 @@ class MFEMElasticModel(MFEMModel):
         return m
 
     def assemble_a(self):
-        #a = mfem.BilinearForm(self.space)
-        # a.AddDomainIntegrator(mfem.ElasticityIntegrator(mfem.ConstantCoefficient(1), mfem.ConstantCoefficient(1)))
-        # a.AddDomainIntegrator(_ElasticityIntegrator(self._mat["Elasticity"]["C"]))
-        # a.Assemble()
-
-        self._n = _NonlinearOperator(self)
-        return self._n
-
-
-class _NonlinearOperator(mfem.PyOperator):
-    def __init__(self, model):
-        super().__init__(model.space.GetTrueVSize())
-        self._model = model
-
-    def _assemble(self, x):
-        self.a = mfem.BilinearForm(self._model.space)
-        self.a.AddDomainIntegrator(_ElasticityIntegrator(self._model._mat["Elasticity"]["C"]))
-        self.a.Assemble()
-
-    def FormLinearSystem(self, x, b):
-        self._assemble(x)
-        A = mfem.SparseMatrix()
-        B = mfem.Vector()
-        X = mfem.Vector()
-        self.a.FormLinearSystem(self._model.essential_tdof_list(), x, b, A, X, B)
-        return self, B, X
-
-    def Mult(self, x, y):
-        self._assemble(x)
-        self.A = mfem.SparseMatrix()
-        self.a.FormSystemMatrix(self._model.essential_tdof_list(), self.A)
-        self.A.Mult(x, y)
-
-    def GetGradient(self, x):
-        self._assemble(x)
-        self.A = mfem.SparseMatrix()
-        self.a.FormSystemMatrix(self._model.essential_tdof_list(), self.A)
-        return self.A
+        a = mfem.BilinearForm(self.space)
+        a.AddDomainIntegrator(mfem.ElasticityIntegrator(mfem.ConstantCoefficient(1), mfem.ConstantCoefficient(1)))
+        a.AddDomainIntegrator(_ElasticityIntegrator(self._mat["Elasticity"]["C"]))
+        a.Assemble()
+        return a
 
 
 class _ElasticityIntegrator(mfem.BilinearFormIntegrator):
