@@ -2,13 +2,21 @@ from lys.Qt import QtWidgets
 
 
 class FEMSolver:
-    def __init__(self, models, subSolvers):
+    def __init__(self, models=None, subSolvers=None):
+        if models is None:
+            models = []
+        if subSolvers is None:
+            subSolvers = []
         self._models = models
         self._subs = subSolvers
 
     def addModel(self, model, solver):
         self._models.append(model)
-        self._subs.adppend(solver)
+        self._subs.append(solver)
+
+    def remove(self, index):
+        self._models.remove(self._models[index])
+        self._subs.remove(self._subs[index])
 
     @property
     def subSolvers(self):
@@ -20,7 +28,7 @@ class FEMSolver:
 
     def saveAsDictionary(self, fem):
         d = {"solver": self.name}
-        d["models"] = [fem.models.index(self.target)]
+        d["models"] = [fem.models.index(m) for m in self._models]
         d["subs"] = [s.saveAsDictionary() for s in self._subs]
         return d
 
@@ -32,12 +40,6 @@ class FEMSolver:
         del d["solver"]
         return solver.loadFromDictionary(fem, d)
 
-    @classmethod
-    def _loadModels(cls, fem, d):
-        models = [fem.models[index]for index in d["models"]]
-        subs = [subSolvers[sub["type"]].loadFromDictionary(sub) for sub in d["subs"]]
-        return models, subs
-
 
 class StationarySolver(FEMSolver):
     @classmethod
@@ -45,17 +47,19 @@ class StationarySolver(FEMSolver):
     def name(cls):
         return "Stationary Solver"
 
-    def widget(self):
-        return QtWidgets.QWidget()
+    def widget(self, fem):
+        from ..gui import StationarySolverWidget
+        return StationarySolverWidget(fem, self)
 
     @classmethod
     def loadFromDictionary(cls, fem, d):
-        models, subs = cls._loadModels(fem, d)
+        models = [fem.models[index]for index in d["models"]]
+        subs = [subSolvers[sub["type"]].loadFromDictionary(sub) for sub in d["subs"]]
         return StationarySolver(models, subs)
 
 
 class TimeDependentSolver(FEMSolver):
-    def __init__(self, models, tSolvers, step=1, stop=100):
+    def __init__(self, models=None, tSolvers=None, step=1, stop=100):
         super().__init__(models, tSolvers)
         self._step = step
         self._stop = stop
@@ -65,21 +69,23 @@ class TimeDependentSolver(FEMSolver):
     def name(cls):
         return "Time Dependent Solver"
 
-    def widget(self):
-        return _TimeDependentSolverWidget(self)
+    def widget(self, fem):
+        from ..gui import TimeDependentSolverWidget
+        return TimeDependentSolverWidget(fem, self)
 
     def getStepList(self):
         return [self._step] * int(self._stop / self._step)
 
     def saveAsDictionary(self, fem):
-        d = super().saveAsDictionary()
+        d = super().saveAsDictionary(fem)
         d["step"] = self._step
         d["stop"] = self._stop
         return d
 
     @classmethod
     def loadFromDictionary(cls, fem, d):
-        models, subs = cls._loadModels(fem, d)
+        models = [fem.models[index]for index in d["models"]]
+        subs = [tSolvers[sub["type"]].loadFromDictionary(sub) for sub in d["subs"]]
         return TimeDependentSolver(models, subs, d["step"], d["stop"])
 
 
@@ -88,7 +94,7 @@ class FEMSubSolver:
         return QtWidgets.QWidget()
 
     def saveAsDictionary(self):
-        return {"type": self.name()}
+        return {"type": self.name}
 
     @classmethod
     def loadFromDictionary(cls, d):
@@ -125,8 +131,8 @@ class FEMTimeDependentSolver(FEMSubSolver):
     @classmethod
     def loadFromDictionary(cls, d):
         s = d["solver"]
-        subSolvers[s["type"]].loadFromDictionary(s)
-        return cls(d["solver"])
+        sol = subSolvers[s["type"]].loadFromDictionary(s)
+        return cls(sol)
 
 
 class GeneralizedAlphaSolver(FEMTimeDependentSolver):
@@ -141,61 +147,6 @@ class BackwardEulerSolver(FEMTimeDependentSolver):
     @property
     def name(cls):
         return "Backward Euler Solver"
-
-
-class _SolverTargetWidget(QtWidgets.QWidget):
-    def __init__(self, solver, fem):
-        super().__init__()
-        self._solver = solver
-        self._fem = fem
-        self.__initlayout(fem)
-
-    def __initlayout(self, fem):
-        self._targ = QtWidgets.QComboBox()
-        self._targ.addItem("")
-        self._targ.addItems([m.name for m in fem.models])
-        if self._solver.target in fem.models:
-            index = fem.models.index(self._solver.target)
-            self._targ.setCurrentIndex(index + 1)
-        self._targ.currentIndexChanged.connect(self.__change)
-
-        layout = QtWidgets.QHBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(QtWidgets.QLabel("Target"))
-        layout.addWidget(self._targ)
-        self.setLayout(layout)
-
-    def __change(self, value):
-        self._solver.target = self._fem.models[value - 1]
-
-
-class _TimeDependentSolverWidget(QtWidgets.QWidget):
-    def __init__(self, solver):
-        super().__init__()
-        self._solver = solver
-        self.__initlayout()
-
-    def __initlayout(self):
-        self._step = QtWidgets.QDoubleSpinBox()
-        self._step.setRange(0, 100000000)
-        self._step.setValue(self._solver._step)
-        self._step.valueChanged.connect(self.__change)
-        self._stop = QtWidgets.QDoubleSpinBox()
-        self._stop.setRange(0, 1000000000)
-        self._stop.setValue(self._solver._stop)
-        self._stop.valueChanged.connect(self.__change)
-
-        layout = QtWidgets.QGridLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(QtWidgets.QLabel("Step"), 0, 0)
-        layout.addWidget(self._step, 0, 1)
-        layout.addWidget(QtWidgets.QLabel("Stop"), 1, 0)
-        layout.addWidget(self._stop, 1, 1)
-        self.setLayout(layout)
-
-    def __change(self):
-        self._solver._step = self._step.value()
-        self._solver._stop = self._stop.value()
 
 
 solvers = {"Stationary": [StationarySolver], "Time dependent": [TimeDependentSolver]}

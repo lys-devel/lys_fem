@@ -50,7 +50,7 @@ if isParallel():
         solver.SetAbsTol(0.0)
         solver.SetMaxIter(500)
         solver.SetPrintLevel(0)
-        if pres is not None:
+        if prec is not None:
             solver.SetPreconditioner(prec)
         return solver, prec
 

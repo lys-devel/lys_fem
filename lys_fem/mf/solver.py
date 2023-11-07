@@ -67,6 +67,7 @@ class TimeDependentSolver(SolverBase):
         self._models = [models[fem.models.index(m)] for m in femSolver.models]
         self._tsolver = []
         for s, m in zip(femSolver.subSolvers, self._models):
+            print(s.femSolver)
             sub1, sub2 = self._subSolvers[s.femSolver.name](s), self._subSolvers[s.femSolver.name](s)
             tsol = self._tSolvers[s.name](m.space.GetTrueVSize(), sub1, sub2)
             self._tsolver.append(tsol)
