@@ -11,13 +11,13 @@ class MFEMElasticModel(MFEMLinearModel):
 
     def assemble_m(self):
         m = mfem.BilinearForm(self.space)
-        m.AddDomainIntegrator(mfem.VectorMassIntegrator())
+        m.AddDomainIntegrator(mfem.VectorMassIntegrator(self._mat["Elasticity"]["rho"]))
         m.Assemble()
         return m
 
     def assemble_a(self):
         a = mfem.BilinearForm(self.space)
-        a.AddDomainIntegrator(mfem.ElasticityIntegrator(mfem.ConstantCoefficient(1), mfem.ConstantCoefficient(1)))
+        #a.AddDomainIntegrator(mfem.ElasticityIntegrator(mfem.ConstantCoefficient(1), mfem.ConstantCoefficient(1)))
         a.AddDomainIntegrator(_ElasticityIntegrator(self._mat["Elasticity"]["C"]))
         a.Assemble()
         return a

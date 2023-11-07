@@ -111,51 +111,94 @@ class MFEMModel:
 class MFEMLinearModel(MFEMModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._init = False
+        self._initM = False
+        self._initK = False
+        self._initB = False
+        self._initX0 = False
+        self._initXt0 = False
+        self._initTi = False
+        self._initMi = False
 
     def assemble(self):
-        self.a = self.assemble_a()
-        self.b = self.assemble_b()
-        self.x, _ = self.getInitialValue()
+        self._a = self.assemble_a()
+        self._b = self.assemble_b()
+        self._x, _ = self.getInitialValue()
         self.ess_tdof_list = self.essential_tdof_list()
 
-        self.A = mfem.SparseMatrix()
-        self.B = mfem.Vector()
-        self.X = mfem.Vector()
-        self.a.FormLinearSystem(self.ess_tdof_list, self.x, self.b, self.A, self.X, self.B)
-        return self.A, self.B, self.X
+        self._A = mfem.SparseMatrix()
+        self._B = mfem.Vector()
+        self._X = mfem.Vector()
+        self._a.FormLinearSystem(self.ess_tdof_list, self._x, self._b, self._A, self._X, self._B)
+        return self._A, self._B, self._X
 
-    def assemble_t(self, dt, sol_M, sol_T):
-        if not self._init:
-            self.m = self.assemble_m()
-            self.k = self.assemble_a()
-            self.b = self.assemble_b()
-            self.x, _ = self.getInitialValue()
+    @property
+    def M(self):
+        if not self._initM:
+            self._m = self.assemble_m()
+            self._M = mfem.SparseMatrix()
             self.ess_tdof_list = self.essential_tdof_list()
+            self._m.FormSystemMatrix(self.ess_tdof_list, self._M)
+            self._initM = True
+        return self._M
 
-            self.M = mfem.SparseMatrix()
-            self.K = mfem.SparseMatrix()
-            self.T = mfem.SparseMatrix()
-            self.B = mfem.Vector()
-            self.X = mfem.Vector()
+    @property
+    def K(self):
+        if not self._initK:
+            self._k = self.assemble_a()
+            self._K = mfem.SparseMatrix()
+            self.ess_tdof_list = self.essential_tdof_list()
+            self._k.FormSystemMatrix(self.ess_tdof_list, self._K)
+            self._initK = True
+        return self._K
 
-            self.m.FormSystemMatrix(self.ess_tdof_list, self.M)
-            self.k.FormSystemMatrix(self.ess_tdof_list, self.K)
-            self.T = mfem.Add(1.0, self.M, dt, self.K)
+    @property
+    def b(self):
+        if not self._initB:
+            self._b = self.assemble_b()
+            self.ess_tdof_list = self.essential_tdof_list()
+            self._B = mfem.Vector()
             # self.b.GetTrueDofs(self.B)
-            self.x.GetTrueDofs(self.X)
+            self._initB = True
+        return self._B
 
+    @property
+    def x0(self):
+        if not self._initX0:
+            self._x, _ = self.getInitialValue()
+            self.ess_tdof_list = self.essential_tdof_list()
+            self._X0 = mfem.Vector()
+            self._x.GetTrueDofs(self._X0)
+            self._initX0 = True
+        return self._X0
+
+    @property
+    def xt0(self):
+        if not self._initXt0:
+            _, self._xt0 = self.getInitialValue()
+            self.ess_tdof_list = self.essential_tdof_list()
+            self._Xt0 = mfem.Vector()
+            self._xt0.GetTrueDofs(self._Xt0)
+            self._initXt0 = True
+        return self._Xt0
+
+    def set_Mi(self, sol_M):
+        if not self._initMi:
             sol_M.SetOperator(self.M)
-            sol_T.SetOperator(self.T)
-            self._init = True
-        return self.K, self.B, self.X
+        return sol_M
+
+    def set_Ti(self, sol_T, c):
+        if not self._initTi:
+            self._T = mfem.SparseMatrix()
+            self._T = mfem.Add(1.0, self.M, c, self.K)
+            sol_T.SetOperator(self._T)
+        return sol_T
 
     def RecoverFEMSolution(self, X):
-        if self._init:
-            self.x.SetFromTrueDofs(X)
+        if self._initX0:
+            self._x.SetFromTrueDofs(X)
         else:
-            self.a.RecoverFEMSolution(X, self.b, self.x)
-        return self.x
+            self._a.RecoverFEMSolution(X, self._b, self._x)
+        return self._x
 
 
 class MFEMNonlinearModel(MFEMModel):

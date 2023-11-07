@@ -1,4 +1,5 @@
 import numpy as np
+from numpy import *
 from . import mfem
 
 
@@ -64,7 +65,7 @@ def _generateFunc(funcStr, dim):
         vars += ",y"
     if dim > 2:
         vars += ",z"
-    return eval("lambda " + vars + ": " + funcStr)
+    return eval("lambda " + vars + ": " + funcStr, globals())
 
 
 def _eval_attr(x, funcs, attr, default):
