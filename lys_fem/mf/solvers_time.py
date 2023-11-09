@@ -26,8 +26,7 @@ class _TimeDependentSubSolverBase(mfem.PyTimeDependentOperator):
     def ImplicitSolve(self, dt, u, du_dt):
         # Solve the equation: du_dt = M^{-1}*[-K(u + dt*du_dt)]
         self.Ti = self._model.set_Ti(self.Ti, dt)
-        z = mfem.Vector(u.Size())
-        self.K.Mult(u, z)
+        z = self.K*u
         z.Neg()
         self.Ti.Mult(z, du_dt)
 
@@ -71,6 +70,60 @@ class _SecondOrderTimeDependentSubSolverBase(mfem.SecondOrderTimeDependentOperat
 class BackwardEulerSolver(_TimeDependentSubSolverBase):
     def __init__(self, sol, size, solver_M, solver_T):
         super().__init__(size, solver_M, solver_T, mfem.BackwardEulerSolver())
+
+class BackwardEulerSolver2(mfem.PyOperator):
+    def __init__(self, sol, size, solM, solT):
+        self.Mi = solM
+        self.Ti = solT
+
+    def step(self, model, t, dt):
+        self._model = model
+        M, K, b, x = model.M, model.K, model.b, model.x0
+        Ti = self._model.set_Ti(self.Ti, dt)
+
+        z = mfem.Vector(x.Size())
+        M.Mult(x, z)
+        Ti.Mult(z, x)
+        return model.RecoverFEMSolution(x)
+    
+    def Mult(self, x, y):
+        model = self._model
+        M, K, b = model.M, model.K, model.b
+        Mu = mfem.Vector(x)
+        Mu = Mu - x0
+        tKu = K.Mult(x, tKu)
+        
+
+    def GetGradient(self, x):
+        self.dA = mfem.SparseMatrix()
+        self.da.FormSystemMatrix(self._model.essential_tdof_list(), self.dA)
+        return self.dA
+
+
+class BackwardEulerSolver3:
+    def __init__(self, sol, size, solM, solT):
+        self.Mi = solM
+        self.Ti = solT
+
+    def step(self, model, t, dt):
+        self._model = model
+        self._dt = dt
+        self.x0 = model.x0
+        x = self.solver.solve(x)
+        return model.RecoverFEMSolution(x)
+    
+    def Mult(self, x):
+        model = self._model
+        M, K, b = model.M, model.K, model.b
+        Mx = M*(x - self.x0)
+        tKu = K*x*self.dt
+        bt = b*self.dt
+        return Mx+tKu-bt
+
+    def GetGradient(self, x):
+        self.dA = mfem.SparseMatrix()
+        self.da.FormSystemMatrix(self._model.essential_tdof_list(), self.dA)
+        return self.dA
 
 
 class GeneralizedAlphaSolver(_SecondOrderTimeDependentSubSolverBase):

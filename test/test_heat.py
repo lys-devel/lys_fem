@@ -1,8 +1,10 @@
 import unittest
 import os
 import shutil
+from scipy import special
+import numpy as np
 
-from numpy.testing import assert_array_almost_equal
+from numpy.testing import assert_array_almost_equal, assert_allclose
 
 from lys_fem import geometry, mf
 from lys_fem.fem import FEMProject, Material, DirichletBoundary, NeumannBoundary, InitialCondition, FEMSolution
@@ -69,17 +71,19 @@ class elasticity_test(unittest.TestCase):
             assert_array_almost_equal(w.data, w.x[:, 0] / 2)
 
     def test_1d_tdep(self):
+        def calc_temp(x, t, kappa=1, DT=1, T_0=0):
+            return T_0 + DT * special.erfc(-x / np.sqrt(4 * kappa * t)) / 2
+
         p = self.__create1D()
-        p.mesher.setRefinement(5)
+        p.mesher.setRefinement(6)
 
         # model: boundary and initial conditions
         model = heat.HeatConductionModel()
-        model.initialConditions.append(InitialCondition("Initial condition1", [0], [1]))
-        model.initialConditions.append(InitialCondition("Initial condition2", [1], [2]))
+        model.initialConditions.append(InitialCondition("Initial condition1", ["heaviside(x-1,0.5)"], [1, 2]))
         p.models.append(model)
 
         # solver
-        stationary = TimeDependentSolver([model], [BackwardEulerSolver(CGSolver())], 0.0002, 0.02)
+        stationary = TimeDependentSolver([model], [BackwardEulerSolver(CGSolver())], 0.0001, 0.02)
         p.solvers.append(stationary)
 
         # solve
@@ -87,9 +91,10 @@ class elasticity_test(unittest.TestCase):
 
         # solution
         sol = FEMSolution(".", p)
-        res = sol.eval("T", data_number=50)
-        # for w in res:
-        #    assert_array_almost_equal(w.data, w.x[:, 0] / 2)
+        res = sol.eval("T", data_number=100)
+
+        for w in res:
+            assert_allclose(w.data, calc_temp(w.x[:, 0] - 1, 0.01), rtol=0, atol=0.001)
 
     def __create1D(self):
         p = FEMProject(1)

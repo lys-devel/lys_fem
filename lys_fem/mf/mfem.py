@@ -105,7 +105,6 @@ else:
     def saveData(file, data):
         np.savez(file, **data)
 
-
 def print_initialize():
     print_("\n---------------------Initialization--------------------------")
     if isParallel():
@@ -215,6 +214,21 @@ class _Mesh:
         d.update(self.elementGroups)
         return d
 
+class MFEMVector(mfem_orig.Vector):
+    def __sub__(self, value):
+        res = MFEMVector(value.Size())
+        mfem_orig.add_vector(self, -1, value, res)
+        return res
+
+Vector = MFEMVector
+
+class MFEMMatrix(SparseMatrix):
+    def __mul__(self, value):
+        res = MFEMVector(value.Size())
+        self.Mult(value, res)
+        return res
+
+SparseMatrix = MFEMMatrix
 
 def _parseMesh(fec, mesh):
     subs = [mfem_orig.SubMesh.CreateFromDomain(mesh, mfem_orig.intArray([index])) for index in mesh.attributes]
