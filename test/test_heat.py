@@ -96,6 +96,46 @@ class elasticity_test(unittest.TestCase):
         for w in res:
             assert_allclose(w.data, calc_temp(w.x[:, 0] - 1, 0.01), rtol=0, atol=0.001)
 
+    def test_3d_tdep(self):
+        return
+
+        def calc_temp(x, t, kappa=1, DT=1, T_0=0):
+            return T_0 + DT * special.erfc(-x / np.sqrt(4 * kappa * t)) / 2
+
+        p = FEMProject(3)
+
+        # geometry
+        p.geometries.add(geometry.Box(0, 0, 0, 1, 1, 1))
+        p.geometries.add(geometry.Box(1, 0, 0, 1, 1, 1))
+
+        # material
+        param = heat.HeatConductionParameters()
+        mat1 = Material("Material1", [1, 2], [param])
+        p.materials.append(mat1)
+        p.mesher.setRefinement(2)
+
+        # model: boundary and initial conditions
+        model = heat.HeatConductionModel()
+        model.initialConditions.append(InitialCondition("Initial condition1", ["heaviside(x-1,0.5)"], [1, 2]))
+        p.models.append(model)
+
+        # solver
+        stationary = TimeDependentSolver([model], [BackwardEulerSolver(CGSolver())], 0.0001, 0.02)
+        p.solvers.append(stationary)
+
+        import time
+        start = time.time()
+        # solve
+        mf.run(p)
+        print(time.time() - start)
+
+        # solution
+        sol = FEMSolution(".", p)
+        res = sol.eval("T", data_number=100)
+
+        for w in res:
+            assert_allclose(w.data, calc_temp(w.x[:, 0] - 1, 0.01), rtol=0, atol=0.02)
+
     def __create1D(self):
         p = FEMProject(1)
 

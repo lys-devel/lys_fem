@@ -119,6 +119,9 @@ class MFEMLinearModel(MFEMModel):
         self._initTi = False
         self._initMi = False
 
+    def update(self, x):
+        pass
+
     def assemble(self):
         self._a = self.assemble_a()
         self._b = self.assemble_b()
@@ -152,12 +155,19 @@ class MFEMLinearModel(MFEMModel):
         return self._K
 
     @property
+    def DK(self):
+        return self.K
+
+    @property
     def b(self):
         if not self._initB:
             self._b = self.assemble_b()
             self.ess_tdof_list = self.essential_tdof_list()
+            tmp = mfem.GridFunction(self.space, self._b)
             self._B = mfem.Vector()
-            # self.b.GetTrueDofs(self.B)
+            tmp.GetTrueDofs(self._B)
+            K = self.K
+            self._k.EliminateVDofsInRHS(self.ess_tdof_list, self.x0, self._B)
             self._initB = True
         return self._B
 
@@ -181,19 +191,8 @@ class MFEMLinearModel(MFEMModel):
             self._initXt0 = True
         return self._Xt0
 
-    def set_Mi(self, sol_M):
-        if not self._initMi:
-            sol_M.SetOperator(self.M)
-        return sol_M
-
-    def set_Ti(self, sol_T, c):
-        if not self._initTi:
-            self._T = mfem.SparseMatrix()
-            self._T = mfem.Add(1.0, self.M, c, self.K)
-            sol_T.SetOperator(self._T)
-        return sol_T
-
     def RecoverFEMSolution(self, X):
+        self._X0 = X
         if self._initX0:
             self._x.SetFromTrueDofs(X)
         else:
@@ -202,14 +201,35 @@ class MFEMLinearModel(MFEMModel):
 
 
 class MFEMNonlinearModel(MFEMModel):
-    def assemble(self):
-        self.x, _ = self.getInitialValue()
-        self.a = self.assemble_a()
-        self.b = self.assemble_b()
+    def update(self, x):
         self.ess_tdof_list = self.essential_tdof_list()
-        B, X = self.a.initializeRHS(self.ess_tdof_list, self.x, self.b)
-        return self.a, B, X
+        self._k = self.assemble_a()
+        self._k.assemble(x, self.ess_tdof_list)
+        self._b = self.assemble_b()
+
+        self._K = self._k.A
+        self._DK = self._k.DA
+        self._B = self._k.EliminateVDofsInRHS(self.ess_tdof_list, x, self._b)
 
     def RecoverFEMSolution(self, X):
-        self.a.RecoverFEMSolution(X, self.b, self.x)
-        return self.x
+        self._x.SetFromTrueDofs(X)
+        return self._x
+
+    @property
+    def K(self):
+        return self._K
+
+    @property
+    def DK(self):
+        return self._DK
+
+    @property
+    def x0(self):
+        self._x, _ = self.getInitialValue()
+        self._X0 = mfem.Vector()
+        self._x.GetTrueDofs(self._X0)
+        return self._X0
+
+    @property
+    def b(self):
+        return self._B

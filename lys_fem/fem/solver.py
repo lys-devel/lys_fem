@@ -108,15 +108,15 @@ class CGSolver(FEMSubSolver):
         return "CG Solver"
 
 
-class NewtonSolver(FEMSubSolver):
+class GMRESSolver(FEMSubSolver):
     @classmethod
     @property
     def name(cls):
-        return "Newton Solver"
+        return "GMRES Solver"
 
 
 class FEMTimeDependentSolver(FEMSubSolver):
-    def __init__(self, femSolver=NewtonSolver()):
+    def __init__(self, femSolver):
         self._solver = femSolver
 
     @property
@@ -150,5 +150,5 @@ class BackwardEulerSolver(FEMTimeDependentSolver):
 
 
 solvers = {"Stationary": [StationarySolver], "Time dependent": [TimeDependentSolver]}
-subSolvers = {c.name: c for c in [CGSolver, NewtonSolver]}
+subSolvers = {c.name: c for c in [CGSolver, GMRESSolver]}
 tSolvers = {c.name: c for c in [BackwardEulerSolver, GeneralizedAlphaSolver]}

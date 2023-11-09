@@ -6,7 +6,7 @@ import numpy as np
 from numpy.testing import assert_array_almost_equal
 
 from lys_fem import geometry, mf
-from lys_fem.fem import FEMProject, DirichletBoundary, InitialCondition, StationarySolver, CGSolver, NewtonSolver, FEMSolution
+from lys_fem.fem import FEMProject, DirichletBoundary, InitialCondition, StationarySolver, CGSolver, GMRESSolver, FEMSolution
 from lys_fem.models import test
 
 
@@ -65,7 +65,7 @@ class testProblems_test(unittest.TestCase):
         p.models.append(model)
 
         # solver
-        stationary = StationarySolver([model], [NewtonSolver])
+        stationary = StationarySolver([model], [GMRESSolver])
         p.solvers.append(stationary)
 
         # solve

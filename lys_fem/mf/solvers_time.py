@@ -1,34 +1,23 @@
 from . import mfem
+from .solvers_fem import subSolvers, NewtonSolver
+from .models import MFEMLinearModel
 
 
-class _TimeDependentSubSolverBase(mfem.PyTimeDependentOperator):
-    def __init__(self, size, solM, solT, ode_solver):
-        super().__init__(size, 0)
-        self.Mi = solM
-        self.Ti = solT
-        self._ode_solver = ode_solver
-        self._ode_solver.Init(self)
+class _TimeDependentSubSolverBase:
+    def __init__(self, sol):
+        self.solver = NewtonSolver(subSolvers[sol.femSolver.name](sol))
 
-    def step(self, model, t, dt):
-        self._model = model
-        self.K, self.b, x = model.K, model.b, model.x0
-        self._ode_solver.Step(x, t, dt)
+    def update(self, x):
+        if not isinstance(self.model, MFEMLinearModel):
+            self.model.update(x)
+
+    def step(self, model, dt):
+        self.model = model
+        if isinstance(model, MFEMLinearModel):
+            self.solver.setMaxIteration(1)
+        self.dt = dt
+        x = self.solver.solve(self, model.x0)
         return model.RecoverFEMSolution(x)
-
-    def Mult(self, u, du_dt):
-        # Compute: du_dt = M^{-1}*-K(u)
-        self.Mi = self._model.set_Mi(self.Mi)
-        z = mfem.Vector(u.Size())
-        self.K.Mult(u, z)
-        z.Neg()   # z = -z
-        self.Mi.Mult(z, du_dt)
-
-    def ImplicitSolve(self, dt, u, du_dt):
-        # Solve the equation: du_dt = M^{-1}*[-K(u + dt*du_dt)]
-        self.Ti = self._model.set_Ti(self.Ti, dt)
-        z = self.K*u
-        z.Neg()
-        self.Ti.Mult(z, du_dt)
 
 
 class _SecondOrderTimeDependentSubSolverBase(mfem.SecondOrderTimeDependentOperator):
@@ -68,62 +57,13 @@ class _SecondOrderTimeDependentSubSolverBase(mfem.SecondOrderTimeDependentOperat
 
 
 class BackwardEulerSolver(_TimeDependentSubSolverBase):
-    def __init__(self, sol, size, solver_M, solver_T):
-        super().__init__(size, solver_M, solver_T, mfem.BackwardEulerSolver())
+    def __call__(self, x):
+        M, K, b, x0, dt = self.model.M, self.model.K, self.model.b, self.model.x0, self.dt
+        return M * (x - x0) + K * x * dt  # -b*dt
 
-class BackwardEulerSolver2(mfem.PyOperator):
-    def __init__(self, sol, size, solM, solT):
-        self.Mi = solM
-        self.Ti = solT
-
-    def step(self, model, t, dt):
-        self._model = model
-        M, K, b, x = model.M, model.K, model.b, model.x0
-        Ti = self._model.set_Ti(self.Ti, dt)
-
-        z = mfem.Vector(x.Size())
-        M.Mult(x, z)
-        Ti.Mult(z, x)
-        return model.RecoverFEMSolution(x)
-    
-    def Mult(self, x, y):
-        model = self._model
-        M, K, b = model.M, model.K, model.b
-        Mu = mfem.Vector(x)
-        Mu = Mu - x0
-        tKu = K.Mult(x, tKu)
-        
-
-    def GetGradient(self, x):
-        self.dA = mfem.SparseMatrix()
-        self.da.FormSystemMatrix(self._model.essential_tdof_list(), self.dA)
-        return self.dA
-
-
-class BackwardEulerSolver3:
-    def __init__(self, sol, size, solM, solT):
-        self.Mi = solM
-        self.Ti = solT
-
-    def step(self, model, t, dt):
-        self._model = model
-        self._dt = dt
-        self.x0 = model.x0
-        x = self.solver.solve(x)
-        return model.RecoverFEMSolution(x)
-    
-    def Mult(self, x):
-        model = self._model
-        M, K, b = model.M, model.K, model.b
-        Mx = M*(x - self.x0)
-        tKu = K*x*self.dt
-        bt = b*self.dt
-        return Mx+tKu-bt
-
-    def GetGradient(self, x):
-        self.dA = mfem.SparseMatrix()
-        self.da.FormSystemMatrix(self._model.essential_tdof_list(), self.dA)
-        return self.dA
+    def grad(self, x):
+        M, K, b, dt = self.model.M, self.model.K, self.model.b, self.dt
+        return M + K * dt
 
 
 class GeneralizedAlphaSolver(_SecondOrderTimeDependentSubSolverBase):

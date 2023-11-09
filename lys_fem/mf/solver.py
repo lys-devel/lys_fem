@@ -68,8 +68,7 @@ class TimeDependentSolver(SolverBase):
         self._models = [models[fem.models.index(m)] for m in femSolver.models]
         self._tsolver = []
         for s, m in zip(femSolver.subSolvers, self._models):
-            sub1, sub2 = subSolvers[s.femSolver.name](s), subSolvers[s.femSolver.name](s)
-            tsol = tSolvers[s.name](s, m.space.GetTrueVSize(), sub1, sub2)
+            tsol = tSolvers[s.name](s)
             self._tsolver.append(tsol)
 
     def execute(self, fec):
@@ -80,7 +79,7 @@ class TimeDependentSolver(SolverBase):
             mfem.print_("t =", t)
             sol = {}
             for model, solver in zip(self._models, self._tsolver):
-                x = solver.step(model, t, dt)
+                x = solver.step(model, dt)
                 sol[model.variableName] = mfem.getData(x, self._mesh)
             sol["time"] = t
             self.exportSolution(i + 1, sol)
