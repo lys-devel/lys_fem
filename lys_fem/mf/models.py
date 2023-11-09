@@ -122,18 +122,6 @@ class MFEMLinearModel(MFEMModel):
     def update(self, x):
         pass
 
-    def assemble(self):
-        self._a = self.assemble_a()
-        self._b = self.assemble_b()
-        self._x, _ = self.getInitialValue()
-        self.ess_tdof_list = self.essential_tdof_list()
-
-        self._A = mfem.SparseMatrix()
-        self._B = mfem.Vector()
-        self._X = mfem.Vector()
-        self._a.FormLinearSystem(self.ess_tdof_list, self._x, self._b, self._A, self._X, self._B)
-        return self._A, self._B, self._X
-
     @property
     def M(self):
         if not self._initM:

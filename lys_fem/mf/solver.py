@@ -3,8 +3,8 @@ import shutil
 import numpy as np
 from . import mfem
 
-from .solvers_fem import subSolvers
-from .solvers_time import tSolvers
+from .solvers_fem import createFEMSolver
+from .solvers_time import StationaryEquation, createTimeDependentEquation
 
 
 def generateSolver(fem, mesh, models):
@@ -46,7 +46,7 @@ class StationarySolver(SolverBase):
     def __init__(self, fem, femSolver, mesh, models, dirname):
         super().__init__(femSolver, mesh, models, dirname)
         self._fem = fem
-        self._solver = [subSolvers[s.name](s) for s in femSolver.subSolvers]
+        self._solver = [createFEMSolver(s) for s in femSolver.subSolvers]
         self._models = [models[fem.models.index(m)] for m in femSolver.models]
 
     def execute(self, fec):
@@ -54,22 +54,20 @@ class StationarySolver(SolverBase):
         self.exportInitialValues()
         sol = {}
         for solver, model in zip(self._solver, self._models):
-            x = solver.solve(model)
+            eq = StationaryEquation(model)
+            x = eq.solve(solver)
             sol[model.variableName] = mfem.getData(x, self._mesh)
-            mfem.print_(model.name, "model has been solved by", solver.name)
+            mfem.print_(model.name, "model has been solved")
         self.exportSolution(1, sol)
 
 
 class TimeDependentSolver(SolverBase):
     def __init__(self, fem, femSolver, mesh, models, dirname):
         super().__init__(femSolver, mesh, models, dirname)
-        self._fem = fem
         self._femSolver = femSolver
         self._models = [models[fem.models.index(m)] for m in femSolver.models]
-        self._tsolver = []
-        for s, m in zip(femSolver.subSolvers, self._models):
-            tsol = tSolvers[s.name](s)
-            self._tsolver.append(tsol)
+        self._equations = [createTimeDependentEquation(s, m) for s, m in zip(femSolver.subSolvers, models)]
+        self._solvers = [createFEMSolver(s.femSolver) for s in femSolver.subSolvers]
 
     def execute(self, fec):
         self.exportMesh(fec)
@@ -78,8 +76,8 @@ class TimeDependentSolver(SolverBase):
         for i, dt in enumerate(self._femSolver.getStepList()):
             mfem.print_("t =", t)
             sol = {}
-            for model, solver in zip(self._models, self._tsolver):
-                x = solver.step(model, dt)
+            for eq, solver, model in zip(self._equations, self._solvers, self._models):
+                x = eq.solve(solver, dt)
                 sol[model.variableName] = mfem.getData(x, self._mesh)
             sol["time"] = t
             self.exportSolution(i + 1, sol)

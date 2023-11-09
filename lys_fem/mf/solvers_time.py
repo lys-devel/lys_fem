@@ -1,23 +1,58 @@
 from . import mfem
-from .solvers_fem import subSolvers, NewtonSolver
 from .models import MFEMLinearModel
 
 
-class _TimeDependentSubSolverBase:
-    def __init__(self, sol):
-        self.solver = NewtonSolver(subSolvers[sol.femSolver.name](sol))
+class StationaryEquation:
+    def __init__(self, model):
+        self.model = model
+        self.model.update(self.model.x0)
 
     def update(self, x):
         if not isinstance(self.model, MFEMLinearModel):
             self.model.update(x)
 
-    def step(self, model, dt):
+    def solve(self, solver):
+        if isinstance(self.model, MFEMLinearModel):
+            solver.setMaxIteration(1)
+        x = solver.solve(self, self.model.x0)
+        return self.model.RecoverFEMSolution(x)
+
+    def __call__(self, x):
+        K, b = self.model.K, self.model.b
+        return K * x - b
+
+    def grad(self, x):
+        K, b = self.model.DK, self.model.b
+        return K
+
+
+class _TimeDependentSubSolverBase:
+    def __init__(self, model):
         self.model = model
-        if isinstance(model, MFEMLinearModel):
-            self.solver.setMaxIteration(1)
+
+    def update(self, x):
+        if not isinstance(self.model, MFEMLinearModel):
+            self.model.update(x)
+
+    def solve(self, solver, dt):
+        if isinstance(self.model, MFEMLinearModel):
+            solver.setMaxIteration(1)
         self.dt = dt
-        x = self.solver.solve(self, model.x0)
-        return model.RecoverFEMSolution(x)
+        x = solver.solve(self, self.model.x0)
+        return self.model.RecoverFEMSolution(x)
+
+
+class BackwardEulerSolver(_TimeDependentSubSolverBase):
+    def __init__(self, sol, model):
+        super().__init__(model)
+
+    def __call__(self, x):
+        M, K, b, x0, dt = self.model.M, self.model.K, self.model.b, self.model.x0, self.dt
+        return M * (x - x0) + K * x * dt - b * dt
+
+    def grad(self, x):
+        M, K, b, dt = self.model.M, self.model.K, self.model.b, self.dt
+        return M + K * dt
 
 
 class _SecondOrderTimeDependentSubSolverBase(mfem.SecondOrderTimeDependentOperator):
@@ -56,19 +91,11 @@ class _SecondOrderTimeDependentSubSolverBase(mfem.SecondOrderTimeDependentOperat
         self.Ti.Mult(z, d2udt2)
 
 
-class BackwardEulerSolver(_TimeDependentSubSolverBase):
-    def __call__(self, x):
-        M, K, b, x0, dt = self.model.M, self.model.K, self.model.b, self.model.x0, self.dt
-        return M * (x - x0) + K * x * dt  # -b*dt
-
-    def grad(self, x):
-        M, K, b, dt = self.model.M, self.model.K, self.model.b, self.dt
-        return M + K * dt
-
-
 class GeneralizedAlphaSolver(_SecondOrderTimeDependentSubSolverBase):
     def __init__(self, sol, size, solver_M, solver_T):
         super().__init__(size, solver_M, solver_T, mfem.GeneralizedAlpha2Solver(1))
 
 
-tSolvers = {"Generalized Alpha Solver": GeneralizedAlphaSolver, "Backward Euler Solver": BackwardEulerSolver}
+def createTimeDependentEquation(sol, model):
+    tSolvers = {"Generalized Alpha Solver": GeneralizedAlphaSolver, "Backward Euler Solver": BackwardEulerSolver}
+    return tSolvers[sol.name](sol, model)
