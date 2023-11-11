@@ -35,13 +35,13 @@ class NewtonSolver:
     def solve(self, F, x, eps=1e-8):
         Ji = self._solver
         for i in range(self._max_iter):
+            F.update(x)
             J = F.grad(x)
             Ji.SetOperator(J)
             dx = Ji * F(x)
             x = x - dx
             if dx.Norml2() < eps:
                 break
-            F.update(x)
         return x
 
 

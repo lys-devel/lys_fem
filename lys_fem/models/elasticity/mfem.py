@@ -5,7 +5,7 @@ from lys_fem.mf import mfem, MFEMLinearModel
 
 
 class MFEMElasticModel(MFEMLinearModel):
-    def __init__(self, fec, model, mesh, mat):
+    def __init__(self, model, mesh, mat):
         super().__init__(fec, model, mesh)
         self._mat = mat
 

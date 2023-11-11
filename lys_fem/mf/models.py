@@ -10,10 +10,10 @@ def addMFEMModel(name, model):
     modelList[name] = model
 
 
-def generateModel(fec, fem, geom, mesh, mat):
+def generateModel(fem, geom, mesh, mat):
     models = []
     for m in fem.models:
-        model = modelList[m.name](fec, m, mesh, mat)
+        model = modelList[m.name](m, mesh, mat)
 
         # Initial conditions
         attrs = [tag for dim, tag in geom.getEntities(fem.dimension)]
@@ -51,7 +51,8 @@ def generateModel(fec, fem, geom, mesh, mat):
 
 class MFEMModel:
     def __init__(self, fec, model, mesh):
-        self._fespace = mfem.FiniteElementSpace(mesh, fec, model.variableDimension(), mfem.Ordering.byVDIM)
+        self._fec = fec
+        self._fespace = mfem.FiniteElementSpace(mesh, self._fec, model.variableDimension(), mfem.Ordering.byVDIM)
         self._model = model
         # initial values
         self._x_gf = mfem.GridFunction(self._fespace)
@@ -143,7 +144,7 @@ class MFEMLinearModel(MFEMModel):
         return self._K
 
     @property
-    def DK(self):
+    def grad_Kx(self):
         return self.K
 
     @property
@@ -208,7 +209,7 @@ class MFEMNonlinearModel(MFEMModel):
         return self._K
 
     @property
-    def DK(self):
+    def grad_Kx(self):
         return self._DK
 
     @property

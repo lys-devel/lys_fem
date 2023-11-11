@@ -5,7 +5,6 @@ from .models import MFEMLinearModel
 class StationaryEquation:
     def __init__(self, model):
         self.model = model
-        self.model.update(self.model.x0)
 
     def update(self, x):
         if not isinstance(self.model, MFEMLinearModel):
@@ -22,7 +21,7 @@ class StationaryEquation:
         return K * x - b
 
     def grad(self, x):
-        K, b = self.model.DK, self.model.b
+        K, b = self.model.grad_Kx, self.model.b
         return K
 
 

@@ -4,6 +4,6 @@ from .material import LLGParameters
 from .model import LLGModel
 from .mfem import MFEMLLGModel
 
-addMaterialParameter("Heat", LLGParameters)
-addModel("Heat", LLGModel)
-addMFEMModel("Heat Conduction", MFEMLLGModel)
+addMaterialParameter("Magnetism", LLGParameters)
+addModel("Magnetism", LLGModel)
+addMFEMModel("LLG", MFEMLLGModel)

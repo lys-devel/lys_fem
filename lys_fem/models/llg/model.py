@@ -3,7 +3,7 @@ from lys_fem import FEMFixedModel
 
 class LLGModel(FEMFixedModel):
     def __init__(self, *args, **kwargs):
-        super().__init__(2, *args, **kwargs)
+        super().__init__(3, *args, **kwargs)
 
     @classmethod
     @property
@@ -12,7 +12,7 @@ class LLGModel(FEMFixedModel):
 
     @property
     def variableName(self):
-        return "t"
+        return "m"
 
     def evalList(self):
         return ["mx", "my", "mz"]

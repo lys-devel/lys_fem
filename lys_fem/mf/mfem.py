@@ -156,14 +156,6 @@ class _Mesh:
         mesh.GetNodes(gf)
         result = np.array([c for c in gf.GetDataArray()]).reshape(-1, dim)
         return np.hstack([result, np.zeros((len(result), 3 - dim))])
-        # if mf.parallel:
-        #    result = _gatherData(gf, mesh)
-        # else:
-        #    result = np.array([c for c in gf.GetDataArray()]).reshape(-1, dim)
-        # if result is not None:
-        #    return np.hstack([result, np.zeros((len(result), 3 - dim))])
-        # else:
-        #    return None
 
     @classmethod
     def __generateFromNodes(cls, fec, mesh):
