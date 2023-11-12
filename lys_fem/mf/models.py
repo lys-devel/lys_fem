@@ -50,9 +50,11 @@ def generateModel(fem, geom, mesh, mat):
 
 
 class MFEMModel:
-    def __init__(self, fec, model, mesh):
+    def __init__(self, fec, model, mesh, vDim=None):
+        if vDim is None:
+            vDim = model.variableDimension()
         self._fec = fec
-        self._fespace = mfem.FiniteElementSpace(mesh, self._fec, model.variableDimension(), mfem.Ordering.byVDIM)
+        self._fespace = mfem.FiniteElementSpace(mesh, self._fec, vDim, mfem.Ordering.byVDIM)
         self._model = model
         # initial values
         self._x_gf = mfem.GridFunction(self._fespace)
@@ -134,6 +136,10 @@ class MFEMLinearModel(MFEMModel):
         return self._M
 
     @property
+    def grad_Mx(self):
+        return self.M
+
+    @property
     def K(self):
         if not self._initK:
             self._k = self.assemble_a()
@@ -159,6 +165,9 @@ class MFEMLinearModel(MFEMModel):
             self._k.EliminateVDofsInRHS(self.ess_tdof_list, self.x0, self._B)
             self._initB = True
         return self._B
+
+    def grad_b(self):
+        return None
 
     @property
     def x0(self):
@@ -222,3 +231,6 @@ class MFEMNonlinearModel(MFEMModel):
     @property
     def b(self):
         return self._B
+
+    def grad_b(self):
+        return None

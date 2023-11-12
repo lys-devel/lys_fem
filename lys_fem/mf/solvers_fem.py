@@ -25,21 +25,23 @@ class GMRESSolver(FEMSolverBase):
 
 
 class NewtonSolver:
-    def __init__(self, subSolver, max_iter=100):
+    def __init__(self, subSolver, max_iter=30):
         self._solver = subSolver
         self._max_iter = max_iter
 
     def setMaxIteration(self, max_iter):
         self._max_iter = max_iter
 
-    def solve(self, F, x, eps=1e-8):
+    def solve(self, F, x, eps=1e-5):
+        x = mfem.Vector(x)
         Ji = self._solver
         for i in range(self._max_iter):
             F.update(x)
-            J = F.grad(x)
+            J = F.grad()
             Ji.SetOperator(J)
             dx = Ji * F(x)
-            x = x - dx
+            print("Newton", i, dx.Norml2())
+            x -= dx
             if dx.Norml2() < eps:
                 break
         return x

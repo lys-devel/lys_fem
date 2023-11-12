@@ -3,8 +3,7 @@ from lys_fem.mf import mfem, MFEMLinearModel
 
 class MFEMHeatConductionModel(MFEMLinearModel):
     def __init__(self, model, mesh, mat):
-        fec = mfem.H1_FECollection(1, mesh.Dimension())
-        super().__init__(fec, model, mesh)
+        super().__init__(mfem.H1_FECollection(1, mesh.Dimension()), model, mesh)
         self._mat = mat
 
     def assemble_m(self):

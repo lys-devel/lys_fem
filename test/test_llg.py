@@ -22,23 +22,21 @@ class testProblems_test(unittest.TestCase):
         os.chdir(self._cwd)
         shutil.rmtree(self.path)
 
-    def test_nonlinear(self):
+    def test_llg(self):
         p = FEMProject(3)
 
         # geometry
         p.geometries.add(geometry.Box(0, 0, 0, 1, 1, 1))
         p.geometries.add(geometry.Box(1, 0, 0, 1, 1, 1))
-        #p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
-        #p.geometries.add(geometry.Line(1, 0, 0, 2, 0, 0))
         # p.mesher.setRefinement(1)
 
         # model: boundary and initial conditions
         model = llg.LLGModel()
-        model.initialConditions.append(InitialCondition("Initial condition1", [1,0,0], [1]))
+        model.initialConditions.append(InitialCondition("Initial condition1", [1, 0, 0], [1]))
         p.models.append(model)
 
         # solver
-        solver = TimeDependentSolver([model], [BackwardEulerSolver(GMRESSolver())], 0.0001, 0.02)
+        solver = TimeDependentSolver([model], [BackwardEulerSolver(GMRESSolver())], 0.1, 3)
         p.solvers.append(solver)
 
         # solve

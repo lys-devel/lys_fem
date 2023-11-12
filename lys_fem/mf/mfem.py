@@ -54,11 +54,11 @@ if isParallel():
             solver.SetPreconditioner(prec)
         return solver, prec
 
-    def getMesh(fec, mesh):
+    def getMesh(mesh):
         mesh = mesh.GetSerialMesh(0)
         if MPI.COMM_WORLD.rank != 0:
             return []
-        return _parseMesh(fec, mesh)
+        return _parseMesh(mesh)
 
     def getData(x, mesh):
         return _gatherData(x, mesh)
@@ -96,8 +96,8 @@ else:
             solver.SetPreconditioner(prec)
         return solver, prec
 
-    def getMesh(fec, mesh):
-        return _parseMesh(fec, mesh)
+    def getMesh(mesh):
+        return _parseMesh(mesh)
 
     def getData(x, mesh):
         return x.GetDataArray().reshape(-1, x.VectorDim())
@@ -246,7 +246,8 @@ class MFEMMatrix(SparseMatrix):
 SparseMatrix = MFEMMatrix
 
 
-def _parseMesh(fec, mesh):
+def _parseMesh(mesh):
+    fec = mfem_orig.H1_FECollection(1, mesh.Dimension())
     subs = [mfem_orig.SubMesh.CreateFromDomain(mesh, mfem_orig.intArray([index])) for index in mesh.attributes]
     return [_Mesh.fromMFEM(fec, sub) for sub in subs]
 

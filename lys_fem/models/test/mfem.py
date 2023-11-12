@@ -2,8 +2,8 @@ from lys_fem.mf import mfem, MFEMLinearModel, MFEMNonlinearModel
 
 
 class MFEMLinearTestModel(MFEMLinearModel):
-    def __init__(self, fec, model, mesh, mat):
-        super().__init__(fec, model, mesh)
+    def __init__(self, model, mesh, mat):
+        super().__init__(mfem.H1_FECollection(1, mesh.Dimension()), model, mesh)
 
     def assemble_a(self):
         a = mfem.BilinearForm(self.space)
@@ -13,8 +13,8 @@ class MFEMLinearTestModel(MFEMLinearModel):
 
 
 class MFEMNonlinearTestModel(MFEMNonlinearModel):
-    def __init__(self, fec, model, mesh, mat):
-        super().__init__(fec, model, mesh)
+    def __init__(self, model, mesh, mat):
+        super().__init__(mfem.H1_FECollection(1, mesh.Dimension()), model, mesh)
 
     def assemble_a(self):
         self.a = _NonlinearOperator(self)

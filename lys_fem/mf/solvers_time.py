@@ -20,14 +20,15 @@ class StationaryEquation:
         K, b = self.model.K, self.model.b
         return K * x - b
 
-    def grad(self, x):
-        K, b = self.model.grad_Kx, self.model.b
+    def grad(self):
+        K, b = self.model.grad_Kx, self.model.grad_b
         return K
 
 
 class _TimeDependentSubSolverBase:
     def __init__(self, model):
         self.model = model
+        self._x = self.model.x0
 
     def update(self, x):
         if not isinstance(self.model, MFEMLinearModel):
@@ -37,8 +38,8 @@ class _TimeDependentSubSolverBase:
         if isinstance(self.model, MFEMLinearModel):
             solver.setMaxIteration(1)
         self.dt = dt
-        x = solver.solve(self, self.model.x0)
-        return self.model.RecoverFEMSolution(x)
+        self._x = solver.solve(self, self._x)
+        return self.model.RecoverFEMSolution(self._x)
 
 
 class BackwardEulerSolver(_TimeDependentSubSolverBase):
@@ -46,12 +47,43 @@ class BackwardEulerSolver(_TimeDependentSubSolverBase):
         super().__init__(model)
 
     def __call__(self, x):
+        """
+        Calculate M(x-x0) + (Kx - b)dt
+        """
         M, K, b, x0, dt = self.model.M, self.model.K, self.model.b, self.model.x0, self.dt
-        return M * (x - x0) + K * x * dt - b * dt
+        res = mfem.Vector(x.Size())
+        if M is not None:
+            d = mfem.Vector(x)
+            d -= x0
+            M.Mult(d, res)
+        if K is not None:
+            K.AddMult(x, res, dt)
+        if b is not None:
+            b.Add(-dt, res)
+        return res
 
-    def grad(self, x):
-        M, K, b, dt = self.model.M, self.model.K, self.model.b, self.dt
-        return M + K * dt
+    def grad(self):
+        """
+        Calculate grad[M(x-x0) + Kx - b]
+        """
+        gM, gK, gb, dt = self.model.grad_Mx, self.model.grad_Kx, self.model.grad_b, self.dt
+        res = _dummyAdd(gM, gK, dt)
+        return mfem.SparseMatrix(gM) + gK * dt
+
+
+class _dummyAdd(mfem.PyOperator):
+    def __init__(self, A, B, dt):
+        super().__init__(A.Height())
+        self.A = A
+        self.B = B
+        self.dt = dt
+
+    def Mult(self, x, y):
+        self.A.Mult(x, y)
+        z = mfem.Vector(x.Size())
+        self.B.Mult(x, z)
+        z *= self.dt
+        y += z
 
 
 class _SecondOrderTimeDependentSubSolverBase(mfem.SecondOrderTimeDependentOperator):
