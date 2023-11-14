@@ -10,7 +10,6 @@ from .base import FEMTestCase
 
 class testProblems_test(FEMTestCase):
     def test_llg(self):
-        return
         p = FEMProject(3)
 
         # geometry
@@ -29,6 +28,8 @@ class testProblems_test(FEMTestCase):
 
         # solve
         mf.run(p)
+
+        return
 
         # solution
         sol = FEMSolution(".", p)

@@ -276,12 +276,16 @@ def _gatherData(x, mesh):
     indices = np.array([i for i in indices])
     indices = _gatherArray(indices)
 
-    data = _gatherArray(x.GetDataArray())
+    data_list = []
+    v = mfem_orig.Vector()
+    for d in range(x.VectorDim()):
+        x.GetNodalValues(v, d+1)
+        data_list.append(_gatherArray(v.GetDataArray()))
+        
     if MPI.COMM_WORLD.rank == 0:
         result = np.empty([np.max([np.max(i) for i in indices]) + 1, x.VectorDim()])
-        for i, d in zip(indices, data):
-            d = d.reshape(-1, x.VectorDim())
-            result[i] = d
+        for dim, data in enumerate(data_list):
+            result[indices, dim] = data
         return result
     else:
         return None
