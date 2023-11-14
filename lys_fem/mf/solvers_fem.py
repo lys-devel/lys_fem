@@ -16,12 +16,12 @@ class FEMSolverBase:
 
 class CGSolver(FEMSolverBase):
     def __init__(self, sol):
-        super().__init__(solver="CG", prec="GS")
+        super().__init__(solver="CG")
 
 
 class GMRESSolver(FEMSolverBase):
     def __init__(self, sol):
-        super().__init__(solver="GMRES", prec="GS")
+        super().__init__(solver="GMRES")
 
 
 class NewtonSolver:
@@ -40,9 +40,9 @@ class NewtonSolver:
             J = F.grad()
             Ji.SetOperator(J)
             dx = Ji * F(x)
-            print("Newton", i, dx.Norml2())
             x -= dx
-            if dx.Norml2() < eps:
+            norm = mfem.getMax(dx.Norml2())
+            if norm < eps:
                 break
         return x
 

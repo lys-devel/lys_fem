@@ -1,6 +1,3 @@
-import unittest
-import os
-import shutil
 from scipy import special
 import numpy as np
 
@@ -11,19 +8,9 @@ from lys_fem.fem import FEMProject, Material, DirichletBoundary, NeumannBoundary
 from lys_fem.fem import StationarySolver, CGSolver, TimeDependentSolver, BackwardEulerSolver
 from lys_fem.models import heat
 
+from .base import FEMTestCase
 
-class elasticity_test(unittest.TestCase):
-    path = "test/run"
-
-    def setUp(self):
-        os.makedirs(self.path, exist_ok=True)
-        self._cwd = os.getcwd()
-        os.chdir(self.path)
-
-    def tearDown(self):
-        os.chdir(self._cwd)
-        shutil.rmtree(self.path)
-
+class elasticity_test(FEMTestCase):
     def test_1d_dirichlet(self):
         p = self.__create1D()
 

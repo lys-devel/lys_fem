@@ -67,23 +67,8 @@ class BackwardEulerSolver(_TimeDependentSubSolverBase):
         Calculate grad[M(x-x0) + Kx - b]
         """
         gM, gK, gb, dt = self.model.grad_Mx, self.model.grad_Kx, self.model.grad_b, self.dt
-        res = _dummyAdd(gM, gK, dt)
-        return mfem.SparseMatrix(gM) + gK * dt
+        return mfem.Add(1, gM, dt, gK)
 
-
-class _dummyAdd(mfem.PyOperator):
-    def __init__(self, A, B, dt):
-        super().__init__(A.Height())
-        self.A = A
-        self.B = B
-        self.dt = dt
-
-    def Mult(self, x, y):
-        self.A.Mult(x, y)
-        z = mfem.Vector(x.Size())
-        self.B.Mult(x, z)
-        z *= self.dt
-        y += z
 
 
 class _SecondOrderTimeDependentSubSolverBase(mfem.SecondOrderTimeDependentOperator):

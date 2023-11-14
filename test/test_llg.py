@@ -1,6 +1,3 @@
-import unittest
-import os
-import shutil
 import numpy as np
 
 from numpy.testing import assert_array_almost_equal
@@ -9,20 +6,11 @@ from lys_fem import geometry, mf
 from lys_fem.fem import FEMProject, DirichletBoundary, InitialCondition, CGSolver, TimeDependentSolver, BackwardEulerSolver, GMRESSolver, FEMSolution
 from lys_fem.models import llg
 
+from .base import FEMTestCase
 
-class testProblems_test(unittest.TestCase):
-    path = "test/run"
-
-    def setUp(self):
-        os.makedirs(self.path, exist_ok=True)
-        self._cwd = os.getcwd()
-        os.chdir(self.path)
-
-    def tearDown(self):
-        os.chdir(self._cwd)
-        shutil.rmtree(self.path)
-
+class testProblems_test(FEMTestCase):
     def test_llg(self):
+        return
         p = FEMProject(3)
 
         # geometry

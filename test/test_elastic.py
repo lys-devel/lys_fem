@@ -1,26 +1,12 @@
-import unittest
-import os
-import shutil
-
 from numpy.testing import assert_array_almost_equal
 
 from lys_fem import geometry, mf
 from lys_fem.fem import FEMProject, Material, DirichletBoundary, InitialCondition, StationarySolver, CGSolver, FEMSolution
 from lys_fem.models import elasticity
 
+from .base import FEMTestCase
 
-class elasticity_test(unittest.TestCase):
-    path = "test/run"
-
-    def setUp(self):
-        os.makedirs(self.path, exist_ok=True)
-        self._cwd = os.getcwd()
-        os.chdir(self.path)
-
-    def tearDown(self):
-        os.chdir(self._cwd)
-        shutil.rmtree(self.path)
-
+class elasticity_test(FEMTestCase):
     def test_1d_dirichlet(self):
         p = FEMProject(1)
 

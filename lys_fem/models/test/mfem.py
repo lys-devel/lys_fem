@@ -38,7 +38,8 @@ class _NonlinearOperator(mfem.PyOperator):
         self.a.FormSystemMatrix(ess_tdof_list, self.A)
 
         self.x2 = mfem.GridFunction(self._model.space)
-        self.x2.SetFromTrueDofs(mfem.Vector([-xx for xx in x]))
+        self.x2.SetFromTrueDofs(x)
+        self.x2.Neg()
         self.dx = mfem.GridFunction(self._model.space)
         self.x2.GetDerivative(1, 0, self.dx)
         self.dx_c = mfem.GridFunctionCoefficient(self.dx)

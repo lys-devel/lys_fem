@@ -67,7 +67,17 @@ if isParallel():
         if MPI.COMM_WORLD.rank == 0:
             np.savez(file, **data)
 
+    def getMax(data):
+        data_array = MPI.COMM_WORLD.gather(data, root=0)
+        if isRoot:
+            res = MPI.COMM_WORLD.bcast(max(data_array), root=0)
+        else:
+            res = MPI.COMM_WORLD.bcast(data_array, root=0)
+        return res
 
+    def wait():
+        return
+    
 else:
     import mfem.ser as mfem_orig
     from mfem.ser import *
@@ -100,12 +110,20 @@ else:
         return _parseMesh(mesh)
 
     def getData(x, mesh):
-        return x.GetDataArray().reshape(-1, x.VectorDim())
+        res = []
+        v = mfem_orig.Vector()
+        for d in range(x.VectorDim()):
+            x.GetNodalValues(v, d+1)
+            res.append(np.array(v.GetDataArray()))
+        return np.array(res).T
 
     def saveData(file, data):
         np.savez(file, **data)
 
 
+    def getMax(data):
+        return data
+    
 def print_initialize():
     print_("\n---------------------Initialization--------------------------")
     if isParallel():
@@ -215,8 +233,8 @@ class MFEMVector(mfem_orig.Vector):
         return res
 
     def __sub__(self, value):
-        res = MFEMVector(value.Size())
-        mfem_orig.add_vector(self, -1, value, res)
+        res = MFEMVector(self)
+        res -= value
         return res
 
     def __mul__(self, value):
@@ -234,7 +252,7 @@ class MFEMMatrix(SparseMatrix):
 
     def __mul__(self, value):
         if isinstance(value, MFEMVector):
-            res = MFEMVector(value.Size())
+            res = MFEMVector(value)
             self.Mult(value, res)
             return res
         else:

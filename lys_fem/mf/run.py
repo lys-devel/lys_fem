@@ -10,7 +10,6 @@ def run(fem):
     mfem.print_initialize()
     geom = fem.geometries.generateGeometry(fem.dimension)
     mesh, nv = generateMesh(fem, geom)
-    #fec = mfem.H1_FECollection(1, mesh.Dimension())
     mfem.print_("Mesh generated: ", str(len([1 for _ in mesh.attributes])), "domains,", str(len([1 for _ in mesh.bdr_attributes])), "boundaries,", str(nv), "nodes,", str(mesh.GetGlobalNE()), "elements")
     material = generateMaterial(fem, geom)
     mfem.print_("Material generated for", str([name for name in material.keys()]))

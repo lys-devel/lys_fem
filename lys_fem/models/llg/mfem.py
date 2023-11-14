@@ -153,13 +153,16 @@ class MFEMLLGModel(MFEMNonlinearModel):
             self._lam.GetTrueDofs(self._XL0.GetBlock(1))
             self._X0 = mfem.Vector()
             self._x.GetTrueDofs(self._X0)
-            print("init", [self._x[0], self._x[1], self._x[10]])
         return self._X0
 
     def RecoverFEMSolution(self, X):
         self._X0 = X
         self._x.SetFromTrueDofs(X)
-        m = np.array([self._x[10], self._x[0], self._x[1]])
+        v1, v2, v3 = mfem.Vector(), mfem.Vector(), mfem.Vector()
+        self._x.GetNodalValues(v1, 1)
+        self._x.GetNodalValues(v2, 2)
+        self._x.GetNodalValues(v3, 3)
+        m = np.array([v1[0], v2[0], v3[0]])
         np.set_printoptions(precision=3, suppress=True)
         print("update", m / np.linalg.norm(m))
         #print([xx for xx in self._x])
