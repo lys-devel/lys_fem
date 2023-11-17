@@ -25,7 +25,7 @@ class CGSolver(FEMSolverBase):
 
 class GMRESSolver(FEMSolverBase):
     def __init__(self, sol):
-        super().__init__(solver="GMRES", prec="D")
+        super().__init__(solver="GMRES")
 
 
 class NewtonSolver:
@@ -53,6 +53,7 @@ class NewtonSolver:
             if norm != 0:
                 R = R/norm
             if R < eps:
+                print("Newton", i)
                 return x
         if self._max_iter !=1:
             print("Newton solver does not converge.")

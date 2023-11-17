@@ -22,6 +22,7 @@ if isParallel():
     FiniteElementSpace = mfem_orig.ParFiniteElementSpace
     GridFunction = mfem_orig.ParGridFunction
     BilinearForm = mfem_orig.ParBilinearForm
+    MixedBilinearForm = mfem_orig.ParMixedBilinearForm
     LinearForm = mfem_orig.ParLinearForm
     SparseMatrix = mfem_orig.HypreParMatrix
     isRoot = MPI.COMM_WORLD.rank == 0
@@ -99,8 +100,8 @@ else:
             solver = mfem_orig.NewtonSolver()
         solver.iterative_mode = False
         solver.SetRelTol(rel_tol)
-        solver.SetAbsTol(1e-8)
-        solver.SetMaxIter(1000)
+        solver.SetAbsTol(1e-10)
+        solver.SetMaxIter(10000)
         solver.SetPrintLevel(0)
         if prec is not None:
             solver.SetPreconditioner(prec)
@@ -260,9 +261,64 @@ class MFEMMatrix(SparseMatrix):
             res *= value
             return res
 
-
 SparseMatrix = MFEMMatrix
 
+class AddOperator(mfem_orig.PyOperator):
+    def __init__(self, op1, op2):
+        super().__init__(op1.Height(), op1.Width())
+        self._op1 = op1
+        self._op2 = op2
+
+    def Mult(self, x, y):
+        self._op1.Mult(x,y)
+        self._op2.AddMult(x,y)
+
+class MulOperator(mfem_orig.PyOperator):
+    def __init__(self, op, value):
+        super().__init__(op.Height())
+        self._op = op
+        self._value = value
+
+    def Mult(self, x, y):
+        self._op.Mult(x,y)
+        y *= self._value
+
+class MFEMBlockOperator(mfem_orig.BlockOperator):
+    def __add__(self, value):
+        res = MFEMBlockOperator(self.RowOffsets(), self.ColOffsets())
+        for r in range(self.NumRowBlocks()):
+            for c in range(self.NumColBlocks()):
+                if self.IsZeroBlock(r,c):
+                    if not value.IsZeroBlock(r,c):
+                        res.SetBlock(r,c, value.GetBlock(r,c))
+                else:
+                    if value.IsZeroBlock(r,c):
+                        res.SetBlock(r,c,self.GetBlock(r,c))
+                    else:
+                        res.SetBlock(r,c,AddOperator(self.GetBlock(r,c), value.GetBlock(r,c)))
+        return res
+
+    def __mul__(self, value):
+        res = MFEMBlockOperator(self.RowOffsets(), self.ColOffsets())
+        for r in range(self.NumRowBlocks()):
+            for c in range(self.NumColBlocks()):
+                if not self.IsZeroBlock(r,c):
+                    res.SetBlock(r,c,MulOperator(self.GetBlock(r,c), value))
+        return res
+
+BlockOperator = MFEMBlockOperator
+
+def createBlockMatrix(mats, offsets):
+    if isParallel():
+        res = mfem_orig.HypreParMatrixFromBlocks(mats)
+        return res
+    else:
+        res = mfem_orig.BlockMatrix(offsets)
+        for i, ms in enumerate(mats):
+            for j, m in enumerate(ms):
+                if m is not None:
+                    res.SetBlock(i,j,m)
+        return res
 
 def _parseMesh(mesh):
     fec = mfem_orig.H1_FECollection(1, mesh.Dimension())

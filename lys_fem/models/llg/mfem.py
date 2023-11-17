@@ -7,7 +7,7 @@ class MFEMLLGModel(MFEMNonlinearModel):
         super().__init__(mfem.ND_FECollection(1, mesh.Dimension()), model, mesh, vDim=1)
         self._mat = mat
         self._alpha = 0
-        self._kLi = 1e-5
+        self._kLi = 1e-5*0
         self._fec_lam = mfem.H1_FECollection(1, mesh.Dimension())
         self._fespace_lam = mfem.FiniteElementSpace(mesh, self._fec_lam, 1, mfem.Ordering.byVDIM)
 
@@ -50,7 +50,7 @@ class MFEMLLGModel(MFEMNonlinearModel):
     def _assemble_M(self, mc):
         self._assemble_M11(mc)
 
-        self._M = mfem.BlockMatrix(self._block_offsets)
+        self._M = mfem.BlockOperator(self._block_offsets)
         self._M.SetBlock(0, 0, self._M0 + self._M11)
 
     def _assemble_M0(self):
@@ -68,10 +68,23 @@ class MFEMLLGModel(MFEMNonlinearModel):
         self._M11 = mfem.SparseMatrix()
         self._m11.FormSystemMatrix(self._ess_tdof_list, self._M11)
 
+    def _assemble_M21(self):
+        self._m21 = mfem.MixedBilinearForm(self.space, self._fespace_lam)
+        self._m21.Assemble()
+        self._m21.Finalize()
+        self._M21 = self._m21.ParallelAssemble()
+        self._M12 = self._M21.Transpose()
+
+    def _assemble_M22(self):
+        self._m22 = mfem.BilinearForm(self._fespace_lam)
+        self._m22.Assemble()
+        self._M22 = mfem.SparseMatrix()
+        self._m22.FormSystemMatrix(mfem.intArray(), self._M22)
+
     def _assemble_K(self, m):
         self._assemble_K11()
         self._assemble_K21(m)
-        self._K = mfem.BlockMatrix(self._block_offsets)
+        self._K = mfem.BlockOperator(self._block_offsets)
         self._K.SetBlock(0, 0, self._K11)
         self._K.SetBlock(1, 0, self._K21)
         self._K.SetBlock(0, 1, self._K12)
@@ -123,7 +136,7 @@ class MFEMLLGModel(MFEMNonlinearModel):
 
     def _assemble_grad_Mx(self):
         self._assemble_Md11()
-        self._gM = mfem.BlockMatrix(self._block_offsets)
+        self._gM = mfem.BlockOperator(self._block_offsets)
         gM11 = self._Md11 + (self._M0 + self._M11 * 2)
         self._gM.SetBlock(0, 0, gM11)
 
@@ -141,12 +154,11 @@ class MFEMLLGModel(MFEMNonlinearModel):
 
     def _assemble_grad_Kx(self, m, lam):
         self._assemble_Kd11(lam)
-        self._gK = mfem.BlockMatrix(self._block_offsets)
+        self._gK = mfem.BlockOperator(self._block_offsets)
         self._gK.SetBlock(0, 0, self._K11 + self._Kd11)
         self._gK.SetBlock(0, 1, self._K12)
         self._gK.SetBlock(1, 0, mfem.Transpose(self._K12))
         self._gK.SetBlock(1, 1, self._K22)
-
 
     def _assemble_Kd11(self, lam):
         self._l2 = mfem.ProductCoefficient(2, lam)
@@ -155,7 +167,6 @@ class MFEMLLGModel(MFEMNonlinearModel):
         self._kd11.Assemble()
         self._Kd11 = mfem.SparseMatrix()
         self._kd11.FormSystemMatrix(self._ess_tdof_list, self._Kd11)
-
 
     def _assemble_b(self):
         self._B = mfem.BlockVector(self._block_offsets)
@@ -175,22 +186,22 @@ class MFEMLLGModel(MFEMNonlinearModel):
 
     @property
     def M(self):
-        #return self._M
+        return self._M
         return self._M.CreateMonolithic()
 
     @property
     def grad_Mx(self):
-        #return self._gM
+        return self._gM
         return self._gM.CreateMonolithic()
 
     @property
     def K(self):
-        #return self._K
+        return self._K
         return self._K.CreateMonolithic()
 
     @property
     def grad_Kx(self):
-        #return self._gK
+        return self._gK
         return self._gK.CreateMonolithic()
 
     @property
@@ -204,6 +215,19 @@ class MFEMLLGModel(MFEMNonlinearModel):
     @property
     def timeUnit(self):
         return 1.0/1.760859770e11
+    
+    @property
+    def preconditioner(self):
+        self.op = mfem.BlockDiagonalPreconditioner(self._block_offsets)
+        self._cg1 = mfem.DSmoother()
+        gM = self._Md11 + (self._M0 + self._M11 * 2)
+        gK = self._K11 + self._Kd11
+        self._A1=mfem.Add(0.06283185307179585/2, gM, 1, gK)
+        self._cg1.SetOperator(self._A1)
+        self.op.SetDiagonalBlock(0, self._cg1)
+        #self.op.SetDiagonalBlock(1, self._cg2)
+
+        return self.op
 
     @property
     def x0(self):

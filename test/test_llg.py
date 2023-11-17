@@ -41,3 +41,4 @@ class testLLG_test(FEMTestCase):
         res = sol.eval("my", data_number=50)
         for w in res:
             self.assert_array_almost_equal(w.data, np.zeros(w.data.shape), decimal=2)
+            

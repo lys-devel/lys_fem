@@ -40,6 +40,7 @@ class _TimeDependentSubSolverBase:
     def solve(self, solver, dt):
         if isinstance(self.model, MFEMLinearModel):
             solver.setMaxIteration(1)
+        self.model.update(self._x)
         prec = self.model.preconditioner
         if prec is not None:
             solver.setPreconditioner(prec)
@@ -70,11 +71,7 @@ class BackwardEulerSolver(_TimeDependentSubSolverBase):
                 multed=True
         if b is not None:
             res -=b
-
         return res
-        vr = self.model.dualToPrime(res)
-        print("residual")
-        self.model.printNodalValue(vr, 0)
 
 
     def grad(self, x):
@@ -82,24 +79,10 @@ class BackwardEulerSolver(_TimeDependentSubSolverBase):
         Calculate grad[M(x-x0)/dt + Kx - b]
         """
         gM, gK, gb, dt = self.model.grad_Mx, self.model.grad_Kx, self.model.grad_b, self.dt/self.model.timeUnit
+        self._gmt =gM*(1/dt)
+        self._op= self._gmt + gK
+        return self._op
         return mfem.Add(1/dt, gM, 1, gK)
-        # test
-        vr = mfem.BlockVector(self.model._block_offsets)
-        xb =mfem.BlockVector(x, self.model._block_offsets)
-        op.Mult(xb, vr)
-
-        print("x")
-        self.model.printNodalValue(mfem.BlockVector(x, self.model._block_offsets))
-        print("Jx")
-        res = self.model.dualToPrime(vr)
-        self.model.printNodalValue(res)
-
-        self.op = mfem.BlockOperator(self.model._block_offsets)
-        self.op.SetBlock(0,0, mfem.Add(1/self.dt, gM.GetBlock(0,0), 1, gK.GetBlock(0,0)))
-        self.op.SetBlock(0,1, gK.GetBlock(0,1))
-        self.op.SetBlock(1,0, gK.GetBlock(1,0))
-        self.op.SetBlock(1,1, gK.GetBlock(1,1))
-        return self.op
 
 class _SecondOrderTimeDependentSubSolverBase(mfem.SecondOrderTimeDependentOperator):
     def __init__(self, size, solM, solT, ode_solver):
