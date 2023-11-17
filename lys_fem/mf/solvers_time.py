@@ -18,9 +18,12 @@ class StationaryEquation:
 
     def __call__(self, x):
         K, b = self.model.K, self.model.b
-        return K * x - b
+        res = mfem.Vector(x.Size())
+        K.Mult(x, res)
+        res -= b
+        return res
 
-    def grad(self):
+    def grad(self, x):
         K, b = self.model.grad_Kx, self.model.grad_b
         return K
 
@@ -37,6 +40,10 @@ class _TimeDependentSubSolverBase:
     def solve(self, solver, dt):
         if isinstance(self.model, MFEMLinearModel):
             solver.setMaxIteration(1)
+        self.model.update(self._x)
+        prec = self.model.preconditioner
+        if prec is not None:
+            solver.setPreconditioner(prec)
         self.dt = dt
         self._x = solver.solve(self, self._x)
         return self.model.RecoverFEMSolution(self._x)
@@ -48,27 +55,81 @@ class BackwardEulerSolver(_TimeDependentSubSolverBase):
 
     def __call__(self, x):
         """
-        Calculate M(x-x0) + (Kx - b)dt
+        Calculate M(x-x0)/dt + (Kx - b)
         """
         M, K, b, x0, dt = self.model.M, self.model.K, self.model.b, self.model.x0, self.dt
+        multed = False
         res = mfem.Vector(x.Size())
         if M is not None:
             d = mfem.Vector(x)
             d -= x0
+            d *= 1/dt
             M.Mult(d, res)
+            multed = True
         if K is not None:
-            K.AddMult(x, res, dt)
+            if multed:
+                K.AddMult(x, res)
+            else:
+                K.Mult(x,res)
+                multed=True
         if b is not None:
-            b.Add(-dt, res)
-        return res
+            res -=b
 
-    def grad(self):
+        return res
+        vr = self.model.dualToPrime(res)
+        print("residual")
+        self.model.printNodalValue(vr, 0)
+
+
+    def grad(self, x):
         """
-        Calculate grad[M(x-x0) + Kx - b]
+        Calculate grad[M(x-x0)/dt + Kx - b]
         """
         gM, gK, gb, dt = self.model.grad_Mx, self.model.grad_Kx, self.model.grad_b, self.dt
-        return mfem.Add(1, gM, dt, gK)
 
+        op = mfem.Add(1/self.dt, gM, 1, gK)
+        return op
+        # test
+        vr = mfem.BlockVector(self.model._block_offsets)
+        xb =mfem.BlockVector(x, self.model._block_offsets)
+        op.Mult(xb, vr)
+
+        print("x")
+        self.model.printNodalValue(mfem.BlockVector(x, self.model._block_offsets))
+        print("Jx")
+        res = self.model.dualToPrime(vr)
+        self.model.printNodalValue(res)
+
+        self.op = mfem.BlockOperator(self.model._block_offsets)
+        self.op.SetBlock(0,0, mfem.Add(1/self.dt, gM.GetBlock(0,0), 1, gK.GetBlock(0,0)))
+        self.op.SetBlock(0,1, gK.GetBlock(0,1))
+        self.op.SetBlock(1,0, gK.GetBlock(1,0))
+        self.op.SetBlock(1,1, gK.GetBlock(1,1))
+        return self.op
+
+
+
+
+
+class gradOperator(mfem.PyOperator):
+    def __init__(self, model, dt, size):
+        super().__init__(size)
+        self.model = model
+        self.dt = dt
+
+    def Mult(self, x, res):
+        gM, gK, gb, dt = self.model.grad_Mx, self.model.grad_Kx, self.model.grad_b, self.dt
+        multed = False
+        if gM is not None:
+            gM.Mult(x, res)
+            res *= 1/self.dt
+            multed = True
+        if gK is not None:
+            if multed:
+                gK.AddMult(x, res)
+            else:
+                gK.Mult(x,res)
+                multed = True
 
 
 class _SecondOrderTimeDependentSubSolverBase(mfem.SecondOrderTimeDependentOperator):

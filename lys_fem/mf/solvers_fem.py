@@ -8,6 +8,10 @@ class FEMSolverBase:
     def SetOperator(self, A):
         self.solver.SetOperator(A)
 
+    def SetPreconditioner(self, prec):
+        self.prec = prec
+        self.solver.SetPreconditioner(prec)
+
     def __mul__(self, b):
         res = mfem.Vector(b.Size())
         self.solver.Mult(b, res)
@@ -16,34 +20,43 @@ class FEMSolverBase:
 
 class CGSolver(FEMSolverBase):
     def __init__(self, sol):
-        super().__init__(solver="CG")
+        super().__init__(solver="CG", prec="GS")
 
 
 class GMRESSolver(FEMSolverBase):
     def __init__(self, sol):
-        super().__init__(solver="GMRES")
+        super().__init__(solver="GMRES", prec="GS")
 
 
 class NewtonSolver:
-    def __init__(self, subSolver, max_iter=30):
+    def __init__(self, subSolver, max_iter=10):
         self._solver = subSolver
         self._max_iter = max_iter
 
     def setMaxIteration(self, max_iter):
         self._max_iter = max_iter
 
-    def solve(self, F, x, eps=1e-5):
+    def setPreconditioner(self, prec):
+        self._solver.SetPreconditioner(prec)
+
+    def solve(self, F, x, eps=-1e-7):
         x = mfem.Vector(x)
         Ji = self._solver
         for i in range(self._max_iter):
             F.update(x)
-            J = F.grad()
+            J = F.grad(x)
             Ji.SetOperator(J)
             dx = Ji * F(x)
             x -= dx
-            norm = mfem.getMax(dx.Norml2())
-            if norm < eps:
-                break
+            norm = mfem.getMax(x.Norml2())
+            R = mfem.getMax(dx.Norml2())
+            if norm != 0:
+                R = R/norm
+            if R < eps:
+                print("Newton solver converge", i)
+                return x
+        if self._max_iter !=1:
+            print("Newton solver does not converge.")
         return x
 
 

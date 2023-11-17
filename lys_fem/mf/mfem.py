@@ -48,7 +48,7 @@ if isParallel():
         solver.iterative_mode = False
         solver.SetRelTol(rel_tol)
         solver.SetAbsTol(0.0)
-        solver.SetMaxIter(500)
+        solver.SetMaxIter(100)
         solver.SetPrintLevel(0)
         if prec is not None:
             solver.SetPreconditioner(prec)
@@ -77,7 +77,7 @@ if isParallel():
 
     def wait():
         return
-    
+
 else:
     import mfem.ser as mfem_orig
     from mfem.ser import *
@@ -99,9 +99,9 @@ else:
             solver = mfem_orig.NewtonSolver()
         solver.iterative_mode = False
         solver.SetRelTol(rel_tol)
-        solver.SetAbsTol(0.0)
-        solver.SetMaxIter(500)
-        solver.SetPrintLevel(0)
+        solver.SetAbsTol(1e-8)
+        solver.SetMaxIter(10)
+        solver.SetPrintLevel(1)
         if prec is not None:
             solver.SetPreconditioner(prec)
         return solver, prec
@@ -113,17 +113,17 @@ else:
         res = []
         v = mfem_orig.Vector()
         for d in range(x.VectorDim()):
-            x.GetNodalValues(v, d+1)
+            x.GetNodalValues(v, d + 1)
             res.append(np.array(v.GetDataArray()))
         return np.array(res).T
 
     def saveData(file, data):
         np.savez(file, **data)
 
-
     def getMax(data):
         return data
-    
+
+
 def print_initialize():
     print_("\n---------------------Initialization--------------------------")
     if isParallel():
@@ -279,9 +279,9 @@ def _gatherData(x, mesh):
     data_list = []
     v = mfem_orig.Vector()
     for d in range(x.VectorDim()):
-        x.GetNodalValues(v, d+1)
+        x.GetNodalValues(v, d + 1)
         data_list.append(_gatherArray(v.GetDataArray()))
-        
+
     if MPI.COMM_WORLD.rank == 0:
         result = np.empty([np.max([np.max(i) for i in indices]) + 1, x.VectorDim()])
         for dim, data in enumerate(data_list):

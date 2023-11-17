@@ -110,6 +110,9 @@ class MFEMModel:
     def variableName(self):
         return self._model.variableName
 
+    @property
+    def preconditioner(self):
+        return None
 
 class MFEMLinearModel(MFEMModel):
     def __init__(self, *args, **kwargs):
