@@ -3,6 +3,7 @@ import os
 import shutil
 
 from lys_fem import mf
+from numpy.testing import assert_array_almost_equal
 
 
 class FEMTestCase(unittest.TestCase):
@@ -17,3 +18,6 @@ class FEMTestCase(unittest.TestCase):
         os.chdir(self._cwd)
         if mf.mfem.isRoot:
             shutil.rmtree(self.path)
+
+    def assert_array_almost_equal(self, *args, **kwargs):
+        assert_array_almost_equal(*args, **kwargs)

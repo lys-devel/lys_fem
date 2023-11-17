@@ -113,6 +113,10 @@ class MFEMModel:
     @property
     def preconditioner(self):
         return None
+    
+    @property
+    def timeUnit(self):
+        return 1
 
 class MFEMLinearModel(MFEMModel):
     def __init__(self, *args, **kwargs):

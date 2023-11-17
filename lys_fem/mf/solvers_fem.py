@@ -25,11 +25,11 @@ class CGSolver(FEMSolverBase):
 
 class GMRESSolver(FEMSolverBase):
     def __init__(self, sol):
-        super().__init__(solver="GMRES", prec="GS")
+        super().__init__(solver="GMRES", prec="D")
 
 
 class NewtonSolver:
-    def __init__(self, subSolver, max_iter=10):
+    def __init__(self, subSolver, max_iter=30):
         self._solver = subSolver
         self._max_iter = max_iter
 
@@ -39,7 +39,7 @@ class NewtonSolver:
     def setPreconditioner(self, prec):
         self._solver.SetPreconditioner(prec)
 
-    def solve(self, F, x, eps=-1e-7):
+    def solve(self, F, x, eps=1e-7):
         x = mfem.Vector(x)
         Ji = self._solver
         for i in range(self._max_iter):
@@ -53,7 +53,6 @@ class NewtonSolver:
             if norm != 0:
                 R = R/norm
             if R < eps:
-                print("Newton solver converge", i)
                 return x
         if self._max_iter !=1:
             print("Newton solver does not converge.")

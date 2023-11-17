@@ -40,7 +40,6 @@ class _TimeDependentSubSolverBase:
     def solve(self, solver, dt):
         if isinstance(self.model, MFEMLinearModel):
             solver.setMaxIteration(1)
-        self.model.update(self._x)
         prec = self.model.preconditioner
         if prec is not None:
             solver.setPreconditioner(prec)
@@ -57,14 +56,11 @@ class BackwardEulerSolver(_TimeDependentSubSolverBase):
         """
         Calculate M(x-x0)/dt + (Kx - b)
         """
-        M, K, b, x0, dt = self.model.M, self.model.K, self.model.b, self.model.x0, self.dt
+        M, K, b, x0, dt = self.model.M, self.model.K, self.model.b, self.model.x0, self.dt/self.model.timeUnit
         multed = False
         res = mfem.Vector(x.Size())
         if M is not None:
-            d = mfem.Vector(x)
-            d -= x0
-            d *= 1/dt
-            M.Mult(d, res)
+            M.Mult((x-x0)*(1/dt), res)
             multed = True
         if K is not None:
             if multed:
@@ -85,10 +81,8 @@ class BackwardEulerSolver(_TimeDependentSubSolverBase):
         """
         Calculate grad[M(x-x0)/dt + Kx - b]
         """
-        gM, gK, gb, dt = self.model.grad_Mx, self.model.grad_Kx, self.model.grad_b, self.dt
-
-        op = mfem.Add(1/self.dt, gM, 1, gK)
-        return op
+        gM, gK, gb, dt = self.model.grad_Mx, self.model.grad_Kx, self.model.grad_b, self.dt/self.model.timeUnit
+        return mfem.Add(1/dt, gM, 1, gK)
         # test
         vr = mfem.BlockVector(self.model._block_offsets)
         xb =mfem.BlockVector(x, self.model._block_offsets)
@@ -106,31 +100,6 @@ class BackwardEulerSolver(_TimeDependentSubSolverBase):
         self.op.SetBlock(1,0, gK.GetBlock(1,0))
         self.op.SetBlock(1,1, gK.GetBlock(1,1))
         return self.op
-
-
-
-
-
-class gradOperator(mfem.PyOperator):
-    def __init__(self, model, dt, size):
-        super().__init__(size)
-        self.model = model
-        self.dt = dt
-
-    def Mult(self, x, res):
-        gM, gK, gb, dt = self.model.grad_Mx, self.model.grad_Kx, self.model.grad_b, self.dt
-        multed = False
-        if gM is not None:
-            gM.Mult(x, res)
-            res *= 1/self.dt
-            multed = True
-        if gK is not None:
-            if multed:
-                gK.AddMult(x, res)
-            else:
-                gK.Mult(x,res)
-                multed = True
-
 
 class _SecondOrderTimeDependentSubSolverBase(mfem.SecondOrderTimeDependentOperator):
     def __init__(self, size, solM, solT, ode_solver):

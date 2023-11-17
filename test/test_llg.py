@@ -1,69 +1,43 @@
 import numpy as np
 
-from numpy.testing import assert_array_almost_equal
-
 from lys_fem import geometry, mf
 from lys_fem.fem import FEMProject, DirichletBoundary, InitialCondition, CGSolver, TimeDependentSolver, StationarySolver, BackwardEulerSolver, GMRESSolver, FEMSolution
 from lys_fem.models import llg
 
 from .base import FEMTestCase
 
+T = 2*np.pi/1.760859770e11
 
 class testLLG_test(FEMTestCase):
-
-    def test_stationary(self):
-        return
+    def test_precession(self):
         p = FEMProject(3)
 
         # geometry
         p.geometries.add(geometry.Box(0, 0, 0, 1, 1, 1))
-        p.geometries.add(geometry.Box(1, 0, 0, 1, 1, 1))
-        # p.mesher.setRefinement(1)
 
         # model: boundary and initial conditions
         model = llg.LLGModel()
-        model.initialConditions.append(InitialCondition("Initial condition1", [0, 1/np.sqrt(2), 1/np.sqrt(2)], [1, 2]))
+        model.initialConditions.append(InitialCondition("Initial condition1", [1, 0, 0], [1]))
         p.models.append(model)
 
         # solver
-        solver = StationarySolver([model], [GMRESSolver()])
+        solver = TimeDependentSolver([model], [BackwardEulerSolver(GMRESSolver())], T/100, T/2)
         p.solvers.append(solver)
 
         # solve
         mf.run(p)
 
-        return
-
         # solution
         sol = FEMSolution(".", p)
-        res = sol.eval("x", data_number=1)
+        res = sol.eval("mx", data_number=25)
         for w in res:
-            assert_array_almost_equal(w.data, np.sqrt(2 * w.x[:, 0]), decimal=2)
-
-    def test_llg(self):
-        p = FEMProject(3)
-
-        # geometry
-        p.geometries.add(geometry.Box(0, 0, 0, 1, 1, 1))
-        p.geometries.add(geometry.Box(1, 0, 0, 1, 1, 1))
-        p.mesher.setRefinement(1)
-
-        # model: boundary and initial conditions
-        model = llg.LLGModel()
-        model.initialConditions.append(InitialCondition("Initial condition1", [1, 0, 0], [1,2]))
-        p.models.append(model)
-
-        # solver
-        solver = TimeDependentSolver([model], [BackwardEulerSolver(GMRESSolver())], 1e-1, 1e-1)
-        p.solvers.append(solver)
-
-        # solve
-        mf.run(p)
-
-        return
-
-        # solution
-        sol = FEMSolution(".", p)
-        res = sol.eval("x", data_number=1)
+            self.assert_array_almost_equal(w.data, np.zeros(w.data.shape), decimal=2)
+        res = sol.eval("my", data_number=25)
         for w in res:
-            assert_array_almost_equal(w.data, np.sqrt(2 * w.x[:, 0]), decimal=2)
+            self.assert_array_almost_equal(w.data, np.ones(w.data.shape), decimal=3)
+        res = sol.eval("mx", data_number=50)
+        for w in res:
+            self.assert_array_almost_equal(w.data, -np.ones(w.data.shape), decimal=3)
+        res = sol.eval("my", data_number=50)
+        for w in res:
+            self.assert_array_almost_equal(w.data, np.zeros(w.data.shape), decimal=2)

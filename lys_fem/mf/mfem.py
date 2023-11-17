@@ -100,8 +100,8 @@ else:
         solver.iterative_mode = False
         solver.SetRelTol(rel_tol)
         solver.SetAbsTol(1e-8)
-        solver.SetMaxIter(10)
-        solver.SetPrintLevel(1)
+        solver.SetMaxIter(1000)
+        solver.SetPrintLevel(0)
         if prec is not None:
             solver.SetPreconditioner(prec)
         return solver, prec
@@ -248,7 +248,7 @@ Vector = MFEMVector
 
 class MFEMMatrix(SparseMatrix):
     def __add__(self, value):
-        return mfem_orig.Add(self, value)
+        return mfem_orig.Add(1.0, self,1.0, value)
 
     def __mul__(self, value):
         if isinstance(value, MFEMVector):
@@ -285,7 +285,8 @@ def _gatherData(x, mesh):
     if MPI.COMM_WORLD.rank == 0:
         result = np.empty([np.max([np.max(i) for i in indices]) + 1, x.VectorDim()])
         for dim, data in enumerate(data_list):
-            result[indices, dim] = data
+            for i, d in zip(indices, data):
+                result[i, dim] = d
         return result
     else:
         return None

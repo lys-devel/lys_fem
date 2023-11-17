@@ -6,9 +6,8 @@ class MFEMLLGModel(MFEMNonlinearModel):
     def __init__(self, model, mesh, mat):
         super().__init__(mfem.ND_FECollection(1, mesh.Dimension()), model, mesh, vDim=1)
         self._mat = mat
-        self._alpha = 0.0
-        self._kLi = 1e-3
-        self._gam = 1.760859770e11/1e12
+        self._alpha = 0
+        self._kLi = 1e-5
         self._fec_lam = mfem.H1_FECollection(1, mesh.Dimension())
         self._fespace_lam = mfem.FiniteElementSpace(mesh, self._fec_lam, 1, mfem.Ordering.byVDIM)
 
@@ -34,7 +33,6 @@ class MFEMLLGModel(MFEMNonlinearModel):
         self._assemble_grad_Mx()
         self._assemble_K(mc)
         self._assemble_grad_Kx(mc, lc)
-        #self._test2()
 
     def _make_coefs(self, m):
         m = mfem.BlockVector(m, self._block_offsets)
@@ -79,66 +77,27 @@ class MFEMLLGModel(MFEMNonlinearModel):
         self._K.SetBlock(0, 1, self._K12)
         self._K.SetBlock(1, 1, self._K22)
 
-    def _test2(self):
-        class grad(mfem.PyOperator):
-            def __init__(self, gK):
-                super().__init__(gK.Width())
-                self.gK = gK
-
-            def Mult(self, x, res):
-                res *= 0
-                self.gK.AddMult(x, res)
-        print("test2-------------------")
-        K, b, x0 = self.K, self.b, self.x0
-        g = grad(self.grad_Kx)
-        sol, _ = mfem.getSolver("CG")
-        sol.SetOperator(g)
-
-        z = mfem.Vector(x0.Size())
-        x1 = mfem.Vector(x0.Size())
-        K.Mult(x0, z)
-        z -= b
-        sol.Mult(z,x1)
-        x = mfem.BlockVector(x1, self._block_offsets)
-
-        xg, _ = self.getInitialValue()
-        xg.SetFromTrueDofs(x.GetBlock(0))
-        res = []
-        for i in range(3):
-            v = mfem.Vector()
-            xg.GetNodalValues(v, i+1)
-            res.append(v[0])
-        print("m", np.array(res))
-        
-        lamg = mfem.GridFunction(self._fespace_lam)
-        lamg.SetFromTrueDofs(x.GetBlock(1))
-        v = mfem.Vector()
-        lamg.GetNodalValues(v,1)
-        print("lambda", v[0])
-        print()
-
     def _test3(self):
-        dti = 1e1
+        dti = 100
         kLi = self._kLi
-        lag = 0
-        gB = self._gam * 1
+        lag = 1
+        B = 2*np.pi
         x0 = np.array([1,0,0])
         for ti in range(100):
             print("time", ti, x0[0]**2+x0[1]**2, x0)
             x = np.array(x0)
             for i in range(100):
-                A = np.array([[dti, gB, 2*x[0]*lag], [-gB, dti, 2*x[1]*lag], [x[0]*lag, x[1]*lag, kLi]])
+                A = np.array([[dti, B, 2*x[0]*lag], [-B, dti, 2*x[1]*lag], [x[0]*lag, x[1]*lag, kLi]])
                 b = np.array([dti*x0[0], dti*x0[1], 1])
-                J = np.array([[dti-2*x[2], gB, 2*x[0]*lag], [-gB, dti-2*x[2], 2*x[1]*lag], [2*x[0]*lag, 2*x[1]*lag, kLi]])
+                J = np.array([[dti-2*x[2], B, 2*x[0]*lag], [-B, dti-2*x[2], 2*x[1]*lag], [2*x[0]*lag, 2*x[1]*lag, kLi]])
                 Axb = (A.dot(x) - b)
                 x = x - np.linalg.inv(J).dot(Axb)
                 #print("correct result", x, x[0]**2+x[1]**2)
             x0 = x
 
     def _assemble_K11(self):
-        B = mfem.VectorConstantCoefficient(mfem.Vector([0, 0, -self._gam]))
+        B = mfem.VectorConstantCoefficient(mfem.Vector([0, 0, -1]))
         self._k11 = mfem.BilinearForm(self.space)
-        #self._k11.AddDomainIntegrator(mfem.VectorFEMassIntegrator(mfem.ConstantCoefficient(2.0)))
         self._k11.AddDomainIntegrator(mfem.MixedCrossProductIntegrator(B))
         self._k11.Assemble()
         self._K11 = mfem.SparseMatrix()
@@ -152,13 +111,12 @@ class MFEMLLGModel(MFEMNonlinearModel):
         self._k22.FormSystemMatrix(mfem.intArray(), self._K22)
 
     def _assemble_K21(self, m):
-        self._k21 = mfem.MixedBilinearForm(self._fespace_lam, self.space)
-        self._k21.AddDomainIntegrator(mfem.MixedVectorProductIntegrator(m))
+        self._k21 = mfem.MixedBilinearForm(self.space, self._fespace_lam)
+        self._k21.AddDomainIntegrator(mfem.MixedDotProductIntegrator(m))
         self._k21.Assemble()
         self._K21_ptr = mfem.OperatorHandle()
         self._k21.FormRectangularSystemMatrix(self._ess_tdof_list, mfem.intArray(), self._K21_ptr)
-        self._K21i = self._k21.SpMat()
-        self._K21 = mfem.Transpose(self._K21i)
+        self._K21 = self._k21.SpMat()
 
         self._K12 = mfem.Transpose(self._K21)
         self._K12 *= 2
@@ -183,21 +141,12 @@ class MFEMLLGModel(MFEMNonlinearModel):
 
     def _assemble_grad_Kx(self, m, lam):
         self._assemble_Kd11(lam)
-        self._assemble_Kd21(m)
         self._gK = mfem.BlockMatrix(self._block_offsets)
-        #self._gK.SetBlock(0, 0, self._K11)
         self._gK.SetBlock(0, 0, self._K11 + self._Kd11)
         self._gK.SetBlock(0, 1, self._K12)
-        self._gK.SetBlock(1, 0, self._Kd21)
+        self._gK.SetBlock(1, 0, mfem.Transpose(self._K12))
         self._gK.SetBlock(1, 1, self._K22)
-        return
 
-        res = mfem.BlockVector(self._block_offsets)
-        self.grad_Kx.GetBlock(1,0).Mult(self._vec.GetBlock(0), res.GetBlock(1))
-
-        d = self.dualToPrime(res)
-        #print("kd21 norm")
-        #self.printNodalValue(d)
 
     def _assemble_Kd11(self, lam):
         self._l2 = mfem.ProductCoefficient(2, lam)
@@ -207,14 +156,6 @@ class MFEMLLGModel(MFEMNonlinearModel):
         self._Kd11 = mfem.SparseMatrix()
         self._kd11.FormSystemMatrix(self._ess_tdof_list, self._Kd11)
 
-    def _assemble_Kd21(self, m):
-        m2 = mfem.ScalarVectorProductCoefficient(2, m)
-        self._kd21 = mfem.MixedBilinearForm(self.space, self._fespace_lam)
-        self._kd21.AddDomainIntegrator(mfem.MixedDotProductIntegrator(m2))
-        self._kd21.Assemble()
-        self._Kd21_ptr = mfem.OperatorHandle()
-        self._kd21.FormRectangularSystemMatrix(self._ess_tdof_list, mfem.intArray(), self._Kd21_ptr)
-        self._Kd21 = self._kd21.SpMat()
 
     def _assemble_b(self):
         self._B = mfem.BlockVector(self._block_offsets)
@@ -231,21 +172,7 @@ class MFEMLLGModel(MFEMNonlinearModel):
 
         bgf = mfem.GridFunction(self._fespace_lam, b)
         bgf.GetTrueDofs(self._B.GetBlock(1))
-        return
 
-        A = mfem.SparseMatrix()
-        X = mfem.Vector()
-        print("form")
-        self._k22.FormLinearSystem(mfem.intArray(),self._lam,b,A,X,self._B.GetBlock(1))
-
-        solver, prec = mfem.getSolver()
-        solver.SetOperator(A)
-        solver.Mult(self._B.GetBlock(1), X)
-        #self._k22.RecoverFEMSolution(X, b, self._lam)
-
-        v = bgf.GetDataArray()
-        #bgf.GetNodalValues(v, 1)
-        print("b", v[0])
     @property
     def M(self):
         #return self._M
@@ -275,16 +202,8 @@ class MFEMLLGModel(MFEMNonlinearModel):
         return None
 
     @property
-    def preconditioner(self):
-        return None
-        self._s = mfem.BilinearForm(self._fespace_lam)
-        self._s.AddDomainIntegrator(mfem.MassIntegrator(mfem.ConstantCoefficient(1.0)))
-        self._s.Assemble()
-        self._s.Finalize()
-        self._S = self._s.LoseMat()
-
-        self._prec = JacobianPreconditioner(self._S, self._block_offsets)
-        return self._prec
+    def timeUnit(self):
+        return 1.0/1.760859770e11
 
     @property
     def x0(self):
@@ -305,11 +224,9 @@ class MFEMLLGModel(MFEMNonlinearModel):
         self._x.GetNodalValues(v2, 2)
         self._x.GetNodalValues(v3, 3)
         v4=self._lam.GetDataArray()
-        m = np.array([v1[0], v2[0], v3[0]])
+        m = np.array([v1[0], v2[0], v3[0], v4[0]])
         np.set_printoptions(precision=8, suppress=True)
-        print("update", np.linalg.norm(m)**2, m, v4[0], self._gam*1e-13, (self._gam*1e-13)**2)
-        #print([xx for xx in self._x])
-
+        print("[LLG] Updated: norm = ", np.linalg.norm(m)**2, ", m =", m)
         return self._x
 
     def dualToPrime(self, d):
@@ -330,83 +247,10 @@ class MFEMLLGModel(MFEMNonlinearModel):
         gfm.SetFromTrueDofs(vr.GetBlock(0))
         for d in range(3):
             gfm.GetNodalValues(vv,d+1)
-            ppp.append(vv[0])
+            ppp.append(vv[index])
 
         gfl = mfem.GridFunction(self._fespace_lam)
         gfl.SetFromTrueDofs(vr.GetBlock(1))
         gfl.GetNodalValues(vv, 1)
-        ppp.append(vv[0])
+        ppp.append(vv[index])
         print(ppp)
-
-class JacobianPreconditioner(mfem.Solver):
-    def __init__(self, S, offsets):
-        super().__init__(offsets[2])
-        self.block_offsets = offsets
-        self.gamma = 0.00001
-        self.Ki, self.Ki_prec = mfem.getSolver("GMRES", prec="GS")
-        self.Si, self.Si_prec = mfem.getSolver("CG", prec="GS")
-        self.Si.SetOperator(S)
-
-    def SetOperator(self, op):
-        jac = mfem.Opr2BlockOpr(op)
-        self.Ki.SetOperator(jac.GetBlock(0, 0))
-        self.B = jac.GetBlock(0, 1)
-
-    def Mult(self, k, y):
-        # Extract the blocks from the input and output vectors
-        off = self.block_offsets
-        k1 = k[off[0]:off[1]]
-        k2 = k[off[1]:off[2]]
-
-        z1 = mfem.Vector(off[1]-off[0])
-        z2 = mfem.Vector(off[1]-off[0])
-
-        # Perform the block elimination for the preconditioner
-        self.Si.Mult(k2, z2)
-        z2 *= -self.gamma
-        self.Ki.Mult(k1, z1)
-
-        w1 = mfem.Vector(off[1]-off[0])
-        w2 = mfem.Vector(off[1]-off[0])
-
-        y1 = y[off[0]:off[1]]
-        y2 = y[off[1]:off[2]]
-
-        y2.Set(1, z2)
-        self.B.Mult(z2, w1) # z1 = B y2
-        self.Ki.Mult(w1, w2) # y1 = Ki (k1 - B y2)
-        mfem.subtract_vector(z1, w2, y1) # z2 = k1-z1 = k1 - B y2
-
-    def Mult2(self, k, y):
-        # Extract the blocks from the input and output vectors
-        off = self.block_offsets
-        k1 = k[off[0]:off[1]]
-        k2 = k[off[1]:off[2]]
-
-        tx = k1
-        ty1 = mfem.Vector(off[1]-off[0])
-        ty2 = mfem.Vector(off[2]-off[1])
-
-        self.Ki.Mult(k1, ty1)
-        self.B.MultTranspose(ty1, ty2)
-        ty2.Neg()
-        ty2 += k2
-
-        z1 = mfem.Vector(off[1]-off[0])
-        z2 = mfem.Vector(off[1]-off[0])
-
-        # Perform the block elimination for the preconditioner
-        self.Si.Mult(ty2, z2)
-        z2 *= self.gamma
-        self.Ki.Mult(tx, z1)
-
-        w1 = mfem.Vector(off[1]-off[0])
-        w2 = mfem.Vector(off[1]-off[0])
-
-        y1 = y[off[0]:off[1]]
-        y2 = y[off[1]:off[2]]
-
-        y2.Set(1, z2)
-        self.B.Mult(z2, w1) # z1 = B y2
-        self.Ki.Mult(w1, w2) # y1 = Ki (k1 - B y2)
-        mfem.subtract_vector(z1, w2, y1) # z2 = k1-z1 = k1 - B y2

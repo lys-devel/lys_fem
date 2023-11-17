@@ -18,10 +18,9 @@ class LLGModel(FEMFixedModel):
         return ["mx", "my", "mz"]
 
     def eval(self, data, fem, var):
-        return
         if var == "mx":
-            return data["u"][:, 0]
+            return data["m"][:, 0]
         if var == "my":
-            return data["u"][:, 1]
+            return data["m"][:, 1]
         if var == "mz":
-            return data["u"][:, 2]
+            return data["m"][:, 2]
