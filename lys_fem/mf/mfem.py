@@ -48,8 +48,8 @@ if isParallel():
             solver = mfem_orig.NewtonSolver(MPI.COMM_WORLD)
         solver.iterative_mode = False
         solver.SetRelTol(rel_tol)
-        solver.SetAbsTol(0.0)
-        solver.SetMaxIter(100)
+        solver.SetAbsTol(1e-10)
+        solver.SetMaxIter(10000)
         solver.SetPrintLevel(0)
         if prec is not None:
             solver.SetPreconditioner(prec)
@@ -246,6 +246,25 @@ class MFEMVector(mfem_orig.Vector):
 
 Vector = MFEMVector
 
+class MFEMBlockVector(mfem_orig.BlockVector):
+    def __add__(self, value):
+        res = MFEMBlockVector(self)
+        res += value
+        return res
+
+    def __sub__(self, value):
+        res = MFEMBlockVector(self)
+        res -= value
+        return res
+
+    def __mul__(self, value):
+        res = MFEMBlockVector(self)
+        res *= value
+        return res
+
+
+BlockVector = MFEMBlockVector
+
 
 class MFEMMatrix(SparseMatrix):
     def __add__(self, value):
@@ -275,12 +294,16 @@ class AddOperator(mfem_orig.PyOperator):
 
 class MulOperator(mfem_orig.PyOperator):
     def __init__(self, op, value):
-        super().__init__(op.Height())
+        super().__init__(op.Height(), op.Width())
         self._op = op
         self._value = value
 
     def Mult(self, x, y):
         self._op.Mult(x,y)
+        y *= self._value
+
+    def MultTranspose(self, x, y):
+        self._op.MultTranspose(x,y)
         y *= self._value
 
 class MFEMBlockOperator(mfem_orig.BlockOperator):
@@ -358,3 +381,9 @@ def _gatherArray(arr):
     if result is None:
         return None
     return [r[:s] for r, s in zip(result, sizes)]
+
+def wait():
+    if isParallel():
+        MPI.COMM_WORLD.scatter([0] * MPI.COMM_WORLD.size, root=0)
+    else:
+        return

@@ -82,10 +82,10 @@ class MFEMModel:
         self._neumann = condition
 
     def essential_tdof_list(self):
-        if self._dirichlet is None:
-            return mfem.intArray()
         res = []
         for axis, b in self._dirichlet.items():
+            if len(b) == 0:
+                continue
             ess_bdr = mfem.intArray(self.space.GetMesh().bdr_attributes.Max())
             ess_bdr.Assign(0)
             for i in b:

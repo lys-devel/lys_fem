@@ -13,8 +13,10 @@ class FEMTestCase(unittest.TestCase):
         os.makedirs(self.path, exist_ok=True)
         self._cwd = os.getcwd()
         os.chdir(self.path)
+        mf.mfem.wait()
 
     def tearDown(self):
+        mf.mfem.wait()
         os.chdir(self._cwd)
         if mf.mfem.isRoot:
             shutil.rmtree(self.path)

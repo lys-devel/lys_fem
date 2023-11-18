@@ -6,7 +6,7 @@ from .models import generateModel
 from .solver import generateSolver
 
 
-def run(fem):
+def run(fem, run=True):
     mfem.print_initialize()
     geom = fem.geometries.generateGeometry(fem.dimension)
     mesh, nv = generateMesh(fem, geom)
@@ -19,6 +19,9 @@ def run(fem):
     mfem.print_("Solver generated for", str([s.name for s in solvers]))
     mfem.print_()
 
-    for i, s in enumerate(solvers):
-        mfem.print_("------------Solver " + str(i) + ": " + s.name + " started --------------------")
-        s.execute()
+    if run:
+        for i, s in enumerate(solvers):
+            mfem.print_("------------Solver " + str(i) + ": " + s.name + " started --------------------")
+            s.execute()
+    else:
+        return models, solvers

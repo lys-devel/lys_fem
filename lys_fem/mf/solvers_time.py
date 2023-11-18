@@ -73,7 +73,6 @@ class BackwardEulerSolver(_TimeDependentSubSolverBase):
             res -=b
         return res
 
-
     def grad(self, x):
         """
         Calculate grad[M(x-x0)/dt + Kx - b]
