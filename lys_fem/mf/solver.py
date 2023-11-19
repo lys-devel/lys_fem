@@ -74,7 +74,7 @@ class TimeDependentSolver(SolverBase):
         self.exportInitialValues()
         t = 0
         for i, dt in enumerate(self._femSolver.getStepList()):
-            mfem.print_("t =", t)
+            mfem.print_("timestep", i, ", t =", t)
             sol = {}
             for eq, solver, model in zip(self._equations, self._solvers, self._models):
                 x = eq.solve(solver, dt)

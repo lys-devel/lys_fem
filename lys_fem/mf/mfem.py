@@ -76,6 +76,9 @@ if isParallel():
             res = MPI.COMM_WORLD.bcast(data_array, root=0)
         return res
 
+    def Transpose(mat):
+        return mat.Transpose()
+
     def wait():
         return
 
@@ -270,6 +273,14 @@ class MFEMMatrix(SparseMatrix):
     def __add__(self, value):
         return mfem_orig.Add(1.0, self,1.0, value)
 
+    def __sub__(self, value):
+        return mfem_orig.Add(1.0, self,-1.0, value)
+
+    def __neg__(self):
+        res = MFEMMatrix(self)
+        res *= -1
+        return res
+
     def __mul__(self, value):
         if isinstance(value, MFEMVector):
             res = MFEMVector(value)
@@ -279,6 +290,9 @@ class MFEMMatrix(SparseMatrix):
             res = SparseMatrix(self)
             res *= value
             return res
+        
+    def __rmul__(self, value):
+        return self*value
 
 SparseMatrix = MFEMMatrix
 

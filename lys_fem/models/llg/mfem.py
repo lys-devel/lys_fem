@@ -4,7 +4,7 @@ from lys_fem.mf import mfem, MFEMNonlinearModel
 
 class MFEMLLGModel(MFEMNonlinearModel):
     def __init__(self, model, mesh, mat):
-        super().__init__(mfem.ND_FECollection(1, mesh.Dimension()), model, mesh, vDim=1)
+        super().__init__(mfem.RT_FECollection(0, mesh.Dimension()), model, mesh, vDim=1)
         self._mat = mat
         self._alpha = 0
         self._fec_lam = mfem.H1_FECollection(1, mesh.Dimension())
@@ -26,38 +26,20 @@ class MFEMLLGModel(MFEMNonlinearModel):
             self._assemble_b()
             #self._test3()
         mc, lc = self._make_coefs(m)
-        return
         self._M, self._gM = self._mass.update(self._ess_tdof_list, mc, self.x0)
         self._K, self._gK = self._stiff.update(self._ess_tdof_list, mc, lc)
 
-    def _make_coefs(self, m):
-        m = mfem.BlockVector(m, self._block_offsets)
-        self.m_gf = mfem.GridFunction(self.space)
-        self.m_gf.SetFromTrueDofs(m.GetBlock(0))
-        self.m_c = mfem.VectorGridFunctionCoefficient(self.m_gf)
+    def _make_coefs(self, mv):
+        m = mfem.BlockVector(mv, self._block_offsets)
+        m_gf = mfem.GridFunction(self.space)
+        m_gf.SetFromTrueDofs(m.GetBlock(0))
+        self.m_c = mfem.VectorGridFunctionCoefficient(m_gf)
 
         self.l_gf = mfem.GridFunction(self._fespace_lam)
         self.l_gf.SetFromTrueDofs(m.GetBlock(1))
         self.l_c = mfem.GridFunctionCoefficient(self.l_gf)
+        self.l_c = mfem.GridFunctionCoefficient(self._lam)
         return self.m_c, self.l_c
-
-    def _test3(self):
-        dti = 100
-        kLi = self._kLi
-        lag = 1
-        B = 2*np.pi
-        x0 = np.array([1,0,0])
-        for ti in range(100):
-            print("time", ti, x0[0]**2+x0[1]**2, x0)
-            x = np.array(x0)
-            for i in range(100):
-                A = np.array([[dti, B, 2*x[0]*lag], [-B, dti, 2*x[1]*lag], [x[0]*lag, x[1]*lag, kLi]])
-                b = np.array([dti*x0[0], dti*x0[1], 1])
-                J = np.array([[dti-2*x[2], B, 2*x[0]*lag], [-B, dti-2*x[2], 2*x[1]*lag], [2*x[0]*lag, 2*x[1]*lag, kLi]])
-                Axb = (A.dot(x) - b)
-                x = x - np.linalg.inv(J).dot(Axb)
-                #print("correct result", x, x[0]**2+x[1]**2)
-            x0 = x
 
     def _assemble_b(self):
         self._B = mfem.BlockVector(self._block_offsets)
@@ -111,11 +93,10 @@ class MFEMLLGModel(MFEMNonlinearModel):
     def preconditioner(self):
         return None
         self.op = mfem.BlockDiagonalPreconditioner(self._block_offsets)
-        self._cg1 = mfem.DSmoother()
-        gM = self._Md11 + (self._M0 + self._M11 * 2)
-        gK = self._K11 + self._Kd11
-        self._A1=mfem.Add(0.06283185307179585/2, gM, 1, gK)
-        self._cg1.SetOperator(self._A1)
+        gM = self._mass._Md11 + (self._mass._M0 + self._mass._M11 * 2)
+        gK = self._stiff._K11 + self._stiff._Kd11
+        self._A1=mfem.Add(200, gM, 1, gK)
+        self._cg1 = mfem.HypreSmoother(self._A1, 16)
         self.op.SetDiagonalBlock(0, self._cg1)
         return self.op
 
@@ -137,7 +118,7 @@ class MFEMLLGModel(MFEMNonlinearModel):
         self._XL0 = mfem.BlockVector(X, self._block_offsets)
         self._x.SetFromTrueDofs(self._XL0.GetBlock(0))
         m = self.getNodalValue(self._XL0, 0)
-        print("[LLG] Updated: norm = ", np.linalg.norm(m)**2, ", m =", m)
+        print("[LLG] Updated: norm = ", np.linalg.norm(m[:2]), ", m =", m)
         return self._x
 
     def dualToPrime(self, d):
@@ -237,7 +218,7 @@ class MassMatrix:
         self._md11.FormSystemMatrix(self._ess_tdof_list, self._Md11)
 
 class StiffnessMatrix:
-    def __init__(self, space, space_lam, offsets, kLi=1e-5):
+    def __init__(self, space, space_lam, offsets, kLi=1e-8):
         self.space = space
         self._block_offsets = offsets
         self._fespace_lam = space_lam

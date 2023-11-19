@@ -24,4 +24,4 @@ def run(fem, run=True):
             mfem.print_("------------Solver " + str(i) + ": " + s.name + " started --------------------")
             s.execute()
     else:
-        return models, solvers
+        return geom, mesh, material, models, solvers
