@@ -4,14 +4,16 @@ from lys_fem.mf import mfem, MFEMNonlinearModel
 
 class MFEMLLGModel(MFEMNonlinearModel):
     def __init__(self, model, mesh, mat):
-        super().__init__(mfem.H1_FECollection(1, mesh.Dimension()), model, mesh, vDim=1)
+        fec =mfem.H1_FECollection(1, mesh.Dimension())
+        self._spaces=[mfem.FiniteElementSpace(mesh, fec, 1, mfem.Ordering.byVDIM) for i in range(4)]
+        self._space_solution = mfem.FiniteElementSpace(mesh, fec, 3)
+        self._block_offsets = mfem.intArray(list([0]+[sp.GetTrueVSize() for sp in self._spaces]))
+        self._block_offsets.PartialSum()
+
+        super().__init__(fec, model, mesh, vDim=1)
         self._mat = mat
         self._alpha = 0.0
         
-        self._space_solution = mfem.FiniteElementSpace(mesh, self._fec, 3)
-        self._spaces=[mfem.FiniteElementSpace(mesh, self._fec, 1, mfem.Ordering.byVDIM) for i in range(4)]
-        self._block_offsets = mfem.intArray(list([0]+[sp.GetTrueVSize() for sp in self._spaces]))
-        self._block_offsets.PartialSum()
 
         self._var = VariableMatrices(self._spaces)
         self._mass = MassMatrix(self._spaces, self._alpha, self._block_offsets)

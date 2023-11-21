@@ -10,54 +10,8 @@ def addMFEMModel(name, model):
     modelList[name] = model
 
 
-def generateModel(fem, geom, mesh, mat):
-    models = []
-    for m in fem.models:
-        model = modelList[m.name](m, mesh, mat)
-
-        # Initial conditions
-        attrs = [tag for dim, tag in geom.getEntities(fem.dimension)]
-        coefs = {}
-        for init in m.initialConditions:
-            for d in attrs:
-                if init.domains.check(d):
-                    coefs[d] = init.values
-        c = generateCoefficient(coefs, fem.dimension)
-        model.setInitialValue(c)
-
-        # Dirichlet Boundary conditions
-        bdr_attrs = [tag for dim, tag in geom.getEntities(fem.dimension - 1)]
-        bdr_dir = {i: [] for i in range(fem.dimension)}
-        for b in m.boundaryConditions:
-            if isinstance(b, DirichletBoundary):
-                for axis, check in enumerate(b.components):
-                    if check:
-                        bdr_dir[axis].extend(b.boundaries.getSelection())
-        model.setDirichletBoundary(bdr_dir)
-
-        # Neumann Boundary conditions
-        bdr_stress = {}
-        for b in m.boundaryConditions:
-            if isinstance(b, NeumannBoundary):
-                for d in bdr_attrs:
-                    if b.boundaries.check(d):
-                        bdr_stress[d] = b.values
-        if len(bdr_stress) != 0:
-            c = generateCoefficient(bdr_stress, fem.dimension)
-            model.setNeumannBoundary(c)
-        models.append(model)
-
-        # Source term
-        source = {}
-        for c in m.domainConditions:
-            if isinstance(c, Source):
-                for attr in attrs:
-                    if c.domains.check(attr):
-                        source[attr] = c.values
-        if len(source) != 0:
-            c = generateCoefficient(source, fem.dimension)
-            model.setSource(c)
-    return models
+def generateModel(fem, mesh, mat):
+    return [modelList[m.name](m, mesh, mat) for m in fem.models]
 
 
 class MFEMModel:
@@ -77,6 +31,57 @@ class MFEMModel:
         self._dirichlet = None
         self._neumann = None
         self._source = None
+
+        # dirichlet boundary
+        self.generateDirichletBoundaryCondition(self._fespace, [b for b in model.boundaryConditions if isinstance(b, DirichletBoundary)])
+
+        # initial value
+        c = self.generateDomainCoefficient(self._fespace, model.initialConditions)
+        self.setInitialValue(c)
+
+        # neumann boundary
+        neumann = [b for b in model.boundaryConditions if isinstance(b, NeumannBoundary)]
+        if len(neumann) != 0:
+            c = self.generateSurfaceCoefficient(self._fespace, neumann)
+            self.setNeumannBoundary(c)
+
+        # source term
+        source = [d for d in model.domainConditions if isinstance(d, Source)]
+        if len(source) != 0:
+            c = self.generateDomainCoefficient(self._fespace, source)
+            self.setSource(c)
+
+
+    def generateDirichletBoundaryCondition(self, space, conditions):
+        # Dirichlet Boundary conditions
+        bdr_dir = {i: [] for i in range(space.GetMesh().Dimension())}
+        for b in conditions:
+            for axis, check in enumerate(b.components):
+                if check:
+                    bdr_dir[axis].extend(b.boundaries.getSelection())
+        self.setDirichletBoundary(bdr_dir)
+
+    def generateDomainFunction(self, space, conditions):
+        c = self.generateDomainCoefficient(space, conditions)
+        gf = mfem.GridFunction(space)
+        gf.ProjectCoefficient(c)
+        return gf
+
+    def generateDomainCoefficient(self, space, conditions):
+        coefs = {}
+        for c in conditions:
+            for d in space.GetMesh().attributes:
+                if c.domains.check(d):
+                    coefs[d] = c.values
+        return generateCoefficient(coefs, space.GetMesh().Dimension())
+    
+    def generateSurfaceCoefficient(self, space, conditions):
+        bdr_stress = {}
+        for b in conditions:
+            for d in space.GetMesh().bdr_attributes:
+                if b.boundaries.check(d):
+                    bdr_stress[d] = b.values
+        return generateCoefficient(bdr_stress, space.GetMesh().Dimension())
 
     def setInitialValue(self, x=None, xt=None):
         if x is not None:
