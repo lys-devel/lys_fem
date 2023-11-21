@@ -21,16 +21,6 @@ class MFEMModel:
         self._fec = fec
         self._fespace = mfem.FiniteElementSpace(mesh, self._fec, vDim, mfem.Ordering.byVDIM)
         self._model = model
-        # initial values
-        self._x_gf = mfem.GridFunction(self._fespace)
-        self._xt_gf = mfem.GridFunction(self._fespace)
-        self._x_gf.Assign(0.0)
-        self._xt_gf.Assign(0.0)
-
-        # boundary conditions
-        self._dirichlet = None
-        self._neumann = None
-        self._source = None
 
         # dirichlet boundary
         self.generateDirichletBoundaryCondition(self._fespace, [b for b in model.boundaryConditions if isinstance(b, DirichletBoundary)])
@@ -43,23 +33,26 @@ class MFEMModel:
         neumann = [b for b in model.boundaryConditions if isinstance(b, NeumannBoundary)]
         if len(neumann) != 0:
             c = self.generateSurfaceCoefficient(self._fespace, neumann)
-            self.setNeumannBoundary(c)
+            self._neumann = c
+        else:
+            self._neumann = None
 
         # source term
         source = [d for d in model.domainConditions if isinstance(d, Source)]
         if len(source) != 0:
             c = self.generateDomainCoefficient(self._fespace, source)
-            self.setSource(c)
+            self._source = c
+        else:
+            self._source = None
 
 
     def generateDirichletBoundaryCondition(self, space, conditions):
-        # Dirichlet Boundary conditions
         bdr_dir = {i: [] for i in range(space.GetMesh().Dimension())}
         for b in conditions:
             for axis, check in enumerate(b.components):
                 if check:
                     bdr_dir[axis].extend(b.boundaries.getSelection())
-        self.setDirichletBoundary(bdr_dir)
+        self._dirichlet = bdr_dir
 
     def generateDomainFunction(self, space, conditions):
         c = self.generateDomainCoefficient(space, conditions)
@@ -84,22 +77,19 @@ class MFEMModel:
         return generateCoefficient(bdr_stress, space.GetMesh().Dimension())
 
     def setInitialValue(self, x=None, xt=None):
+        self._x_gf = mfem.GridFunction(self._fespace)
+        self._xt_gf = mfem.GridFunction(self._fespace)
         if x is not None:
             self._x_gf.ProjectCoefficient(x)
+        else:
+            self._x_gf.Assign(0.0)
         if xt is not None:
             self._xt_gf.ProjectCoefficient(xt)
+        else:
+            self._xt_gf.Assign(0.0)
 
     def getInitialValue(self):
         return self._x_gf, self._xt_gf
-
-    def setDirichletBoundary(self, dirichlet_dict):
-        self._dirichlet = dirichlet_dict
-
-    def setNeumannBoundary(self, condition):
-        self._neumann = condition
-
-    def setSource(self, condition):
-        self._source = condition
 
     def essential_tdof_list(self):
         res = []
@@ -143,25 +133,55 @@ class MFEMModel:
 class MFEMLinearModel(MFEMModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._initM = False
-        self._initK = False
-        self._initB = False
-        self._initX0 = False
-        self._initXt0 = False
-        self._initTi = False
-        self._initMi = False
+        self.initialize()
+
+    def initialize(self):
+        self.ess_tdof_list = self.essential_tdof_list()
+
+        self._X0 = mfem.Vector()
+        self._Xt0 = mfem.Vector()
+        self._x, self._xt0 = self.getInitialValue()
+        self._x.GetTrueDofs(self._X0)
+        self._xt0.GetTrueDofs(self._Xt0)
+
+        self._m = self.assemble_m()
+        if self._m is not None:
+            self._M = mfem.SparseMatrix()
+            self._m.FormSystemMatrix(self.ess_tdof_list, self._M)
+        else:
+            self._M = None
+
+        self._k = self.assemble_a()
+        if self._k is not None:
+            self._K = mfem.SparseMatrix()
+            self._k.FormSystemMatrix(self.ess_tdof_list, self._K)
+        else:
+            self._K = None
+
+        self._b = self.assemble_b()
+        if self._b is not None:
+            self._B = mfem.Vector()
+            mfem.GridFunction(self.space, self._b).GetTrueDofs(self._B)
+            self._k.EliminateVDofsInRHS(self.ess_tdof_list, self.x0, self._B)
+        else:
+            self._B = None
+
+    def RecoverFEMSolution(self, X):
+        self._X0 = X
+        self._x.SetFromTrueDofs(X)
+        return self._x
+    
+    def assemble_a(self):
+        return None
+
+    def assemble_m(self):
+        return None
 
     def update(self, x):
         pass
 
     @property
     def M(self):
-        if not self._initM:
-            self._m = self.assemble_m()
-            self._M = mfem.SparseMatrix()
-            self.ess_tdof_list = self.essential_tdof_list()
-            self._m.FormSystemMatrix(self.ess_tdof_list, self._M)
-            self._initM = True
         return self._M
 
     @property
@@ -170,12 +190,6 @@ class MFEMLinearModel(MFEMModel):
 
     @property
     def K(self):
-        if not self._initK:
-            self._k = self.assemble_a()
-            self._K = mfem.SparseMatrix()
-            self.ess_tdof_list = self.essential_tdof_list()
-            self._k.FormSystemMatrix(self.ess_tdof_list, self._K)
-            self._initK = True
         return self._K
 
     @property
@@ -184,47 +198,19 @@ class MFEMLinearModel(MFEMModel):
 
     @property
     def b(self):
-        if not self._initB:
-            self._b = self.assemble_b()
-            self.ess_tdof_list = self.essential_tdof_list()
-            tmp = mfem.GridFunction(self.space, self._b)
-            self._B = mfem.Vector()
-            tmp.GetTrueDofs(self._B)
-            K = self.K
-            self._k.EliminateVDofsInRHS(self.ess_tdof_list, self.x0, self._B)
-            self._initB = True
         return self._B
 
+    @property
     def grad_b(self):
         return None
 
     @property
     def x0(self):
-        if not self._initX0:
-            self._x, _ = self.getInitialValue()
-            self.ess_tdof_list = self.essential_tdof_list()
-            self._X0 = mfem.Vector()
-            self._x.GetTrueDofs(self._X0)
-            self._initX0 = True
         return self._X0
 
     @property
     def xt0(self):
-        if not self._initXt0:
-            _, self._xt0 = self.getInitialValue()
-            self.ess_tdof_list = self.essential_tdof_list()
-            self._Xt0 = mfem.Vector()
-            self._xt0.GetTrueDofs(self._Xt0)
-            self._initXt0 = True
         return self._Xt0
-
-    def RecoverFEMSolution(self, X):
-        self._X0 = X
-        if self._initX0:
-            self._x.SetFromTrueDofs(X)
-        else:
-            self._a.RecoverFEMSolution(X, self._b, self._x)
-        return self._x
 
 
 class MFEMNonlinearModel(MFEMModel):

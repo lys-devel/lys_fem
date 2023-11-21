@@ -38,6 +38,11 @@ class MFEMLLGModel(MFEMNonlinearModel):
         self._x3_gf.GetTrueDofs(self._XL0.GetBlock(2))
         self._x4_gf.GetTrueDofs(self._XL0.GetBlock(3))
 
+    def getInitialValue(self):
+        self._gf_sol = mfem.GridFunction(self._space_solution)
+        self._gf_sol.SetFromTrueDofs(self._XL0[:self._block_offsets[3]])
+        return self._gf_sol, None
+
     def update(self, m):
         self._ess_tdof_list = self.essential_tdof_list()
         self._assemble_b()
