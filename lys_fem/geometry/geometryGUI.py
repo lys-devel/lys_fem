@@ -28,9 +28,32 @@ class BoxGUI(QtWidgets.QWidget):
         self.setLayout(grid)
 
     def __changed(self):
-        print([w.value() for w in self._values])
         self._obj.args = [w.value() for w in self._values]
 
+
+class SphereGUI(QtWidgets.QWidget):
+    def __init__(self, obj):
+        super().__init__()
+        self._obj = obj
+        self.__initlayout()
+        for v, w in zip(self._obj.args, self._values):
+            w.setValue(v)
+
+    def __initlayout(self):
+        self._values = [ScientificSpinBox(valueChanged=self.__changed) for i in range(4)]
+        grid = QtWidgets.QGridLayout()
+        grid.addWidget(QtWidgets.QLabel("x"), 0, 0)
+        grid.addWidget(QtWidgets.QLabel("y"), 0, 1)
+        grid.addWidget(QtWidgets.QLabel("z"), 0, 2)
+        grid.addWidget(QtWidgets.QLabel("radius"), 0, 3)
+        grid.addWidget(self._values[0], 1, 0)
+        grid.addWidget(self._values[1], 1, 1)
+        grid.addWidget(self._values[2], 1, 2)
+        grid.addWidget(self._values[3], 1, 3)
+        self.setLayout(grid)
+
+    def __changed(self):
+        self._obj.args = [w.value() for w in self._values]
 
 class RectGUI(QtWidgets.QWidget):
     def __init__(self, obj):

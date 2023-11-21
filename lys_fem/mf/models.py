@@ -1,6 +1,6 @@
 from . import mfem
 from .coef import generateCoefficient
-from ..fem import DirichletBoundary, NeumannBoundary
+from ..fem import DirichletBoundary, NeumannBoundary, Source
 
 modelList = {}
 
@@ -46,6 +46,17 @@ def generateModel(fem, geom, mesh, mat):
             c = generateCoefficient(bdr_stress, fem.dimension)
             model.setNeumannBoundary(c)
         models.append(model)
+
+        # Source term
+        source = {}
+        for c in m.domainConditions:
+            if isinstance(c, Source):
+                for attr in attrs:
+                    if c.domains.check(attr):
+                        source[attr] = c.values
+        if len(source) != 0:
+            c = generateCoefficient(source, fem.dimension)
+            model.setSource(c)
     return models
 
 
@@ -65,6 +76,7 @@ class MFEMModel:
         # boundary conditions
         self._dirichlet = None
         self._neumann = None
+        self._source = None
 
     def setInitialValue(self, x=None, xt=None):
         if x is not None:
@@ -80,6 +92,9 @@ class MFEMModel:
 
     def setNeumannBoundary(self, condition):
         self._neumann = condition
+
+    def setSource(self, condition):
+        self._source = condition
 
     def essential_tdof_list(self):
         res = []
@@ -99,6 +114,8 @@ class MFEMModel:
         b = mfem.LinearForm(self.space)
         if self._neumann is not None:
             b.AddBoundaryIntegrator(mfem.VectorBoundaryLFIntegrator(self._neumann))
+        if self._source is not None:
+            b.AddDomainIntegrator(mfem.VectorDomainLFIntegrator(self._source))
         b.Assemble()
         return b
 
