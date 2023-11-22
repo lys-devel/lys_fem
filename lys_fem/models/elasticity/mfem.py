@@ -1,7 +1,7 @@
 import itertools
 import numpy as np
 
-from lys_fem.mf import mfem, MFEMLinearModel
+from lys_fem.mf import mfem, MFEMLinearModel, util
 
 
 class MFEMElasticModel(MFEMLinearModel):
@@ -13,10 +13,10 @@ class MFEMElasticModel(MFEMLinearModel):
     def _initialize(self, model):
         ess_tdof = self.essential_tdof_list()
         c = self.generateDomainCoefficient(self.space, model.initialConditions)
-        self._X0 = self.initialValue(self.space, c)
-        self._M = self.bilinearForm(self.space, ess_tdof, mfem.VectorMassIntegrator(self._mat["Elasticity"]["rho"]))
-        self._K = self.bilinearForm(self.space, ess_tdof, _ElasticityIntegrator(self._mat["Elasticity"]["C"]))
-        self._B = self.linearForm(self.space, ess_tdof, self._K, self.x0, [], [])
+        self._X0 = util.initialValue(self.space, c)
+        self._M = util.bilinearForm(self.space, ess_tdof, domainInteg=mfem.VectorMassIntegrator(self._mat["Elasticity"]["rho"]))
+        self._K = util.bilinearForm(self.space, ess_tdof, domainInteg=_ElasticityIntegrator(self._mat["Elasticity"]["C"]))
+        self._B = util.linearForm(self.space, ess_tdof, self._K, self.x0)
 
     def RecoverFEMSolution(self, X):
         self._X0 = X

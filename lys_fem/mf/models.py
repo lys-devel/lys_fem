@@ -75,40 +75,6 @@ class MFEMModel:
                 if b.boundaries.check(d):
                     bdr_stress[d] = b.values
         return generateCoefficient(bdr_stress, space.GetMesh().Dimension())
-    
-    @staticmethod
-    def bilinearForm(space, ess_tdof, bint):
-        result = mfem.SparseMatrix()
-        m = mfem.BilinearForm(space)
-        m.AddDomainIntegrator(bint)
-        m.Assemble()
-        m.FormSystemMatrix(ess_tdof, result)
-        result._bilin = m
-        return result
-
-    @staticmethod
-    def linearForm(space, ess_tdof, K, x0, domainInteg, boundaryInteg):
-        b = mfem.LinearForm(space)
-        for i in domainInteg:
-            b.AddDomainIntegrator(i)
-        for i in boundaryInteg:
-            b.AddBoundaryIntegrator(i)
-        b.Assemble()
-        rhs = mfem.Vector()
-        mfem.GridFunction(space, b).GetTrueDofs(rhs)
-        K._bilin.EliminateVDofsInRHS(ess_tdof, x0, rhs)
-        rhs._lin = b
-        return rhs
-        
-    @staticmethod
-    def initialValue(space, x):
-        xv = mfem.Vector()
-        x_gf = mfem.GridFunction(space)
-        x_gf.ProjectCoefficient(x)
-        x_gf.GetTrueDofs(xv)
-        return xv
-    
-
 
     def setInitialValue(self, x=None, xt=None):
         self._x_gf = mfem.GridFunction(self._fespace)

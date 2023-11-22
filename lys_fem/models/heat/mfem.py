@@ -1,5 +1,5 @@
 from lys_fem.fem import NeumannBoundary
-from lys_fem.mf import mfem, MFEMLinearModel
+from lys_fem.mf import mfem, MFEMLinearModel, util
 
 
 class MFEMHeatConductionModel(MFEMLinearModel):
@@ -11,10 +11,10 @@ class MFEMHeatConductionModel(MFEMLinearModel):
     def _initialize(self, model):
         ess_tdof = self.essential_tdof_list()
         c = self.generateDomainCoefficient(self.space, model.initialConditions)
-        self._X0 = self.initialValue(self.space, c)
-        self._M = self.bilinearForm(self.space, ess_tdof, mfem.MassIntegrator(self._mat["Heat Conduction"]["C_v"]))
-        self._K = self.bilinearForm(self.space, ess_tdof, mfem.DiffusionIntegrator(self._mat["Heat Conduction"]["k"]))
-        self._B = self.linearForm(self.space, ess_tdof, self._K, self.x0, [], self._boundary_linear(model))
+        self._X0 = util.initialValue(self.space, c)
+        self._M = util.bilinearForm(self.space, ess_tdof, domainInteg=mfem.MassIntegrator(self._mat["Heat Conduction"]["C_v"]))
+        self._K = util.bilinearForm(self.space, ess_tdof, domainInteg=mfem.DiffusionIntegrator(self._mat["Heat Conduction"]["k"]))
+        self._B = util.linearForm(self.space, ess_tdof, self._K, self.x0, boundaryInteg=self._boundary_linear(model))
 
     def _boundary_linear(self, model):
         res = []

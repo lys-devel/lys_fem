@@ -1,4 +1,4 @@
-from lys_fem.mf import mfem, MFEMLinearModel, MFEMNonlinearModel
+from lys_fem.mf import mfem, util, MFEMLinearModel, MFEMNonlinearModel
 
 
 class MFEMLinearTestModel(MFEMLinearModel):
@@ -6,9 +6,9 @@ class MFEMLinearTestModel(MFEMLinearModel):
         super().__init__(mfem.H1_FECollection(1, mesh.Dimension()), model, mesh)
         ess_tdof = self.essential_tdof_list()
         c = self.generateDomainCoefficient(self.space, model.initialConditions)
-        self._X0 = self.initialValue(self.space, c)
-        self._K = self.bilinearForm(self.space, ess_tdof, mfem.DiffusionIntegrator())
-        self._B = self.linearForm(self.space, ess_tdof, self._K, self.x0, [], [])
+        self._X0 = util.initialValue(self.space, c)
+        self._K = util.bilinearForm(self.space, ess_tdof, domainInteg=[mfem.DiffusionIntegrator()])
+        self._B = util.linearForm(self.space, ess_tdof, self._K, self.x0)
 
     def RecoverFEMSolution(self, X):
         self._X0 = X
@@ -22,13 +22,13 @@ class MFEMNonlinearTestModel(MFEMNonlinearModel):
         super().__init__(mfem.H1_FECollection(1, mesh.Dimension()), model, mesh)
         self.ess_tdof_list = self.essential_tdof_list()
         c = self.generateDomainCoefficient(self.space, model.initialConditions)
-        self._X0 = self.initialValue(self.space, c)
+        self._X0 = util.initialValue(self.space, c)
 
     def update(self, u):
         uc, duc = self._createCoef(u)
-        self._K = self.bilinearForm(self.space, self.ess_tdof_list,mfem.DiffusionIntegrator(uc))
-        self._dK = self.bilinearForm(self.space, self.ess_tdof_list, mfem.MixedScalarWeakDerivativeIntegrator(duc))
-        self._B = self.linearForm(self.space, self.ess_tdof_list, self._K, self.x0, [], [])
+        self._K = util.bilinearForm(self.space, self.ess_tdof_list, domainInteg=mfem.DiffusionIntegrator(uc))
+        self._dK = util.bilinearForm(self.space, self.ess_tdof_list, domainInteg=mfem.MixedScalarWeakDerivativeIntegrator(duc))
+        self._B = util.linearForm(self.space, self.ess_tdof_list, self._K, self.x0)
 
     def RecoverFEMSolution(self, X):
         self._X0 = X
