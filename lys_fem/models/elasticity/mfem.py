@@ -6,22 +6,28 @@ from lys_fem.mf import mfem, MFEMLinearModel, util
 
 class MFEMElasticModel(MFEMLinearModel):
     def __init__(self, model, mesh, mat):
+        super().__init__(model)
         self._mat = mat
-        super().__init__(mfem.H1_FECollection(1, mesh.Dimension()), model, mesh)
+        self._fec=mfem.H1_FECollection(1, mesh.Dimension())
+        self._space =  mfem.FiniteElementSpace(mesh, self._fec, model.variableDimension(), mfem.Ordering.byVDIM)
         self._initialize(model)
 
     def _initialize(self, model):
-        ess_tdof = self.essential_tdof_list()
-        c = self.generateDomainCoefficient(self.space, model.initialConditions)
-        self._X0 = util.initialValue(self.space, c)
-        self._M = util.bilinearForm(self.space, ess_tdof, domainInteg=mfem.VectorMassIntegrator(self._mat["Elasticity"]["rho"]))
-        self._K = util.bilinearForm(self.space, ess_tdof, domainInteg=_ElasticityIntegrator(self._mat["Elasticity"]["C"]))
-        self._B = util.linearForm(self.space, ess_tdof, self._K, self.x0)
+        ess_tdof = self.essential_tdof_list(self._space)
+        c = self.generateDomainCoefficient(self._space, model.initialConditions)
+        self._X0 = util.initialValue(self._space, c)
+        self._M = util.bilinearForm(self._space, ess_tdof, domainInteg=mfem.VectorMassIntegrator(self._mat["Elasticity"]["rho"]))
+        self._K = util.bilinearForm(self._space, ess_tdof, domainInteg=_ElasticityIntegrator(self._mat["Elasticity"]["C"]))
+        self._B = util.linearForm(self._space, ess_tdof, self._K, self.x0)
 
     def RecoverFEMSolution(self, X):
         self._X0 = X
-        self.gf = mfem.GridFunction(self.space)
-        self.gf.SetFromTrueDofs(X)
+        return self.solution
+
+    @property
+    def solution(self):
+        self.gf = mfem.GridFunction(self._space)
+        self.gf.SetFromTrueDofs(self._X0)
         return self.gf
 
     @property

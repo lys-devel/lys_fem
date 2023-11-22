@@ -31,7 +31,7 @@ class SolverBase:
     def exportInitialValues(self):
         sol = {}
         for m in self._models:
-            sol[m.variableName] = mfem.getData(m.getInitialValue()[0], self._mesh)
+            sol[m.variableName] = mfem.getData(m.solution, self._mesh)
         mfem.saveData(self._dirname + "/data0.npz", sol)
 
     def exportSolution(self, index, solution):

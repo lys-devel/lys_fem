@@ -4,23 +4,27 @@ from lys_fem.mf import mfem, util, MFEMNonlinearModel
 
 class MFEMLLGModel(MFEMNonlinearModel):
     def __init__(self, model, mesh, mat):
+        super().__init__(model)
         fec =mfem.H1_FECollection(1, mesh.Dimension())
         self._spaces=[mfem.FiniteElementSpace(mesh, fec, 1, mfem.Ordering.byVDIM) for i in range(4)]
         self._space_solution = mfem.FiniteElementSpace(mesh, fec, 3)
         self._block_offsets = mfem.intArray(list([0]+[sp.GetTrueVSize() for sp in self._spaces]))
         self._block_offsets.PartialSum()
 
-        super().__init__(fec, model, mesh, vDim=1)
         self._mat = mat
         self._alpha = 0.0
-        
-        self._ess_tdof_list = self.essential_tdof_list()
+        self._initialize(model)        
+
+    def _initialize(self, model):
+        self._ess_tdof_list = self.essential_tdof_list(self._space_solution)
+        c = self.generateDomainCoefficient(self._space_solution, model.initialConditions)
+        self.setInitialValue(c)
 
         self._mass = MassMatrix(self._spaces, self._alpha, self._block_offsets, self._ess_tdof_list)
         self._stiff = StiffnessMatrix(self._spaces, self._block_offsets, self._ess_tdof_list)
         self._ext = ExternalMagneticField(self._spaces, self._ess_tdof_list, self._block_offsets, mfem.VectorConstantCoefficient([0,0,1]))
 
-    def setInitialValue(self, x=None, xt=None):
+    def setInitialValue(self, x=None):
         x1_gf = mfem.GridFunction(self._spaces[0])
         x1_gf.ProjectCoefficient(mfem.InnerProductCoefficient(x, mfem.VectorConstantCoefficient([1,0,0])))
         x2_gf = mfem.GridFunction(self._spaces[1])
@@ -107,10 +111,12 @@ class MFEMLLGModel(MFEMNonlinearModel):
         self._XL0 = mfem.BlockVector(X, self._block_offsets)
         m = self.getNodalValue(self._XL0, 2)
         mfem.print_("[LLG] Updated: norm = ", np.linalg.norm(m[:3]), ", m =", m)
+        return self.solution
 
+    @property
+    def solution(self):
         self._gf_sol = mfem.GridFunction(self._space_solution)
         self._gf_sol.SetFromTrueDofs(self._XL0[:self._block_offsets[3]])
-
         return self._gf_sol
 
     def dualToPrime(self, d):
