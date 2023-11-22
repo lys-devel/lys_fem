@@ -14,13 +14,12 @@ class MFEMLLGModel(MFEMNonlinearModel):
         self._mat = mat
         self._alpha = 0.0
         
+        self._ess_tdof_list = self.essential_tdof_list()
 
-        self._var = VariableMatrices(self._spaces)
-        self._mass = MassMatrix(self._spaces, self._alpha, self._block_offsets)
+        self._var = VariableMatrices(self._spaces, self._ess_tdof_list)
+        self._mass = MassMatrix(self._spaces, self._alpha, self._block_offsets, self._ess_tdof_list)
         self._stiff = StiffnessMatrix(self._spaces, self._block_offsets)
         self._ext = ExternalMagneticField(self._spaces, self._block_offsets, mfem.VectorConstantCoefficient([0,0,1]))
-
-        self._init = False
 
     def setInitialValue(self, x=None, xt=None):
         self._x1_gf = mfem.GridFunction(self._spaces[0])
@@ -47,8 +46,8 @@ class MFEMLLGModel(MFEMNonlinearModel):
         self._ess_tdof_list = self.essential_tdof_list()
         self._assemble_b()
         coef = self._make_coefs(m)
-        self._vars = self._var.update(self._ess_tdof_list, coef)
-        self._M, self._gM = self._mass.update(self._ess_tdof_list, self._vars, self.x0)
+        self._vars = self._var.update(coef)
+        self._M, self._gM = self._mass.update(self._vars, self.x0)
         self._K, self._gK = self._stiff.update(self._ess_tdof_list, self._vars)
         eK, egK = self._ext.update(self._ess_tdof_list)
         self._K, self._gK = self._K + eK, self._gK + egK 
@@ -168,11 +167,11 @@ class MFEMLLGModel(MFEMNonlinearModel):
         return np.array(ppp)
 
 class VariableMatrices:
-    def __init__(self, spaces):
+    def __init__(self, spaces, ess_tdof):
         self._spaces = spaces
-
-    def update(self, ess_tdof, coefs):
         self._ess_tdof_list = ess_tdof
+
+    def update(self, coefs):
         self.k1 = mfem.BilinearForm(self._spaces[0])
         self.k1.AddDomainIntegrator(mfem.MassIntegrator(coefs[0]))
         self.k1.Assemble()
@@ -199,17 +198,17 @@ class VariableMatrices:
         return [self._m1, self._m2, self._m3, self._m4]
 
 class MassMatrix:
-    def __init__(self, spaces, alpha, offsets):
+    def __init__(self, spaces, alpha, offsets, ess_tdof_list):
         self._spaces = spaces
         self._alpha = alpha
         self._block_offsets = offsets
-        self._init = False
+        self._ess_tdof_list = ess_tdof_list
+        self.initialize()
 
-    def update(self, ess_tdof, coefs, x0):
-        self._ess_tdof_list = ess_tdof
-        if not self._init:
-            self._init = True
-            self._assemble_M0()
+    def initialize(self):
+        self._assemble_M0()
+
+    def update(self, coefs, x0):
         self._assemble_M(coefs)
         self._assemble_grad_Mx(coefs, x0)
         return self._M, self._M

@@ -75,6 +75,40 @@ class MFEMModel:
                 if b.boundaries.check(d):
                     bdr_stress[d] = b.values
         return generateCoefficient(bdr_stress, space.GetMesh().Dimension())
+    
+    @staticmethod
+    def bilinearForm(space, ess_tdof, bint):
+        result = mfem.SparseMatrix()
+        m = mfem.BilinearForm(space)
+        m.AddDomainIntegrator(bint)
+        m.Assemble()
+        m.FormSystemMatrix(ess_tdof, result)
+        result._bilin = m
+        return result
+
+    @staticmethod
+    def linearForm(space, ess_tdof, K, x0, domainInteg, boundaryInteg):
+        b = mfem.LinearForm(space)
+        for i in domainInteg:
+            b.AddDomainIntegrator(i)
+        for i in boundaryInteg:
+            b.AddBoundaryIntegrator(i)
+        b.Assemble()
+        rhs = mfem.Vector()
+        mfem.GridFunction(space, b).GetTrueDofs(rhs)
+        K._bilin.EliminateVDofsInRHS(ess_tdof, x0, rhs)
+        rhs._lin = b
+        return rhs
+        
+    @staticmethod
+    def initialValue(space, x):
+        xv = mfem.Vector()
+        x_gf = mfem.GridFunction(space)
+        x_gf.ProjectCoefficient(x)
+        x_gf.GetTrueDofs(xv)
+        return xv
+    
+
 
     def setInitialValue(self, x=None, xt=None):
         self._x_gf = mfem.GridFunction(self._fespace)
@@ -133,7 +167,7 @@ class MFEMModel:
 class MFEMLinearModel(MFEMModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.initialize()
+        #self.initialize()
 
     def initialize(self):
         self.ess_tdof_list = self.essential_tdof_list()
@@ -165,11 +199,6 @@ class MFEMLinearModel(MFEMModel):
             self._k.EliminateVDofsInRHS(self.ess_tdof_list, self.x0, self._B)
         else:
             self._B = None
-
-    def RecoverFEMSolution(self, X):
-        self._X0 = X
-        self._x.SetFromTrueDofs(X)
-        return self._x
     
     def assemble_a(self):
         return None
@@ -214,38 +243,4 @@ class MFEMLinearModel(MFEMModel):
 
 
 class MFEMNonlinearModel(MFEMModel):
-    def update(self, x):
-        self.ess_tdof_list = self.essential_tdof_list()
-        self._k = self.assemble_a()
-        self._k.assemble(x, self.ess_tdof_list)
-        self._b = self.assemble_b()
-
-        self._K = self._k.A
-        self._DK = self._k.DA
-        self._B = self._k.EliminateVDofsInRHS(self.ess_tdof_list, x, self._b)
-
-    def RecoverFEMSolution(self, X):
-        self._x.SetFromTrueDofs(X)
-        return self._x
-
-    @property
-    def K(self):
-        return self._K
-
-    @property
-    def grad_Kx(self):
-        return self._DK
-
-    @property
-    def x0(self):
-        self._x, _ = self.getInitialValue()
-        self._X0 = mfem.Vector()
-        self._x.GetTrueDofs(self._X0)
-        return self._X0
-
-    @property
-    def b(self):
-        return self._B
-
-    def grad_b(self):
-        return None
+    pass

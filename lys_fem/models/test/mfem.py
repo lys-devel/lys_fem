@@ -4,56 +4,65 @@ from lys_fem.mf import mfem, MFEMLinearModel, MFEMNonlinearModel
 class MFEMLinearTestModel(MFEMLinearModel):
     def __init__(self, model, mesh, mat):
         super().__init__(mfem.H1_FECollection(1, mesh.Dimension()), model, mesh)
+        ess_tdof = self.essential_tdof_list()
+        c = self.generateDomainCoefficient(self.space, model.initialConditions)
+        self._X0 = self.initialValue(self.space, c)
+        self._K = self.bilinearForm(self.space, ess_tdof, mfem.DiffusionIntegrator())
+        self._B = self.linearForm(self.space, ess_tdof, self._K, self.x0, [], [])
 
-    def assemble_a(self):
-        a = mfem.BilinearForm(self.space)
-        a.AddDomainIntegrator(mfem.DiffusionIntegrator())
-        a.Assemble()
-        return a
+    def RecoverFEMSolution(self, X):
+        self._X0 = X
+        self.gf = mfem.GridFunction(self.space)
+        self.gf.SetFromTrueDofs(X)
+        return self.gf
 
 
 class MFEMNonlinearTestModel(MFEMNonlinearModel):
     def __init__(self, model, mesh, mat):
         super().__init__(mfem.H1_FECollection(1, mesh.Dimension()), model, mesh)
+        self.ess_tdof_list = self.essential_tdof_list()
+        c = self.generateDomainCoefficient(self.space, model.initialConditions)
+        self._X0 = self.initialValue(self.space, c)
 
-    def assemble_a(self):
-        self.a = _NonlinearOperator(self)
-        return self.a
+    def update(self, u):
+        uc, duc = self._createCoef(u)
+        self._K = self.bilinearForm(self.space, self.ess_tdof_list,mfem.DiffusionIntegrator(uc))
+        self._dK = self.bilinearForm(self.space, self.ess_tdof_list, mfem.MixedScalarWeakDerivativeIntegrator(duc))
+        self._B = self.linearForm(self.space, self.ess_tdof_list, self._K, self.x0, [], [])
 
+    def RecoverFEMSolution(self, X):
+        self._X0 = X
+        x = mfem.GridFunction(self.space)
+        x.SetFromTrueDofs(X)
+        return x
 
-class _NonlinearOperator(mfem.PyOperator):
-    def __init__(self, model):
-        super().__init__(model.space.GetTrueVSize())
-        self._model = model
+    def _createCoef(self, u):
+        self.u_gf = mfem.GridFunction(self.space)
+        self.u_gf.SetFromTrueDofs(u)
+        self.u_c = mfem.GridFunctionCoefficient(self.u_gf)
 
-    def assemble(self, x, ess_tdof_list):
-        self.x = mfem.GridFunction(self._model.space)
-        self.x.SetFromTrueDofs(x)
-        self.x_c = mfem.GridFunctionCoefficient(self.x)
+        self._du_gf = mfem.GridFunction(self.space)
+        self.u_gf.GetDerivative(1, 0, self._du_gf)
+        self._du_c = mfem.GridFunctionCoefficient(self._du_gf)
 
-        self.a = mfem.BilinearForm(self._model.space)
-        self.a.AddDomainIntegrator(mfem.DiffusionIntegrator(self.x_c))
-        self.a.Assemble()
-        self.A = mfem.SparseMatrix()
-        self.a.FormSystemMatrix(ess_tdof_list, self.A)
+        return self.u_c, self._du_c
 
-        self.x2 = mfem.GridFunction(self._model.space)
-        self.x2.SetFromTrueDofs(x)
-        self.x2.Neg()
-        self.dx = mfem.GridFunction(self._model.space)
-        self.x2.GetDerivative(1, 0, self.dx)
-        self.dx_c = mfem.GridFunctionCoefficient(self.dx)
+    @property
+    def K(self):
+        return self._K
 
-        self.da = mfem.BilinearForm(self._model.space)
-        self.da.AddDomainIntegrator(mfem.DiffusionIntegrator(self.x_c))
-        self.da.AddDomainIntegrator(mfem.MixedScalarWeakDerivativeIntegrator(self.dx_c))
-        self.da.Assemble()
-        self.DA = mfem.SparseMatrix()
-        self.da.FormSystemMatrix(ess_tdof_list, self.DA)
+    @property
+    def grad_Kx(self):
+        return self._K - self._dK
 
-    def EliminateVDofsInRHS(self, ess_tdof_list, x, b):
-        self.tmp = mfem.GridFunction(self._model.space, b)
-        self._B = mfem.Vector()
-        self.tmp.GetTrueDofs(self._B)
-        self.a.EliminateVDofsInRHS(ess_tdof_list, x, self._B)
+    @property
+    def b(self):
         return self._B
+
+    def grad_b(self):
+        return None
+
+    @property
+    def x0(self):
+        return self._X0
+

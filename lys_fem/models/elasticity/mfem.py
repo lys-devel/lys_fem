@@ -8,19 +8,37 @@ class MFEMElasticModel(MFEMLinearModel):
     def __init__(self, model, mesh, mat):
         self._mat = mat
         super().__init__(mfem.H1_FECollection(1, mesh.Dimension()), model, mesh)
+        self._initialize(model)
 
-    def assemble_m(self):
-        m = mfem.BilinearForm(self.space)
-        m.AddDomainIntegrator(mfem.VectorMassIntegrator(self._mat["Elasticity"]["rho"]))
-        m.Assemble()
-        return m
+    def _initialize(self, model):
+        ess_tdof = self.essential_tdof_list()
+        c = self.generateDomainCoefficient(self.space, model.initialConditions)
+        self._X0 = self.initialValue(self.space, c)
+        self._M = self.bilinearForm(self.space, ess_tdof, mfem.VectorMassIntegrator(self._mat["Elasticity"]["rho"]))
+        self._K = self.bilinearForm(self.space, ess_tdof, _ElasticityIntegrator(self._mat["Elasticity"]["C"]))
+        self._B = self.linearForm(self.space, ess_tdof, self._K, self.x0, [], [])
 
-    def assemble_a(self):
-        a = mfem.BilinearForm(self.space)
-        #a.AddDomainIntegrator(mfem.ElasticityIntegrator(mfem.ConstantCoefficient(1), mfem.ConstantCoefficient(1)))
-        a.AddDomainIntegrator(_ElasticityIntegrator(self._mat["Elasticity"]["C"]))
-        a.Assemble()
-        return a
+    def RecoverFEMSolution(self, X):
+        self._X0 = X
+        self.gf = mfem.GridFunction(self.space)
+        self.gf.SetFromTrueDofs(X)
+        return self.gf
+
+    @property
+    def M(self):
+        return self._M
+    
+    @property
+    def K(self):
+        return self._K
+    
+    @property
+    def b(self):
+        return self._B
+
+    @property
+    def x0(self):
+        return self._X0
 
 
 class _ElasticityIntegrator(mfem.BilinearFormIntegrator):
@@ -80,30 +98,3 @@ class _ElasticityIntegrator(mfem.BilinearFormIntegrator):
             return 5
 
 
-# class StressIntegrator(mfem.VectorDomainLFIntegrator):
-
-
-class StressIntegrator(mfem.LinearFormIntegrator):
-    def __init__(self):
-        # super().__init__()
-        # self.divshape = mfem.Vector()
-        pass
-
-    def AssembleRHSElementVect(self, el, Tr, elvect):
-        return
-        print("---------------------assemble---------------------------")
-        dof = el.GetDof()
-        print(dof)
-        return
-        self.divshape.SetSize(dof)
-        elvect.SetSize(dof)
-        elvect.Assign(0.0)
-
-        ir = mfem.IntRules.Get(el.GetGeomType(), 2 * el.GetOrder())
-        for p in range(ir.GetNPoints()):
-            ip = ir.IntPoint(p)
-            Tr.SetIntPoint(ip)
-
-            val = Tr.Weight() * Q.Eval(Tr, ip)
-            el.CalcPhysDivShape(Tr, self.divshape)
-            mfem.add(elvect, ip.weight * val, self.divshape, elvect)
