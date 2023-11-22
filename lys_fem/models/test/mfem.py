@@ -7,20 +7,16 @@ class MFEMLinearTestModel(MFEMLinearModel):
         self._fec = mfem.H1_FECollection(1, mesh.Dimension())
         self._space = mfem.FiniteElementSpace(mesh, self._fec, 1, mfem.Ordering.byVDIM)
         ess_tdof = self.essential_tdof_list(self._space)
-        c = self.generateDomainCoefficient(self._space, model.initialConditions)
-        self._X0 = util.initialValue(self._space, c)
-        self._K = util.bilinearForm(self._space, ess_tdof, domainInteg=[mfem.DiffusionIntegrator()])
-        self._B = util.linearForm(self._space, ess_tdof, self._K, self.x0)
-
-    def RecoverFEMSolution(self, X):
-        self._X0 = X
-        return self.solution
+        c = util.generateDomainCoefficient(self._space, model.initialConditions)
+        self.x0 = util.initialValue(self._space, c)
+        self.K = util.bilinearForm(self._space, ess_tdof, domainInteg=mfem.DiffusionIntegrator())
+        self.b = util.linearForm(self._space, ess_tdof, self.K, self.x0)
     
     @property
     def solution(self):
-        self.gf = mfem.GridFunction(self._space)
-        self.gf.SetFromTrueDofs(self._X0)
-        return self.gf
+        gf = mfem.GridFunction(self._space)
+        gf.SetFromTrueDofs(self.x0)
+        return gf
 
 
 class MFEMNonlinearTestModel(MFEMNonlinearModel):
@@ -29,23 +25,18 @@ class MFEMNonlinearTestModel(MFEMNonlinearModel):
         self._fec = mfem.H1_FECollection(1, mesh.Dimension())
         self._space = mfem.FiniteElementSpace(mesh, self._fec, 1, mfem.Ordering.byVDIM)
         self.ess_tdof_list = self.essential_tdof_list(self._space)
-        c = self.generateDomainCoefficient(self._space, model.initialConditions)
-        self._X0 = util.initialValue(self._space, c)
+        self.x0 = util.initialValue(self._space, util.generateDomainCoefficient(self._space, model.initialConditions))
 
     def update(self, u):
         uc, duc = self._createCoef(u)
-        self._K = util.bilinearForm(self._space, self.ess_tdof_list, domainInteg=mfem.DiffusionIntegrator(uc))
-        self._dK = util.bilinearForm(self._space, self.ess_tdof_list, domainInteg=mfem.MixedScalarWeakDerivativeIntegrator(duc))
-        self._B = util.linearForm(self._space, self.ess_tdof_list, self._K, self.x0)
-
-    def RecoverFEMSolution(self, X):
-        self._X0 = X
-        return self.solution
+        self.K = util.bilinearForm(self._space, self.ess_tdof_list, domainInteg=mfem.DiffusionIntegrator(uc))
+        self.grad_Kx = self.K - util.bilinearForm(self._space, self.ess_tdof_list, domainInteg=mfem.MixedScalarWeakDerivativeIntegrator(duc))
+        self.b = util.linearForm(self._space, self.ess_tdof_list, self.K, self.x0)
     
     @property
     def solution(self):
         x = mfem.GridFunction(self._space)
-        x.SetFromTrueDofs(self._X0)
+        x.SetFromTrueDofs(self.x0)
         return x
 
     def _createCoef(self, u):
@@ -58,23 +49,3 @@ class MFEMNonlinearTestModel(MFEMNonlinearModel):
         self._du_c = mfem.GridFunctionCoefficient(self._du_gf)
 
         return self.u_c, self._du_c
-
-    @property
-    def K(self):
-        return self._K
-
-    @property
-    def grad_Kx(self):
-        return self._K - self._dK
-
-    @property
-    def b(self):
-        return self._B
-
-    def grad_b(self):
-        return None
-
-    @property
-    def x0(self):
-        return self._X0
-

@@ -1,6 +1,5 @@
 from . import mfem
-from .coef import generateCoefficient
-from ..fem import DirichletBoundary, NeumannBoundary, Source
+from ..fem import DirichletBoundary
 
 modelList = {}
 
@@ -17,28 +16,13 @@ def generateModel(fem, mesh, mat):
 class MFEMModel:
     def __init__(self, model):
         self._model = model
-
-    def generateDomainFunction(self, space, conditions):
-        c = self.generateDomainCoefficient(space, conditions)
-        gf = mfem.GridFunction(space)
-        gf.ProjectCoefficient(c)
-        return gf
-
-    def generateDomainCoefficient(self, space, conditions):
-        coefs = {}
-        for c in conditions:
-            for d in space.GetMesh().attributes:
-                if c.domains.check(d):
-                    coefs[d] = c.values
-        return generateCoefficient(coefs, space.GetMesh().Dimension())
-    
-    def generateSurfaceCoefficient(self, space, conditions):
-        bdr_stress = {}
-        for b in conditions:
-            for d in space.GetMesh().bdr_attributes:
-                if b.boundaries.check(d):
-                    bdr_stress[d] = b.values
-        return generateCoefficient(bdr_stress, space.GetMesh().Dimension())
+        self.__x0 = None
+        self.__K = None
+        self.__M = None
+        self.__b = None
+        self.__dK = None
+        self.__dM = None
+        self.__db = None
 
     def essential_tdof_list(self, space):
         res = []
@@ -74,45 +58,74 @@ class MFEMModel:
     @property
     def timeUnit(self):
         return 1
+    
+    @property
+    def x0(self):
+        return self.__x0
+    
+    @x0.setter
+    def x0(self, value):
+        self.__x0 = value
 
-class MFEMLinearModel(MFEMModel):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def update(self, x):
-        pass
+    @property
+    def K(self):
+        return self.__K
+    
+    @K.setter
+    def K(self, value):
+        self.__K = value
 
     @property
     def M(self):
-        return self._M
+        return self.__M
+    
+    @M.setter
+    def M(self, value):
+        self.__M = value
+        
+    @property
+    def b(self):
+        return self.__b
+    
+    @b.setter
+    def b(self, value):
+        self.__b = value
+
+    @property
+    def grad_Kx(self):
+        return self.__dK
+    
+    @grad_Kx.setter
+    def grad_Kx(self, value):
+        self.__dK = value
+
+    @property
+    def grad_Mx(self):
+        return self.__dM
+    
+    @grad_Mx.setter
+    def grad_Mx(self, value):
+        self.__dM = value
+        
+    @property
+    def grad_b(self):
+        return self.__db
+    
+    @grad_b.setter
+    def grad_b(self, value):
+        self.__db = value
+
+class MFEMLinearModel(MFEMModel):
+    def update(self, x):
+        pass
 
     @property
     def grad_Mx(self):
         return self.M
 
     @property
-    def K(self):
-        return self._K
-
-    @property
     def grad_Kx(self):
         return self.K
-
-    @property
-    def b(self):
-        return self._B
-
-    @property
-    def grad_b(self):
-        return None
-
-    @property
-    def x0(self):
-        return self._X0
-
-    @property
-    def xt0(self):
-        return self._Xt0
 
 
 class MFEMNonlinearModel(MFEMModel):

@@ -13,8 +13,8 @@ class StationaryEquation:
     def solve(self, solver):
         if isinstance(self.model, MFEMLinearModel):
             solver.setMaxIteration(1)
-        x = solver.solve(self, self.model.x0)
-        return self.model.RecoverFEMSolution(x)
+        self.model.x0 = solver.solve(self, self.model.x0)
+        return self.model.solution
 
     def __call__(self, x):
         K, b = self.model.K, self.model.b
@@ -31,7 +31,6 @@ class StationaryEquation:
 class _TimeDependentSubSolverBase:
     def __init__(self, model):
         self.model = model
-        self._x = self.model.x0
 
     def update(self, x):
         if not isinstance(self.model, MFEMLinearModel):
@@ -40,13 +39,9 @@ class _TimeDependentSubSolverBase:
     def solve(self, solver, dt):
         if isinstance(self.model, MFEMLinearModel):
             solver.setMaxIteration(1)
-        self.model.update(self._x)
-        prec = self.model.preconditioner
-        if prec is not None:
-            solver.setPreconditioner(prec)
         self.dt = dt
-        self._x = solver.solve(self, self._x)
-        return self.model.RecoverFEMSolution(self._x)
+        self.model.x0 = solver.solve(self, self.model.x0)
+        return self.model.solution
 
 
 class BackwardEulerSolver(_TimeDependentSubSolverBase):

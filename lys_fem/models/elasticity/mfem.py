@@ -14,37 +14,17 @@ class MFEMElasticModel(MFEMLinearModel):
 
     def _initialize(self, model):
         ess_tdof = self.essential_tdof_list(self._space)
-        c = self.generateDomainCoefficient(self._space, model.initialConditions)
-        self._X0 = util.initialValue(self._space, c)
-        self._M = util.bilinearForm(self._space, ess_tdof, domainInteg=mfem.VectorMassIntegrator(self._mat["Elasticity"]["rho"]))
-        self._K = util.bilinearForm(self._space, ess_tdof, domainInteg=_ElasticityIntegrator(self._mat["Elasticity"]["C"]))
-        self._B = util.linearForm(self._space, ess_tdof, self._K, self.x0)
-
-    def RecoverFEMSolution(self, X):
-        self._X0 = X
-        return self.solution
+        c = util.generateDomainCoefficient(self._space, model.initialConditions)
+        self.x0 = util.initialValue(self._space, c)
+        self.M = util.bilinearForm(self._space, ess_tdof, domainInteg=mfem.VectorMassIntegrator(self._mat["Elasticity"]["rho"]))
+        self.K = util.bilinearForm(self._space, ess_tdof, domainInteg=_ElasticityIntegrator(self._mat["Elasticity"]["C"]))
+        self.b = util.linearForm(self._space, ess_tdof, self.K, self.x0)
 
     @property
     def solution(self):
-        self.gf = mfem.GridFunction(self._space)
-        self.gf.SetFromTrueDofs(self._X0)
-        return self.gf
-
-    @property
-    def M(self):
-        return self._M
-    
-    @property
-    def K(self):
-        return self._K
-    
-    @property
-    def b(self):
-        return self._B
-
-    @property
-    def x0(self):
-        return self._X0
+        gf = mfem.GridFunction(self._space)
+        gf.SetFromTrueDofs(self.x0)
+        return gf
 
 
 class _ElasticityIntegrator(mfem.BilinearFormIntegrator):

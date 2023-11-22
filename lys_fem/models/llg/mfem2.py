@@ -17,7 +17,7 @@ class MFEMLLGModel(MFEMNonlinearModel):
 
     def _initialize(self, model):
         self._ess_tdof_list = self.essential_tdof_list(self._space_solution)
-        c = self.generateDomainCoefficient(self._space_solution, model.initialConditions)
+        c = util.generateDomainCoefficient(self._space_solution, model.initialConditions)
         self.setInitialValue(c)
 
         self._mass = MassMatrix(self._spaces, self._alpha, self._block_offsets, self._ess_tdof_list)
@@ -34,16 +34,11 @@ class MFEMLLGModel(MFEMNonlinearModel):
         x4_gf = mfem.GridFunction(self._spaces[3])
         x4_gf.Assign(0.0)
 
-        self._XL0 = mfem.BlockVector(self._block_offsets)
-        x1_gf.GetTrueDofs(self._XL0.GetBlock(0))
-        x2_gf.GetTrueDofs(self._XL0.GetBlock(1))
-        x3_gf.GetTrueDofs(self._XL0.GetBlock(2))
-        x4_gf.GetTrueDofs(self._XL0.GetBlock(3))
-
-    def getInitialValue(self):
-        self._gf_sol = mfem.GridFunction(self._space_solution)
-        self._gf_sol.SetFromTrueDofs(self._XL0[:self._block_offsets[3]])
-        return self._gf_sol, None
+        self.x0 = mfem.BlockVector(self._block_offsets)
+        x1_gf.GetTrueDofs(self.x0.GetBlock(0))
+        x2_gf.GetTrueDofs(self.x0.GetBlock(1))
+        x3_gf.GetTrueDofs(self.x0.GetBlock(2))
+        x4_gf.GetTrueDofs(self.x0.GetBlock(3))
 
     def update(self, m):
         self._assemble_b()
@@ -51,13 +46,13 @@ class MFEMLLGModel(MFEMNonlinearModel):
         coefs = [util.coefFromVector(self._spaces[i], m.GetBlock(i)) for i in range(4)]
         self._vars = [util.bilinearForm(self._spaces[i], domainInteg=mfem.MassIntegrator(coefs[i])) for i in range(4)]
 
-        self._M, self._gM = self._mass.update(self._vars, self.x0)
-        self._K, self._gK = self._stiff.update(self._vars)
+        self.M, self.grad_Mx = self._mass.update(self._vars, self.x0)
+        self.K, self.grad_Kx = self._stiff.update(self._vars)
         eK, egK = self._ext.update()
-        self._K, self._gK = self._K + eK, self._gK + egK 
+        self.K, self.grad_Kx = self.K + eK, self.grad_Kx + egK 
 
     def _assemble_b(self):
-        self._B = mfem.BlockVector(self._block_offsets)
+        self.b = mfem.BlockVector(self._block_offsets)
 
         b1 = util.linearForm(self._spaces[0], domainInteg=mfem.DomainLFIntegrator(mfem.ConstantCoefficient(0)))
         b4 = util.linearForm(self._spaces[0], domainInteg=mfem.DomainLFIntegrator(mfem.ConstantCoefficient(1)))
@@ -65,38 +60,10 @@ class MFEMLLGModel(MFEMNonlinearModel):
         b1gf = mfem.GridFunction(self._spaces[0], b1)
         b4gf = mfem.GridFunction(self._spaces[3], b4)
 
-        b1gf.GetTrueDofs(self._B.GetBlock(0))
-        b1gf.GetTrueDofs(self._B.GetBlock(1))
-        b1gf.GetTrueDofs(self._B.GetBlock(2))
-        b4gf.GetTrueDofs(self._B.GetBlock(3))
-
-    @property
-    def M(self):
-        return self._M
-
-    @property
-    def grad_Mx(self):
-        return self._gM
-
-    @property
-    def K(self):
-        return self._K
-
-    @property
-    def grad_Kx(self):
-        return self._gK
-
-    @property
-    def b(self):
-        return self._B
-
-    @property
-    def grad_b(self):
-        return None
-
-    @property
-    def x0(self):
-        return self._XL0
+        b1gf.GetTrueDofs(self.b.GetBlock(0))
+        b1gf.GetTrueDofs(self.b.GetBlock(1))
+        b1gf.GetTrueDofs(self.b.GetBlock(2))
+        b4gf.GetTrueDofs(self.b.GetBlock(3))
     
     @property
     def timeUnit(self):
@@ -108,15 +75,15 @@ class MFEMLLGModel(MFEMNonlinearModel):
 
     def RecoverFEMSolution(self, X):
         np.set_printoptions(precision=8, suppress=True)
-        self._XL0 = mfem.BlockVector(X, self._block_offsets)
-        m = self.getNodalValue(self._XL0, 2)
+        self.x0 = mfem.BlockVector(X, self._block_offsets)
+        m = self.getNodalValue(self.x0, 2)
         mfem.print_("[LLG] Updated: norm = ", np.linalg.norm(m[:3]), ", m =", m)
         return self.solution
 
     @property
     def solution(self):
         self._gf_sol = mfem.GridFunction(self._space_solution)
-        self._gf_sol.SetFromTrueDofs(self._XL0[:self._block_offsets[3]])
+        self._gf_sol.SetFromTrueDofs(self.x0[:self._block_offsets[3]])
         return self._gf_sol
 
     def dualToPrime(self, d):

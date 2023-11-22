@@ -1,6 +1,6 @@
 from . import mfem
+from .coef import generateCoefficient
 
-@staticmethod
 def initialValue(space, x):
     xv = mfem.Vector()
     x_gf = mfem.GridFunction(space)
@@ -8,7 +8,7 @@ def initialValue(space, x):
     x_gf.GetTrueDofs(xv)
     return xv
 
-@staticmethod
+
 def bilinearForm(space, ess_tdof=None, domainInteg=None, boundaryInteg=None):
     # initialization
     if domainInteg is None:
@@ -36,7 +36,7 @@ def bilinearForm(space, ess_tdof=None, domainInteg=None, boundaryInteg=None):
     result._bilin = m
     return result
 
-@staticmethod
+
 def linearForm(space, ess_tdof=None, K=None, x0=None, domainInteg=None, boundaryInteg=None):
     # initialization
     if domainInteg is None:
@@ -64,9 +64,27 @@ def linearForm(space, ess_tdof=None, K=None, x0=None, domainInteg=None, boundary
     rhs._lin = b
     return rhs
     
-@staticmethod
+
 def coefFromVector(space, vec):
     gf = mfem.GridFunction(space)
     gf.SetFromTrueDofs(vec)
     c = mfem.GridFunctionCoefficient(gf)
     return c
+
+
+def generateDomainCoefficient(space, conditions):
+    coefs = {}
+    for c in conditions:
+        for d in space.GetMesh().attributes:
+            if c.domains.check(d):
+                coefs[d] = c.values
+    return generateCoefficient(coefs, space.GetMesh().Dimension())
+
+
+def generateSurfaceCoefficient(space, conditions):
+    bdr_stress = {}
+    for b in conditions:
+        for d in space.GetMesh().bdr_attributes:
+            if b.boundaries.check(d):
+                bdr_stress[d] = b.values
+    return generateCoefficient(bdr_stress, space.GetMesh().Dimension())
