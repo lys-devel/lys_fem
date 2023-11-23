@@ -36,6 +36,34 @@ def bilinearForm(space, ess_tdof=None, domainInteg=None, boundaryInteg=None):
     result._bilin = m
     return result
 
+def mixedBilinearForm(space1, space2, ess_tdof1=None, ess_tdof2=None, domainInteg=None, boundaryInteg=None):
+    # initialization
+    if domainInteg is None:
+        domainInteg = []
+    if not hasattr(domainInteg, "__iter__"):
+        domainInteg = [domainInteg]
+    if boundaryInteg is None:
+        boundaryInteg = []
+    if not hasattr(boundaryInteg, "__iter__"):
+        boundaryInteg = [boundaryInteg]
+    if ess_tdof1 is None:
+        ess_tdof1 = mfem.intArray()
+    if ess_tdof2 is None:
+        ess_tdof2 = mfem.intArray()
+
+    # create Bilinear form of mfem
+    m = mfem.MixedBilinearForm(space1, space2)
+    for i in domainInteg:
+        m.AddDomainIntegrator(i)
+    for i in boundaryInteg:
+        m.AddBoundaryIntegrator(i)
+    m.Assemble()
+
+    # set it to matrix
+    result = mfem.OperatorHandle()
+    m.FormRectangularSystemMatrix(ess_tdof1, ess_tdof2, result)
+    result._bilin = m
+    return result
 
 def linearForm(space, ess_tdof=None, K=None, x0=None, domainInteg=None, boundaryInteg=None):
     # initialization
@@ -68,9 +96,17 @@ def linearForm(space, ess_tdof=None, K=None, x0=None, domainInteg=None, boundary
 def coefFromVector(space, vec):
     gf = mfem.GridFunction(space)
     gf.SetFromTrueDofs(vec)
-    c = mfem.GridFunctionCoefficient(gf)
+    if space.GetVDim() == 1:
+        c = mfem.GridFunctionCoefficient(gf)
+    else:
+        c = mfem.VectorGridFunctionCoefficient(gf)
     return c
 
+def projectVectorCoef(cv):
+    cx = mfem.InnerProductCoefficient(cv, mfem.VectorConstantCoefficient([1,0,0]))
+    cy = mfem.InnerProductCoefficient(cv, mfem.VectorConstantCoefficient([0,1,0]))
+    cz = mfem.InnerProductCoefficient(cv, mfem.VectorConstantCoefficient([0,0,1]))
+    return cx, cy, cz
 
 def generateDomainCoefficient(space, conditions):
     coefs = {}
