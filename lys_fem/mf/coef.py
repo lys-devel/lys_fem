@@ -4,6 +4,11 @@ from . import mfem
 
 
 def generateCoefficient(coefs, dim):
+    """
+    Generate MFEM coefficient from coefs.
+    coefs is a dictionary that contains values for domains/boundaries.
+    For example, coef = {1: "x", 2:"y"} and dim=3 means f(x,y,z)=x in domain 1, f(x,y,z)=y in domain 2.
+    """
     shape = np.array(list(coefs.values()))[0].shape
     if len(shape) == 0:
         return ScalarCoef(coefs, dim)
@@ -30,8 +35,14 @@ class ScalarCoef(mfem.PyCoefficient):
 class VectorCoef(mfem.VectorPyCoefficient):
     def __init__(self, coefs, dim, size):
         super().__init__(size)
+        self._coefs = coefs
+        self._dim = dim
         self._funcs = _generateFuncs(coefs, dim)
         self._default = np.array([0] * size, dtype=float)
+
+    def __getitem__(self, index):
+        coefs = {key: value[index] for key, value in self._coefs.items()}
+        return ScalarCoef(coefs, self._dim)
 
     def Eval(self, K, T, ip):
         self._attr = T.Attribute

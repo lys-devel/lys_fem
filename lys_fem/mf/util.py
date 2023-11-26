@@ -92,7 +92,6 @@ def linearForm(space, ess_tdof=None, K=None, x0=None, domainInteg=None, boundary
     rhs._lin = b
     return rhs
     
-
 def coefFromVector(space, vec):
     gf = mfem.GridFunction(space)
     gf.SetFromTrueDofs(vec)
@@ -108,19 +107,19 @@ def projectVectorCoef(cv):
     cz = mfem.InnerProductCoefficient(cv, mfem.VectorConstantCoefficient([0,0,1]))
     return cx, cy, cz
 
-def generateDomainCoefficient(space, conditions):
+def generateDomainCoefficient(mesh, conditions):
     coefs = {}
     for c in conditions:
-        for d in space.GetMesh().attributes:
+        for d in mesh.attributes:
             if c.domains.check(d):
                 coefs[d] = c.values
-    return generateCoefficient(coefs, space.GetMesh().Dimension())
+    return generateCoefficient(coefs, mesh.Dimension())
 
 
-def generateSurfaceCoefficient(space, conditions):
+def generateSurfaceCoefficient(mesh, conditions):
     bdr_stress = {}
     for b in conditions:
-        for d in space.GetMesh().bdr_attributes:
+        for d in mesh.bdr_attributes:
             if b.boundaries.check(d):
                 bdr_stress[d] = b.values
-    return generateCoefficient(bdr_stress, space.GetMesh().Dimension())
+    return generateCoefficient(bdr_stress, mesh.Dimension())

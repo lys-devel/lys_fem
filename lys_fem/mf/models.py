@@ -26,7 +26,7 @@ class MFEMModel:
 
     def essential_tdof_list(self, space):
         res = []
-        for axis, b in self._dirichletCondition().items():
+        for axis, b in self.dirichletCondition.items():
             if len(b) == 0:
                 continue
             ess_bdr = mfem.intArray(space.GetMesh().bdr_attributes.Max())
@@ -38,7 +38,9 @@ class MFEMModel:
             res.extend([i for i in ess_tdof_list])
         return mfem.intArray(res)
 
-    def _dirichletCondition(self):
+
+    @property
+    def dirichletCondition(self):
         conditions = [b for b in self._model.boundaryConditions if isinstance(b, DirichletBoundary)]
         bdr_dir = {i: [] for i in range(self._model.variableDimension())}
         for b in conditions:

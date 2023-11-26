@@ -1,34 +1,51 @@
+import sympy as sp
 from lys_fem.fem import NeumannBoundary
-from lys_fem.mf import mfem, MFEMLinearModel, util
+from lys_fem.mf import mfem, MFEMLinearModel, util, weakform, coef
+from lys_fem.mf.weakform import grad
 
 
 class MFEMHeatConductionModel(MFEMLinearModel):
     def __init__(self, model, mesh, mat):
         super().__init__(model)
+        self._mesh = mesh
         self._mat = mat
-        self._fec = mfem.H1_FECollection(1, mesh.Dimension())
-        self._space = mfem.FiniteElementSpace(mesh, self._fec, 1, mfem.Ordering.byVDIM)
-        self._initialize(model)
+        self._model = model
+        
+        self._u = weakform.TrialFunction("T", mesh, self.dirichletCondition[0], util.generateDomainCoefficient(mesh, model.initialConditions))
+        parser = weakform.WeakformParser(self.weakform, self.trialFunctions, self.coefficient)
 
-    def _initialize(self, model):
-        ess_tdof = self.essential_tdof_list(self._space)
-        self.x0 = util.initialValue(self._space, util.generateDomainCoefficient(self._space, model.initialConditions))
-        self.M = util.bilinearForm(self._space, ess_tdof, domainInteg=mfem.MassIntegrator(self._mat["Heat Conduction"]["C_v"]))
-        self.K = util.bilinearForm(self._space, ess_tdof, domainInteg=mfem.DiffusionIntegrator(self._mat["Heat Conduction"]["k"]))
-        self.b = util.linearForm(self._space, ess_tdof, self.K, self.x0, boundaryInteg=self._boundary_linear(model))
+        self.M, self.K, self.x0, self.b = parser.update()
 
-    def _boundary_linear(self, model):
-        res = []
-        # neumann boundary
-        neumann = [b for b in model.boundaryConditions if isinstance(b, NeumannBoundary)]
-        if len(neumann) != 0:
-            c = util.generateSurfaceCoefficient(self._space, neumann)
-            res.append(mfem.VectorBoundaryLFIntegrator(c))
-        return res
+    @property
+    def trialFunctions(self):
+        return [self._u]
+
+    @property
+    def weakform(self):
+        t, dV, dS = sp.symbols("t,dV,dS")
+        Cv, k, f = sp.symbols("Cv,k,nDT")
+
+        u = self._u
+        v = weakform.TestFunction(u)
+        gu, gv = grad(u), grad(v)
+
+        return (Cv * u.diff(t) * v + k * gu.dot(gv)) * dV  + f * v * dS
+
+    @property
+    def coefficient(self):
+        coefs = {"Cv": self._mat["Heat Conduction"]["C_v"], "k": self._mat["Heat Conduction"]["k"]}
+
+        # neumann boundary condition
+        neumann = [b for b in self._model.boundaryConditions if isinstance(b, NeumannBoundary)]
+        if len(neumann) == 0:
+            coefs["nDT"] = coef.ScalarCoef({}, self._mesh.SpaceDimension())
+        else:
+            coefs["nDT"]=util.generateSurfaceCoefficient(self._mesh, neumann)[0]
+        return coefs
     
     @property
     def solution(self):
-        gf = mfem.GridFunction(self._space)
+        gf = mfem.GridFunction(self._u.mfem.space)
         gf.SetFromTrueDofs(self.x0)
         return gf
         

@@ -10,7 +10,7 @@ from lys_fem.models import heat
 
 from .base import FEMTestCase
 
-class elasticity_test(FEMTestCase):
+class heat_test(FEMTestCase):
     def test_1d_dirichlet(self):
         p = self.__create1D()
 
