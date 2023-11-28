@@ -1,6 +1,6 @@
 from .geometry import GeometryGenerator
 from .mesh import OccMesher
-from .material import Material
+from .material import Material, Materials
 from .model import loadModel
 from .solver import FEMSolver
 
@@ -23,7 +23,7 @@ class FEMProject:
         self._dim = dim
         self._geom = GeometryGenerator()
         self._mesher = OccMesher()
-        self._materials = [Material("Material1")]
+        self._materials = Materials([Material("Material1")])
         self._models = []
         self._solvers = []
         self._submit = {}

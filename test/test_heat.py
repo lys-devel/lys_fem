@@ -1,5 +1,6 @@
 from scipy import special
 import numpy as np
+import sympy as sp
 
 from numpy.testing import assert_array_almost_equal, assert_allclose
 
@@ -10,6 +11,8 @@ from lys_fem.models import heat
 
 from .base import FEMTestCase
 
+x = sp.Symbol("x")
+
 class heat_test(FEMTestCase):
     def test_1d_dirichlet(self):
         p = self.__create1D()
@@ -17,8 +20,8 @@ class heat_test(FEMTestCase):
         # model: boundary and initial conditions
         model = heat.HeatConductionModel()
         model.boundaryConditions.append(DirichletBoundary("Dirichlet boundary1", [True], [1, 3]))
-        model.initialConditions.append(InitialCondition("Initial condition1", [0], [1]))
-        model.initialConditions.append(InitialCondition("Initial condition2", [2], [2]))
+        model.initialConditions.append(InitialCondition("Initial condition1", 0, [1]))
+        model.initialConditions.append(InitialCondition("Initial condition2", 2, [2]))
         p.models.append(model)
 
         # solver
@@ -40,8 +43,8 @@ class heat_test(FEMTestCase):
         # model: boundary and initial conditions
         model = heat.HeatConductionModel()
         model.boundaryConditions.append(DirichletBoundary("Dirichlet boundary1", [True], [1]))
-        model.boundaryConditions.append(NeumannBoundary("Neumann boundary1", [0.5], [3]))
-        model.initialConditions.append(InitialCondition("Initial condition1", [0], [1, 2]))
+        model.boundaryConditions.append(NeumannBoundary("Neumann boundary1", 0.5, [3]))
+        model.initialConditions.append(InitialCondition("Initial condition1", 0, [1, 2]))
         p.models.append(model)
 
         # solver
@@ -66,7 +69,7 @@ class heat_test(FEMTestCase):
 
         # model: boundary and initial conditions
         model = heat.HeatConductionModel()
-        model.initialConditions.append(InitialCondition("Initial condition1", ["heaviside(x-1,0.5)"], [1, 2]))
+        model.initialConditions.append(InitialCondition("Initial condition1", sp.Heaviside(x-1), [1, 2]))
         p.models.append(model)
 
         # solver
@@ -103,7 +106,7 @@ class heat_test(FEMTestCase):
 
         # model: boundary and initial conditions
         model = heat.HeatConductionModel()
-        model.initialConditions.append(InitialCondition("Initial condition1", ["heaviside(x-1,0.5)"], [1, 2]))
+        model.initialConditions.append(InitialCondition("Initial condition1", sp.Heaviside(x-1), [1, 2]))
         p.models.append(model)
 
         # solver

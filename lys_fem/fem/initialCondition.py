@@ -1,3 +1,4 @@
+import sympy as sp
 from .geometry import GeometrySelection
 
 
@@ -8,7 +9,10 @@ class InitialCondition:
         else:
             self._domains = GeometrySelection("Domain", domains)
         self._name = name
-        self._value = [str(v) for v in value]
+        if isinstance(value, (list, tuple)):
+            self._value = sp.Matrix(value)
+        else:
+            self._value = value
 
     def setDimension(self, dim):
         if len(self._value) > dim:

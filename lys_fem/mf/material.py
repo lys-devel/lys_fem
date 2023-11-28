@@ -1,33 +1,37 @@
+import sympy as sp
 from .coef import generateCoefficient
 
 
-def generateMaterial(fem, geom):
+def generateMaterial(fem, mesh):
     mats = fem.materials
     # find all parameter names and their groups
     groups = {}
     for m in mats:
         for p in m:
             if p.name in groups:
-                groups[p.name] |= set(p.getParameters(fem.dimension).keys())
+                groups[p.name] |= set(p.getParameters(mesh.SpaceDimension()).keys())
             else:
-                groups[p.name] = set(p.getParameters(fem.dimension).keys())
+                groups[p.name] = set(p.getParameters(mesh.SpaceDimension()).keys())
 
     # create coefficient for respective parameter
     res = {}
     for group, params in groups.items():
-        tmp = {pname: __generateCoefForParameter(pname, mats, group, fem, geom) for pname in params}
-        res[group] = tmp
+        res[group] = {pname: __generateCoefForParameter(pname, mats, group, mesh) for pname in params}
     return res
 
 
-def __generateCoefForParameter(pname, mats, group, fem, geom):
-    attrs = [tag for dim, tag in geom.getEntities(fem.dimension)]
+def __generateCoefForParameter(pname, mats, group, mesh):
     coefs = {}
     for m in mats:
         p = m[group]
         if p is None:
             continue
-        for d in attrs:
+        for d in mesh.attributes:
             if m.domains.check(d):
-                coefs[d] = p.getParameters(fem.dimension)[pname]
-    return generateCoefficient(coefs, fem.dimension)
+                coefs[d] = p.getParameters(mesh.SpaceDimension())[pname]
+
+    # convert dict to sympy piesewise expression
+    d = sp.Symbol("domain")
+    tuples = [(value, d==sp.Integer(key))for key, value in coefs.items()] + [(mats.defaultParameter(group, mesh.SpaceDimension())[pname], True)]
+    coefs = sp.Piecewise(*tuples)
+    return generateCoefficient(coefs, mesh.SpaceDimension())

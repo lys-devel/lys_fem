@@ -1,10 +1,11 @@
+import sympy as sp
 from lys.Qt import QtWidgets
 from lys_fem import FEMParameter
 from lys_fem.widgets import ScalarFunctionWidget
 
 
 class ElasticParameters(FEMParameter):
-    def __init__(self, rho="1", C=["1", "1"], type="lame"):
+    def __init__(self, rho=1, C=[1, 1], type="lame"):
         self.rho = rho
         self.C = C
         self.type = type
@@ -19,17 +20,17 @@ class ElasticParameters(FEMParameter):
 
     def _constructC(self):
         if self.type == "lame":
-            return [[self._lame(i, j) for j in range(6)] for i in range(6)]
+            return sp.Matrix([[self._lame(i, j) for j in range(6)] for i in range(6)])
 
     def _lame(self, i, j):
-        res = "0"
+        res = 0
         if i < 3 and j < 3:
-            res += "+" + self.C[0]
+            res += self.C[0]
         if i == j:
             if i < 3:
-                res += "+ 2 *" + self.C[1]
+                res += 2 * self.C[1]
             else:
-                res += "+" + self.C[1]
+                res += self.C[1]
         return res
 
     def widget(self):

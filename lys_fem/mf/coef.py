@@ -1,21 +1,30 @@
-import numpy as np
-from numpy import *
+import sympy as sp
 from . import mfem
 
 
 def generateCoefficient(coefs, dim):
     """
-    Generate MFEM coefficient from coefs.
-    coefs is a dictionary that contains values for domains/boundaries.
-    For example, coef = {1: "x", 2:"y"} and dim=3 means f(x,y,z)=x in domain 1, f(x,y,z)=y in domain 2.
+    Generate MFEM coefficient from sympy expression.
     """
-    shape = np.array(list(coefs.values()))[0].shape
+    shape = _checkShape(coefs)
     if len(shape) == 0:
         return ScalarCoef(coefs, dim)
-    elif len(shape) == 1:
-        return VectorCoef(coefs, dim, shape[0])
+    if len(shape) == 1:
+        return VectorCoef(coefs, dim)
     elif len(shape) == 2:
-        return MatrixCoef(coefs, dim, shape[0])
+        return MatrixCoef(coefs, dim)
+
+def _checkShape(value):
+    if isinstance(value, sp.Piecewise):
+        return _checkShape(value.subs("domain", -1))
+    if isinstance(value, (sp.Float, float, int, sp.Integer)):
+        return tuple()
+    else:
+        shape = sp.shape(value)
+        if len(shape) == 2:
+            if shape[1] == 1:
+                shape=(shape[0],)
+        return shape
 
 
 class ScalarCoef(mfem.PyCoefficient):
@@ -23,27 +32,28 @@ class ScalarCoef(mfem.PyCoefficient):
         super().__init__()
         self._coefs = coefs
         self._dim = dim
-        self._funcs = _generateFuncs(coefs, dim)
-        self._default = 0.0
+        self._funcs = sp.lambdify(_generateArgs(dim), coefs)
 
     def Eval(self, T, ip):
         self._attr = T.Attribute
         return super().Eval(T, ip)
 
     def EvalValue(self, x):
-        return float(_eval_attr(x, self._funcs, self._attr, self._default))
+        return float(self._funcs(self._attr, *x))
 
 
 class VectorCoef(mfem.VectorPyCoefficient):
-    def __init__(self, coefs, dim, size):
-        super().__init__(size)
+    def __init__(self, coefs, dim):
+        super().__init__(dim)
         self._coefs = coefs
         self._dim = dim
-        self._funcs = _generateFuncs(coefs, dim)
-        self._default = np.array([0] * size, dtype=float)
+        self._funcs = sp.lambdify(_generateArgs(dim), coefs)
 
     def __getitem__(self, index):
-        coefs = {key: value[index] for key, value in self._coefs.items()}
+        if isinstance(self._coefs, sp.Piecewise):
+            coefs = sp.Piecewise(*[(key[index], value) for key, value in self._coefs.args])
+        else:
+            coefs = self._coefs[index]
         return ScalarCoef(coefs, self._dim)
 
     def Eval(self, K, T, ip):
@@ -51,44 +61,45 @@ class VectorCoef(mfem.VectorPyCoefficient):
         return super().Eval(K, T, ip)
 
     def EvalValue(self, x):
-        return _eval_attr(x, self._funcs, self._attr, self._default)
+        return self._funcs(self._attr, *x).astype(float)
 
 
 class MatrixCoef(mfem.MatrixPyCoefficient):
-    def __init__(self, coefs, dim, size):
-        super().__init__(size)
+    def __init__(self, coefs, dim):
+        super().__init__(dim)
         self._coefs = coefs
         self._dim = dim
-        self._funcs = _generateFuncs(coefs, dim)
-        self._default = np.zeros((size, size), dtype=float)
+        self._funcs = sp.lambdify(_generateArgs(dim), coefs)
 
     def __getitem__(self, index):
-        coefs = {key: np.array(value)[index] for key, value in self._coefs.items()}
-        return ScalarCoef(coefs, self._dim)
+        if isinstance(self._coefs, sp.Piecewise):
+            coefs = sp.Piecewise(*[(key[index], value) for key, value in self._coefs.args])
+        else:
+            coefs = self._coefs[index]
+        if isinstance(index, int):
+            return VectorCoef(coefs, self._dim)
+        else:
+            return ScalarCoef(coefs, self._dim)
+
+    @staticmethod
+    def fromScalars(coefs):
+        return MatrixCoef(sp.Matrix([[c._coefs for c in cs] for cs in coefs]), coefs[0][0]._dim)
 
     def Eval(self, K, T, ip):
         self._attr = T.Attribute
         return super().Eval(K, T, ip)
 
     def EvalValue(self, x):
-        return _eval_attr(x, self._funcs, self._attr, self._default)
+        res = self._funcs(self._attr, *x)
+        return res.astype(float)
 
 
-def _generateFuncs(coefs, dim):
-    return {domain: np.vectorize(lambda x: _generateFunc(x, dim))(func) for domain, func in coefs.items()}
+def _generateArgs(dim):
+    d,x,y,z = sp.symbols("domain,x,y,z")
+    if dim == 1:
+        return d,x
+    elif dim == 2:
+        return d,x,y
+    elif dim == 3:
+        return d,x,y,z
 
-
-def _generateFunc(funcStr, dim):
-    vars = "x"
-    if dim > 1:
-        vars += ",y"
-    if dim > 2:
-        vars += ",z"
-    return eval("lambda " + vars + ": " + funcStr, globals())
-
-
-def _eval_attr(x, funcs, attr, default):
-    if attr not in funcs:
-        return default
-    else:
-        return np.vectorize(lambda f: f(*x), otypes=[float])(funcs[attr])

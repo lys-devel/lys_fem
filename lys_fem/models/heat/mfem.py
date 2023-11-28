@@ -10,7 +10,7 @@ class MFEMHeatConductionModel(MFEMLinearModel):
         self._mesh = mesh
         self._mat = mat
         self._model = model
-        self._u = weakform.TrialFunction("T", mesh, self.dirichletCondition[0], util.generateDomainCoefficient(mesh, model.initialConditions))
+        self._u = weakform.TrialFunction("T", mesh, self.dirichletCondition[0], util.generateDomainCoefficient(mesh, model.initialConditions, 0))
 
     @property
     def trialFunctions(self):
@@ -33,9 +33,6 @@ class MFEMHeatConductionModel(MFEMLinearModel):
 
         # neumann boundary condition
         neumann = [b for b in self._model.boundaryConditions if isinstance(b, NeumannBoundary)]
-        if len(neumann) == 0:
-            coefs["nDT"] = coef.ScalarCoef({}, self._mesh.SpaceDimension())
-        else:
-            coefs["nDT"]=util.generateSurfaceCoefficient(self._mesh, neumann)[0]
+        coefs["nDT"]=util.generateSurfaceCoefficient(self._mesh, neumann, default=0)
         return coefs
     

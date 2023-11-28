@@ -56,7 +56,7 @@ class DirichletBoundary(BoundaryCondition):
 class NeumannBoundary(BoundaryCondition):
     def __init__(self, name, values, boundaries=None):
         super().__init__(name, boundaries)
-        self._value = [str(v) for v in values]
+        self._value = values
 
     @classmethod
     @property

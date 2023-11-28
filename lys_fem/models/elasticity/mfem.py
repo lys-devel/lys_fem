@@ -14,7 +14,7 @@ class MFEMElasticModel(MFEMLinearModel):
         self._mat = mat
         self._model = model
         self._nvar = model.variableDimension()
-        init = util.generateDomainCoefficient(mesh, model.initialConditions)
+        init = util.generateDomainCoefficient(mesh, model.initialConditions, sp.Matrix([0]*self._nvar))
         self._u = weakform.TrialFunction("u", mesh, self.dirichletCondition, init, nvar=self._nvar)
 
     @property
