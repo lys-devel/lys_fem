@@ -20,7 +20,7 @@ class FEMSolverBase:
 
 class CGSolver(FEMSolverBase):
     def __init__(self, sol):
-        super().__init__(solver="CG", prec="GS")
+        super().__init__(solver="CG", prec=None)
 
 
 class GMRESSolver(FEMSolverBase):

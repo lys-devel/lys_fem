@@ -9,7 +9,7 @@ def initialValue(space, x):
     return xv
 
 
-def bilinearForm(space, ess_tdof=None, domainInteg=None, boundaryInteg=None):
+def bilinearForm(space, ess_bdrs=None, x=None, b=None, domainInteg=None, boundaryInteg=None):
     # initialization
     if domainInteg is None:
         domainInteg = []
@@ -19,8 +19,6 @@ def bilinearForm(space, ess_tdof=None, domainInteg=None, boundaryInteg=None):
         boundaryInteg = []
     if not hasattr(boundaryInteg, "__iter__"):
         boundaryInteg = [boundaryInteg]
-    if ess_tdof is None:
-        ess_tdof = mfem.intArray()
 
     # create Bilinear form of mfem
     m = mfem.BilinearForm(space)
@@ -29,14 +27,19 @@ def bilinearForm(space, ess_tdof=None, domainInteg=None, boundaryInteg=None):
     for i in boundaryInteg:
         m.AddBoundaryIntegrator(i)
     m.Assemble()
+    m.Finalize()
+
+    if b is not None:
+        m.EliminateEssentialBC(mfem.intArray(ess_bdrs), x, b)
+    else:
+        m.EliminateEssentialBC(mfem.intArray(ess_bdrs))
 
     # set it to matrix
-    result = mfem.SparseMatrix()
-    m.FormSystemMatrix(ess_tdof, result)
+    result = mfem.SparseMatrix(m.SpMat())
     result._bilin = m
     return result
 
-def mixedBilinearForm(space1, space2, ess_tdof1=None, ess_tdof2=None, domainInteg=None, boundaryInteg=None):
+def mixedBilinearForm(space1, space2, ess_bdrs1=None, ess_bdrs2=None, x=None, b=None, domainInteg=None, boundaryInteg=None):
     # initialization
     if domainInteg is None:
         domainInteg = []
@@ -46,10 +49,6 @@ def mixedBilinearForm(space1, space2, ess_tdof1=None, ess_tdof2=None, domainInte
         boundaryInteg = []
     if not hasattr(boundaryInteg, "__iter__"):
         boundaryInteg = [boundaryInteg]
-    if ess_tdof1 is None:
-        ess_tdof1 = mfem.intArray()
-    if ess_tdof2 is None:
-        ess_tdof2 = mfem.intArray()
 
     # create Bilinear form of mfem
     m = mfem.MixedBilinearForm(space1, space2)
@@ -58,14 +57,21 @@ def mixedBilinearForm(space1, space2, ess_tdof1=None, ess_tdof2=None, domainInte
     for i in boundaryInteg:
         m.AddBoundaryIntegrator(i)
     m.Assemble()
+    m.Finalize()
+
+    if b is not None:
+        m.EliminateTrialDofs(ess_bdrs1, x, b)
+    else:
+        m.EliminateTrialDofs(ess_bdrs1, mfem.Vector(space1.GetTrueVSize()), mfem.Vector(space2.GetTrueVSize()))
+    m.EliminateTestDofs(ess_bdrs2)
 
     # set it to matrix
-    result = mfem.OperatorHandle()
-    m.FormRectangularSystemMatrix(ess_tdof1, ess_tdof2, result)
+    result = mfem.SparseMatrix(m.SpMat())
     result._bilin = m
+
     return result
 
-def linearForm(space, ess_tdof=None, K=None, x0=None, domainInteg=None, boundaryInteg=None):
+def linearForm(space, domainInteg=None, boundaryInteg=None):
     # initialization
     if domainInteg is None:
         domainInteg = []
@@ -87,11 +93,10 @@ def linearForm(space, ess_tdof=None, K=None, x0=None, domainInteg=None, boundary
     # set it to vector
     rhs = mfem.Vector()
     mfem.GridFunction(space, b).GetTrueDofs(rhs)
-    if ess_tdof is not None and K is not None and x0 is not None:
-        K._bilin.EliminateVDofsInRHS(ess_tdof, x0, rhs)
     rhs._lin = b
     return rhs
-    
+
+
 def coefFromVector(space, vec):
     gf = mfem.GridFunction(space)
     gf.SetFromTrueDofs(vec)

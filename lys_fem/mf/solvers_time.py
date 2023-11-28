@@ -1,5 +1,6 @@
 from . import mfem
 from .models import MFEMLinearModel
+from .solvers_fem import createFEMSolver
 
 
 class StationaryEquation:
@@ -29,25 +30,23 @@ class StationaryEquation:
 
 
 class _TimeDependentSubSolverBase:
-    def __init__(self, model):
+    def __init__(self, sol, model):
         self.model = model
+        self._solver = createFEMSolver(sol.femSolver)
 
     def update(self, x):
         if not isinstance(self.model, MFEMLinearModel):
             self.model.update(x)
 
-    def solve(self, solver, dt):
+    def solve(self, dt):
         if isinstance(self.model, MFEMLinearModel):
-            solver.setMaxIteration(1)
+            self._solver.setMaxIteration(1)
         self.dt = dt
-        self.model.x0 = solver.solve(self, self.model.x0)
+        self.model.x0 = self._solver.solve(self, self.model.x0)
         return self.model.solution
 
 
 class BackwardEulerSolver(_TimeDependentSubSolverBase):
-    def __init__(self, sol, model):
-        super().__init__(model)
-
     def __call__(self, x):
         """
         Calculate M(x-x0)/dt + (Kx - b)

@@ -1,6 +1,6 @@
 import sympy as sp
 from lys_fem.fem import NeumannBoundary
-from lys_fem.mf import mfem, MFEMLinearModel, util, weakform, coef
+from lys_fem.mf import MFEMLinearModel, util, weakform, coef
 from lys_fem.mf.weakform import grad
 
 
@@ -10,11 +10,7 @@ class MFEMHeatConductionModel(MFEMLinearModel):
         self._mesh = mesh
         self._mat = mat
         self._model = model
-        
         self._u = weakform.TrialFunction("T", mesh, self.dirichletCondition[0], util.generateDomainCoefficient(mesh, model.initialConditions))
-        parser = weakform.WeakformParser(self.weakform, self.trialFunctions, self.coefficient)
-
-        self.M, self.K, self.x0, self.b = parser.update()
 
     @property
     def trialFunctions(self):
@@ -43,9 +39,3 @@ class MFEMHeatConductionModel(MFEMLinearModel):
             coefs["nDT"]=util.generateSurfaceCoefficient(self._mesh, neumann)[0]
         return coefs
     
-    @property
-    def solution(self):
-        gf = mfem.GridFunction(self._u.mfem.space)
-        gf.SetFromTrueDofs(self.x0)
-        return gf
-        

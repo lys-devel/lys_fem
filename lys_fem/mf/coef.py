@@ -21,6 +21,8 @@ def generateCoefficient(coefs, dim):
 class ScalarCoef(mfem.PyCoefficient):
     def __init__(self, coefs, dim):
         super().__init__()
+        self._coefs = coefs
+        self._dim = dim
         self._funcs = _generateFuncs(coefs, dim)
         self._default = 0.0
 
@@ -55,8 +57,14 @@ class VectorCoef(mfem.VectorPyCoefficient):
 class MatrixCoef(mfem.MatrixPyCoefficient):
     def __init__(self, coefs, dim, size):
         super().__init__(size)
+        self._coefs = coefs
+        self._dim = dim
         self._funcs = _generateFuncs(coefs, dim)
         self._default = np.zeros((size, size), dtype=float)
+
+    def __getitem__(self, index):
+        coefs = {key: np.array(value)[index] for key, value in self._coefs.items()}
+        return ScalarCoef(coefs, self._dim)
 
     def Eval(self, K, T, ip):
         self._attr = T.Attribute

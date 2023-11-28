@@ -2,25 +2,21 @@ from lys.Qt import QtWidgets
 
 
 class FEMSolver:
-    def __init__(self, models=None, subSolvers=None):
+    def __init__(self, solver, models=None):
         if models is None:
             models = []
-        if subSolvers is None:
-            subSolvers = []
+        self._solver = solver
         self._models = models
-        self._subs = subSolvers
 
-    def addModel(self, model, solver):
+    def addModel(self, model):
         self._models.append(model)
-        self._subs.append(solver)
 
     def remove(self, index):
         self._models.remove(self._models[index])
-        self._subs.remove(self._subs[index])
 
     @property
-    def subSolvers(self):
-        return self._subs
+    def solver(self):
+        return self._solver
 
     @property
     def models(self):
@@ -29,7 +25,7 @@ class FEMSolver:
     def saveAsDictionary(self, fem):
         d = {"solver": self.name}
         d["models"] = [fem.models.index(m) for m in self._models]
-        d["subs"] = [s.saveAsDictionary() for s in self._subs]
+        d["subs"] = self.solver.saveAsDictionary()
         return d
 
     @staticmethod
@@ -54,8 +50,8 @@ class StationarySolver(FEMSolver):
     @classmethod
     def loadFromDictionary(cls, fem, d):
         models = [fem.models[index]for index in d["models"]]
-        subs = [subSolvers[sub["type"]].loadFromDictionary(sub) for sub in d["subs"]]
-        return StationarySolver(models, subs)
+        solver = subSolvers[d["subs"]["type"]].loadFromDictionary(d["subs"])
+        return StationarySolver(solver, models)
 
 
 class TimeDependentSolver(FEMSolver):
