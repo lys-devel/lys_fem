@@ -2,10 +2,15 @@ import sympy as sp
 from . import mfem
 
 
-def generateCoefficient(coefs, dim):
+def generateCoefficient(coefs, mesh):
     """
-    Generate MFEM coefficient from sympy expression.
+    Generate MFEM coefficient from sympy expression dictionary.
+    coefs should be a dictionary such as {1: x, 2: y, "default": 0}.
+    The keys indicate domain/boundary attributes. "default" key is used as default value. 
     """
+    if isinstance(coefs, dict):
+        return generateCoefficient(_parseDictToSympy(coefs), mesh)
+    dim = mesh.SpaceDimension()
     shape = _checkShape(coefs)
     if len(shape) == 0:
         return ScalarCoef(coefs, dim)
@@ -17,7 +22,7 @@ def generateCoefficient(coefs, dim):
 def _checkShape(value):
     if isinstance(value, sp.Piecewise):
         return _checkShape(value.subs("domain", -1))
-    if isinstance(value, (sp.Float, float, int, sp.Integer)):
+    if isinstance(value, (sp.Float, sp.Integer, float, int)):
         return tuple()
     else:
         shape = sp.shape(value)
@@ -25,7 +30,21 @@ def _checkShape(value):
             if shape[1] == 1:
                 shape=(shape[0],)
         return shape
-
+    
+def _parseDictToSympy(coefs):
+    def convert(val):
+        if isinstance(val, (int, float, sp.Basic)):
+            return val
+        else:
+            return sp.Matrix(val)
+    d = sp.Symbol("domain")
+    tuples = [(convert(value), sp.Eq(d, sp.Integer(key))) for key, value in coefs.items() if key != "default"]
+    if "default" in coefs:
+        tuples = tuples + [(convert(coefs["default"]), True)]
+    else:
+        tuples = tuples + [(tuples[0][0], True)]
+    return sp.Piecewise(*tuples)
+    
 
 class ScalarCoef(mfem.PyCoefficient):
     def __init__(self, coefs, dim):
@@ -55,6 +74,10 @@ class VectorCoef(mfem.VectorPyCoefficient):
         else:
             coefs = self._coefs[index]
         return ScalarCoef(coefs, self._dim)
+
+    @staticmethod
+    def fromScalars(coefs):
+        return VectorCoef(sp.Matrix([c._coefs for c in coefs]), coefs[0]._dim)
 
     def Eval(self, K, T, ip):
         self._attr = T.Attribute

@@ -93,6 +93,21 @@ class CompositeModel:
         self.grad_Kx = self.K
         self.grad_b = None
 
+    def printVector(self, vec):
+        for i, t in enumerate(self.trialFunctions):
+            gf = mfem.GridFunction(t.mfem.space)
+            self._mesh.GetNodes(gf)
+            print(str(t).replace("trial_", ""), [v[0] for v in zip(vec.GetBlock(i).GetDataArray())])
+
+    def dualToPrime(self, vec):
+        offsets =mfem.intArray([0]+[t.mfem.space.GetTrueVSize() for t in self.trialFunctions])
+        offsets.PartialSum()
+        vb = mfem.BlockVector(vec, offsets)
+        res = mfem.BlockVector(offsets)
+        for i, trial in enumerate(self.trialFunctions):
+            res.GetBlock(i).Set(1, trial.mfem.dualToPrime(vb.GetBlock(i)))
+        return res
+
     @property
     def weakform(self):
         return sum(m.weakform for m in self._models)

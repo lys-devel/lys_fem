@@ -36,8 +36,8 @@ def TestFunction(trial):
 class _MFEMInfo:
     def __init__(self, name, mesh, ess_bdrs, value, order=1):
         self._name = name
-        fec = mfem.H1_FECollection(order, mesh.Dimension())
-        self._space = mfem.FiniteElementSpace(mesh, fec, 1)
+        self._fec = mfem.H1_FECollection(order, mesh.Dimension())
+        self._space = mfem.FiniteElementSpace(mesh, self._fec, 1)
         self._ess_bdrs = self.__getEssentialBoundary(ess_bdrs)
         self.setValue(value)
 
@@ -49,10 +49,20 @@ class _MFEMInfo:
         return ess_bdr
     
     def setValue(self, coef):
-        self._x = mfem.Vector()
-        x_gf = mfem.GridFunction(self._space)
-        x_gf.ProjectCoefficient(coef)
-        x_gf.GetTrueDofs(self._x)
+        self._x = mfem.GridFunction(self._space)
+        self._x.ProjectCoefficient(coef)
+
+    def dualToPrime(self, d):
+        res = mfem.Vector(self.space.GetTrueVSize())
+        M = _BilinearForm._bilinearForm(self.space, domainInteg=mfem.MassIntegrator())
+        solver, prec = mfem.getSolver("CG", "GS")
+        solver.SetOperator(M)
+        solver.Mult(d, res)
+        return res
+
+    @property
+    def dimension(self):
+        return self.space.GetMesh().SpaceDimension()
 
     @property
     def space(self):
@@ -61,7 +71,7 @@ class _MFEMInfo:
     @property
     def ess_bdrs(self):
         return self._ess_bdrs
-
+    
     @property
     def x(self):
         return self._x
@@ -79,13 +89,17 @@ class WeakformParser:
     def update(self):
         self._x = mfem.BlockVector(self._offsets)
         self._b = mfem.BlockVector(self._offsets)
-        for i, trial in enumerate(self._trials):
-            self._x.GetBlock(i).Set(1, trial.mfem.x)
-        for j, test in enumerate(self._tests):
-            self._b.GetBlock(j).Set(1, _LinearForm.getVector(self._wf, test, self._coeffs))
+        self._bv = [_LinearForm.getDofs(self._wf, test, self._coeffs) for test in self._tests]
 
         self._m = [[_BilinearForm.getMatrix(self._wf, trial, test, self._coeffs, deriv_t=1) for test in self._tests] for trial in self._trials]
-        self._k = [[_BilinearForm.getMatrix(self._wf, trial, test, self._coeffs, self._x.GetBlock(i), self._b.GetBlock(j), True, True) for j, test in enumerate(self._tests)] for i, trial in enumerate(self._trials)]
+        self._k = [[_BilinearForm.getMatrix(self._wf, trial, test, self._coeffs, trial.mfem.x, self._bv[j], True, True) for j, test in enumerate(self._tests)] for i, trial in enumerate(self._trials)]
+
+        for i, trial in enumerate(self._trials):
+            gf = mfem.GridFunction(trial.mfem.space, trial.mfem.x)
+            gf.GetTrueDofs(self._x.GetBlock(i))
+        for j, (test, b) in enumerate(zip(self._tests, self._bv)):
+            gf = mfem.GridFunction(test.mfem.space, b)
+            gf.GetTrueDofs(self._b.GetBlock(j))
 
         self._M = mfem.BlockOperator(self._offsets)
         self._K = mfem.BlockOperator(self._offsets)
@@ -99,20 +113,20 @@ class WeakformParser:
 
 class _LinearForm:
     @classmethod
-    def getVector(cls, wf, test, coeffs):
-        # f * ∇v * dV term
-        #scoef_V1 = sympyCoeff1D(wf.coeff(dV), test, True)
-        #coef_V1 = SubsCoeff(scoef_V1, coeffs)
-        #integ_V1 = _linearIntegrator(coef_V1, True)
+    def getDofs(cls, wf, test, coeffs):
+        # f.dot(∇v) * dV term
+        scoef_V1 = cls.__sympyCoeff1D(wf.coeff(dV), test, test_deriv=True)
+        coef_V1 = SubsCoeff(scoef_V1, coeffs, test.mfem.dimension, "vector")
+        integ_V1 = cls.__linearIntegrator(coef_V1, True)
 
         # f * v * dV term
-        scoef_V2 = cls.__sympyCoeff1D(wf.coeff(dV), test, test_deriv=False)
-        coef_V2 = SubsCoeff(scoef_V2, coeffs)
+        scoef_V2 = cls.__sympyCoeff1D(wf.coeff(dV), test)
+        coef_V2 = SubsCoeff(scoef_V2, coeffs, test.mfem.dimension)
         integ_V2 = cls.__linearIntegrator(coef_V2, False)
 
         # f * v * dS term
         scoef_S = cls.__sympyCoeff1D(wf.coeff(dS), test)
-        coef_S = SubsCoeff(scoef_S, coeffs)
+        coef_S = SubsCoeff(scoef_S, coeffs, test.mfem.dimension)
         integ_S = cls.__linearIntegrator(coef_S, boundary=True)
         return cls.__linearForm(test.mfem.space, domainInteg=[integ_V2], boundaryInteg=integ_S)
 
@@ -153,11 +167,8 @@ class _LinearForm:
             b.AddBoundaryIntegrator(i)
         b.Assemble()
 
-        # set it to vector
-        rhs = mfem.Vector()
-        mfem.GridFunction(space, b).GetTrueDofs(rhs)
-        rhs._lin = b
-        return rhs
+        return b
+
 
 class _BilinearForm:
     @classmethod
@@ -166,13 +177,22 @@ class _BilinearForm:
         for _ in range(deriv_t):
             trial_t=trial_t.diff(t)
         scoef_V = cls.__sympyCoeff(wf.coeff(dV), trial_t, test, trial_deriv, test_deriv)
-        coef_V = SubsCoeff(scoef_V, coeffs)
+        coef_V = SubsCoeff(scoef_V, coeffs, test.mfem.dimension, cls.__checkType(trial_deriv, test_deriv))
         integ_V = cls.__bilinearIntegrator(coef_V, trial_deriv, test_deriv)
         integ_S = None
         if trial.mfem.space == test.mfem.space:
-            return cls.__bilinearForm(trial.mfem.space, trial.mfem.ess_bdrs, x, b, domainInteg=integ_V,boundaryInteg=integ_S)
+            return cls._bilinearForm(trial.mfem.space, trial.mfem.ess_bdrs, x, b, domainInteg=integ_V,boundaryInteg=integ_S)
         else:
-            return cls.__mixedBilinearForm(trial.mfem.space, test.mfem.space, trial.mfem.ess_bdrs, test.mfem.ess_bdrs, x, b, domainInteg=integ_V, boundaryInteg=integ_S)
+            return cls._mixedBilinearForm(trial.mfem.space, test.mfem.space, trial.mfem.ess_bdrs, test.mfem.ess_bdrs, x, b, domainInteg=integ_V, boundaryInteg=integ_S)
+
+    @classmethod
+    def __checkType(cls, trial_deriv, test_deriv):
+        if trial_deriv and test_deriv:
+            return "matrix"
+        elif (not trial_deriv) and (not test_deriv):
+            return "scalar"
+        else:
+            return "vector"
 
     @classmethod
     def __bilinearIntegrator(cls, coef, trial_deriv=False, test_deriv=False):
@@ -234,7 +254,7 @@ class _BilinearForm:
         return res
 
     @staticmethod
-    def __bilinearForm(space, ess_bdrs=None, x=None, b=None, domainInteg=None, boundaryInteg=None):
+    def _bilinearForm(space, ess_bdrs=None, x=None, b=None, domainInteg=None, boundaryInteg=None):
         # initialization
         if domainInteg is None:
             domainInteg = []
@@ -255,17 +275,14 @@ class _BilinearForm:
         m.Finalize()
 
         if b is not None:
-            m.EliminateEssentialBC(mfem.intArray(ess_bdrs), x, b)
-        else:
-            m.EliminateEssentialBC(mfem.intArray(ess_bdrs))
+            m.EliminateEssentialBC(ess_bdrs, x, b)
 
-        # set it to matrix
-        result = mfem.SparseMatrix(m.SpMat())
+        result = m.SpMat()
         result._bilin = m
         return result
 
     @staticmethod
-    def __mixedBilinearForm(space1, space2, ess_bdrs1=None, ess_bdrs2=None, x=None, b=None, domainInteg=None, boundaryInteg=None):
+    def _mixedBilinearForm(space1, space2, ess_bdrs1=None, ess_bdrs2=None, x=None, b=None, domainInteg=None, boundaryInteg=None):
         # initialization
         if domainInteg is None:
             domainInteg = []
@@ -284,15 +301,13 @@ class _BilinearForm:
             m.AddBoundaryIntegrator(i)
         m.Assemble()
         m.Finalize()
-
+    
         if b is not None:
             m.EliminateTrialDofs(ess_bdrs1, x, b)
-        else:
-            m.EliminateTrialDofs(ess_bdrs1, mfem.Vector(space1.GetTrueVSize()), mfem.Vector(space2.GetTrueVSize()))
-        m.EliminateTestDofs(ess_bdrs2)
+            m.EliminateTestDofs(ess_bdrs2)
 
         # set it to matrix
-        result = mfem.SparseMatrix(m.SpMat())
+        result = m.SpMat()
         result._bilin = m
 
         return result
@@ -310,20 +325,18 @@ def _replaceFuncs(wf, removeTrial=False):
         wf = wf.subs(f, sp.Symbol(f.func.name)*enable)
     return wf
 
-def SubsCoeff(scoef, coefs):
+def SubsCoeff(scoef, coefs, dim, type="scalar"):
     """
     Substitute sympy coef object by coefs dictionary.
     """
-    if isinstance(scoef, sp.Matrix):
-        shape = scoef.shape
-        if len(shape) == 1:
-            res = coef.VectorCoef.fromScalars([SubsCoeff(scoef[i], coefs) for i in range(shape[0])])
-        else:
-            res = coef.MatrixCoef.fromScalars([[SubsCoeff(scoef[i,j], coefs) for i in range(shape[0])] for j in range(shape[1])])
+    if type=="vector":
+        res = coef.VectorCoef.fromScalars([SubsCoeff(scoef[i], coefs, dim) for i in range(scoef.shape[0])])
+    elif type=="matrix":
+        res = coef.MatrixCoef.fromScalars([[SubsCoeff(scoef[i,j], coefs, dim) for i in range(scoef.shape[0])] for j in range(scoef.shape[1])])
     else:
         args = tuple(scoef.free_symbols)
         res = sp.lambdify(args, scoef)(*[coefs[str(a)] for a in args])
         if res == 0:
-            res = mfem.ConstantCoefficient(0)
+            res = coef.ScalarCoef(0, dim)
     return res
 

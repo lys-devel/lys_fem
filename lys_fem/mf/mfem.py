@@ -9,7 +9,7 @@ def isParallel():
     except ModuleNotFoundError:
         return False
     if MPI.COMM_WORLD.size == 1:
-        return False
+        return True
     else:
         return True
 
@@ -82,6 +82,17 @@ if isParallel():
     def wait():
         return
 
+    class MFEMBilinearForm(mfem_orig.ParBilinearForm):
+        def SpMat(self):
+            return self.ParallelAssemble()
+
+    BilinearForm = MFEMBilinearForm
+        
+    class MFEMMixedBilinearForm(mfem_orig.ParMixedBilinearForm):
+        def SpMat(self):
+            return self.ParallelAssemble()
+
+    MixedBilinearForm = MFEMMixedBilinearForm
 else:
     import mfem.ser as mfem_orig
     from mfem.ser import *
@@ -246,6 +257,12 @@ class MFEMVector(mfem_orig.Vector):
         res *= value
         return res
 
+    def __str__(self):
+        return str([x for x in self])
+    
+    def __len__(self):
+        return len([x for x in self])
+
 
 Vector = MFEMVector
 
@@ -264,6 +281,12 @@ class MFEMBlockVector(mfem_orig.BlockVector):
         res = MFEMBlockVector(self)
         res *= value
         return res
+
+    def __str__(self):
+        return str([x for x in self])
+    
+    def __len__(self):
+        return len([x for x in self])
 
 
 BlockVector = MFEMBlockVector
@@ -345,17 +368,6 @@ class MFEMBlockOperator(mfem_orig.BlockOperator):
 
 BlockOperator = MFEMBlockOperator
 
-def createBlockMatrix(mats, offsets):
-    if isParallel():
-        res = mfem_orig.HypreParMatrixFromBlocks(mats)
-        return res
-    else:
-        res = mfem_orig.BlockMatrix(offsets)
-        for i, ms in enumerate(mats):
-            for j, m in enumerate(ms):
-                if m is not None:
-                    res.SetBlock(i,j,m)
-        return res
 
 def _parseMesh(mesh):
     fec = mfem_orig.H1_FECollection(1, mesh.Dimension())

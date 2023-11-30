@@ -6,10 +6,15 @@ if mfem.isParallel():
     from mpi4py import MPI
 
 
-def generateMesh(fem, geom, file="mesh.msh"):
+def generateMesh(fem, file="mesh.msh"):
+    geom = fem.geometries.generateGeometry(fem.dimension)
     if mfem.isRoot:
         fem.mesher.export(geom, file)
     mfem.wait()
+    return _createMFEMMesh(file)
+
+
+def _createMFEMMesh(file):
     mesh = mfem.Mesh(file, 1, 1)
     if len([i for i in mesh.bdr_attributes]) == 0:  # For 1D mesh, we have to set boundary manually.
         _createBoundaryFor1D(mesh, file)

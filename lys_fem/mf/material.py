@@ -1,4 +1,3 @@
-import sympy as sp
 from .coef import generateCoefficient
 
 
@@ -21,7 +20,7 @@ def generateMaterial(fem, mesh):
 
 
 def __generateCoefForParameter(pname, mats, group, mesh):
-    coefs = {}
+    coefs = {"default": mats.defaultParameter(group, mesh.SpaceDimension())[pname]}
     for m in mats:
         p = m[group]
         if p is None:
@@ -29,9 +28,4 @@ def __generateCoefForParameter(pname, mats, group, mesh):
         for d in mesh.attributes:
             if m.domains.check(d):
                 coefs[d] = p.getParameters(mesh.SpaceDimension())[pname]
-
-    # convert dict to sympy piesewise expression
-    d = sp.Symbol("domain")
-    tuples = [(value, d==sp.Integer(key))for key, value in coefs.items()] + [(mats.defaultParameter(group, mesh.SpaceDimension())[pname], True)]
-    coefs = sp.Piecewise(*tuples)
-    return generateCoefficient(coefs, mesh.SpaceDimension())
+    return generateCoefficient(coefs, mesh)
