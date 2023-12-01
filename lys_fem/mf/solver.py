@@ -77,21 +77,18 @@ class CompositeModel:
     def __init__(self, mesh, models):
         self._mesh = mesh
         self._models = models
-        self.assemble()
+        self._parser = weakform.WeakformParser(self.weakform, self.trialFunctions, self.coefficient)
+        self.x0 = self._parser.initialValue()
 
     def update(self, x):
-        pass
+        self.M, self.K, self.b = self._parser.update(x)
+        self.grad_Mx = self.M
+        self.grad_Kx = self.K
+        self.grad_b = None
 
     @property
     def timeUnit(self):
         return 1
-
-    def assemble(self):
-        self._parser = weakform.WeakformParser(self.weakform, self.trialFunctions, self.coefficient)
-        self.M, self.K, self.x0, self.b = self._parser.update()
-        self.grad_Mx = self.M
-        self.grad_Kx = self.K
-        self.grad_b = None
 
     def printVector(self, vec):
         for i, t in enumerate(self.trialFunctions):

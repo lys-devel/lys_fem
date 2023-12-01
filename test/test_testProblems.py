@@ -3,6 +3,7 @@ import numpy as np
 from numpy.testing import assert_array_almost_equal
 
 from lys_fem import geometry, mf
+from lys_fem.mf.weakform import x 
 from lys_fem.fem import FEMProject, DirichletBoundary, InitialCondition, StationarySolver, CGSolver, GMRESSolver, FEMSolution
 from lys_fem.models import test
 
@@ -19,12 +20,12 @@ class testProblems_test(FEMTestCase):
         # model: boundary and initial conditions
         model = test.LinearTestModel()
         model.boundaryConditions.append(DirichletBoundary("Dirichlet boundary1", [True], [1, 3]))
-        model.initialConditions.append(InitialCondition("Initial condition1", [0], [1]))
-        model.initialConditions.append(InitialCondition("Initial condition2", [2], [2]))
+        model.initialConditions.append(InitialCondition("Initial condition1", 0.0, [1]))
+        model.initialConditions.append(InitialCondition("Initial condition2", 2.0, [2]))
         p.models.append(model)
 
         # solver
-        stationary = StationarySolver([model], [CGSolver])
+        stationary = StationarySolver(CGSolver(), [model])
         p.solvers.append(stationary)
 
         # solve
@@ -47,12 +48,12 @@ class testProblems_test(FEMTestCase):
         # model: boundary and initial conditions
         model = test.NonlinearTestModel()
         model.boundaryConditions.append(DirichletBoundary("Dirichlet boundary1", [True], [1, 3]))
-        model.initialConditions.append(InitialCondition("Initial condition1", ["x"], [1]))
-        model.initialConditions.append(InitialCondition("Initial condition2", ["x"], [2]))
+        model.initialConditions.append(InitialCondition("Initial condition1", x, [1]))
+        model.initialConditions.append(InitialCondition("Initial condition2", x, [2]))
         p.models.append(model)
 
         # solver
-        stationary = StationarySolver([model], [GMRESSolver])
+        stationary = StationarySolver(GMRESSolver(), [model])
         p.solvers.append(stationary)
 
         # solve

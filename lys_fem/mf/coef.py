@@ -45,6 +45,11 @@ def _parseDictToSympy(coefs):
         tuples = tuples + [(tuples[0][0], True)]
     return sp.Piecewise(*tuples)
     
+class VariableCoef(mfem.GridFunctionCoefficient):
+    def __init__(self, trial, vector):
+        self._gf = mfem.GridFunction(trial.mfem.space)
+        self._gf.SetFromTrueDofs(vector)
+        super().__init__(self._gf)
 
 class ScalarCoef(mfem.PyCoefficient):
     def __init__(self, coefs, dim):
