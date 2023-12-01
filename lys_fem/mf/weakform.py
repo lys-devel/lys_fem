@@ -107,8 +107,9 @@ class WeakformParser:
         x = mfem.BlockVector(x, self._offsets)
         if not self._linear:
             for i, trial in enumerate(self._trials):
-                print("set", _replaceFuncs(trial))
-                self._coeffs[str(_replaceFuncs(trial))] = coef.VariableCoef(trial, x.GetBlock(i))
+                gf = mfem.GridFunction(trial.mfem.space)
+                gf.SetFromTrueDofs(x.GetBlock(i))
+                self._coeffs[str(_replaceFuncs(trial))] = coef.generateCoefficient(gf, trial.mfem.dimension)
 
         self._b = mfem.BlockVector(self._offsets)
         self._bv = [_LinearForm(self._wf, test).getDofs(self._coeffs) for test in self._tests]
@@ -392,6 +393,7 @@ def SubsCoeff(scoef, coefs, dim, type="scalar"):
         args = tuple(scoef.free_symbols)
         res = sp.lambdify(args, scoef)(*[coefs[str(a)] for a in args])
         if not isinstance(res, coef.ScalarCoef):
-            res = coef.ScalarCoef(res, dim)
+            if not isinstance(res, mfem.GridFunctionCoefficient):
+                res = coef.ScalarCoef(res, dim)
     return res
 

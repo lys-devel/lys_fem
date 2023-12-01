@@ -28,4 +28,4 @@ def __generateCoefForParameter(pname, mats, group, mesh):
         for d in mesh.attributes:
             if m.domains.check(d):
                 coefs[d] = p.getParameters(mesh.SpaceDimension())[pname]
-    return generateCoefficient(coefs, mesh)
+    return generateCoefficient(coefs, mesh.SpaceDimension())
