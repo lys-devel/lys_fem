@@ -5,7 +5,7 @@ x, y, z, t, dV, dS = sp.symbols("x,y,z,t,dV,dS")
 
 def grad(v):
     if isinstance(v, sp.Matrix):
-        return sp.Matrix.hstack(*[grad(x) for x in v])
+        return sp.Matrix.hstack(*[grad(x) for x in v]).T
     if z in v.free_symbols:
         return sp.Matrix([v.diff("x"), v.diff("y"), v.diff("z")])
     elif y in v.free_symbols:
@@ -100,7 +100,7 @@ class WeakformParser:
     def update(self, x):
         # skip if the system is linear
         if self._init and self._linear:
-            return self._M, self._K, self._b
+            return self._M, self._K, self._b, self._M, self._K
         self._init = True
 
         # update coefficient for nonlinear problem
@@ -111,6 +111,16 @@ class WeakformParser:
                 gf.SetFromTrueDofs(x.GetBlock(i))
                 self._coeffs[str(_replaceFuncs(trial))] = coef.generateCoefficient(gf, trial.mfem.dimension)
 
+        self.__updateResidual(x)
+        if self._linear:
+            return self._M, self._K, self._b, self._M, self._K
+        else:
+            self.__updateJacobian(x)
+            return self._M, self._K, self._b, self._M + self._gM, self._K + self._gK
+        #return mfem.SparseMatrix(self._M.CreateMonolithic()), mfem.SparseMatrix(self._K.CreateMonolithic()), self._x, self._b
+
+    def __updateResidual(self, x):
+        """Calculate M, K, b"""
         self._b = mfem.BlockVector(self._offsets)
         self._bv = [_LinearForm(self._wf, test).getDofs(self._coeffs) for test in self._tests]
 
@@ -128,8 +138,16 @@ class WeakformParser:
                 self._M.SetBlock(i, j, self._m[j][i])
                 self._K.SetBlock(i, j, self._k[j][i])
 
-        return self._M, self._K, self._b
-        #return mfem.SparseMatrix(self._M.CreateMonolithic()), mfem.SparseMatrix(self._K.CreateMonolithic()), self._x, self._b
+    def __updateJacobian(self, x):
+        self._gm = [[b.getMassMatrixJacobian(self._coeffs) for b in bs] for bs in self._bilinearForms]
+        self._gk = [[b.getMatrixJacobian(self._coeffs) for b in bs] for bs in self._bilinearForms]
+
+        self._gM = mfem.BlockOperator(self._offsets)
+        self._gK = mfem.BlockOperator(self._offsets)
+        for i, trial in enumerate(self._trials):
+            for j, test in enumerate(self._tests):
+                self._gM.SetBlock(i, j, self._gm[j][i])
+                self._gK.SetBlock(i, j, self._gk[j][i])
 
 class _LinearForm:
     def __init__(self, wf, test):
@@ -201,65 +219,78 @@ class _BilinearForm:
         self._trial = trial
         self._test = test
 
-        mass_coef = self.__sympyCoeff(self._weakform.coeff(dV), trial.diff(t), test)
+        mass_coef = _replaceFuncs(self._getCoeffs(self._weakform.coeff(dV), trial.diff(t), test)[0])
         self._mass = _BilinearFormMatrix(trial, test, mass_coef)
+        #self._mass_jac = _BilinearFormMatrix(trial, test, mass_coef.diff(_replaceFuncs(trial)))
 
-        grad2_coef = self.__sympyCoeff(wf.coeff(dV), trial, test, True, True)
+        grad2_coef = _replaceFuncs(self._getCoeffs(wf.coeff(dV).subs(trial.diff(t), 0), trial, test)[3])
         self._grad2 = _BilinearFormMatrix(trial, test, grad2_coef, True, True)
+        #self._grad2_jac = _BilinearFormMatrix(trial, test, grad2_coef.diff(_replaceFuncs(trial)), True, True)
 
         self.isNonlinear = sum(["trial_" in str(c) for c in [mass_coef, grad2_coef]])
 
     def getMassMatrix(self, coeffs):
         return self._mass.getMatrix(coeffs)
+    
+    def getMassMatrixJacobian(self, coeffs):
+        return self._mass_jac.getMatrix(coeffs)
 
     def getMatrix(self, coeffs, x=None, b=None):
         return self._grad2.getMatrix(coeffs, x, b)
+    
+    def getMatrixJacobian(self, coeffs):
+        return self._grad2_jac.getMatrix(coeffs)
 
 
     @classmethod
-    def __sympyCoeff(cls, wf, trial, test, trial_deriv=False, test_deriv=False):
-        """
-        Get bilinearform coefficient of weakform for trial and test functions.
+    def _getCoeffs(cls, wf, trial, test):
+        c0, v0 = list(cls.__getCoeffs_single(wf.diff(test), trial))
+        c1, v1=[],[]
+        for t in grad(test):
+            tmp = cls.__getCoeffs_single(wf.diff(t), trial)
+            c1.append(tmp[0])
+            v1.append(tmp[1])
+        return c0, v0, sp.Matrix(c1), sp.Matrix.hstack(*v1).T # coef for u*v, ∇u*v, u*∇v, ∇u*∇v
 
-        For exsample, if wf = c * u * v, c will be returned as sympy symbol.
-        If trial_deriv is True, the coefficient is vector: wf = c.dot(∇u) *v.
-        If test_deriv is True, the coefficient is vector: wf = u * c.dot(∇u)
-        If both trial_ and test_deriv is True, the coefficient is matrix: wf = ∇u.dot(c*∇v)
+    @classmethod
+    def __getCoeffs_single(cls, wf, trial):
+        dim = _dimension(trial)
+        diffs = [trial.diff(x), trial.diff(y), trial.diff(z)][:dim]
+        p = sp.poly(wf, trial, *diffs)
 
-        args:
-            wf(sympy expression): The weakform.
-            trial(sympy expression): The trial function
-            test(sympy expression): The test function.
-            trial_deriv(bool): See above.
-            test_driv(bool): See above.
-        """
-        wf = _replaceFuncs(wf)
-        if trial_deriv is False:
-            wf_t = cls.__coeff(wf, _replaceFuncs(trial))
-            if test_deriv is False:
-                return wf_t.coeff(sp.Symbol(test.func.name))
-            else:
-                return sp.Matrix([wf_t.coeff(_replaceFuncs(t)) for t in grad(test)])
-        else:
-            res = []
-            for tri in grad(trial):
-                wf_t = cls.__coeff(wf, _replaceFuncs(tri))
-                if test_deriv is False:
-                    res.append(wf_t.coeff(_replaceFuncs(test)))
-                else:
-                    res.append([wf_t.coeff(_replaceFuncs(t)) for t in grad(test)])
+        def diff_arg(orders):
+            res = 1
+            for d, o in zip(diffs, orders[1:]):
+                res *= d**o
+            return res
+        
+        def diff_arg_vec(orders):
+            res = [0] * dim
+            for di in range(1, dim+1):
+                if orders[di] != 0:
+                    ord = list(orders)
+                    ord[di] -=1
+                    res[di-1] = diff_arg(ord)
             return sp.Matrix(res)
 
+        c, v = 0, sp.Matrix([0]*dim)
+        for args, value in p.as_dict().items():
+            if args[0] != 0:
+                c += value * trial**(args[0]-1) * diff_arg(args)
+            else:
+                v += value / sum(args) * diff_arg_vec(args)
+        return c, v
+
     @classmethod
-    def __coeff(cls, expr, x_trial):
-        if expr == 0:
-            return sp.core.numbers.Zero()
-        p = sp.poly(expr, x_trial)
-        ac = p.all_coeffs()
-        res = sp.core.numbers.Zero()
-        for order in range(p.degree()):
-            res += ac[order] * x**(p.degree() - order - 1)
-        return res
+    def _getJacobiCoeffs(cls, wf, trial, test):
+        dim = _dimension(trial)
+        diffs_trial = [trial.diff(x), trial.diff(y), trial.diff(z)][:dim]
+        diffs_test = [test.diff(x), test.diff(y), test.diff(z)][:dim]
+        c1 = wf.diff(trial).diff(test)
+        c2 = sp.Matrix([wf.diff(t).diff(test) for t in diffs_trial])
+        c3 = sp.Matrix([wf.diff(trial).diff(t) for t in diffs_test])
+        c4 = sp.Matrix([[wf.diff(t).diff(t2) for t in diffs_trial] for t2 in diffs_test])
+        return c1, c2, c3, c4
 
 
 class _BilinearFormMatrix:
@@ -367,9 +398,18 @@ class _BilinearFormMatrix:
 
         return result
 
+def _dimension(trial):
+    if z in trial.free_symbols:
+        return 3
+    elif y in trial.free_symbols:
+        return 2
+    else:
+        return 1
 
 def _replaceFuncs(wf, removeTrial=False):
     """Used from sympyCoeff"""
+    if not isinstance(wf, sp.Basic):
+        return wf
     for f in wf.atoms(sp.Function):
         if removeTrial and "trial_" in f.func.name:
             enable = 0
@@ -385,6 +425,8 @@ def SubsCoeff(scoef, coefs, dim, type="scalar"):
     """
     Substitute sympy coef object by coefs dictionary.
     """
+    if not isinstance(scoef, (sp.Basic, sp.Matrix)):
+        return coef.generateCoefficient(scoef, dim)
     if type=="vector":
         res = coef.VectorCoef.fromScalars([SubsCoeff(scoef[i], coefs, dim) for i in range(scoef.shape[0])])
     elif type=="matrix":

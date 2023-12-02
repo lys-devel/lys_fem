@@ -81,9 +81,7 @@ class CompositeModel:
         self.x0 = self._parser.initialValue()
 
     def update(self, x):
-        self.M, self.K, self.b = self._parser.update(x)
-        self.grad_Mx = self.M
-        self.grad_Kx = self.K
+        self.M, self.K, self.b, self.grad_Mx, self.grad_Kx = self._parser.update(x)
         self.grad_b = None
 
     @property
