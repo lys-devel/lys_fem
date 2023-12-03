@@ -72,7 +72,7 @@ class VectorCoef(mfem.VectorPyCoefficient):
     def Eval(self, K, T, ip):
         for c in self._coefs:
             c._attr =T.Attribute
-        K.Set(1, np.array([c.Eval(T,ip) for c in self._coefs]))
+        K.Set(1, mfem.Vector([c.Eval(T,ip) for c in self._coefs]))
 
 
 class MatrixCoef(mfem.MatrixPyCoefficient):

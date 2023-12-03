@@ -63,4 +63,5 @@ class testProblems_test(FEMTestCase):
         sol = FEMSolution(".", p)
         res = sol.eval("x", data_number=1)
         for w in res:
+            print(w.data, np.sqrt(2 * w.x[:, 0]))
             assert_array_almost_equal(w.data, np.sqrt(2 * w.x[:, 0]), decimal=2)

@@ -52,6 +52,7 @@ class NewtonSolver:
             R = mfem.getMax(dx.Norml2())
             if norm != 0:
                 R = R/norm
+            print(R)
             if R < eps:
                 print("Newton", i)
                 return x

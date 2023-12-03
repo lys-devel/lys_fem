@@ -9,7 +9,7 @@ def isParallel():
     except ModuleNotFoundError:
         return False
     if MPI.COMM_WORLD.size == 1:
-        return True
+        return False
     else:
         return True
 
