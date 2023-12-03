@@ -88,6 +88,10 @@ class CompositeModel:
     def timeUnit(self):
         return 1
 
+    @property
+    def isNonlinear(self):
+        return self._parser.isNonlinear
+
     def printVector(self, vec):
         for i, t in enumerate(self.trialFunctions):
             gf = mfem.GridFunction(t.mfem.space)

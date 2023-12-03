@@ -8,11 +8,10 @@ class StationaryEquation:
         self.model = model
 
     def update(self, x):
-        if not isinstance(self.model, MFEMLinearModel):
-            self.model.update(x)
+        self.model.update(x)
 
     def solve(self, solver):
-        if isinstance(self.model, MFEMLinearModel):
+        if not self.model.isNonlinear:
             solver.setMaxIteration(1)
         self.model.x0 = solver.solve(self, self.model.x0)
         return self.model.solution

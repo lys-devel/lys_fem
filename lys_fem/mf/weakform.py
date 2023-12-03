@@ -91,6 +91,10 @@ class WeakformParser:
         self._offsets.PartialSum()
         self._init = False
 
+    @property
+    def isNonlinear(self):
+        return not self._linear
+
     def initialValue(self):
         self._x = mfem.BlockVector(self._offsets)
         for i, trial in enumerate(self._trials):
@@ -106,10 +110,15 @@ class WeakformParser:
 
         # update coefficient for nonlinear problem
         x = mfem.BlockVector(x, self._offsets)
+        x_gfs = []
+        for i, trial in enumerate(self._trials):
+            x_gf = mfem.GridFunction(trial.mfem.space)
+            x_gf.SetFromTrueDofs(x.GetBlock(i))
+            x_gfs.append(x_gf)      
+
+        # prepare coefficient for trial functions and its derivative.
         if not self._linear:
-            for i, trial in enumerate(self._trials):
-                gf = mfem.GridFunction(trial.mfem.space)
-                gf.SetFromTrueDofs(x.GetBlock(i))
+            for gf in x_gfs:
                 self._coeffs[str(_replaceFuncs(trial))] = coef.generateCoefficient(gf, trial.mfem.dimension)
                 for d in range(trial.mfem.dimension):
                     xyz = sp.symbols("x,y,z")[d]
@@ -117,7 +126,7 @@ class WeakformParser:
                     gf.GetDerivative(1, d, gfd)
                     self._coeffs[str(_replaceFuncs(trial.diff(xyz)))] = coef.generateCoefficient(gfd, trial.mfem.dimension)
                 
-        self.__updateResidual(x)
+        self.__updateResidual(x_gfs)
         if self._linear:
             return self._M, self._K, self._b, self._M, self._K
         else:
@@ -131,7 +140,7 @@ class WeakformParser:
         self._bv = [_LinearForm(self._wf, test).getDofs(self._coeffs) for test in self._tests]
 
         self._m = [[b.getMassMatrix(self._coeffs) for b in bs] for bs in self._bilinearForms]
-        self._k = [[b.getMatrix(self._coeffs, x.GetBlock(i), self._bv[j]) for j, b in enumerate(bs)] for i, bs in enumerate(self._bilinearForms)]
+        self._k = [[b.getMatrix(self._coeffs, x[i], self._bv[j]) for j, b in enumerate(bs)] for i, bs in enumerate(self._bilinearForms)]
 
         for j, (test, b) in enumerate(zip(self._tests, self._bv)):
             gf = mfem.GridFunction(test.mfem.space, b)
@@ -238,7 +247,6 @@ class _BilinearForm:
         self._stiff_jac = _BilinearFormMatrix(trial, test, stiff_coef_jac)
 
         self.isNonlinear = sum(["trial_" in str(c) for c in mass_coef + stiff_coef]) != 0
-        print("nonlinear", self.isNonlinear)
 
     def getMassMatrix(self, coeffs):
         return self._mass.getMatrix(coeffs)
@@ -311,8 +319,7 @@ class _BilinearFormMatrix:
         self._test = test
         self._coef = coeffs
         self._dim = test.mfem.dimension
-        print(self._coef)
-
+        
     def getMatrix(self, coeffs, x=None, b=None):
         def is_zero(val):
             if isinstance(val, sp.Matrix):
