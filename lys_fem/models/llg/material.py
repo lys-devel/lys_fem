@@ -5,7 +5,7 @@ from lys_fem.widgets import ScalarFunctionWidget
 
 class LLGParameters(FEMParameter):
     def __init__(self, alpha=0):
-        self.alpha = str(alpha)
+        self.alpha = alpha
 
     @classmethod
     @property
