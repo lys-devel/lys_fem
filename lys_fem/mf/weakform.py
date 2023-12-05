@@ -391,7 +391,7 @@ class _BilinearFormMatrix:
             if is_zero(coeffs[i]):
                 self._parsers.append(None)
             else:
-                self._parsers.append(_coefParser(coeffs[0], self._dim, typ))
+                self._parsers.append(_coefParser(coeffs[i], self._dim, typ))
         
     def getMatrix(self, coeffs, x=None, b=None):
         integ = []
@@ -537,7 +537,8 @@ class _coefParser:
         if type == "vector":
             self._scalars = [_coefParser(sc, dim) for sc in scoef]
         if type == "matrix":
-            self._scalars = [[_coefParser(sc, dim) for sc in scs] for scs in scoef]
+            
+            self._scalars = [[_coefParser(scoef[i,j], dim) for i in range(scoef.shape[0])] for j in range(scoef.shape[1])]
         else:
             if not isinstance(scoef, (sp.Basic, sp.Matrix)):
                 self._func = coef.generateCoefficient(scoef, dim)
