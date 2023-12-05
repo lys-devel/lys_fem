@@ -21,6 +21,9 @@ def run(fem, run=True):
     if run:
         for i, s in enumerate(solvers):
             mfem.print_("------------Solver " + str(i) + ": " + s.name + " started --------------------")
+            import time
+            start = time.time()
             s.execute()
+            print(time.time()-start)
     else:
         return mesh, material, models, solvers
