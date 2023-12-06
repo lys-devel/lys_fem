@@ -19,7 +19,7 @@ class MFEMLLGModel(MFEMLinearModel):
     def weakform(self):
         t, dV, dS = sp.symbols("t,dV,dS")
         a, g = sp.symbols("alpha_G, gam_LL")
-        B = sp.Matrix(sp.symbols("B1, B2, B3"))
+        B = sp.Matrix([0,0,sp.Symbol("B3")])
 
         m = self._m
         test_m = weakform.TestFunction(m)

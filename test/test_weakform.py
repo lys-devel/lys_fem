@@ -36,46 +36,47 @@ class weakform_test(FEMTestCase):
         cv = sp.Matrix(sp.symbols("cv1, cv2 cv3"))
         m = sp.Matrix([sp.symbols("m11, m12 m13"),sp.symbols("m21, m22 m23"),sp.symbols("m31, m32 m33")])
         wf = c*u.dot(v) + (gu*cv).dot(v) + u.dot(gv.T*cv) + sp.tensorcontraction(sp.tensorcontraction(sp.tensorproduct(gu, m*gv), (0,2)), (0,1))
+        vars = [uu for uu in u] + [uu for uu in gu]
 
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[0], v[0])[0], c)
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[0], v[1])[0], 0)
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[0], v[2])[0], 0)
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[1], v[0])[0], 0)
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[1], v[1])[0], c)
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[1], v[2])[0], 0)
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[2], v[0])[0], 0)
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[2], v[1])[0], 0)
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[2], v[2])[0], c)
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[0], v[0])[0], c)
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[0], v[1])[0], 0)
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[0], v[2])[0], 0)
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[1], v[0])[0], 0)
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[1], v[1])[0], c)
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[1], v[2])[0], 0)
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[2], v[0])[0], 0)
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[2], v[1])[0], 0)
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[2], v[2])[0], c)
 
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[0], v[0])[1], cv)
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[1], v[1])[1], cv)
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[2], v[2])[1], cv)
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[1], v[0])[1], sp.Matrix([0,0,0]))
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[2], v[0])[1], sp.Matrix([0,0,0]))
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[2], v[1])[1], sp.Matrix([0,0,0]))
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[0], v[1])[1], sp.Matrix([0,0,0]))
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[0], v[2])[1], sp.Matrix([0,0,0]))
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[1], v[2])[1], sp.Matrix([0,0,0]))
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[0], v[0])[1], cv)
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[1], v[1])[1], cv)
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[2], v[2])[1], cv)
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[1], v[0])[1], sp.Matrix([0,0,0]))
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[2], v[0])[1], sp.Matrix([0,0,0]))
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[2], v[1])[1], sp.Matrix([0,0,0]))
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[0], v[1])[1], sp.Matrix([0,0,0]))
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[0], v[2])[1], sp.Matrix([0,0,0]))
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[1], v[2])[1], sp.Matrix([0,0,0]))
 
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[0], v[0])[2], sp.Matrix([cv[0],0,0]))
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[0], v[1])[2], sp.Matrix([cv[1],0,0]))
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[0], v[2])[2], sp.Matrix([cv[2],0,0]))
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[1], v[0])[2], sp.Matrix([0,cv[0],0]))
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[1], v[1])[2], sp.Matrix([0,cv[1],0]))
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[1], v[2])[2], sp.Matrix([0,cv[2],0]))
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[2], v[0])[2], sp.Matrix([0,0,cv[0]]))
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[2], v[1])[2], sp.Matrix([0,0,cv[1]]))
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[2], v[2])[2], sp.Matrix([0,0,cv[2]]))
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[0], v[0])[2], sp.Matrix([cv[0],0,0]))
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[0], v[1])[2], sp.Matrix([cv[1],0,0]))
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[0], v[2])[2], sp.Matrix([cv[2],0,0]))
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[1], v[0])[2], sp.Matrix([0,cv[0],0]))
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[1], v[1])[2], sp.Matrix([0,cv[1],0]))
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[1], v[2])[2], sp.Matrix([0,cv[2],0]))
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[2], v[0])[2], sp.Matrix([0,0,cv[0]]))
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[2], v[1])[2], sp.Matrix([0,0,cv[1]]))
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[2], v[2])[2], sp.Matrix([0,0,cv[2]]))
         
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[0], v[0])[3], m[0,0]*sp.eye(3))
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[0], v[1])[3], m[0,1]*sp.eye(3))
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[0], v[2])[3], m[0,2]*sp.eye(3))
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[1], v[0])[3], m[1,0]*sp.eye(3))
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[1], v[1])[3], m[1,1]*sp.eye(3))
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[1], v[2])[3], m[1,2]*sp.eye(3))
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[2], v[0])[3], m[2,0]*sp.eye(3))
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[2], v[1])[3], m[2,1]*sp.eye(3))
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u[2], v[2])[3], m[2,2]*sp.eye(3))
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[0], v[0])[3], m[0,0]*sp.eye(3))
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[0], v[1])[3], m[0,1]*sp.eye(3))
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[0], v[2])[3], m[0,2]*sp.eye(3))
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[1], v[0])[3], m[1,0]*sp.eye(3))
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[1], v[1])[3], m[1,1]*sp.eye(3))
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[1], v[2])[3], m[1,2]*sp.eye(3))
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[2], v[0])[3], m[2,0]*sp.eye(3))
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[2], v[1])[3], m[2,1]*sp.eye(3))
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[2], v[2])[3], m[2,2]*sp.eye(3))
 
         mesh = self.generateSimpleMesh(3)
         u = weakform.TrialFunction("u", mesh, {0:[]}, coef.generateCoefficient(1, mesh.SpaceDimension()))
@@ -88,8 +89,10 @@ class weakform_test(FEMTestCase):
         m = sp.Matrix([sp.symbols("m11, m12 m13"),sp.symbols("m21, m22 m23"),sp.symbols("m31, m32 m33")])
         wf = gu.dot(cv)*u*v + gu[0]*gu[1]*gu[2]*v
 
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u, v)[0], gu.dot(cv))
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, u, v)[1], sp.Matrix([gu[1]*gu[2], gu[2]*gu[0], gu[0]*gu[1]])/3)
+        vars = [u] + [uu for uu in gu]
+
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u, v)[0], gu.dot(cv)/2)
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u, v)[1], cv*u/2 + sp.Matrix([gu[1]*gu[2], gu[2]*gu[0], gu[0]*gu[1]])/3)
 
     def test_trial_1d(self):
         mesh = self.generateSimpleMesh(1)
@@ -100,31 +103,10 @@ class weakform_test(FEMTestCase):
         c_val = coef.generateCoefficient(2, mesh)
         wf = c*v*dV
 
-        b = weakform._LinearForm.getVector(wf, v, {"c": c_val})
-        bp = u.mfem.dualToPrime(b)
+        lf = weakform._LinearForm(wf, v)
+        b = lf.getDofs({"c": c_val})
+        vec = mfem.Vector()
+        b = b.GetTrueDofs(vec)
+        bp = u.mfem.dualToPrime(vec)
         self.assert_array_almost_equal([bb for bb in bp], 2)
 
-    def test_trial_2d(self):
-        mesh = self.generateSimpleMesh(2)
-        u = weakform.TrialFunction("u", mesh, {0: [4,6], 1:[]}, coef.generateCoefficient(sp.Matrix([1,2]), mesh), nvar=2)
-        v = weakform.TestFunction(u)
-
-        c = sp.Symbol("c")
-        c_val = coef.generateCoefficient(2, mesh)
-        wf = c*u[0]*v[1]*dV
-
-        x1 = u[0].mfem.x
-        x2 = u[1].mfem.x
-
-        b1 = mfem.Vector(x1)
-        b2 = mfem.Vector([0] * x2.Size())
-
-        K1 = weakform._BilinearForm.getMatrix(wf, u[0], v[0], {"c": c_val})
-        K2 = weakform._BilinearForm.getMatrix(wf, u[0], v[1], {"c": c_val}, x1, b2)
-
-        v = mfem.Vector([1]*K2.Width())
-        v2 = mfem.Vector([0]*K2.Width())
-
-        K2.Mult(v, v2)
-
-        print([x for x in v2])

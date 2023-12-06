@@ -81,8 +81,12 @@ class heat_test(FEMTestCase):
 
         # solution
         sol = FEMSolution(".", p)
-        res = sol.eval("T", data_number=100)
 
+        res = sol.eval("T", data_number=0)
+        for w in res:
+            assert_allclose(w.data, np.heaviside(w.x[:, 0] - 1, 0.5), rtol=0, atol=0.001)
+
+        res = sol.eval("T", data_number=100)
         for w in res:
             assert_allclose(w.data, calc_temp(w.x[:, 0] - 1, 0.01), rtol=0, atol=0.001)
 

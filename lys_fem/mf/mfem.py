@@ -82,6 +82,12 @@ if isParallel():
     def wait():
         return
 
+    class MFEMLinearForm(mfem_orig.ParLinearForm):
+        def GetTrueDofs(self, vector):
+            self.ParallelAssemble(vector)
+
+    LinearForm = MFEMLinearForm
+
     class MFEMBilinearForm(mfem_orig.ParBilinearForm):
         def SpMat(self):
             return self.ParallelAssemble()
@@ -138,6 +144,12 @@ else:
     def getMax(data):
         return data
 
+    class MFEMLinearForm(mfem_orig.LinearForm):
+        def GetTrueDofs(self, vector):
+            gf = mfem_orig.GridFunction(self.FESpace(), self)
+            gf.GetTrueDofs(vector)
+
+    LinearForm = MFEMLinearForm
 
 def print_initialize():
     print_("\n---------------------Initialization--------------------------")
