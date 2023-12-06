@@ -102,11 +102,6 @@ class LinearWeakformParser:
         self._tests = [TestFunction(t) for t in trials]
         self._coeffs = coeffs
         self._wf_tt, self._wf_t, self._wf_x, self._wf_bt, self._wf_b = self.__timeDerivativeTerm(self._wf, trials)
-        print(self._wf_tt, "\n")
-        print(self._wf_t, "\n")
-        print(self._wf_x, "\n")
-        print(self._wf_bt, "\n")
-        print(self._wf_b, "\n")
 
         self._bilinearForms = [[_BilinearForm(self._wf_x, trials, trial, test) for test in self._tests] for trial in self._trials]
         self._bilinearForms_t = [[_BilinearForm(self._wf_t, trials, trial, test) for test in self._tests] for trial in self._trials]
@@ -326,8 +321,8 @@ class _BilinearForm:
         stiff_coef = self._getCoeffs(wf.coeff(dV).subs(trial.diff(t), 0), vars, trial, test)
         self._stiff = _BilinearFormMatrix(trial, test, stiff_coef)
 
-        stiff_coef_jac = self._getJacobiCoeffs(self._weakform.coeff(dV), trial, test)
-        self._stiff_jac = _BilinearFormMatrix(trial, test, stiff_coef_jac)
+        coef_jac = self._getJacobiCoeffs(self._weakform.coeff(dV), trial, test)
+        self._jac = _BilinearFormMatrix(trial, test, coef_jac)
 
         self.isNonlinear = sum(["trial_" in str(c) for c in stiff_coef]) != 0
 
@@ -335,7 +330,7 @@ class _BilinearForm:
         return self._stiff.getMatrix(coeffs, x, b)
     
     def getMatrixJacobian(self, coeffs):
-        return self._stiff_jac.getMatrix(coeffs)
+        return self._jac.getMatrix(coeffs)
 
     @classmethod
     def _getCoeffs(cls, wf, vars, trial, test):
@@ -520,9 +515,8 @@ class _coefParser:
         self._type = type
         if type == "vector":
             self._scalars = [_coefParser(sc, dim) for sc in scoef]
-        if type == "matrix":
-
-            self._scalars = [[_coefParser(scoef[i,j], dim) for i in range(scoef.shape[0])] for j in range(scoef.shape[1])]
+        elif type == "matrix":
+            self._scalars = [[_coefParser(scoef[i,j], dim) for j in range(scoef.shape[0])] for i in range(scoef.shape[1])]
         else:
             if not isinstance(scoef, (sp.Basic, sp.Matrix)):
                 self._func = coef.generateCoefficient(scoef, dim)
