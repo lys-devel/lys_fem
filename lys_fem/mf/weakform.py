@@ -211,20 +211,21 @@ class WeakformParser:
 
     def __updateResidual(self, x):
         """Calculate M, K, b"""
-        self._b = mfem.BlockVector(self._offsets)
         self._bv = [lf.getDofs(self._coeffs) for lf in self._linearForms]
         self._k = [[b.getMatrix(self._coeffs, x[i], self._bv[j]) for j, b in enumerate(bs)] for i, bs in enumerate(self._bilinearForms)]
-
-        for j, b in enumerate(self._bv):
-            b.GetTrueDofs(self._b.GetBlock(j))
 
         self._K = mfem.BlockOperator(self._offsets)
         for i, trial in enumerate(self._trials):
             for j, test in enumerate(self._tests):
                 self._K.SetBlock(i, j, self._k[j][i])
 
+        self._b = mfem.BlockVector(self._offsets)
+        for j, b in enumerate(self._bv):
+            b.GetTrueDofs(self._b.GetBlock(j))
+
     def __updateJacobian(self, x):
         self._gk = [[b.getMatrixJacobian(self._coeffs) for b in bs] for bs in self._bilinearForms]
+
         self._gK = mfem.BlockOperator(self._offsets)
         for i, trial in enumerate(self._trials):
             for j, test in enumerate(self._tests):
@@ -232,70 +233,48 @@ class WeakformParser:
 
 class _LinearForm:
     def __init__(self, wf, test):
-        self._weakform = wf
         self._test = test
 
         self._parser = []
 
         self._scoef_V1 = self.__sympyCoeff1D(wf.coeff(dV), test, test_deriv=True)
-        if is_zero(self._scoef_V1):
-            self._parser.append(None)
-        else:
-            self._parser.append(_coefParser(self._scoef_V1, test.mfem.dimension), "vector")
+        self._parser.append(_coefParser(self._scoef_V1, test.mfem.dimension, "vector"))
 
         self._scoef_V2 = self.__sympyCoeff1D(wf.coeff(dV), test)
-        if is_zero(self._scoef_V2):
-            self._parser.append(None)
-        else:
-            self._parser.append(_coefParser(self._scoef_V2, test.mfem.dimension))
+        self._parser.append(_coefParser(self._scoef_V2, test.mfem.dimension))
 
         self._scoef_S = self.__sympyCoeff1D(wf.coeff(dS), test)
-        if is_zero(self._scoef_S):
-            self._parser.append(None)
-        else:
-            self._parser.append(_coefParser(self._scoef_S, test.mfem.dimension))
+        self._parser.append(_coefParser(self._scoef_S, test.mfem.dimension))
 
     def getDofs(self, coeffs):
-        test = self._test
         integ_V, integ_S = [], []
 
         # f.dot(∇v) * dV term
-        if self._parser[0] is not None:
+        if self._parser[0].valid:
             coef_V1 = self._parser[0].eval(coeffs)
             integ_V.append(mfem.DomainLFGradIntegrator(coef_V1))
 
         # f * v * dV term
-        if self._parser[1] is not None:
+        if self._parser[1].valid:
             coef_V2 = self._parser[1].eval(coeffs)
             integ_V.append(mfem.DomainLFIntegrator(coef_V2))
 
         # f * v * dS term
-        if self._parser[2] is not None:
+        if self._parser[2].valid:
             coef_S = self._parser[2].eval(coeffs)
             integ_S.append(mfem.BoundaryLFIntegrator(coef_S))
 
-        return self.__linearForm(test.mfem.space, domainInteg=integ_V, boundaryInteg=integ_S)
+        return self.__linearForm(self._test.mfem.space, domainInteg=integ_V, boundaryInteg=integ_S)
 
     @classmethod
     def __sympyCoeff1D(cls, wf, test, test_deriv=False):
-        wf = _replaceFuncs(wf, True)
         if test_deriv is False:
-            return wf.coeff(sp.Symbol(test.func.name))
+            return wf.coeff(test)
         else:
-            return sp.Matrix([wf.coeff(_replaceFuncs(t)) for t in grad(test)])
+            return sp.Matrix([wf.coeff(t) for t in grad(test)])
 
     @staticmethod
-    def __linearForm(space, domainInteg=None, boundaryInteg=None):
-        # initialization
-        if domainInteg is None:
-            domainInteg = []
-        if not hasattr(domainInteg, "__iter__"):
-            domainInteg = [domainInteg]
-        if boundaryInteg is None:
-            boundaryInteg = []
-        if not hasattr(boundaryInteg, "__iter__"):
-            boundaryInteg = [boundaryInteg]
-
+    def __linearForm(space, domainInteg, boundaryInteg):
         # create Linear form of mfem
         b = mfem.LinearForm(space)
         for i in domainInteg:
@@ -312,7 +291,7 @@ class _BilinearForm:
         self._trial = trial
         self._test = test
 
-        stiff_coef = self._getCoeffs(wf.coeff(dV).subs(trial.diff(t), 0), trials, trial, test)
+        stiff_coef = self._getCoeffs(wf.coeff(dV), trials, trial, test)
         self._stiff = _BilinearFormMatrix(trial, test, stiff_coef)
 
         coef_jac = self._getJacobiCoeffs(self._weakform.coeff(dV), trial, test)
@@ -379,32 +358,28 @@ class _BilinearFormMatrix:
     def __init__(self, trial, test, coeffs):
         self._trial = trial
         self._test = test
-        self._coef = coeffs
-        self._dim = test.mfem.dimension
+
         self._parsers = []
         for i, typ in enumerate(["scalar", "vector", "vector", "matrix"]):
-            if is_zero(coeffs[i]):
-                self._parsers.append(None)
-            else:
-                self._parsers.append(_coefParser(coeffs[i], self._dim, typ))
+            self._parsers.append(_coefParser(coeffs[i], test.mfem.dimension, typ))
         
     def getMatrix(self, coeffs, x=None, b=None):
         integ = []
-        if self._parsers[0] is not None:
+        if self._parsers[0].valid:
             coef_V0 = self._parsers[0].eval(coeffs)
             integ.append(mfem.MixedScalarMassIntegrator(coef_V0))
-        if self._parsers[1] is not None:
+        if self._parsers[1].valid:
             coef_V1 = self._parsers[1].eval(coeffs)
             integ.append(mfem.MixedDirectionalDerivativeIntegrator(coef_V1))
-        if self._parsers[2] is not None:
+        if self._parsers[2].valid:
             coef_V2 = self._parsers[2].eval(coeffs)
             integ.append(mfem.MixedScalarWeakDivergenceIntegrator(mfem.ScalarVectorProductCoefficient(-1.0, coef_V2)))
-        if self._parsers[3] is not None:
+        if self._parsers[3].valid:
             coef_V3 = self._parsers[3].eval(coeffs)
             integ.append(mfem.MixedGradGradIntegrator(coef_V3))
-        return self.__generateMatrix(x,b,domainInteg=integ)
+        return self.__generateMatrix(x,b,domainInteg=integ, boundaryInteg=[])
 
-    def __generateMatrix(self, x=None, b=None, domainInteg=None, boundaryInteg=None):
+    def __generateMatrix(self, x, b, domainInteg, boundaryInteg):
         if self._trial.mfem.space == self._test.mfem.space:
             return self._bilinearForm(self._trial.mfem.space, self._trial.mfem.ess_bdrs, x, b,
                                       domainInteg=domainInteg, boundaryInteg=boundaryInteg)
@@ -415,16 +390,6 @@ class _BilinearFormMatrix:
 
     @staticmethod
     def _bilinearForm(space, ess_bdrs=None, x=None, b=None, domainInteg=None, boundaryInteg=None):
-        # initialization
-        if domainInteg is None:
-            domainInteg = []
-        if not hasattr(domainInteg, "__iter__"):
-            domainInteg = [domainInteg]
-        if boundaryInteg is None:
-            boundaryInteg = []
-        if not hasattr(boundaryInteg, "__iter__"):
-            boundaryInteg = [boundaryInteg]
-
         # create Bilinear form of mfem
         m = mfem.BilinearForm(space)
         for i in domainInteg:
@@ -445,16 +410,6 @@ class _BilinearFormMatrix:
 
     @staticmethod
     def _mixedBilinearForm(space1, space2, ess_bdrs1=None, ess_bdrs2=None, x=None, b=None, domainInteg=None, boundaryInteg=None):
-        # initialization
-        if domainInteg is None:
-            domainInteg = []
-        if not hasattr(domainInteg, "__iter__"):
-            domainInteg = [domainInteg]
-        if boundaryInteg is None:
-            boundaryInteg = []
-        if not hasattr(boundaryInteg, "__iter__"):
-            boundaryInteg = [boundaryInteg]
-
         # create Bilinear form of mfem
         m = mfem.MixedBilinearForm(space1, space2)
         for i in domainInteg:
@@ -477,50 +432,13 @@ class _BilinearFormMatrix:
         return result
 
 
-def is_zero(val):
-    if isinstance(val, sp.Matrix):
-        return np.array([is_zero(v) for v in val]).all()
-    else:
-        return val==0
-
-def _replaceFuncs(wf, removeTrial=False):
-    """Used from sympyCoeff"""
-    if not isinstance(wf, (sp.Basic, sp.Matrix)):
-        return wf
-    for f in wf.atoms(sp.Function):
-        if removeTrial and "trial_" in f.func.name:
-            enable = 0
-        else:
-            enable = 1
-        wf = wf.subs(f.diff(t).diff(t), sp.Symbol(f.func.name+"_tt")*enable)
-        wf = wf.subs(f.diff(t), sp.Symbol(f.func.name+"_t")*enable)
-        for var in [x,y,z]:
-            wf = wf.subs(f.diff(var), sp.Symbol(f.func.name+"_"+str(var))*enable)
-        wf = wf.subs(f, sp.Symbol(f.func.name)*enable)
-    return wf
-
-def SubsCoeff(scoef, coefs, dim, type="scalar"):
-    """
-    Substitute sympy coef object by coefs dictionary.
-    """
-    if type=="vector":
-        return coef.VectorCoef.fromScalars([SubsCoeff(s, coefs, dim) for s in scoef])
-    elif type=="matrix":
-        return coef.MatrixCoef.fromScalars([[SubsCoeff(scoef[i,j], coefs, dim) for i in range(scoef.shape[0])] for j in range(scoef.shape[1])])
-    else:
-        if not isinstance(scoef, (sp.Basic, sp.Matrix)):
-            return coef.generateCoefficient(scoef, dim)
-        scoef = _replaceFuncs(scoef)
-        args = tuple(scoef.free_symbols)
-        res = sp.lambdify(args, scoef)(*[coefs[str(a)] for a in args])
-        if not isinstance(res, coef.ScalarCoef):
-            res = coef.generateCoefficient(res, dim)
-    return res
-
 class _coefParser:
     def __init__(self, scoef, dim, type="scalar"):
         self._dim = dim
         self._type = type
+        self._empty = self.__is_zero(scoef)
+        if self._empty:
+            return
         if type == "vector":
             self._scalars = [_coefParser(sc, dim) for sc in scoef]
         elif type == "matrix":
@@ -530,7 +448,7 @@ class _coefParser:
                 self._func = coef.generateCoefficient(scoef, dim)
                 self._const = True
             else:
-                scoef = _replaceFuncs(scoef)
+                scoef = self.__replaceFuncs(scoef)
                 self._args = tuple(scoef.free_symbols)
                 self._func = sp.lambdify(self._args, scoef)
                 self._const = False
@@ -547,3 +465,23 @@ class _coefParser:
             if not isinstance(res, coef.ScalarCoef):
                 res = coef.generateCoefficient(res, self._dim)
             return res
+
+    def __is_zero(self, val):
+        if isinstance(val, sp.Matrix):
+            return np.array([self.__is_zero(v) for v in val]).all()
+        else:
+            return val==0
+
+    def __replaceFuncs(self, wf):
+        """Used from sympyCoeff"""
+        if not isinstance(wf, (sp.Basic, sp.Matrix)):
+            return wf
+        for f in wf.atoms(sp.Function):
+            for var in [x,y,z]:
+                wf = wf.subs(f.diff(var), sp.Symbol(f.func.name+"_"+str(var)))
+            wf = wf.subs(f, sp.Symbol(f.func.name))
+        return wf
+
+    @property
+    def valid(self):
+        return not self._empty
