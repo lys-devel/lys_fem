@@ -20,8 +20,11 @@ def _createMFEMMesh(file):
         _createBoundaryFor1D(mesh, file)
     nv = mesh.GetNV()
     if mfem.isParallel():
-        mesh = mfem.ParMesh(MPI.COMM_WORLD, mesh)
-    return mesh, nv
+        pmesh = mfem.ParMesh(MPI.COMM_WORLD, mesh)
+        pmesh._mesh = mesh
+        return pmesh, nv
+    else:
+        return mesh, nv
 
 
 def _createBoundaryFor1D(mesh, file):

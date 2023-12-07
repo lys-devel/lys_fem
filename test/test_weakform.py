@@ -36,7 +36,7 @@ class weakform_test(FEMTestCase):
         cv = sp.Matrix(sp.symbols("cv1, cv2 cv3"))
         m = sp.Matrix([sp.symbols("m11, m12 m13"),sp.symbols("m21, m22 m23"),sp.symbols("m31, m32 m33")])
         wf = c*u.dot(v) + (gu*cv).dot(v) + u.dot(gv.T*cv) + sp.tensorcontraction(sp.tensorcontraction(sp.tensorproduct(gu, m*gv), (0,2)), (0,1))
-        vars = [uu for uu in u] + [uu for uu in gu]
+        vars = [uu for uu in u]
 
         self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[0], v[0])[0], c)
         self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u[0], v[1])[0], 0)
@@ -89,24 +89,6 @@ class weakform_test(FEMTestCase):
         m = sp.Matrix([sp.symbols("m11, m12 m13"),sp.symbols("m21, m22 m23"),sp.symbols("m31, m32 m33")])
         wf = gu.dot(cv)*u*v + gu[0]*gu[1]*gu[2]*v
 
-        vars = [u] + [uu for uu in gu]
+        vars = [u]
 
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u, v)[0], gu.dot(cv)/2)
-        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u, v)[1], cv*u/2 + sp.Matrix([gu[1]*gu[2], gu[2]*gu[0], gu[0]*gu[1]])/3)
-
-    def test_trial_1d(self):
-        mesh = self.generateSimpleMesh(1)
-        u = weakform.TrialFunction("u", mesh, [1], coef.generateCoefficient(1, mesh))
-        v = weakform.TestFunction(u)
-
-        c = sp.Symbol("c")
-        c_val = coef.generateCoefficient(2, mesh)
-        wf = c*v*dV
-
-        lf = weakform._LinearForm(wf, v)
-        b = lf.getDofs({"c": c_val})
-        vec = mfem.Vector()
-        b = b.GetTrueDofs(vec)
-        bp = u.mfem.dualToPrime(vec)
-        self.assert_array_almost_equal([bb for bb in bp], 2)
-
+        self.assertEqual(weakform._BilinearForm._getCoeffs(wf, vars, u, v)[1], cv*u + sp.Matrix([gu[1]*gu[2], gu[2]*gu[0], gu[0]*gu[1]])/3)

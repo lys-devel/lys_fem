@@ -312,13 +312,7 @@ class _BilinearForm:
         self._trial = trial
         self._test = test
 
-        vars = []
-        for tri in trials:
-            vars.append(tri)
-            for gt in grad(tri):
-                vars.append(gt)
-
-        stiff_coef = self._getCoeffs(wf.coeff(dV).subs(trial.diff(t), 0), vars, trial, test)
+        stiff_coef = self._getCoeffs(wf.coeff(dV).subs(trial.diff(t), 0), trials, trial, test)
         self._stiff = _BilinearFormMatrix(trial, test, stiff_coef)
 
         coef_jac = self._getJacobiCoeffs(self._weakform.coeff(dV), trial, test)
@@ -331,25 +325,39 @@ class _BilinearForm:
     
     def getMatrixJacobian(self, coeffs):
         return self._jac.getMatrix(coeffs)
-
+    
     @classmethod
-    def _getCoeffs(cls, wf, vars, trial, test):
-        c0 = cls.__getCoeffs_single(wf.diff(test), vars, trial)
-        v0 = [cls.__getCoeffs_single(wf.diff(test), vars, gt) for gt in grad(trial)]
-        c1 = [cls.__getCoeffs_single(wf.diff(gt), vars, trial) for gt in grad(test)]
-        v1 = [[cls.__getCoeffs_single(wf.diff(gtest), vars, gtrial) for gtrial in grad(trial)] for gtest in grad(test)]
+    def _getCoeffs(cls, wf, trials, trial, test):
+        vars, grads = [], []
+        for tri in trials:
+            vars.append(tri)
+        for tri in trials:
+            for gt in grad(tri):
+                grads.append(gt)
+
+        c0 = cls.__getCoeffs_single(wf.diff(test), vars, grads, trial)
+        v0 = [cls.__getCoeffs_single(wf.diff(test), vars, grads, gt) for gt in grad(trial)]
+        c1 = [cls.__getCoeffs_single(wf.diff(gt), vars, grads, trial) for gt in grad(test)]
+        v1 = [[cls.__getCoeffs_single(wf.diff(gtest), vars, grads, gtrial) for gtrial in grad(trial)] for gtest in grad(test)]
         return c0, sp.Matrix(v0), sp.Matrix(c1), sp.Matrix(v1) # coef for u*v, ∇u*v, u*∇v, ∇u*∇v
 
     @classmethod
-    def __getCoeffs_single(cls, wf, vars, var):
-        p = sp.poly(wf, *vars)
-        index = vars.index(var)
+    def __getCoeffs_single(cls, wf, vars, grads, var):
+        p = sp.poly(wf, *vars, *grads)
+        index = (vars+grads).index(var)
 
         c = 0
         for args in p.as_dict().keys():
             if args[index] != 0:
-                value = p.nth(*args) * args[index]/sum(args)
-                for order, v in zip(args, vars):
+                args_grads = args[len(vars):]
+                # It is preffered to use ∇u term as trial function.
+                if index >= len(vars):
+                    value = p.nth(*args) * args[index]/sum(args_grads)
+                elif sum(args_grads) == 0:
+                    value = p.nth(*args) * args[index]/sum(args)
+                else:
+                    value = 0
+                for order, v in zip(args, vars+grads):
                     if v == var:
                         order -= 1
                     value *=  v**order
