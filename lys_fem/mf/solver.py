@@ -5,7 +5,6 @@ import sympy as sp
 from . import mfem, weakform, coef
 
 from .solvers_fem import createFEMSolver
-from .solvers_time import StationaryEquation, createTimeDependentEquation
 
 
 def generateSolver(fem, mesh, models):
@@ -100,10 +99,7 @@ class CompositeModel:
         self._models = models
         weakform_t = tSolver.discretizeTime(self.weakform, self.trialFunctions)
         self._nonlinear = self.__checkNonlinear(weakform_t, self.trialFunctions)
-        if self._nonlinear:
-            self._parser = weakform.WeakformParser(weakform_t, self.trialFunctions, self.coefficient)
-        else:
-            self._parser = weakform.LinearWeakformParser(weakform_t, self.trialFunctions, self.coefficient)
+        self._parser = weakform.WeakformParser(weakform_t, self.trialFunctions, self.coefficient)
         self.x0 = self._parser.initialValue()
 
     def __checkNonlinear(self, wf, trials):

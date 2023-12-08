@@ -25,7 +25,7 @@ class MFEMHeatConductionModel(MFEMLinearModel):
         v = weakform.TestFunction(u)
         gu, gv = grad(u), grad(v)
 
-        return (Cv * u.diff(t) * v + k * gu.dot(gv)) * dV  + f * v * dS
+        return (Cv * u.diff(t) * v + k * gu.dot(gv)) * dV  - f * v * dS
 
     @property
     def coefficient(self):

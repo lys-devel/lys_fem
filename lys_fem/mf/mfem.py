@@ -120,8 +120,8 @@ else:
             solver = mfem_orig.NewtonSolver()
         solver.iterative_mode = False
         solver.SetRelTol(rel_tol)
-        solver.SetAbsTol(1e-10)
-        solver.SetMaxIter(10000)
+        solver.SetAbsTol(1e-8)
+        solver.SetMaxIter(1000)
         solver.SetPrintLevel(0)
         if prec is not None:
             solver.SetPreconditioner(prec)

@@ -95,67 +95,6 @@ class _MFEMInfo:
     def x(self):
         return self._x
 
-class LinearWeakformParser:
-    def __init__(self, wf, trials, coeffs):
-        self._wf = wf
-        self._trials = trials
-        self._tests = [TestFunction(t) for t in trials]
-        self._coeffs = coeffs
-        self._wf_tt, self._wf_t, self._wf_x, self._wf_bt, self._wf_b = self.__timeDerivativeTerm(self._wf, trials)
-
-        self._bilinearForms = [[_BilinearForm(self._wf_x, trials, trial, test) for test in self._tests] for trial in self._trials]
-        self._bilinearForms_t = [[_BilinearForm(self._wf_t, trials, trial, test) for test in self._tests] for trial in self._trials]
-
-        self._offsets =mfem.intArray([0]+[t.mfem.space.GetTrueVSize() for t in self._trials])
-        self._offsets.PartialSum()
-
-        self._initialize([trial.mfem.x for trial in trials])
-
-    def __timeDerivativeTerm(self, weakform, trials):
-        d = {}
-        for trial in trials:
-            d[trial] = 0
-            for gt in grad(trial):
-                d[gt] = 0
-        c = weakform.subs(d)
-        weakform = weakform - c
-        p = sp.Poly(weakform, 1/dt)
-        pb = sp.Poly(c, 1/dt)
-        return p.nth(2), p.nth(1), p.nth(0), (pb.nth(2)/dt+pb.nth(1))/dt, pb.nth(0)
-
-    def initialValue(self):
-        self._x = mfem.BlockVector(self._offsets)
-        for i, trial in enumerate(self._trials):
-            gf = mfem.GridFunction(trial.mfem.space, trial.mfem.x)
-            gf.GetTrueDofs(self._x.GetBlock(i))
-        return self._x
-    
-    def update(self, x, dt, coeffs_t):
-        self._coeffs.update(coeffs_t)
-        self._btv = [_LinearForm(self._wf_bt, test).getDofs(self._coeffs) for test in self._tests]
-        self._bt = mfem.BlockVector(self._offsets)
-        for j, b in enumerate(self._btv):
-            b.GetTrueDofs(self._bt.GetBlock(j))
-        self._Mt = self._M*(1/dt)
-        return self._Mt + self._K, self._b - self._bt, self._Mt + self._K
-
-    def _initialize(self, x):
-        """Calculate M, K, b"""
-        self._b = mfem.BlockVector(self._offsets)
-        self._bv = [_LinearForm(self._wf_b, test).getDofs(self._coeffs) for test in self._tests]
-
-        self._m = [[b.getMatrix(self._coeffs) for b in bs] for bs in self._bilinearForms_t]
-        self._k = [[b.getMatrix(self._coeffs, x[i], self._bv[j]) for j, b in enumerate(bs)] for i, bs in enumerate(self._bilinearForms)]
-
-        for j, b in enumerate(self._bv):
-            b.GetTrueDofs(self._b.GetBlock(j))
-
-        self._M = mfem.BlockOperator(self._offsets)
-        self._K = mfem.BlockOperator(self._offsets)
-        for i, trial in enumerate(self._trials):
-            for j, test in enumerate(self._tests):
-                self._M.SetBlock(i, j, self._m[j][i])
-                self._K.SetBlock(i, j, self._k[j][i])
 
 class WeakformParser:
     def __init__(self, wf, trials, coeffs):
@@ -204,15 +143,15 @@ class WeakformParser:
                 gf.GetDerivative(1, d, gfd)
                 self._coeffs[gt] = coef.generateCoefficient(gfd, trial.mfem.dimension)
                 
-        self.__updateResidual(x_gfs)
-        self.__updateJacobian(x)
+        self.__updateResidual(x_gfs, dt)
+        self.__updateJacobian(x, dt)
         return self._K, self._b, self._gK
-        #return mfem.SparseMatrix(self._M.CreateMonolithic()), mfem.SparseMatrix(self._K.CreateMonolithic()), self._x, self._b
+        #return self._K.CreateMonolithic(), self._b, self._gK.CreateMonolithic()
 
-    def __updateResidual(self, x):
+    def __updateResidual(self, x, dt):
         """Calculate M, K, b"""
         self._bv = [lf.getDofs(self._coeffs) for lf in self._linearForms]
-        self._k = [[b.getMatrix(self._coeffs, x[i], self._bv[j]) for j, b in enumerate(bs)] for i, bs in enumerate(self._bilinearForms)]
+        self._k = [[b.getMatrix(dt, self._coeffs, x[i], self._bv[j]) for j, b in enumerate(bs)] for i, bs in enumerate(self._bilinearForms)]
 
         self._K = mfem.BlockOperator(self._offsets)
         for i, trial in enumerate(self._trials):
@@ -223,8 +162,8 @@ class WeakformParser:
         for j, b in enumerate(self._bv):
             b.GetTrueDofs(self._b.GetBlock(j))
 
-    def __updateJacobian(self, x):
-        self._gk = [[b.getMatrixJacobian(self._coeffs) for b in bs] for bs in self._bilinearForms]
+    def __updateJacobian(self, x, dt):
+        self._gk = [[b.getMatrixJacobian(dt, self._coeffs) for b in bs] for bs in self._bilinearForms]
 
         self._gK = mfem.BlockOperator(self._offsets)
         for i, trial in enumerate(self._trials):
@@ -271,7 +210,7 @@ class _LinearForm:
         if test_deriv is False:
             return wf.coeff(test)
         else:
-            return sp.Matrix([wf.coeff(t) for t in grad(test)])
+            return [wf.coeff(t) for t in grad(test)]
 
     @staticmethod
     def __linearForm(space, domainInteg, boundaryInteg):
@@ -292,19 +231,19 @@ class _BilinearForm:
         self._test = test
 
         stiff_coef = self._getCoeffs(wf.coeff(dV), trials, trial, test)
-        self._stiff = _BilinearFormMatrix(trial, test, stiff_coef)
+        self._stiff = _BilinearForm_time(trial, test, stiff_coef)
 
         coef_jac = self._getJacobiCoeffs(self._weakform.coeff(dV), trial, test)
-        self._jac = _BilinearFormMatrix(trial, test, coef_jac)
+        self._jac = _BilinearForm_time(trial, test, coef_jac)
 
         self.isNonlinear = sum(["trial_" in str(c) for c in stiff_coef]) != 0
 
-    def getMatrix(self, coeffs, x=None, b=None):
-        return self._stiff.getMatrix(coeffs, x, b)
+    def getMatrix(self, dt, coeffs, x=None, b=None):
+        return self._stiff.getMatrix(dt, coeffs, x, b)
     
-    def getMatrixJacobian(self, coeffs):
-        return self._jac.getMatrix(coeffs)
-    
+    def getMatrixJacobian(self, dt, coeffs):
+        return self._jac.getMatrix(dt, coeffs)        
+
     @classmethod
     def _getCoeffs(cls, wf, trials, trial, test):
         vars, grads = [], []
@@ -318,7 +257,7 @@ class _BilinearForm:
         v0 = [cls.__getCoeffs_single(wf.diff(test), vars, grads, gt) for gt in grad(trial)]
         c1 = [cls.__getCoeffs_single(wf.diff(gt), vars, grads, trial) for gt in grad(test)]
         v1 = [[cls.__getCoeffs_single(wf.diff(gtest), vars, grads, gtrial) for gtrial in grad(trial)] for gtest in grad(test)]
-        return c0, sp.Matrix(v0), sp.Matrix(c1), sp.Matrix(v1) # coef for u*v, ∇u*v, u*∇v, ∇u*∇v
+        return c0, v0, c1, v1 # coef for u*v, ∇u*v, u*∇v, ∇u*∇v
 
     @classmethod
     def __getCoeffs_single(cls, wf, vars, grads, var):
@@ -348,22 +287,59 @@ class _BilinearForm:
         diffs_trial = grad(trial)
         diffs_test = grad(test)
         c1 = wf.diff(trial).diff(test)
-        c2 = sp.Matrix([wf.diff(t).diff(test) for t in diffs_trial])
-        c3 = sp.Matrix([wf.diff(trial).diff(t) for t in diffs_test])
-        c4 = sp.Matrix([[wf.diff(t).diff(t2) for t in diffs_trial] for t2 in diffs_test])
+        c2 = [wf.diff(t).diff(test) for t in diffs_trial]
+        c3 = [wf.diff(trial).diff(t) for t in diffs_test]
+        c4 = [[wf.diff(t).diff(t2) for t in diffs_trial] for t2 in diffs_test]
         return c1, c2, c3, c4
 
+class _BilinearForm_time:
+    def __init__(self, trial, test, coef, divide=True):
+        self._divide=divide
+        if divide:
+            coef_tt, coef_t, coef_c = self.__timeDerivativeTerm(coef)
+            self._coef_t = _BilinearFormMatrix(trial, test, coef_t)
+            self._coef_c = _BilinearFormMatrix(trial, test, coef_c)
+        else:
+            self._coef = _BilinearFormMatrix(trial, test, coef)
+
+    def __timeDerivativeTerm(self, weakforms, order=None):
+        if order is None:
+            return [self.__timeDerivativeTerm(weakforms, i) for i in [2,1,0]]
+        if isinstance(weakforms, (tuple, list)):
+            return [self.__timeDerivativeTerm(w, order) for w in weakforms]
+        return sp.Poly(weakforms, 1/dt).nth(order)
+
+    def getMatrix(self, dt, coeffs, x=None, b=None):
+        if self._divide:
+            self._mat_t = self._coef_t.getMatrix(coeffs, x, b)
+            self._mat_c = self._coef_c.getMatrix(coeffs, x, b)
+            return self._mat_t*(1/dt) + self._mat_c
+        else:
+            return self._coef.getMatrix(coeffs, x, b)
 
 class _BilinearFormMatrix:
     def __init__(self, trial, test, coeffs):
         self._trial = trial
         self._test = test
 
+        self._nonlinear = self.__isNonlinear(coeffs)
+        self._mat = None
+
         self._parsers = []
         for i, typ in enumerate(["scalar", "vector", "vector", "matrix"]):
             self._parsers.append(_coefParser(coeffs[i], test.mfem.dimension, typ))
+
+    def __isNonlinear(self, coeffs):
+        for c in coeffs:
+            if "trial_" in str(c):
+                return True
+            if "prev_" in str(c):
+                return True
+        return False
         
     def getMatrix(self, coeffs, x=None, b=None):
+        if not self._nonlinear and self._mat is not None:
+            return self._mat
         integ = []
         if self._parsers[0].valid:
             coef_V0 = self._parsers[0].eval(coeffs)
@@ -377,7 +353,8 @@ class _BilinearFormMatrix:
         if self._parsers[3].valid:
             coef_V3 = self._parsers[3].eval(coeffs)
             integ.append(mfem.MixedGradGradIntegrator(coef_V3))
-        return self.__generateMatrix(x,b,domainInteg=integ, boundaryInteg=[])
+        self._mat = self.__generateMatrix(x,b,domainInteg=integ, boundaryInteg=[])
+        return self._mat
 
     def __generateMatrix(self, x, b, domainInteg, boundaryInteg):
         if self._trial.mfem.space == self._test.mfem.space:
@@ -404,7 +381,7 @@ class _BilinearFormMatrix:
             m.EliminateEssentialBC(ess_bdrs)
 
         m.Finalize()
-        result = m.SpMat()
+        result = mfem.SparseMatrix(m.SpMat())
         result._bilin = m
         return result
 
@@ -426,7 +403,7 @@ class _BilinearFormMatrix:
 
         # set it to matrix
         m.Finalize()
-        result = m.SpMat()
+        result = mfem.SparseMatrix(m.SpMat())
         result._bilin = m
 
         return result
@@ -442,7 +419,7 @@ class _coefParser:
         if type == "vector":
             self._scalars = [_coefParser(sc, dim) for sc in scoef]
         elif type == "matrix":
-            self._scalars = [[_coefParser(scoef[i,j], dim) for j in range(scoef.shape[0])] for i in range(scoef.shape[1])]
+            self._scalars = [[_coefParser(s, dim) for s in sc] for sc in scoef]
         else:
             if not isinstance(scoef, (sp.Basic, sp.Matrix)):
                 self._func = coef.generateCoefficient(scoef, dim)
@@ -467,7 +444,7 @@ class _coefParser:
             return res
 
     def __is_zero(self, val):
-        if isinstance(val, sp.Matrix):
+        if isinstance(val, (tuple, list)):
             return np.array([self.__is_zero(v) for v in val]).all()
         else:
             return val==0
