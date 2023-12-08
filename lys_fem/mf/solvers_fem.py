@@ -40,10 +40,13 @@ class NewtonSolver:
         self._solver.SetPreconditioner(prec)
 
     def solve(self, F, x, eps=1e-7):
+        import time
         x = mfem.Vector(x)
         Ji = self._solver
         for i in range(self._max_iter):
+            start = time.time()
             F.update(x)
+            print("assemble", time.time()-start)
             J = F.grad(x)
             Ji.SetOperator(J)
             dx = Ji * F(x)

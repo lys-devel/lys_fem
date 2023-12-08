@@ -10,20 +10,22 @@ class weakform_test(FEMTestCase):
 
     def test_coef(self):
         mesh = self.generateSimpleMesh(1)
-        c = coef.generateCoefficient({1: 1, "default": 0}, mesh.SpaceDimension())
-        self.assertTrue(isinstance(c, coef.ScalarCoef))
+        c1 = coef.generateCoefficient({1: 1, "default": 0}, mesh.SpaceDimension())
+        self.assertTrue(isinstance(c1, coef.ScalarCoef))
 
-        c = coef.generateCoefficient({1: 1}, mesh.SpaceDimension())
-        self.assertTrue(isinstance(c, coef.ScalarCoef))
+        c2 = coef.generateCoefficient({1: 1}, mesh.SpaceDimension())
+        self.assertTrue(isinstance(c2, coef.ConstantCoefficient))
 
-        c = coef.generateCoefficient(1, mesh.SpaceDimension())
-        self.assertTrue(isinstance(c, coef.ScalarCoef))
+        c3 = coef.generateCoefficient(1, mesh.SpaceDimension())
+        self.assertTrue(isinstance(c3, coef.ConstantCoefficient))
 
-        c = coef.generateCoefficient({1: [1,2,3], "default": [1,2,3]}, mesh.SpaceDimension())
-        self.assertTrue(isinstance(c, coef.VectorCoef))
+        c4 = coef.generateCoefficient({1: [1,2,3], "default": [1,2,3]}, mesh.SpaceDimension())
+        self.assertTrue(isinstance(c4, coef.VectorCoef))
 
-        c = coef.generateCoefficient({1: np.eye(3), "default": np.eye(3)}, mesh.SpaceDimension())
-        self.assertTrue(isinstance(c, coef.MatrixCoef))
+        c5 = coef.generateCoefficient({1: np.eye(3), "default": np.eye(3)}, mesh.SpaceDimension())
+        self.assertTrue(isinstance(c5, coef.MatrixCoef))
+
+        m = coef.MatrixCoef([[c1, c2], [c3, c2]])
 
     def test_bilinear(self):
         # linear term
