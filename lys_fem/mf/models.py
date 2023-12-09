@@ -182,7 +182,7 @@ class CompositeModel:
 
     @property
     def solution(self):
-        return {t.mfem.name.replace("trial_", ""): mfem.getData(t.mfem.x, self._mesh) for t in self.trialFunctions}
+        return {t.mfem.name.replace("trial_", ""): t.mfem.x.getData() for t in self.trialFunctions}
 
     # --------------For debug only----------------
 
@@ -206,6 +206,6 @@ class CompositeModel:
         for i, tri in enumerate(self.trialFunctions):
             gf = mfem.GridFunction(tri.mfem.space)
             gf.SetFromTrueDofs(vb.GetBlock(i))
-            r = mfem.getData(gf, self._mesh)[:,0]
+            r = gf.getData()[:,0]
             res.append(r)
         return np.array(res)

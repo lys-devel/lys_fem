@@ -11,5 +11,8 @@ def isParallel():
 
 if isParallel():
     from mfem.par import *
+    from mpi4py import MPI
+    isRoot = MPI.COMM_WORLD.rank == 0
 else:
     from mfem.ser import *
+    isRoot = True

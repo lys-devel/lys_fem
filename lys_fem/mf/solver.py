@@ -85,31 +85,14 @@ class TimeDependentSolver(SolverBase):
             t = t + dt
 
 
-class FEMSolverBase:
-    def __init__(self, solver, prec=None):
-        self.solver, self.prec = mfem.getSolver(solver=solver, prec=prec)
-
-    def SetOperator(self, A):
-        self.solver.SetOperator(A)
-
-    def SetPreconditioner(self, prec):
-        self.prec = prec
-        self.solver.SetPreconditioner(prec)
-
-    def __mul__(self, b):
-        res = mfem.Vector(b.Size())
-        self.solver.Mult(b, res)
-        return res
-
-
-class CGSolver(FEMSolverBase):
+class CGSolver(mfem.CGSolver):
     def __init__(self, sol):
-        super().__init__(solver="CG")
+        super().__init__()
 
 
-class GMRESSolver(FEMSolverBase):
+class GMRESSolver(mfem.GMRESSolver):
     def __init__(self, sol):
-        super().__init__(solver="GMRES")
+        super().__init__()
 
 
 class NewtonSolver:

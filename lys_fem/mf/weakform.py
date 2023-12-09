@@ -66,7 +66,7 @@ class _MFEMInfo:
         self._m.Finalize()
         self._M = self._m.SpMat()
 
-        self._solver, self._prec = mfem.getSolver("CG", "D")
+        self._solver, self._prec = mfem.CGSolver()
         self._solver.SetOperator(self._M)
         self._solver.Mult(d, self._res)
         return self._res
