@@ -1,5 +1,5 @@
 import sympy as sp
-from lys_fem.mf import MFEMModel, util, weakform, coef
+from lys_fem.mf import MFEMModel, util, weakform, mfem
 
 
 class MFEMLLGModel(MFEMModel):
@@ -9,7 +9,7 @@ class MFEMLLGModel(MFEMModel):
         self._mat = mat
         self._model = model
         self._m = weakform.TrialFunction("m", mesh, self.dirichletCondition, util.generateDomainCoefficient(mesh, model.initialConditions, [1,0,0]), nvar=3)
-        self._lam = weakform.TrialFunction("lambda_m", mesh, [], coef.generateCoefficient(0, mesh.SpaceDimension()))
+        self._lam = weakform.TrialFunction("lambda_m", mesh, [], mfem.generateCoefficient(0, mesh.SpaceDimension()))
 
     @property
     def trialFunctions(self):
@@ -34,8 +34,8 @@ class MFEMLLGModel(MFEMModel):
 
     @property
     def coefficient(self):
-        coefs = {"alpha_G": self._mat["LLG"]["alpha"], "gam_LL": coef.generateCoefficient(1.760859770e11, self._mesh.SpaceDimension())}
-        coefs["B1"] = coef.generateCoefficient(0, self._mesh.SpaceDimension())
-        coefs["B2"] = coef.generateCoefficient(0, self._mesh.SpaceDimension())
-        coefs["B3"] = coef.generateCoefficient(1, self._mesh.SpaceDimension())
+        coefs = {"alpha_G": self._mat["LLG"]["alpha"], "gam_LL": mfem.generateCoefficient(1.760859770e11, self._mesh.SpaceDimension())}
+        coefs["B1"] = mfem.generateCoefficient(0, self._mesh.SpaceDimension())
+        coefs["B2"] = mfem.generateCoefficient(0, self._mesh.SpaceDimension())
+        coefs["B3"] = mfem.generateCoefficient(1, self._mesh.SpaceDimension())
         return coefs

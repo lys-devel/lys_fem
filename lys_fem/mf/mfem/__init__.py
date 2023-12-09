@@ -30,6 +30,7 @@ MixedBilinearForm = MFEMMixedBilinearForm
 CGSolver = MFEMCGSolver
 GMRESSolver = MFEMGMRESSolver
 
+from .coef import generateCoefficient, GridFunctionCoefficient, ConstantCoefficient, SumCoefficient, ProductCoefficient, PowerCoefficient, VectorArrayCoefficient, MatrixArrayCoefficient, SympyCoefficient
 
 
 

@@ -2,7 +2,7 @@ import sympy as sp
 import numpy as np
 
 from ..fem import DirichletBoundary
-from . import mfem, coef
+from . import mfem
 from .weakform import t, dt, prev, grad, WeakformParser
 
 modelList = {}
@@ -127,18 +127,18 @@ class CompositeModel:
         coeffs = {}
         # prepare coefficient for trial functions and its derivative.
         for gf, trial in zip(x_gfs, self.trialFunctions):
-            coeffs[trial.mfem.name] = coef.generateCoefficient(gf, trial.mfem.dimension)
+            coeffs[trial.mfem.name] = mfem.generateCoefficient(gf, trial.mfem.dimension)
             for d, gt in enumerate(trial.mfem.gradNames):
                 gfd = mfem.GridFunction(trial.mfem.space)
                 gf.GetDerivative(1, d, gfd)
-                coeffs[gt] = coef.generateCoefficient(gfd, trial.mfem.dimension)
+                coeffs[gt] = mfem.generateCoefficient(gfd, trial.mfem.dimension)
 
         # coefficient for dt and previous value
         if self._update_t:
-            coeffs["dt"] = coef.generateCoefficient(self.dt, self._mesh.SpaceDimension())
+            coeffs["dt"] = mfem.generateCoefficient(self.dt, self._mesh.SpaceDimension())
             for trial in self.trialFunctions:
                 p = prev(trial)
-                coeffs[str(p)] = coef.generateCoefficient(trial.mfem.x, self._mesh.SpaceDimension())
+                coeffs[str(p)] = mfem.generateCoefficient(trial.mfem.x, self._mesh.SpaceDimension())
             self._update_t = False
         return coeffs
 

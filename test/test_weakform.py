@@ -1,7 +1,7 @@
 import numpy as np
 import sympy as sp
 
-from lys_fem.mf import weakform, coef, mfem
+from lys_fem.mf import weakform, mfem
 from lys_fem.mf.weakform import x,y,z,t,dS,dV,grad
 from .base import FEMTestCase
 
@@ -10,27 +10,27 @@ class weakform_test(FEMTestCase):
 
     def test_coef(self):
         mesh = self.generateSimpleMesh(1)
-        c1 = coef.generateCoefficient({1: 1, "default": 0}, mesh.SpaceDimension())
-        self.assertTrue(isinstance(c1, coef.ScalarCoef))
+        c1 = mfem.generateCoefficient({1: 1, "default": 0}, mesh.SpaceDimension())
+        self.assertTrue(isinstance(c1, mfem.SympyCoefficient))
 
-        c2 = coef.generateCoefficient({1: 1}, mesh.SpaceDimension())
-        self.assertTrue(isinstance(c2, coef.ConstantCoefficient))
+        c2 = mfem.generateCoefficient({1: 1}, mesh.SpaceDimension())
+        self.assertTrue(isinstance(c2, mfem.ConstantCoefficient))
 
-        c3 = coef.generateCoefficient(1, mesh.SpaceDimension())
-        self.assertTrue(isinstance(c3, coef.ConstantCoefficient))
+        c3 = mfem.generateCoefficient(1, mesh.SpaceDimension())
+        self.assertTrue(isinstance(c3, mfem.ConstantCoefficient))
 
-        c4 = coef.generateCoefficient({1: [1,2,3], "default": [1,2,3]}, mesh.SpaceDimension())
-        self.assertTrue(isinstance(c4, coef.VectorCoef))
+        c4 = mfem.generateCoefficient({1: [1,2,3], "default": [1,2,3]}, mesh.SpaceDimension())
+        self.assertTrue(isinstance(c4, mfem.VectorArrayCoefficient))
 
-        c5 = coef.generateCoefficient({1: np.eye(3), "default": np.eye(3)}, mesh.SpaceDimension())
-        self.assertTrue(isinstance(c5, coef.MatrixCoef))
+        c5 = mfem.generateCoefficient({1: np.eye(3), "default": np.eye(3)}, mesh.SpaceDimension())
+        self.assertTrue(isinstance(c5, mfem.MatrixArrayCoefficient))
 
-        m = coef.MatrixCoef([[c1, c2], [c3, c2]])
+        m = mfem.MatrixArrayCoefficient([[c1, c2], [c3, c2]])
 
     def test_bilinear(self):
         # linear term
         mesh = self.generateSimpleMesh(3)
-        u = weakform.TrialFunction("u", mesh, {0:[], 1:[], 2:[]}, coef.generateCoefficient([1,1,1], mesh.SpaceDimension()), nvar=3)
+        u = weakform.TrialFunction("u", mesh, {0:[], 1:[], 2:[]}, mfem.generateCoefficient([1,1,1], mesh.SpaceDimension()), nvar=3)
         v = weakform.TestFunction(u)
         gu, gv = grad(u), grad(v)
 
@@ -81,7 +81,7 @@ class weakform_test(FEMTestCase):
         self.assertEqual(sp.Matrix(weakform._BilinearForm._getCoeffs(wf, vars, u[2], v[2])[3]), m[2,2]*sp.eye(3))
 
         mesh = self.generateSimpleMesh(3)
-        u = weakform.TrialFunction("u", mesh, {0:[]}, coef.generateCoefficient(1, mesh.SpaceDimension()))
+        u = weakform.TrialFunction("u", mesh, {0:[]}, mfem.generateCoefficient(1, mesh.SpaceDimension()))
         v = weakform.TestFunction(u)
         gu, gv = grad(u), grad(v)
 

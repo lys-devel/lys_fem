@@ -1,4 +1,4 @@
-from . import mfem, coef
+from . import mfem
 import sympy as sp
 import numpy as np
 
@@ -408,7 +408,7 @@ class _coefParser:
             self._scalars = [[_coefParser(s, dim) for s in sc] for sc in scoef]
         else:
             if not isinstance(scoef, (sp.Basic, sp.Matrix)):
-                self._func = coef.generateCoefficient(scoef, dim)
+                self._func = mfem.generateCoefficient(scoef, dim)
                 self._const = True
             else:
                 scoef = self.__replaceFuncs(scoef)
@@ -418,15 +418,15 @@ class _coefParser:
 
     def eval(self, coefs):
         if self._type == "vector":
-            return coef.VectorCoef([s.eval(coefs) for s in self._scalars])
+            return mfem.VectorArrayCoefficient([s.eval(coefs) for s in self._scalars])
         if self._type == "matrix":
-            return coef.MatrixCoef([[s.eval(coefs) for s in ss] for ss in self._scalars])
+            return mfem.MatrixArrayCoefficient([[s.eval(coefs) for s in ss] for ss in self._scalars])
         if self._const:
             return self._func
         else:
             res = self._func(*[coefs[str(a)] for a in self._args])
             if isinstance(res, (int, float, sp.Integer, sp.Float)):
-                res = coef.generateCoefficient(res, self._dim)
+                res = mfem.generateCoefficient(res, self._dim)
             return res
 
     def __is_zero(self, val):

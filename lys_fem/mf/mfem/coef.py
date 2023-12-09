@@ -1,7 +1,7 @@
 import sympy as sp
 import numpy as np
-from . import mfem
 
+from . import mfem_orig
 
 def generateCoefficient(coefs, dim=None):
     """
@@ -9,20 +9,21 @@ def generateCoefficient(coefs, dim=None):
     coefs should be a dictionary such as {1: x, 2: y, "default": 0}.
     The keys indicate domain/boundary attributes. "default" key is used as default value. 
     """
+    from . import GridFunction
     if isinstance(coefs, dict):
         return generateCoefficient(_parseDictToSympy(coefs), dim)
     elif isinstance(coefs, (int, float, sp.Integer, sp.Float)):
         return ConstantCoefficient(float(coefs))
-    elif isinstance(coefs, mfem.GridFunction):
+    elif isinstance(coefs, GridFunction):
         return GridFunctionCoefficient(coefs)
 
     shape = np.shape(coefs)
     if len(shape) == 0:
-        return ScalarCoef(coefs)
+        return SympyCoefficient(coefs)
     if len(shape) == 1:
-        return VectorCoef(coefs)
+        return VectorArrayCoefficient(coefs)
     elif len(shape) == 2:
-        return MatrixCoef(coefs)
+        return MatrixArrayCoefficient(coefs)
     
 def _parseDictToSympy(coefs):
     d = sp.Symbol("domain")
@@ -36,6 +37,8 @@ def _parseDictToSympy(coefs):
         return sp.Piecewise(*tuples)
     else:
         return [_parseDictToSympy({key: value[i] for key, value in coefs.items()}) for i in range(shape[0])]
+
+
 
 class _ScalarCoefBase:
     def __neg__(self):
@@ -63,21 +66,21 @@ class _ScalarCoefBase:
         return value * self**(-1)
 
 
-class GridFunctionCoefficient(mfem.GridFunctionCoefficient, _ScalarCoefBase):
+class GridFunctionCoefficient(mfem_orig.GridFunctionCoefficient, _ScalarCoefBase):
     def __init__(self, gf):
         super().__init__(gf)
         self._obj = self
         self._gf = gf
 
 
-class ConstantCoefficient(mfem.ConstantCoefficient, _ScalarCoefBase):
+class ConstantCoefficient(mfem_orig.ConstantCoefficient, _ScalarCoefBase):
     def __init__(self, value):
         super().__init__(float(value))
         self._obj = self
         self._value = value
 
 
-class SumCoefficient(mfem.SumCoefficient, _ScalarCoefBase):
+class SumCoefficient(mfem_orig.SumCoefficient, _ScalarCoefBase):
     def __init__(self, v1, v2, *args):
         super().__init__(v1, v2, *args)
         self._obj = self
@@ -85,7 +88,7 @@ class SumCoefficient(mfem.SumCoefficient, _ScalarCoefBase):
         self._v2 = v2
 
 
-class ProductCoefficient(mfem.ProductCoefficient, _ScalarCoefBase):
+class ProductCoefficient(mfem_orig.ProductCoefficient, _ScalarCoefBase):
     def __init__(self, v1, v2):
         super().__init__(v1, v2)
         self._obj = self
@@ -93,7 +96,7 @@ class ProductCoefficient(mfem.ProductCoefficient, _ScalarCoefBase):
         self._v2 = v2
 
 
-class PowerCoefficient(mfem.PowerCoefficient, _ScalarCoefBase):
+class PowerCoefficient(mfem_orig.PowerCoefficient, _ScalarCoefBase):
     def __init__(self, v1, v2):
         super().__init__(v1, v2)
         self._obj = self
@@ -101,7 +104,7 @@ class PowerCoefficient(mfem.PowerCoefficient, _ScalarCoefBase):
         self._v2 = v2
 
 
-class ScalarCoef(mfem.PyCoefficient, _ScalarCoefBase):
+class SympyCoefficient(mfem_orig.PyCoefficient, _ScalarCoefBase):
     def __init__(self, coefs):
         super().__init__()
         self._obj = self
@@ -124,7 +127,7 @@ class ScalarCoef(mfem.PyCoefficient, _ScalarCoefBase):
         return float(self._func(self._attr, *x))
 
 
-class VectorCoef(mfem.VectorArrayCoefficient):
+class VectorArrayCoefficient(mfem_orig.VectorArrayCoefficient):
     def __init__(self, coefs):
         super().__init__(len(coefs))
         self._objs = self
@@ -137,7 +140,7 @@ class VectorCoef(mfem.VectorArrayCoefficient):
         return self._coefs[index]
 
 
-class MatrixCoef(mfem.MatrixArrayCoefficient):
+class MatrixArrayCoefficient(mfem_orig.MatrixArrayCoefficient):
     def __init__(self, coefs):
         super().__init__(len(coefs))
         self._objs = self

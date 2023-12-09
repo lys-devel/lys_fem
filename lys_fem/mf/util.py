@@ -1,4 +1,4 @@
-from .coef import generateCoefficient
+from .mfem import generateCoefficient
 
 
 def generateDomainCoefficient(mesh, conditions, default):

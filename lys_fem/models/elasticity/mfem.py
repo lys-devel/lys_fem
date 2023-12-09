@@ -57,4 +57,4 @@ class MFEMElasticModel(MFEMLinearModel):
             return 4
         if (i == 1 and j == 2) or (i == 2 and j == 1):
             return 5
-        if (i == 0 and j == 2) or (i =
+        if (i == 0 and j =
