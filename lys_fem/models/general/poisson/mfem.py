@@ -1,7 +1,7 @@
-from lys_fem.mf import mfem, MFEMLinearModel
+from lys_fem.mf import mfem, MFEMModel
 
 
-class MFEMPoissonModel(MFEMLinearModel):
+class MFEMPoissonModel(MFEMModel):
     def __init__(self, model, mesh, mat):
         super().__init__(mfem.H1_FECollection(2, mesh.Dimension()), model, mesh)
         self._Jac = None

@@ -2,7 +2,7 @@ from lys_fem import addMaterialParameter, addModel
 from lys_fem.mf import addMFEMModel
 from .material import LLGParameters
 from .model import LLGModel
-from .mfem4 import MFEMLLGModel
+from .mfem import MFEMLLGModel
 
 addMaterialParameter("Magnetism", LLGParameters)
 addModel("Magnetism", LLGModel)

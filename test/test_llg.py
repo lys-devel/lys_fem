@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from lys_fem import geometry, mf
-from lys_fem.fem import FEMProject, DirichletBoundary, InitialCondition, CGSolver, TimeDependentSolver, StationarySolver, BackwardEulerSolver, GMRESSolver, FEMSolution, Material
+from lys_fem.fem import FEMProject, DirichletBoundary, InitialCondition, TimeDependentSolver, StationarySolver, GMRESSolver, FEMSolution, Material
 from lys_fem.models import llg
 
 from .base import FEMTestCase
@@ -61,7 +61,7 @@ class LLG_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        solver = TimeDependentSolver(BackwardEulerSolver(GMRESSolver()), [model], T/100/factor, T/2)
+        solver = TimeDependentSolver(GMRESSolver(), [model], T/100/factor, T/2)
         p.solvers.append(solver)
 
         # solve

@@ -1,9 +1,8 @@
-from lys_fem.mf import mfem, util, MFEMLinearModel, MFEMNonlinearModel
-from lys_fem.mf import MFEMLinearModel, util, weakform
+from lys_fem.mf import mfem, MFEMModel, util, weakform
 from lys_fem.mf.weakform import grad, dV
 
 
-class MFEMLinearTestModel(MFEMLinearModel):
+class MFEMLinearTestModel(MFEMModel):
     def __init__(self, model, mesh, mat):
         super().__init__(model)
         self._mesh = mesh
@@ -25,7 +24,7 @@ class MFEMLinearTestModel(MFEMLinearModel):
     def coefficient(self):
         return {}
 
-class MFEMNonlinearTestModel(MFEMNonlinearModel):
+class MFEMNonlinearTestModel(MFEMModel):
     def __init__(self, model, mesh, mat):
         super().__init__(model)
         self._mesh = mesh

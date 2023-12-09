@@ -55,8 +55,8 @@ class StationarySolver(FEMSolver):
 
 
 class TimeDependentSolver(FEMSolver):
-    def __init__(self, models=None, tSolvers=None, step=1, stop=100):
-        super().__init__(models, tSolvers)
+    def __init__(self, solver, models=None, step=1, stop=100):
+        super().__init__(solver, models)
         self._step = step
         self._stop = stop
 
@@ -81,8 +81,8 @@ class TimeDependentSolver(FEMSolver):
     @classmethod
     def loadFromDictionary(cls, fem, d):
         models = [fem.models[index]for index in d["models"]]
-        subs = [tSolvers[sub["type"]].loadFromDictionary(sub) for sub in d["subs"]]
-        return TimeDependentSolver(models, subs, d["step"], d["stop"])
+        solver = subSolvers[d["subs"]["type"]].loadFromDictionary(d["subs"])
+        return TimeDependentSolver(solver, models, d["step"], d["stop"])
 
 
 class FEMSubSolver:
@@ -111,40 +111,6 @@ class GMRESSolver(FEMSubSolver):
         return "GMRES Solver"
 
 
-class FEMTimeDependentSolver(FEMSubSolver):
-    def __init__(self, femSolver):
-        self._solver = femSolver
-
-    @property
-    def femSolver(self):
-        return self._solver
-
-    def saveAsDictionary(self):
-        d = super().saveAsDictionary()
-        d["solver"] = self._solver.saveAsDictionary()
-        return d
-
-    @classmethod
-    def loadFromDictionary(cls, d):
-        s = d["solver"]
-        sol = subSolvers[s["type"]].loadFromDictionary(s)
-        return cls(sol)
-
-
-class GeneralizedAlphaSolver(FEMTimeDependentSolver):
-    @classmethod
-    @property
-    def name(cls):
-        return "Generalized Alpha Solver"
-
-
-class BackwardEulerSolver(FEMTimeDependentSolver):
-    @classmethod
-    @property
-    def name(cls):
-        return "Backward Euler Solver"
-
 
 solvers = {"Stationary": [StationarySolver], "Time dependent": [TimeDependentSolver]}
 subSolvers = {c.name: c for c in [CGSolver, GMRESSolver]}
-tSolvers = {c.name: c for c in [BackwardEulerSolver, GeneralizedAlphaSolver]}

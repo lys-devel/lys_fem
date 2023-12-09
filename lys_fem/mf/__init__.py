@@ -1,3 +1,3 @@
 from . import util
-from .models import addMFEMModel, MFEMModel, MFEMLinearModel, MFEMNonlinearModel
+from .models import addMFEMModel, MFEMModel
 from .run import run

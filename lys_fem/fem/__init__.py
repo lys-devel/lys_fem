@@ -3,7 +3,7 @@ from .geometry import FEMGeometry, GeometrySelection
 from .mesh import OccMesher
 from .material import Material, FEMParameter, materialParameters
 from .model import FEMModel, FEMFixedModel
-from .solver import FEMSolver, solvers, StationarySolver, TimeDependentSolver, CGSolver, GMRESSolver, BackwardEulerSolver, GeneralizedAlphaSolver
+from .solver import FEMSolver, solvers, StationarySolver, TimeDependentSolver, CGSolver, GMRESSolver
 from .boundaryConditions import DirichletBoundary, NeumannBoundary
 from .domainConditions import Source
 from .initialCondition import InitialCondition

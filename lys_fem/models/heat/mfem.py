@@ -1,10 +1,10 @@
 import sympy as sp
 from lys_fem.fem import NeumannBoundary
-from lys_fem.mf import MFEMLinearModel, util, weakform, coef
+from lys_fem.mf import MFEMModel, util, weakform
 from lys_fem.mf.weakform import grad
 
 
-class MFEMHeatConductionModel(MFEMLinearModel):
+class MFEMHeatConductionModel(MFEMModel):
     def __init__(self, model, mesh, mat):
         super().__init__(model)
         self._mesh = mesh

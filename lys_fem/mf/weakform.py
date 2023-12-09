@@ -119,34 +119,10 @@ class WeakformParser:
         c = weakform.subs(d)
         return sp.simplify(weakform-c), -c
 
-    def initialValue(self):
-        self._x = mfem.BlockVector(self._offsets)
-        for i, trial in enumerate(self._trials):
-            trial.mfem.x.GetTrueDofs(self._x.GetBlock(i))
-        return self._x
-
-    def update(self, x, dt, coeffs_t):
-        import time
+    def update(self, x_gfs, dt, coeffs_t):
         self._coeffs.update(coeffs_t)
-        # translate vector to grid function
-        x = mfem.BlockVector(x, self._offsets)
-        x_gfs = []
-        for i, trial in enumerate(self._trials):
-            x_gf = mfem.GridFunction(trial.mfem.space)
-            x_gf.SetFromTrueDofs(x.GetBlock(i))
-            x_gfs.append(x_gf)      
-
-        # prepare coefficient for trial functions and its derivative.
-        for gf, trial in zip(x_gfs, self._trials):
-            self._coeffs[trial.mfem.name] = coef.generateCoefficient(gf, trial.mfem.dimension)
-            for d, gt in enumerate(trial.mfem.gradNames):
-                gfd = mfem.GridFunction(trial.mfem.space)
-                gf.GetDerivative(1, d, gfd)
-                self._coeffs[gt] = coef.generateCoefficient(gfd, trial.mfem.dimension)
-                
-        start = time.time()
         self.__updateResidual(x_gfs, dt)
-        self.__updateJacobian(x, dt)
+        self.__updateJacobian(dt)
         return self._K, self._b, self._gK
         #return self._K.CreateMonolithic(), self._b, self._gK.CreateMonolithic()
 
@@ -164,7 +140,7 @@ class WeakformParser:
         for j, b in enumerate(self._bv):
             b.GetTrueDofs(self._b.GetBlock(j))
 
-    def __updateJacobian(self, x, dt):
+    def __updateJacobian(self, dt):
         self._gk = [[b.getMatrixJacobian(dt, self._coeffs) for b in bs] for bs in self._bilinearForms]
 
         self._gK = mfem.BlockOperator(self._offsets)

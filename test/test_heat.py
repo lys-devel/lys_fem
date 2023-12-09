@@ -6,7 +6,7 @@ from numpy.testing import assert_array_almost_equal, assert_allclose
 
 from lys_fem import geometry, mf
 from lys_fem.fem import FEMProject, Material, DirichletBoundary, NeumannBoundary, InitialCondition, FEMSolution
-from lys_fem.fem import StationarySolver, CGSolver, TimeDependentSolver, BackwardEulerSolver
+from lys_fem.fem import StationarySolver, CGSolver, TimeDependentSolver
 from lys_fem.models import heat
 
 from .base import FEMTestCase
@@ -73,7 +73,7 @@ class heat_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        stationary = TimeDependentSolver(BackwardEulerSolver(CGSolver()), [model], 0.0001, 0.02)
+        stationary = TimeDependentSolver(CGSolver(), [model], 0.0001, 0.02)
         p.solvers.append(stationary)
 
         # solve

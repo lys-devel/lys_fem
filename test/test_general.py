@@ -5,7 +5,7 @@ from numpy.testing import assert_array_almost_equal, assert_allclose
 
 from lys_fem import geometry, mf
 from lys_fem.fem import FEMProject, Material, Source, DirichletBoundary, NeumannBoundary, InitialCondition, FEMSolution
-from lys_fem.fem import StationarySolver, CGSolver, TimeDependentSolver, BackwardEulerSolver
+from lys_fem.fem import StationarySolver, CGSolver, TimeDependentSolver
 from lys_fem.models import general
 
 from .base import FEMTestCase
