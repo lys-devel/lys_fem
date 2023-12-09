@@ -2,17 +2,9 @@ import datetime
 import numpy as np
 from scipy.spatial import KDTree
 
-
-def isParallel():
-    try:
-        from mpi4py import MPI
-    except ModuleNotFoundError:
-        return False
-    if MPI.COMM_WORLD.size == 1:
-        return False
-    else:
-        return True
-
+from .mfem_orig import isParallel
+from .vecmat import MFEMVector, MFEMBlockVector, MFEMMatrix, MFEMBlockOperator
+from .forms import MFEMBilinearForm, MFEMMixedBilinearForm, MFEMLinearForm
 
 if isParallel():
     from mfem.par import *
@@ -21,17 +13,11 @@ if isParallel():
 
     FiniteElementSpace = mfem_orig.ParFiniteElementSpace
     GridFunction = mfem_orig.ParGridFunction
-    BilinearForm = mfem_orig.ParBilinearForm
-    MixedBilinearForm = mfem_orig.ParMixedBilinearForm
-    LinearForm = mfem_orig.ParLinearForm
-    SparseMatrix = mfem_orig.HypreParMatrix
     isRoot = MPI.COMM_WORLD.rank == 0
 
     def print_(*args):
-        if isParallel():
-            if MPI.COMM_WORLD.rank != 0:
-                return
-        print(*args)
+        if isRoot:
+            print(*args)
 
     def getSolver(solver="CG", prec=None, rel_tol=1e-8):
         if prec == "GS":
@@ -64,10 +50,6 @@ if isParallel():
     def getData(x, mesh):
         return _gatherData(x, mesh)
 
-    def saveData(file, data):
-        if MPI.COMM_WORLD.rank == 0:
-            np.savez(file, **data)
-
     def getMax(data):
         data_array = MPI.COMM_WORLD.gather(data, root=0)
         if isRoot:
@@ -76,29 +58,6 @@ if isParallel():
             res = MPI.COMM_WORLD.bcast(data_array, root=0)
         return res
 
-    def Transpose(mat):
-        return mat.Transpose()
-
-    def wait():
-        return
-
-    class MFEMLinearForm(mfem_orig.ParLinearForm):
-        def GetTrueDofs(self, vector):
-            self.ParallelAssemble(vector)
-
-    LinearForm = MFEMLinearForm
-
-    class MFEMBilinearForm(mfem_orig.ParBilinearForm):
-        def SpMat(self):
-            return self.ParallelAssemble()
-
-    BilinearForm = MFEMBilinearForm
-        
-    class MFEMMixedBilinearForm(mfem_orig.ParMixedBilinearForm):
-        def SpMat(self):
-            return self.ParallelAssemble()
-
-    MixedBilinearForm = MFEMMixedBilinearForm
 else:
     import mfem.ser as mfem_orig
     from mfem.ser import *
@@ -138,18 +97,8 @@ else:
             res.append(np.array(v.GetDataArray()))
         return np.array(res).T
 
-    def saveData(file, data):
-        np.savez(file, **data)
-
     def getMax(data):
         return data
-
-    class MFEMLinearForm(mfem_orig.LinearForm):
-        def GetTrueDofs(self, vector):
-            gf = mfem_orig.GridFunction(self.FESpace(), self)
-            gf.GetTrueDofs(vector)
-
-    LinearForm = MFEMLinearForm
 
 def print_initialize():
     print_("\n---------------------Initialization--------------------------")
@@ -252,134 +201,13 @@ class _Mesh:
         d.update(self.elementGroups)
         return d
 
-
-class MFEMVector(mfem_orig.Vector):
-    def __add__(self, value):
-        res = MFEMVector(value.Size())
-        mfem_orig.add_vector(self, 1, value, res)
-        return res
-
-    def __sub__(self, value):
-        res = MFEMVector(self)
-        res -= value
-        return res
-
-    def __mul__(self, value):
-        res = MFEMVector(self)
-        res *= value
-        return res
-
-    def __str__(self):
-        return str([x for x in self])
-    
-    def __len__(self):
-        return len([x for x in self])
-
-
 Vector = MFEMVector
-
-class MFEMBlockVector(mfem_orig.BlockVector):
-    def __add__(self, value):
-        res = MFEMBlockVector(self)
-        res += value
-        return res
-
-    def __sub__(self, value):
-        res = MFEMBlockVector(self)
-        res -= value
-        return res
-
-    def __mul__(self, value):
-        res = MFEMBlockVector(self)
-        res *= value
-        return res
-
-    def __str__(self):
-        return str([x for x in self])
-    
-    def __len__(self):
-        return len([x for x in self])
-
-
 BlockVector = MFEMBlockVector
-
-
-class MFEMMatrix(SparseMatrix):
-    def __add__(self, value):
-        return MFEMMatrix(mfem_orig.Add(1.0, self,1.0, value))
-
-    def __sub__(self, value):
-        return MFEMMatrix(mfem_orig.Add(1.0, self,-1.0, value))
-
-    def __neg__(self):
-        res = MFEMMatrix(self)
-        res *= -1
-        return res
-
-    def __mul__(self, value):
-        if isinstance(value, MFEMVector):
-            res = MFEMVector(value)
-            self.Mult(value, res)
-            return res
-        else:
-            res = SparseMatrix(self)
-            res *= value
-            return res
-        
-    def __rmul__(self, value):
-        return self*value
-
 SparseMatrix = MFEMMatrix
-
-class AddOperator(mfem_orig.PyOperator):
-    def __init__(self, op1, op2):
-        super().__init__(op1.Height(), op1.Width())
-        self._op1 = op1
-        self._op2 = op2
-
-    def Mult(self, x, y):
-        self._op1.Mult(x,y)
-        self._op2.AddMult(x,y)
-
-class MulOperator(mfem_orig.PyOperator):
-    def __init__(self, op, value):
-        super().__init__(op.Height(), op.Width())
-        self._op = op
-        self._value = value
-
-    def Mult(self, x, y):
-        self._op.Mult(x,y)
-        y *= self._value
-
-    def MultTranspose(self, x, y):
-        self._op.MultTranspose(x,y)
-        y *= self._value
-
-class MFEMBlockOperator(mfem_orig.BlockOperator):
-    def __add__(self, value):
-        res = MFEMBlockOperator(self.RowOffsets(), self.ColOffsets())
-        for r in range(self.NumRowBlocks()):
-            for c in range(self.NumColBlocks()):
-                if self.IsZeroBlock(r,c):
-                    if not value.IsZeroBlock(r,c):
-                        res.SetBlock(r,c, value.GetBlock(r,c))
-                else:
-                    if value.IsZeroBlock(r,c):
-                        res.SetBlock(r,c,self.GetBlock(r,c))
-                    else:
-                        res.SetBlock(r,c,AddOperator(self.GetBlock(r,c), value.GetBlock(r,c)))
-        return res
-
-    def __mul__(self, value):
-        res = MFEMBlockOperator(self.RowOffsets(), self.ColOffsets())
-        for r in range(self.NumRowBlocks()):
-            for c in range(self.NumColBlocks()):
-                if not self.IsZeroBlock(r,c):
-                    res.SetBlock(r,c,MulOperator(self.GetBlock(r,c), value))
-        return res
-
 BlockOperator = MFEMBlockOperator
-
+LinearForm = MFEMLinearForm
+BilinearForm = MFEMBilinearForm
+MixedBilinearForm = MFEMMixedBilinearForm
 
 def _parseMesh(mesh):
     fec = mfem_orig.H1_FECollection(1, mesh.Dimension())

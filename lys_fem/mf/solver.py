@@ -1,5 +1,7 @@
 import os
 import shutil
+import numpy as np
+
 from . import mfem
 from .models import CompositeModel
 
@@ -33,11 +35,13 @@ class SolverBase:
 
     def exportMesh(self, mesh):
         meshes = mfem.getMesh(mesh)
-        for i, m in enumerate(meshes):
-            mfem.saveData(self._dirname + "/mesh" + str(i) + ".npz", m.dictionary())
+        if mfem.isRoot:
+            for i, m in enumerate(meshes):
+                np.savez(self._dirname + "/mesh" + str(i) + ".npz", **m.dictionary())
 
     def exportSolution(self, index, solution):
-        mfem.saveData(self._dirname + "/data" + str(index), solution)
+        if mfem.isRoot:
+            np.savez(self._dirname + "/data" + str(index), **solution)
 
     @property
     def solver(self):
