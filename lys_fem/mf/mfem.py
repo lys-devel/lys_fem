@@ -306,10 +306,10 @@ BlockVector = MFEMBlockVector
 
 class MFEMMatrix(SparseMatrix):
     def __add__(self, value):
-        return mfem_orig.Add(1.0, self,1.0, value)
+        return MFEMMatrix(mfem_orig.Add(1.0, self,1.0, value))
 
     def __sub__(self, value):
-        return mfem_orig.Add(1.0, self,-1.0, value)
+        return MFEMMatrix(mfem_orig.Add(1.0, self,-1.0, value))
 
     def __neg__(self):
         res = MFEMMatrix(self)

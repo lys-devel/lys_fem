@@ -46,7 +46,6 @@ class NewtonSolver:
         for i in range(self._max_iter):
             start = time.time()
             F.update(x)
-            print("assemble", time.time()-start)
             J = F.grad(x)
             Ji.SetOperator(J)
             dx = Ji * F(x)

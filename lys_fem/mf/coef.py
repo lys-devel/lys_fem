@@ -45,7 +45,7 @@ class _ScalarCoefBase:
         return PowerCoefficient(self, float(value))
     
     def __add__(self, value):
-        return SumCoefficient(self, value)
+        return SumCoefficient(value, self)
 
     def __sub__(self, value):
         return SumCoefficient(self, value, 1.0, -1.0)
@@ -136,10 +136,6 @@ class VectorCoef(mfem.VectorArrayCoefficient):
     def __getitem__(self, index):
         return self._coefs[index]
 
-    @staticmethod
-    def fromScalars(coefs):
-        return VectorCoef(coefs)
-
 
 class MatrixCoef(mfem.MatrixArrayCoefficient):
     def __init__(self, coefs):
@@ -153,18 +149,4 @@ class MatrixCoef(mfem.MatrixArrayCoefficient):
 
     def __getitem__(self, index):
         return self._coefs[index[0]][index[1]]
-
-    @staticmethod
-    def fromScalars(coefs):
-        return MatrixCoef(coefs)
-
-
-def _generateArgs(dim):
-    d,x,y,z = sp.symbols("domain,x,y,z")
-    if dim == 1:
-        return d,x
-    elif dim == 2:
-        return d,x,y
-    elif dim == 3:
-        return d,x,y,z
 

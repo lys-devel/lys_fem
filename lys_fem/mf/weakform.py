@@ -146,31 +146,23 @@ class WeakformParser:
                 
         start = time.time()
         self.__updateResidual(x_gfs, dt)
-        print("residual", time.time()-start)
         self.__updateJacobian(x, dt)
-        print("jacobian", time.time()-start)
         return self._K, self._b, self._gK
         #return self._K.CreateMonolithic(), self._b, self._gK.CreateMonolithic()
 
     def __updateResidual(self, x, dt):
         """Calculate M, K, b"""
-        import time
-        start = time.time()
         self._bv = [lf.getDofs(self._coeffs) for lf in self._linearForms]
-        print("debug001", time.time()-start)
         self._k = [[b.getMatrix(dt, self._coeffs, x[i], self._bv[j]) for j, b in enumerate(bs)] for i, bs in enumerate(self._bilinearForms)]
-        print("debug002", time.time()-start)
 
         self._K = mfem.BlockOperator(self._offsets)
         for i, trial in enumerate(self._trials):
             for j, test in enumerate(self._tests):
                 self._K.SetBlock(i, j, self._k[j][i])
-        print("debug003", time.time()-start)
 
         self._b = mfem.BlockVector(self._offsets)
         for j, b in enumerate(self._bv):
             b.GetTrueDofs(self._b.GetBlock(j))
-        print("debug004", time.time()-start)
 
     def __updateJacobian(self, x, dt):
         self._gk = [[b.getMatrixJacobian(dt, self._coeffs) for b in bs] for bs in self._bilinearForms]
@@ -224,33 +216,14 @@ class _LinearForm:
 
     @staticmethod
     def __linearForm(space, domainInteg, boundaryInteg):
-        import time
         # create Linear form of mfem
         b = mfem.LinearForm(space)
         for i in domainInteg:
             b.AddDomainIntegrator(i)
         for i in boundaryInteg:
             b.AddBoundaryIntegrator(i)
-
-        start = time.time()
         b.Assemble()
-        print("linear assemble", time.time()-start)
-
         return b
-        class const(mfem.PyCoefficient):
-            def __init__(self, value):
-                super().__init__()
-                self._obj = mfem.ConstantCoefficient(value)
-
-            def _Eval(self, *args, **kwargs):
-                return self._obj.Eval(*args, **kwargs)
-
-        b2 = mfem.LinearForm(space)
-        c = const(1)
-        b2.AddDomainIntegrator(mfem.DomainLFIntegrator(c))
-        start = time.time()
-        b2.Assemble()
-        print("linear assemble2", time.time()-start)
 
 class _BilinearForm:
     def __init__(self, wf, trials, trial, test):
@@ -262,15 +235,23 @@ class _BilinearForm:
         self._stiff = _BilinearForm_time(trial, test, stiff_coef)
 
         coef_jac = self._getJacobiCoeffs(self._weakform.coeff(dV), trial, test)
+        coef_jac = self.__diff(coef_jac, stiff_coef)
         self._jac = _BilinearForm_time(trial, test, coef_jac)
 
         self.isNonlinear = sum(["trial_" in str(c) for c in stiff_coef]) != 0
 
+    def __diff(self, jac, stiff):
+        if isinstance(jac, (list, tuple)):
+            return [self.__diff(j, s) for j,s in zip(jac, stiff)]
+        else:
+            return jac-stiff
+
     def getMatrix(self, dt, coeffs, x=None, b=None):
-        return self._stiff.getMatrix(dt, coeffs, x, b)
+        self._stiff_mat = self._stiff.getMatrix(dt, coeffs, x, b)
+        return self._stiff_mat
     
     def getMatrixJacobian(self, dt, coeffs):
-        return self._jac.getMatrix(dt, coeffs)        
+        return self._jac.getMatrix(dt, coeffs) + self._stiff_mat
 
     @classmethod
     def _getCoeffs(cls, wf, trials, trial, test):

@@ -48,7 +48,7 @@ class LLG_test(FEMTestCase):
 
         # geometry
         p.geometries.add(geometry.Box(0, 0, 0, 1, 0.1, 0.1))
-        p.mesher.setRefinement(0)
+        p.mesher.setRefinement(1)
 
         # material
         param = llg.LLGParameters(0)
