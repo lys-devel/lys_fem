@@ -1,10 +1,11 @@
+from .base import FEMObject, FEMObjectList
 from .initialCondition import InitialCondition
 from .boundaryConditions import DirichletBoundary, NeumannBoundary
 
 models = {}
 
 
-class FEMModel:
+class FEMModel(FEMObject):
     def __init__(self, nvar, initialConditions=None, boundaryConditions=None, domainConditions=None):
         self._nvar = nvar
         if initialConditions is None:

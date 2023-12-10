@@ -1,3 +1,4 @@
+from .base import FEMObjectList
 from .geometry import GeometryGenerator
 from .mesh import OccMesher
 from .material import Material, Materials
@@ -24,7 +25,7 @@ class FEMProject:
         self._geom = GeometryGenerator()
         self._mesher = OccMesher()
         self._materials = Materials([Material("Material1")])
-        self._models = []
+        self._models = FEMObjectList(self)
         self._solvers = []
         self._submit = {}
 
@@ -87,3 +88,5 @@ class FEMProject:
         else:
             mesher = self._mesher
         return mesher.getMeshWave(self._geom.generateGeometry(), dim=dim)
+
+
