@@ -2,12 +2,12 @@ import itertools
 import numpy as np
 import sympy as sp
 
-from lys_fem.mf import mfem, MFEMLinearModel, util, weakform, coef
+from lys_fem.mf import mfem, MFEMModel, util, weakform
 from lys_fem.mf.weakform import grad, TrialFunction, TestFunction
 
 from lys_fem.fem import NeumannBoundary
 
-class MFEMElasticModel(MFEMLinearModel):
+class MFEMElasticModel(MFEMModel):
     def __init__(self, model, mesh, mat):
         super().__init__(model)
         self._mesh = mesh
@@ -56,4 +56,6 @@ class MFEMElasticModel(MFEMLinearModel):
         if (i == 0 and j == 1) or (i == 1 and j == 0):
             return 4
         if (i == 1 and j == 2) or (i == 2 and j == 1):
-      
+            return 5
+        if (i == 0 and j == 2) or (i == 2 and j == 0):
+            return 6
