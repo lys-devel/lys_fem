@@ -1,22 +1,26 @@
 import weakref
 
 class FEMObject:
-    def __init__(self, parent=None):
-        if parent is not None:
-            self.setParent(parent)
-
     @property
     def fem(self):
-        return self._fem()
+        from .FEM import FEMProject
+        obj = self
+        while not isinstance(obj, FEMProject):
+            obj = obj.parent
+        return obj
+
+    @property
+    def parent(self):
+        return self._parent()
 
     def setParent(self, parent):
         self._parent = weakref.ref(parent)
 
 
-class FEMObjectList(list):
+class FEMObjectList(list, FEMObject):
     def __init__(self, parent):
-        self._parent = weakref.ref(parent)
+        self.setParent(parent)
 
     def append(self, item):
         super().append(item)
-        item.setParent(self._parent())
+        item.setParent(self)

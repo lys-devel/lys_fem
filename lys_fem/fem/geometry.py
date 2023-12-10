@@ -1,4 +1,5 @@
 import gmsh
+from .base import FEMObject
 
 gmsh.initialize()
 gmsh.option.setNumber("General.Terminal", 0)
@@ -32,6 +33,10 @@ class GeometryGenerator:
             model.add_physical_group(dim=0, tags=[obj[1]], tag=i + 1)
         return model
 
+    def geometryAttributes(self, dim):
+        m = self.generateGeometry()
+        return [tag for d, tag  in m.getPhysicalGroups(dim)]
+
     @property
     def commands(self):
         return self._order
@@ -56,7 +61,7 @@ class FEMGeometry(object):
                 return t(*d["args"])
 
 
-class GeometrySelection(object):
+class GeometrySelection(FEMObject):
     def __init__(self, geometryType="Domain", selection=None):
         if selection is None:
             selection = []
@@ -91,6 +96,16 @@ class GeometrySelection(object):
             return "All"
         else:
             return "Selected"
+
+    def __iter__(self):
+        return self.geometryAttributes.__iter__()
+        
+    @property
+    def geometryAttributes(self):
+        if self._geom == "Domain":
+            return [attr for attr in self.fem.domainAttributes if self.check(attr)]
+        else:
+            return [attr for attr in self.fem.boundaryAttributes if self.check(attr)]
 
     @property
     def geometryType(self):

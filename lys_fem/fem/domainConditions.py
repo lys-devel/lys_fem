@@ -1,13 +1,22 @@
+from .base import FEMObject, FEMObjectList
 from .geometry import GeometrySelection
 
 
-class DomainCondition:
+class DomainConditions(FEMObjectList):
+    def get(self, cls):
+        return [condition for condition in self if isinstance(condition, cls)]
+    
+    def have(self, cls):
+        return len(self.get(cls)) > 0
+
+class DomainCondition(FEMObject):
     def __init__(self, name, domains=None):
         self._name = name
         if isinstance(domains, GeometrySelection):
             self._domains = domains
         else:
             self._domains = GeometrySelection("Domain", domains)
+        self._domain.setParent(self)
 
     @property
     def objName(self):

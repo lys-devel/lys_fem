@@ -80,6 +80,14 @@ class FEMProject:
     def submitSetting(self):
         return self._submit
 
+    @property
+    def domainAttributes(self):
+        return self.geometries.geometryAttributes(self._dim)
+
+    @property
+    def boundaryAttributes(self):
+        return self.geometries.geometryAttributes(self._dim-1)
+
     def getMeshWave(self, dim=None, nomesh=False):
         if dim is None:
             dim = self._dim

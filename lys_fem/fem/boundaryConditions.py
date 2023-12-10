@@ -1,13 +1,22 @@
+from .base import FEMObject, FEMObjectList
 from .geometry import GeometrySelection
 
 
-class BoundaryCondition:
+class BoundaryConditions(FEMObjectList):
+    def get(self, cls):
+        return [condition for condition in self if isinstance(condition, cls)]
+
+    def have(self, cls):
+        return len(self.get(cls)) > 0
+
+class BoundaryCondition(FEMObject):
     def __init__(self, name, boundaries=None):
         self._name = name
         if isinstance(boundaries, GeometrySelection):
             self._bdrs = boundaries
         else:
             self._bdrs = GeometrySelection("Surface", boundaries)
+        self._bdrs.setParent(self)
 
     @property
     def objName(self):

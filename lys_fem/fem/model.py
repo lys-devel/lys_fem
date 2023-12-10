@@ -1,6 +1,7 @@
 from .base import FEMObject, FEMObjectList
 from .initialCondition import InitialCondition
-from .boundaryConditions import DirichletBoundary, NeumannBoundary
+from .boundaryConditions import BoundaryConditions, DirichletBoundary, NeumannBoundary
+from .domainConditions import DomainConditions
 
 models = {}
 
@@ -9,11 +10,11 @@ class FEMModel(FEMObject):
     def __init__(self, nvar, initialConditions=None, boundaryConditions=None, domainConditions=None):
         self._nvar = nvar
         if initialConditions is None:
-            initialConditions = []
+            initialConditions = FEMObjectList(self)
         if boundaryConditions is None:
-            boundaryConditions = []
+            boundaryConditions = BoundaryConditions(self)
         if domainConditions is None:
-            domainConditions = []
+            domainConditions = DomainConditions(self)
         self._init = initialConditions
         self._bdrs = boundaryConditions
         self._dcs = domainConditions

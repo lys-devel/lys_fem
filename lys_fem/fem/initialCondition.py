@@ -1,12 +1,14 @@
+from .base import FEMObject, FEMObjectList
 from .geometry import GeometrySelection
 
 
-class InitialCondition:
+class InitialCondition(FEMObject):
     def __init__(self, name, value, domains=None):
         if isinstance(domains, GeometrySelection):
             self._domains = domains
         else:
             self._domains = GeometrySelection("Domain", domains)
+        self._domains.setParent(self)
         self._name = name
         self._value = value
 
@@ -36,7 +38,7 @@ class InitialCondition:
     @values.setter
     def values(self, value):
         self._value = value
-
+    
     def widget(self, fem, canvas):
         from ..gui import InitialConditionWidget
         return InitialConditionWidget(self, fem, canvas)
