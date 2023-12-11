@@ -3,7 +3,7 @@ import numpy as np
 import sympy as sp
 
 from lys_fem.mf import mfem, MFEMModel, util, weakform
-from lys_fem.mf.weakform import grad, TrialFunction, TestFunction
+from lys_fem.mf.weakform import grad, TrialFunction, TestFunction, dV, dS, t
 
 from lys_fem.fem import NeumannBoundary
 
@@ -23,7 +23,6 @@ class MFEMElasticModel(MFEMModel):
 
     @property
     def weakform(self):
-        t, dV, dS = sp.symbols("t,dV,dS")
         rho= sp.symbols("rho")
         C = self.__getC(self._mesh.SpaceDimension())
 

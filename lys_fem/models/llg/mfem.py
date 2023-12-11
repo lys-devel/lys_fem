@@ -1,5 +1,6 @@
 import sympy as sp
 from lys_fem.mf import MFEMModel, util, weakform, mfem
+from lys_fem.mf.weakform import t,dV,dS
 
 
 class MFEMLLGModel(MFEMModel):
@@ -17,7 +18,6 @@ class MFEMLLGModel(MFEMModel):
 
     @property
     def weakform(self):
-        t, dV, dS = sp.symbols("t,dV,dS")
         a, g = sp.symbols("alpha_G, gam_LL")
         B = sp.Matrix([0,0,sp.Symbol("B3")])
 

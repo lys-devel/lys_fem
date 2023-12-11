@@ -22,6 +22,7 @@ class FEMSolution:
         meshes = self._loadMesh(path)
         data = self._loadData(path, data_number)
         array = model.eval(data, self._fem, varName)
+        print(array)
         res = []
         for mesh in meshes:
             elems = {key: mesh[key] for key in self._keys if key in mesh}

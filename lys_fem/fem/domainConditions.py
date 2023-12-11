@@ -16,7 +16,7 @@ class DomainCondition(FEMObject):
             self._domains = domains
         else:
             self._domains = GeometrySelection("Domain", domains)
-        self._domain.setParent(self)
+        self._domains.setParent(self)
 
     @property
     def objName(self):
@@ -34,7 +34,7 @@ class DomainCondition(FEMObject):
 class Source(DomainCondition):
     def __init__(self, name, values, domains=None):
         super().__init__(name, domains)
-        self._value = [str(v) for v in values]
+        self._value = values
 
     @classmethod
     @property

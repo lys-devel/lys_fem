@@ -2,7 +2,7 @@ from . import mfem
 import sympy as sp
 import numpy as np
 
-x, y, z, t, dV, dS, dt = sp.symbols("x,y,z,t,dV,dS,dt")
+x, y, z, t, dt = sp.symbols("x,y,z,t,dt")
 
 def grad(v):
     if isinstance(v, sp.Matrix):
@@ -41,14 +41,15 @@ def TestFunction(trial):
 class _MFEMInfo:
     def __init__(self, name, mesh, ess_bdrs, value, order=1):
         self._name = name
+        self._mesh = mesh
         self._dim = mesh.Dimension()
         self._fec = mfem.H1_FECollection(order, self._dim)
         self._space = mfem.FiniteElementSpace(mesh, self._fec, 1)
-        self._ess_bdrs = self.__getEssentialBoundary(ess_bdrs)
+        self._ess_bdrs = self.__getEssentialBoundary(mesh, ess_bdrs)
         self.setValue(value)
 
-    def __getEssentialBoundary(self, ess_bdrs):
-        ess_bdr = mfem.intArray(self.space.GetMesh().bdr_attributes.Max())
+    def __getEssentialBoundary(self, mesh, ess_bdrs):
+        ess_bdr = mfem.intArray(mesh.bdr_attributes)
         ess_bdr.Assign(0)
         for i in ess_bdrs:
             ess_bdr[i - 1] = 1
@@ -70,6 +71,13 @@ class _MFEMInfo:
         self._solver.SetOperator(self._M)
         self._solver.Mult(d, self._res)
         return self._res
+
+    @property
+    def isBoundary(self):
+        if isinstance(self._mesh, mfem.SubMesh):
+            if self._mesh.GetFrom() == mfem.SubMesh.Boundary:
+                return True
+        return False
 
     @property
     def name(self):
@@ -95,17 +103,26 @@ class _MFEMInfo:
     def x(self):
         return self._x
 
+def IntegralSymbol(name, type, attr=None):
+    symbol = sp.Function(name)()
+    symbol._type = type
+    symbol._attr = attr
+    return symbol
+
+dV = sp.Symbol("dV")#IntegralSymbol("dV", "Volume")
+dS = sp.Symbol("dS")#IntegralSymbol("dS", "Boundary")
 
 class WeakformParser:
-    def __init__(self, wf, trials, coeffs):
+    def __init__(self, wf, trials, coeffs, integrals):
         self._wf = wf
         self._trials = trials
         self._tests = [TestFunction(t) for t in trials]
         self._coeffs = coeffs
+        self._integrals = integrals
 
         self._wf, self._wf_b = self.__divideTerm(self._wf, trials)
 
-        self._bilinearForms = [[_BilinearForm(self._wf, trials, trial, test) for test in self._tests] for trial in self._trials]
+        self._bilinearForms = [[_BilinearForm(self._wf, trials, trial, test, integrals) for test in self._tests] for trial in self._trials]
         self._linearForms = [_LinearForm(self._wf_b, test) for test in self._tests]
         self._offsets =mfem.intArray([0]+[t.mfem.space.GetTrueVSize() for t in self._trials])
         self._offsets.PartialSum()
@@ -154,14 +171,14 @@ class _LinearForm:
 
         self._parser = []
 
-        self._scoef_V1 = self.__sympyCoeff1D(wf.coeff(dV), test, test_deriv=True)
-        self._parser.append(_coefParser(self._scoef_V1, test.mfem.dimension, "vector"))
+        self._scoef_V1 = self.__sympyCoeff1D(wf, test, test_deriv=True)
+        self._parser.append(_coefParser(self._scoef_V1, test.mfem.dimension, dV, "vector"))
 
-        self._scoef_V2 = self.__sympyCoeff1D(wf.coeff(dV), test)
-        self._parser.append(_coefParser(self._scoef_V2, test.mfem.dimension))
+        self._scoef_V2 = self.__sympyCoeff1D(wf, test)
+        self._parser.append(_coefParser(self._scoef_V2, test.mfem.dimension, dV))
 
-        self._scoef_S = self.__sympyCoeff1D(wf.coeff(dS), test)
-        self._parser.append(_coefParser(self._scoef_S, test.mfem.dimension))
+        self._scoef_S = self.__sympyCoeff1D(wf, test)
+        self._parser.append(_coefParser(self._scoef_S, test.mfem.dimension, dS))
 
     def getDofs(self, coeffs):
         self._integ_V, self._integ_S = [], []
@@ -202,17 +219,17 @@ class _LinearForm:
         return b
 
 class _BilinearForm:
-    def __init__(self, wf, trials, trial, test):
+    def __init__(self, wf, trials, trial, test, integrals):
         self._weakform = wf
         self._trial = trial
         self._test = test
 
-        stiff_coef = self._getCoeffs(wf.coeff(dV), trials, trial, test)
-        self._stiff = _BilinearForm_time(trial, test, stiff_coef)
+        stiff_coef = self._getCoeffs(wf, trials, trial, test)
+        self._stiff = _BilinearForm_time(trial, test, stiff_coef, integrals)
 
-        coef_jac = self._getJacobiCoeffs(self._weakform.coeff(dV), trial, test)
+        coef_jac = self._getJacobiCoeffs(self._weakform, trial, test)
         coef_jac = self.__diff(coef_jac, stiff_coef)
-        self._jac = _BilinearForm_time(trial, test, coef_jac)
+        self._jac = _BilinearForm_time(trial, test, coef_jac, integrals)
 
         self.isNonlinear = sum(["trial_" in str(c) for c in stiff_coef]) != 0
 
@@ -278,14 +295,14 @@ class _BilinearForm:
         return c1, c2, c3, c4
 
 class _BilinearForm_time:
-    def __init__(self, trial, test, coef, divide=True):
+    def __init__(self, trial, test, coef, integrals, divide=True):
         self._divide=divide
         if divide:
             coef_tt, coef_t, coef_c = self.__timeDerivativeTerm(coef)
-            self._coef_t = _BilinearFormMatrix(trial, test, coef_t)
-            self._coef_c = _BilinearFormMatrix(trial, test, coef_c)
+            self._coef_t = _BilinearFormMatrix(trial, test, coef_t, integrals)
+            self._coef_c = _BilinearFormMatrix(trial, test, coef_c, integrals)
         else:
-            self._coef = _BilinearFormMatrix(trial, test, coef)
+            self._coef = _BilinearFormMatrix(trial, test, coef, integrals)
 
     def __timeDerivativeTerm(self, weakforms, order=None):
         if order is None:
@@ -303,16 +320,22 @@ class _BilinearForm_time:
             return self._coef.getMatrix(coeffs, x, b)
 
 class _BilinearFormMatrix:
-    def __init__(self, trial, test, coeffs):
+    def __init__(self, trial, test, coeffs, integrals):
         self._trial = trial
         self._test = test
+        print(coeffs)
+        print()
 
         self._nonlinear = self.__isNonlinear(coeffs)
         self._mat = None
 
         self._parsers = []
         for i, typ in enumerate(["scalar", "vector", "vector", "matrix"]):
-            self._parsers.append(_coefParser(coeffs[i], test.mfem.dimension, typ))
+            self._parsers.append(_coefParser(coeffs[i], test.mfem.dimension, dV, typ))
+
+        self._parsers_S = []
+        for i, typ in enumerate(["scalar", "vector", "vector", "matrix"]):
+            self._parsers_S.append(_coefParser(coeffs[i], test.mfem.dimension, dS, typ))
 
     def __isNonlinear(self, coeffs):
         for c in coeffs:
@@ -339,7 +362,23 @@ class _BilinearFormMatrix:
         if self._parsers[3].valid:
             self._coef_V3 = self._parsers[3].eval(coeffs)
             self._integ.append(mfem.MixedGradGradIntegrator(self._coef_V3))
-        self._mat = self.__generateMatrix(x,b,domainInteg=self._integ, boundaryInteg=[])
+
+        self._integ_S = []
+        if self._parsers_S[0].valid:
+            self._coef_S0 = self._parsers_S[0].eval(coeffs)
+            self._integ_S.append(mfem.MixedScalarMassIntegrator(self._coef_S0))
+        if self._parsers_S[1].valid:
+            self._coef_S1 = self._parsers_S[1].eval(coeffs)
+            self._integ_S.append(mfem.MixedDirectionalDerivativeIntegrator(self._coef_S1))
+        if self._parsers_S[2].valid:
+            self._coef_S2 = self._parsers_S[2].eval(coeffs)
+            self._coef_S2_ =mfem.ScalarVectorProductCoefficient(-1.0, self._coef_S2)
+            self._integ_S.append(mfem.MixedScalarWeakDivergenceIntegrator(self._coef_S2_))
+        if self._parsers_S[3].valid:
+            self._coef_S3 = self._parsers_S[3].eval(coeffs)
+            self._integ_S.append(mfem.MixedGradGradIntegrator(self._coef_S3))
+
+        self._mat = self.__generateMatrix(x,b,domainInteg=self._integ, boundaryInteg=self._integ_S)
         return self._mat
 
     def __generateMatrix(self, x, b, domainInteg, boundaryInteg):
@@ -378,7 +417,10 @@ class _BilinearFormMatrix:
         for i in domainInteg:
             m.AddDomainIntegrator(i)
         for i in boundaryInteg:
-            m.AddBoundaryIntegrator(i)
+            mk = mfem.intArray()
+            space2.ListToMarker(mfem.intArray([1]), 1, mk)
+            print("marker", [mn for mn in mk])
+            m.AddBoundaryIntegrator(i, mfem.intArray([1]))
         m.Assemble()
     
         if b is None:
@@ -396,9 +438,11 @@ class _BilinearFormMatrix:
 
 
 class _coefParser:
-    def __init__(self, scoef, dim, type="scalar"):
+    def __init__(self, scoef, dim, domain=None, type="scalar"):
         self._dim = dim
         self._type = type
+        if domain is not None:
+            scoef = self.__coeff(scoef, domain)
         self._empty = self.__is_zero(scoef)
         if self._empty:
             return
@@ -421,6 +465,8 @@ class _coefParser:
             return mfem.VectorArrayCoefficient([s.eval(coefs) for s in self._scalars])
         if self._type == "matrix":
             return mfem.MatrixArrayCoefficient([[s.eval(coefs) for s in ss] for ss in self._scalars])
+        if self._empty:
+            return 0
         if self._const:
             return self._func
         else:
@@ -428,6 +474,12 @@ class _coefParser:
             if isinstance(res, (int, float, sp.Integer, sp.Float)):
                 res = mfem.generateCoefficient(res, self._dim)
             return res
+
+    def __coeff(self, scoef, domain):
+        if hasattr(scoef, "__iter__"):
+            return [self.__coeff(s, domain) for s in scoef]
+        else:
+            return scoef.coeff(domain)
 
     def __is_zero(self, val):
         if isinstance(val, (tuple, list)):

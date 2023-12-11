@@ -1,40 +1,92 @@
-from lys_fem.mf import mfem, MFEMModel
+import sympy as sp
+from lys_fem.fem import Source
+from lys_fem.mf import MFEMModel, util, weakform, mfem
+from lys_fem.mf.weakform import grad, t, dV, dS
+
 
 
 class MFEMPoissonModel(MFEMModel):
     def __init__(self, model, mesh, mat):
-        super().__init__(mfem.H1_FECollection(2, mesh.Dimension()), model, mesh)
-        self._Jac = None
+        super().__init__(model)
+        self._mesh = mesh
+        self._mat = mat
+        self._model = model
 
-    def assemble_k(self):
-        a = mfem.BilinearForm(self.space)
-        a.AddDomainIntegrator(mfem.DiffusionIntegrator())
-        a.Assemble()
-        return a
+        self._mesh1 = mfem.SubMesh.CreateFromDomain(mesh, mfem.intArray([1]))
+        self._mesh2 = mfem.SubMesh.CreateFromDomain(mesh, mfem.intArray([2]))
+        self._mesh3 = mfem.SubMesh.CreateFromBoundary(mesh, mfem.intArray([1]))
+        self._phi1 = weakform.TrialFunction("phi1", self._mesh1, self.dirichletCondition[0], util.generateDomainCoefficient(self._mesh1, model.initialConditions, 0))
+        self._phi2 = weakform.TrialFunction("phi2", self._mesh2, self.dirichletCondition[0], util.generateDomainCoefficient(self._mesh2, model.initialConditions, 0))
+        self._lam1 = weakform.TrialFunction("lam_phi1", self._mesh3, [], mfem.generateCoefficient(0,0))
+
+    @property
+    def trialFunctions(self):
+        return [self._phi1, self._phi2, self._lam1]
+
+    @property
+    def weakform(self):
+        u1 = self._phi1
+        v1 = weakform.TestFunction(u1)
+        gu1, gv1 = grad(u1), grad(v1)
+
+        u2 = self._phi2
+        v2 = weakform.TestFunction(u2)
+        gu2, gv2 = grad(u2), grad(v2)
+
+        lam1 = self._lam1
+        lv = weakform.TestFunction(lam1)
+
+        wf = (gu1.dot(gv1)) * dV
+
+        if self._model.domainConditions.have(Source):
+            f1 = sp.Symbol("f1_poisson")
+            wf += - f1 * v1 * dV
+        
+        wf += (gu2.dot(gv2)) * dV
+        wf += (lam1*v1 - lam1*v2 + (u1-u2)*lv)*dS
+
+        return wf
+
+    @property
+    def coefficient(self):
+        coefs = {}
+        if self._model.domainConditions.have(Source):
+            source = self._model.domainConditions.get(Source)
+            coefs["f1_poisson"] = util.generateDomainCoefficient(self._mesh1, source, default=0)
+        return coefs
     
-    def M(self):
-        return None
+class MFEMPoissonModel2(MFEMModel):
+    def __init__(self, model, mesh, mat):
+        super().__init__(model)
+        self._mesh = mesh
+        self._mat = mat
+        self._model = model
+        self._phi = weakform.TrialFunction("phi", mesh, self.dirichletCondition[0], util.generateDomainCoefficient(mesh, model.initialConditions, 0))
 
     @property
-    def K(self):
-        if not self._initK:
-            self._initK = True
-            self._K = mfem.SparseMatrix()
-            self.ess_tdof_list = self.essential_tdof_list()
-            self._k = self.assemble_k()
-            self._k.FormSystemMatrix(self.ess_tdof_list, self._K)
-        return self._K
+    def trialFunctions(self):
+        return [self._phi]
 
     @property
-    def b(self):
-        if not self._initB:
-            self._initB = True
-            self.ess_tdof_list = self.essential_tdof_list()
-            self._B = mfem.Vector()
+    def weakform(self):
+        u = self._phi
+        v = weakform.TestFunction(u)
+        gu, gv = grad(u), grad(v)
 
-            self._b = self.assemble_b()
-            tmp = mfem.GridFunction(self.space, self._b)
-            tmp.GetTrueDofs(self._B)
-            K = self.K
-            self._k.EliminateVDofsInRHS(self.ess_tdof_list, self.x0, self._B)
-        return self._B
+        wf = (gu.dot(gv)) * dV
+
+        if self._model.domainConditions.have(Source):
+            f = sp.Symbol("f_poisson")
+            wf += - f * v * dV
+            pass
+
+        return wf
+
+    @property
+    def coefficient(self):
+        coefs = {}
+        if self._model.domainConditions.have(Source):
+            source = self._model.domainConditions.get(Source)
+            coefs["f_poisson"] = util.generateDomainCoefficient(self._mesh, source, default=0)
+        return coefs
+    

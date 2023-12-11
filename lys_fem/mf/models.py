@@ -3,7 +3,7 @@ import numpy as np
 
 from ..fem import DirichletBoundary
 from . import mfem
-from .weakform import t, dt, prev, grad, WeakformParser
+from .weakform import t, dt, dV, dS, prev, grad, WeakformParser
 
 modelList = {}
 
@@ -24,6 +24,10 @@ class MFEMModel:
     @property
     def variableName(self):
         return self._model.variableName
+
+    @property
+    def integrals(self):
+        return []
 
     @property
     def dirichletCondition(self):
@@ -74,7 +78,7 @@ class CompositeModel:
 
         wf = self.weakform
         self._nonlinear = self.__checkNonlinear(wf, self.trialFunctions)
-        self._parser = WeakformParser(wf, self.trialFunctions, self.coefficient)
+        self._parser = WeakformParser(wf, self.trialFunctions, self.coefficient, self.integrals)
 
     def __checkNonlinear(self, wf, trials):
         vars = []
@@ -128,10 +132,11 @@ class CompositeModel:
         # prepare coefficient for trial functions and its derivative.
         for gf, trial in zip(x_gfs, self.trialFunctions):
             coeffs[trial.mfem.name] = mfem.generateCoefficient(gf, trial.mfem.dimension)
-            for d, gt in enumerate(trial.mfem.gradNames):
-                gfd = mfem.GridFunction(trial.mfem.space)
-                gf.GetDerivative(1, d, gfd)
-                coeffs[gt] = mfem.generateCoefficient(gfd, trial.mfem.dimension)
+            if not trial.mfem.isBoundary:
+                for d, gt in enumerate(trial.mfem.gradNames):
+                    gfd = mfem.GridFunction(trial.mfem.space)
+                    gf.GetDerivative(1, d, gfd)
+                    coeffs[gt] = mfem.generateCoefficient(gfd, trial.mfem.dimension)
 
         # coefficient for dt and previous value
         if self._update_t:
@@ -174,6 +179,13 @@ class CompositeModel:
         result = {}
         for m in self._models:
             result.update(m.coefficient)
+        return result
+    
+    @property
+    def integrals(self):
+        result = [dV, dS]
+        for m in self._models:
+            result.extend(m.integrals)
         return result
     
     @property
