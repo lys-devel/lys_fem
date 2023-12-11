@@ -131,19 +131,19 @@ class CompositeModel:
         coeffs = {}
         # prepare coefficient for trial functions and its derivative.
         for gf, trial in zip(x_gfs, self.trialFunctions):
-            coeffs[trial.mfem.name] = mfem.generateCoefficient(gf, trial.mfem.dimension)
+            coeffs[trial.mfem.name] = mfem.generateCoefficient(gf)
             if not trial.mfem.isBoundary:
                 for d, gt in enumerate(trial.mfem.gradNames):
                     gfd = mfem.GridFunction(trial.mfem.space)
                     gf.GetDerivative(1, d, gfd)
-                    coeffs[gt] = mfem.generateCoefficient(gfd, trial.mfem.dimension)
+                    coeffs[gt] = mfem.generateCoefficient(gfd)
 
         # coefficient for dt and previous value
         if self._update_t:
-            coeffs["dt"] = mfem.generateCoefficient(self.dt, self._mesh.SpaceDimension())
+            coeffs["dt"] = mfem.generateCoefficient(self.dt)
             for trial in self.trialFunctions:
                 p = prev(trial)
-                coeffs[str(p)] = mfem.generateCoefficient(trial.mfem.x, self._mesh.SpaceDimension())
+                coeffs[str(p)] = mfem.generateCoefficient(trial.mfem.x)
             self._update_t = False
         return coeffs
 

@@ -10,19 +10,19 @@ class weakform_test(FEMTestCase):
 
     def test_coef(self):
         mesh = self.generateSimpleMesh(1)
-        c1 = mfem.generateCoefficient({1: 1, "default": 0}, mesh.SpaceDimension())
+        c1 = mfem.generateCoefficient({1: 1, "default": 0})
         self.assertTrue(isinstance(c1, mfem.SympyCoefficient))
 
-        c2 = mfem.generateCoefficient({1: 1}, mesh.SpaceDimension())
+        c2 = mfem.generateCoefficient({1: 1})
         self.assertTrue(isinstance(c2, mfem.ConstantCoefficient))
 
-        c3 = mfem.generateCoefficient(1, mesh.SpaceDimension())
+        c3 = mfem.generateCoefficient(1)
         self.assertTrue(isinstance(c3, mfem.ConstantCoefficient))
 
-        c4 = mfem.generateCoefficient({1: [1,2,3], "default": [1,2,3]}, mesh.SpaceDimension())
+        c4 = mfem.generateCoefficient({1: [1,2,3], "default": [1,2,3]})
         self.assertTrue(isinstance(c4, mfem.VectorArrayCoefficient))
 
-        c5 = mfem.generateCoefficient({1: np.eye(3), "default": np.eye(3)}, mesh.SpaceDimension())
+        c5 = mfem.generateCoefficient({1: np.eye(3), "default": np.eye(3)})
         self.assertTrue(isinstance(c5, mfem.MatrixArrayCoefficient))
 
         m = mfem.MatrixArrayCoefficient([[c1, c2], [c3, c2]])
@@ -30,7 +30,7 @@ class weakform_test(FEMTestCase):
     def test_bilinear(self):
         # linear term
         mesh = self.generateSimpleMesh(3)
-        u = weakform.TrialFunction("u", mesh, {0:[], 1:[], 2:[]}, mfem.generateCoefficient([1,1,1], mesh.SpaceDimension()), nvar=3)
+        u = weakform.TrialFunction("u", mesh, {0:[], 1:[], 2:[]}, mfem.generateCoefficient([1,1,1]), nvar=3)
         v = weakform.TestFunction(u)
         gu, gv = grad(u), grad(v)
 
@@ -81,7 +81,7 @@ class weakform_test(FEMTestCase):
         self.assertEqual(sp.Matrix(weakform._BilinearForm._getCoeffs(wf, vars, u[2], v[2])[3]), m[2,2]*sp.eye(3))
 
         mesh = self.generateSimpleMesh(3)
-        u = weakform.TrialFunction("u", mesh, {0:[]}, mfem.generateCoefficient(1, mesh.SpaceDimension()))
+        u = weakform.TrialFunction("u", mesh, {0:[]}, mfem.generateCoefficient(1))
         v = weakform.TestFunction(u)
         gu, gv = grad(u), grad(v)
 

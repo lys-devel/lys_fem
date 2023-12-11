@@ -109,8 +109,8 @@ def IntegralSymbol(name, type, attr=None):
     symbol._attr = attr
     return symbol
 
-dV = sp.Symbol("dV")#IntegralSymbol("dV", "Volume")
-dS = sp.Symbol("dS")#IntegralSymbol("dS", "Boundary")
+dV = IntegralSymbol("dV", "Volume")
+dS = IntegralSymbol("dS", "Boundary")
 
 class WeakformParser:
     def __init__(self, wf, trials, coeffs, integrals):
@@ -172,13 +172,13 @@ class _LinearForm:
         self._parser = []
 
         self._scoef_V1 = self.__sympyCoeff1D(wf, test, test_deriv=True)
-        self._parser.append(_coefParser(self._scoef_V1, test.mfem.dimension, dV, type = "vector"))
+        self._parser.append(_coefParser(self._scoef_V1, dV))
 
         self._scoef_V2 = self.__sympyCoeff1D(wf, test)
-        self._parser.append(_coefParser(self._scoef_V2, test.mfem.dimension, dV))
+        self._parser.append(_coefParser(self._scoef_V2, dV))
 
         self._scoef_S = self.__sympyCoeff1D(wf, test)
-        self._parser.append(_coefParser(self._scoef_S, test.mfem.dimension, dS))
+        self._parser.append(_coefParser(self._scoef_S, dS))
 
     def getDofs(self, coeffs):
         self._integ_V, self._integ_S = [], []
@@ -328,12 +328,12 @@ class _BilinearFormMatrix:
         self._mat = None
 
         self._parsers = []
-        for i, typ in enumerate(["scalar", "vector", "vector", "matrix"]):
-            self._parsers.append(_coefParser(coeffs[i], test.mfem.dimension, dV, type=typ))
+        for c in coeffs:
+            self._parsers.append(_coefParser(c, dV))
 
         self._parsers_S = []
-        for i, typ in enumerate(["scalar", "vector", "vector", "matrix"]):
-            self._parsers_S.append(_coefParser(coeffs[i], test.mfem.dimension, dS, type=typ))
+        for c in coeffs:
+            self._parsers_S.append(_coefParser(c, dS))
 
     def __isNonlinear(self, coeffs):
         for c in coeffs:
@@ -436,21 +436,24 @@ class _BilinearFormMatrix:
 
 
 class _coefParser:
-    def __init__(self, scoef, dim, domain=None, type="scalar"):
-        self._dim = dim
-        self._type = type
+    def __init__(self, scoef, domain=None):
         if domain is not None:
             scoef = self.__coeff(scoef, domain)
         self._empty = self.__is_zero(scoef)
         if self._empty:
             return
-        if type == "vector":
-            self._scalars = [_coefParser(sc, dim) for sc in scoef]
-        elif type == "matrix":
-            self._scalars = [[_coefParser(s, dim) for s in sc] for sc in scoef]
+
+        if isinstance(scoef, (list, tuple)):
+            if isinstance(scoef[0], (list, tuple)):
+                self._type = "matrix"
+                self._scalars = [[_coefParser(s) for s in sc] for sc in scoef]
+            else:
+                self._type = "vector"
+                self._scalars = [_coefParser(sc) for sc in scoef]
         else:
+            self._type = "scalar"
             if not isinstance(scoef, (sp.Basic, sp.Matrix)):
-                self._func = mfem.generateCoefficient(scoef, dim)
+                self._func = mfem.generateCoefficient(scoef)
                 self._const = True
             else:
                 scoef = self.__replaceFuncs(scoef)
@@ -470,7 +473,7 @@ class _coefParser:
         else:
             res = self._func(*[coefs[str(a)] for a in self._args])
             if isinstance(res, (int, float, sp.Integer, sp.Float)):
-                res = mfem.generateCoefficient(res, self._dim)
+                res = mfem.generateCoefficient(res)
             return res
 
     def __coeff(self, scoef, domain):

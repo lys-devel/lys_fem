@@ -3,7 +3,7 @@ import numpy as np
 
 from . import mfem_orig
 
-def generateCoefficient(coefs, dim=None):
+def generateCoefficient(coefs):
     """
     Generate MFEM coefficient from sympy expression dictionary.
     coefs should be a dictionary such as {1: x, 2: y, "default": 0}.
@@ -11,7 +11,7 @@ def generateCoefficient(coefs, dim=None):
     """
     from . import GridFunction
     if isinstance(coefs, dict):
-        return generateCoefficient(_parseDictToSympy(coefs), dim)
+        return generateCoefficient(_parseDictToSympy(coefs))
     elif isinstance(coefs, (int, float, sp.Integer, sp.Float)):
         return ConstantCoefficient(float(coefs))
     elif isinstance(coefs, GridFunction):

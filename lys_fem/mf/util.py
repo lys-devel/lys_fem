@@ -7,7 +7,7 @@ def generateDomainCoefficient(mesh, conditions, default):
     for c in conditions:
         for d in c.domains:
             coefs[d] = c.values
-    return generateCoefficient(coefs, mesh.SpaceDimension())
+    return generateCoefficient(coefs)
 
 
 def generateSurfaceCoefficient(mesh, conditions, default):
@@ -15,5 +15,5 @@ def generateSurfaceCoefficient(mesh, conditions, default):
     for c in conditions:
         for d in c.boundaries:
             coefs[d] = c.values
-    return generateCoefficient(coefs, mesh.SpaceDimension())
+    return generateCoefficient(coefs)
 
