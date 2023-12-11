@@ -172,7 +172,7 @@ class _LinearForm:
         self._parser = []
 
         self._scoef_V1 = self.__sympyCoeff1D(wf, test, test_deriv=True)
-        self._parser.append(_coefParser(self._scoef_V1, test.mfem.dimension, dV, "vector"))
+        self._parser.append(_coefParser(self._scoef_V1, test.mfem.dimension, dV, type = "vector"))
 
         self._scoef_V2 = self.__sympyCoeff1D(wf, test)
         self._parser.append(_coefParser(self._scoef_V2, test.mfem.dimension, dV))
@@ -203,9 +203,9 @@ class _LinearForm:
     @classmethod
     def __sympyCoeff1D(cls, wf, test, test_deriv=False):
         if test_deriv is False:
-            return wf.coeff(test)
+            return wf.diff(test)
         else:
-            return [wf.coeff(t) for t in grad(test)]
+            return [wf.diff(t) for t in grad(test)]
 
     @staticmethod
     def __linearForm(space, domainInteg, boundaryInteg):
@@ -323,19 +323,17 @@ class _BilinearFormMatrix:
     def __init__(self, trial, test, coeffs, integrals):
         self._trial = trial
         self._test = test
-        print(coeffs)
-        print()
 
         self._nonlinear = self.__isNonlinear(coeffs)
         self._mat = None
 
         self._parsers = []
         for i, typ in enumerate(["scalar", "vector", "vector", "matrix"]):
-            self._parsers.append(_coefParser(coeffs[i], test.mfem.dimension, dV, typ))
+            self._parsers.append(_coefParser(coeffs[i], test.mfem.dimension, dV, type=typ))
 
         self._parsers_S = []
         for i, typ in enumerate(["scalar", "vector", "vector", "matrix"]):
-            self._parsers_S.append(_coefParser(coeffs[i], test.mfem.dimension, dS, typ))
+            self._parsers_S.append(_coefParser(coeffs[i], test.mfem.dimension, dS, type=typ))
 
     def __isNonlinear(self, coeffs):
         for c in coeffs:
