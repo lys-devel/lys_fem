@@ -105,8 +105,8 @@ class _MFEMInfo:
 
 def IntegralSymbol(name, type, attr=None):
     symbol = sp.Function(name)()
-    symbol._type = type
-    symbol._attr = attr
+    symbol.type = type
+    symbol.attr = attr
     return symbol
 
 dV = IntegralSymbol("dV", "Volume")
@@ -327,13 +327,7 @@ class _BilinearFormMatrix:
         self._nonlinear = self.__isNonlinear(coeffs)
         self._mat = None
 
-        self._parsers = []
-        for c in coeffs:
-            self._parsers.append(_coefParser(c, dV))
-
-        self._parsers_S = []
-        for c in coeffs:
-            self._parsers_S.append(_coefParser(c, dS))
+        self._parsers = {d: [_coefParser(c, d) for c in coeffs] for d in integrals}
 
     def __isNonlinear(self, coeffs):
         for c in coeffs:
@@ -346,62 +340,47 @@ class _BilinearFormMatrix:
     def getMatrix(self, coeffs, x=None, b=None):
         if not self._nonlinear and self._mat is not None:
             return self._mat
-        self._integ = []
-        if self._parsers[0].valid:
-            self._coef_V0 = self._parsers[0].eval(coeffs)
-            self._integ.append(mfem.MixedScalarMassIntegrator(self._coef_V0))
-        if self._parsers[1].valid:
-            self._coef_V1 = self._parsers[1].eval(coeffs)
-            self._integ.append(mfem.MixedDirectionalDerivativeIntegrator(self._coef_V1))
-        if self._parsers[2].valid:
-            self._coef_V2 = self._parsers[2].eval(coeffs)
-            self._coef_V2_ =mfem.ScalarVectorProductCoefficient(-1.0, self._coef_V2)
-            self._integ.append(mfem.MixedScalarWeakDivergenceIntegrator(self._coef_V2_))
-        if self._parsers[3].valid:
-            self._coef_V3 = self._parsers[3].eval(coeffs)
-            self._integ.append(mfem.MixedGradGradIntegrator(self._coef_V3))
 
-        self._integ_S = []
-        if self._parsers_S[0].valid:
-            self._coef_S0 = self._parsers_S[0].eval(coeffs)
-            self._integ_S.append(mfem.MixedScalarMassIntegrator(self._coef_S0))
-        if self._parsers_S[1].valid:
-            self._coef_S1 = self._parsers_S[1].eval(coeffs)
-            self._integ_S.append(mfem.MixedDirectionalDerivativeIntegrator(self._coef_S1))
-        if self._parsers_S[2].valid:
-            self._coef_S2 = self._parsers_S[2].eval(coeffs)
-            self._coef_S2_ =mfem.ScalarVectorProductCoefficient(-1.0, self._coef_S2)
-            self._integ_S.append(mfem.MixedScalarWeakDivergenceIntegrator(self._coef_S2_))
-        if self._parsers_S[3].valid:
-            self._coef_S3 = self._parsers_S[3].eval(coeffs)
-            self._integ_S.append(mfem.MixedGradGradIntegrator(self._coef_S3))
+        # generate integrator for respective domain/boundary
+        integ_V, integ_S = {d: [] for d in self._parsers.keys()}, {d: [] for d in self._parsers.keys()}
+        for d, parsers in self._parsers.items():
+            if d.type == "Volume":
+                integ = integ_V[d]
+            else:
+                integ = integ_S[d]
+            if parsers[0].valid:
+                integ.append(mfem.MixedScalarMassIntegrator(parsers[0].eval(coeffs)))
+            if parsers[1].valid:
+                integ.append(mfem.MixedDirectionalDerivativeIntegrator(parsers[1].eval(coeffs)))
+            if parsers[2].valid:
+                coef_V2 =mfem.ScalarVectorProductCoefficient(-1.0, parsers[2].eval(coeffs))
+                integ.append(mfem.MixedScalarWeakDivergenceIntegrator(coef_V2))
+            if parsers[3].valid:
+                integ.append(mfem.MixedGradGradIntegrator(parsers[3].eval(coeffs)))
 
-        self._mat = self.__generateMatrix(x,b,domainInteg=self._integ, boundaryInteg=self._integ_S)
+        # assemble sparse matrix
+        if self._trial.mfem.space == self._test.mfem.space:
+            self._mat = self._bilinearForm(self._trial, x, b, integ_V, integ_S)
+        else:
+            self._mat =  self._mixedBilinearForm(self._trial, self._test, x, b, integ_V, integ_S)
         return self._mat
 
-    def __generateMatrix(self, x, b, domainInteg, boundaryInteg):
-        if self._trial.mfem.space == self._test.mfem.space:
-            return self._bilinearForm(self._trial.mfem.space, self._trial.mfem.ess_bdrs, x, b,
-                                      domainInteg=domainInteg, boundaryInteg=boundaryInteg)
-        else:
-            return self._mixedBilinearForm(self._trial.mfem.space, self._test.mfem.space,
-                                           self._trial.mfem.ess_bdrs, self._test.mfem.ess_bdrs, x, b, 
-                                           domainInteg=domainInteg, boundaryInteg=boundaryInteg)
-
     @staticmethod
-    def _bilinearForm(space, ess_bdrs=None, x=None, b=None, domainInteg=None, boundaryInteg=None):
+    def _bilinearForm(trial, x=None, b=None, domainInteg=None, boundaryInteg=None):
         # create Bilinear form of mfem
-        m = mfem.BilinearForm(space)
-        for i in domainInteg:
-            m.AddDomainIntegrator(i)
-        for i in boundaryInteg:
-            m.AddBoundaryIntegrator(i)
+        m = mfem.BilinearForm(trial.mfem.space)
+        for d, di in domainInteg.items():
+            for i in di:
+                m.AddDomainIntegrator(i)
+        for d, bi in boundaryInteg.items():
+            for i in bi:
+                m.AddBoundaryIntegrator(i)
         m.Assemble()
 
         if b is not None:
-            m.EliminateEssentialBC(ess_bdrs, x, b)
+            m.EliminateEssentialBC(trial.mfem.ess_bdrs, x, b)
         else:
-            m.EliminateEssentialBC(ess_bdrs)
+            m.EliminateEssentialBC(trial.mfem.ess_bdrs)
 
         m.Finalize()
         result = mfem.SparseMatrix(m.SpMat())
@@ -409,23 +388,25 @@ class _BilinearFormMatrix:
         return result
 
     @staticmethod
-    def _mixedBilinearForm(space1, space2, ess_bdrs1=None, ess_bdrs2=None, x=None, b=None, domainInteg=None, boundaryInteg=None):
+    def _mixedBilinearForm(trial, test, x=None, b=None, domainInteg=None, boundaryInteg=None):
         # create Bilinear form of mfem
-        m = mfem.MixedBilinearForm(space1, space2)
-        for i in domainInteg:
-            m.AddDomainIntegrator(i)
-        for i in boundaryInteg:
-            mk = mfem.intArray()
-            space2.ListToMarker(mfem.intArray([1]), 1, mk)
-            print("marker", [mn for mn in mk])
-            m.AddBoundaryIntegrator(i, mfem.intArray([1]))
+        m = mfem.MixedBilinearForm(trial.mfem.space, test.mfem.space)
+        for domain, di in domainInteg.items():
+            for i in di:
+                m.AddDomainIntegrator(i)
+        for boundary, bi in boundaryInteg.items():
+            for i in bi:
+                mk = mfem.intArray()
+                space2.ListToMarker(mfem.intArray([1]), 1, mk)
+                print("marker", [mn for mn in mk])
+                m.AddBoundaryIntegrator(i, mfem.intArray([1]))
         m.Assemble()
     
         if b is None:
-            x = mfem.Vector(space1.GetVSize())
-            b = mfem.Vector(space2.GetVSize())
-        m.EliminateTrialDofs(ess_bdrs1, x, b)
-        m.EliminateTestDofs(ess_bdrs2)
+            x = mfem.Vector(trial.mfem.space.GetVSize())
+            b = mfem.Vector(test.mfem.space.GetVSize())
+        m.EliminateTrialDofs(trial.mfem.ess_bdrs, x, b)
+        m.EliminateTestDofs(test.mfem.ess_bdrs)
 
         # set it to matrix
         m.Finalize()
@@ -480,7 +461,7 @@ class _coefParser:
         if hasattr(scoef, "__iter__"):
             return [self.__coeff(s, domain) for s in scoef]
         else:
-            return scoef.coeff(domain)
+            return scoef.diff(domain)
 
     def __is_zero(self, val):
         if isinstance(val, (tuple, list)):
