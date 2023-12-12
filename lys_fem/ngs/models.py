@@ -39,6 +39,9 @@ class CompositeModel:
         self._models = models
         self._type = type
 
+        self._fes = self.space
+        self._x = self.__getInitialValue()
+
     def __checkNonlinear(self, wf, trials):
         vars = []
         for trial in trials:
@@ -51,8 +54,24 @@ class CompositeModel:
                 return True
         return False
 
+    def __getInitialValue(self):
+        # gather all initial values
+        inits = []
+        for m in self._models:
+            inits.extend(m.initialValues)
+
+        # set it to grid function
+        u = GridFunction(self._fes)
+        if len(inits) == 1:
+            u.Set(*inits)
+        else:
+            for ui, i in zip(u.components, inits):
+                ui.Set(i)
+        return u
+
     def solve(self, solver, dt=1):
         fes = self.space
+        
         b = BilinearForm(fes)
         b += self.weakform
 
@@ -60,58 +79,10 @@ class CompositeModel:
         b.Assemble()
         l.Assemble()
 
-        u = GridFunction(fes)
-        u.Set(x)
-        
         res = l.vec.CreateVector()
-        res.data = l.vec - b.mat * u.vec
-        u.vec.data += b.mat.Inverse(fes.FreeDofs()) * res
-        print(u.vec)
-
-    def __getFromGridFunctions(self):
-        x = mfem.BlockVector(self._block_offset)
-        for i, trial in enumerate(self.trialFunctions):
-            trial.mfem.x.GetTrueDofs(x.GetBlock(i))
-        return x
-    
-    def __setToGridFunctions(self, x):
-        x0 = mfem.BlockVector(x, self._block_offset)
-        for i, t in enumerate(self.trialFunctions):
-            t.mfem.x.SetFromTrueDofs(x0.GetBlock(i))
-            print(t, t.mfem.x.GetDataArray())
-
-    def update(self, x):
-        # Translate x to grid functions
-        x = mfem.BlockVector(x, self._block_offset)
-        x_gfs = []
-        for i, trial in enumerate(self.trialFunctions):
-            x_gf = mfem.GridFunction(trial.mfem.space)
-            x_gf.SetFromTrueDofs(x.GetBlock(i))
-            x_gfs.append(x_gf)      
-
-        # Parse matrices by updated coefficients
-        coeffs = self.__updateCoefficients(x_gfs)
-        self.K, self.b, self._J = self._parser.update(x_gfs, self.dt, coeffs)
-
-    def __updateCoefficients(self, x_gfs):
-        coeffs = {}
-        # prepare coefficient for trial functions and its derivative.
-        for gf, trial in zip(x_gfs, self.trialFunctions):
-            coeffs[trial.mfem.name] = mfem.generateCoefficient(gf)
-            if not trial.mfem.isBoundary:
-                for d, gt in enumerate(trial.mfem.gradNames):
-                    gfd = mfem.GridFunction(trial.mfem.space)
-                    gf.GetDerivative(1, d, gfd)
-                    coeffs[gt] = mfem.generateCoefficient(gfd)
-
-        # coefficient for dt and previous value
-        if self._update_t:
-            coeffs["dt"] = mfem.generateCoefficient(self.dt)
-            for trial in self.trialFunctions:
-                p = prev(trial)
-                coeffs[str(p)] = mfem.generateCoefficient(trial.mfem.x)
-            self._update_t = False
-        return coeffs
+        res.data = l.vec - b.mat * self._x.vec
+        self._x.vec.data += b.mat.Inverse(fes.FreeDofs()) * res
+        print(self._x.vec)
 
     def __call__(self, x):
         K, b = self.K, self.b
@@ -137,6 +108,7 @@ class CompositeModel:
             result = result * sp
         return result
         
+
     @property
     def isNonlinear(self):
         return self._nonlinear

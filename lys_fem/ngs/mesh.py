@@ -1,5 +1,4 @@
 import gmsh
-import numpy as np
 
 #from netgen.read_gmsh import ReadGmsh
 from netgen.meshing import *
@@ -14,6 +13,9 @@ def generateMesh(fem, file="mesh.msh"):
     gmesh, points = ReadGmsh(file)
     _createBoundaryFor1D(gmesh, file, points)
     mesh = ngsolve.Mesh(gmesh)
+    print(dir(mesh))
+    e = [e for e in mesh.Elements()][0]
+    print(dir(e), e.vertices)
     return mesh
     
 

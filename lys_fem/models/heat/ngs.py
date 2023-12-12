@@ -1,5 +1,5 @@
 from ngsolve import H1, grad, dx
-from lys_fem.ngs import NGSModel
+from lys_fem.ngs import NGSModel, util
 
 
 class NGSHeatConductionModel(NGSModel):
@@ -8,6 +8,7 @@ class NGSHeatConductionModel(NGSModel):
         self._mesh = mesh
         self._model = model
         self._fes = H1(mesh, order=1, dirichlet=[1,3])
+        self._init = util.generateDomainCoefficient(mesh, self._model.initialConditions)
 
     @property
     def spaces(self):
@@ -22,4 +23,6 @@ class NGSHeatConductionModel(NGSModel):
         wf = (gu*gv) * dx
         return wf
 
-    
+    @property
+    def initialValues(self):
+        return [self._init]

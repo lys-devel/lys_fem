@@ -5,8 +5,13 @@ from .solver import generateSolver
 
 
 def run(fem, run=True):
+    print("\n-------------NGS started ---------------")
     mesh = generateMesh(fem)
-    print(mesh)
+    print("NGS Mesh generated: ", mesh.ne, "elements, ", mesh.nv, "nodes.")
+    print("\tDomains:", mesh.GetMaterials())
+    print("\tBoundaries:", mesh.GetBoundaries())
+    print()
+
     models = generateModel(fem, mesh, None)
     print(models)
     solvers = generateSolver(fem, mesh, models)
