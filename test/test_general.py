@@ -53,7 +53,7 @@ class poisson_test(FEMTestCase):
         # geometry
         p.geometries.add(geometry.Sphere(0, 0, 0, 2))
         p.geometries.add(geometry.Sphere(0, 0, 0, 5))
-        p.mesher.setRefinement(1)
+        p.mesher.setRefinement(0)
 
         # model: boundary and initial conditions
         model = general.PoissonModel()

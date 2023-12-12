@@ -41,12 +41,16 @@ class FEMTestCase(unittest.TestCase):
         model.occ.synchronize()
         for i, obj in enumerate(model.getEntities(3)):
             model.add_physical_group(dim=3, tags=[obj[1]], tag=i + 1)
+            model.setPhysicalName(dim=3, tag=i+1, name=str(i+1))
         for i, obj in enumerate(model.getEntities(2)):
             model.add_physical_group(dim=2, tags=[obj[1]], tag=i + 1)
+            model.setPhysicalName(dim=2, tag=i+1, name=str(i+1))
         for i, obj in enumerate(model.getEntities(1)):
             model.add_physical_group(dim=1, tags=[obj[1]], tag=i + 1)
+            model.setPhysicalName(dim=1, tag=i+1, name=str(i+1))
         for i, obj in enumerate(model.getEntities(0)):
             model.add_physical_group(dim=0, tags=[obj[1]], tag=i + 1)
+            model.setPhysicalName(dim=0, tag=i+1, name=str(i+1))
         model.mesh.setTransfiniteAutomatic()
         model.mesh.generate()
         gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
@@ -58,3 +62,12 @@ class FEMTestCase(unittest.TestCase):
         file = self.generateSimpleGeometry(dim)
         mesh, _ = _createMFEMMesh(file)
         return mesh
+
+    def generateSimpleNGSMesh(self, dim):
+        from netgen.read_gmsh import ReadGmsh
+        from ngsolve import Mesh
+
+        file = self.generateSimpleGeometry(dim)
+        gmesh = ReadGmsh(file)
+        return Mesh(gmesh)
+        

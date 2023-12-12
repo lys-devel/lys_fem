@@ -72,6 +72,12 @@ class _MFEMInfo:
         self._solver.Mult(d, self._res)
         return self._res
 
+    def ListToMarker(self, list, type="Domain"):
+        if type == "Domain":
+            return mfem.intArray([1 if attr in list else 0 for attr in self._mesh.attributes])
+        else:
+            return mfem.intArray([1 if attr in list else 0 for attr in self._mesh.bdr_attributes])
+
     @property
     def isBoundary(self):
         if isinstance(self._mesh, mfem.SubMesh):
@@ -369,12 +375,22 @@ class _BilinearFormMatrix:
     def _bilinearForm(trial, x=None, b=None, domainInteg=None, boundaryInteg=None):
         # create Bilinear form of mfem
         m = mfem.BilinearForm(trial.mfem.space)
-        for d, di in domainInteg.items():
-            for i in di:
-                m.AddDomainIntegrator(i)
-        for d, bi in boundaryInteg.items():
-            for i in bi:
-                m.AddBoundaryIntegrator(i)
+        if trial.mfem.isBoundary:
+            for boundary, bi in boundaryInteg.items():
+                for i in bi:
+                    m.AddDomainIntegrator(i)
+        else:
+            for domain, di in domainInteg.items():
+                for i in di:
+                    m.AddDomainIntegrator(i)            
+            for boundary, bi in boundaryInteg.items():
+                if boundary.attr is None:
+                    for i in bi:
+                        m.AddBoundaryIntegrator(i)
+                else:
+                    for i in bi:
+                        i.marker = trial.mfem.ListToMarker(boundary.attr, "Surface")
+                        m.AddBoundaryIntegrator(i, i.marker)
         m.Assemble()
 
         if b is not None:
@@ -391,15 +407,23 @@ class _BilinearFormMatrix:
     def _mixedBilinearForm(trial, test, x=None, b=None, domainInteg=None, boundaryInteg=None):
         # create Bilinear form of mfem
         m = mfem.MixedBilinearForm(trial.mfem.space, test.mfem.space)
-        for domain, di in domainInteg.items():
-            for i in di:
-                m.AddDomainIntegrator(i)
-        for boundary, bi in boundaryInteg.items():
-            for i in bi:
-                mk = mfem.intArray()
-                space2.ListToMarker(mfem.intArray([1]), 1, mk)
-                print("marker", [mn for mn in mk])
-                m.AddBoundaryIntegrator(i, mfem.intArray([1]))
+        if trial.mfem.isBoundary:
+            for boundary, bi in boundaryInteg.items():
+                for i in bi:
+                    m.AddDomainIntegrator(i)
+        else:
+            for domain, di in domainInteg.items():
+                for i in di:
+                    m.AddDomainIntegrator(i)            
+            for boundary, bi in boundaryInteg.items():
+                if boundary.attr is None:
+                    for i in bi:
+                        m.AddBoundaryIntegrator(i)
+                else:
+                    for i in bi:
+                        i.marker = trial.mfem.ListToMarker(boundary.attr, "Surface")
+                        print(trial, test, i.marker)
+                        m.AddBoundaryIntegrator(i, i.marker)
         m.Assemble()
     
         if b is None:
@@ -443,12 +467,12 @@ class _coefParser:
                 self._const = False
 
     def eval(self, coefs):
+        if self._empty:
+            return 0
         if self._type == "vector":
             return mfem.VectorArrayCoefficient([s.eval(coefs) for s in self._scalars])
         if self._type == "matrix":
             return mfem.MatrixArrayCoefficient([[s.eval(coefs) for s in ss] for ss in self._scalars])
-        if self._empty:
-            return 0
         if self._const:
             return self._func
         else:

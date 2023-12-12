@@ -6,8 +6,8 @@ from lys_fem.widgets import ScalarFunctionWidget, MatrixFunctionWidget
 
 
 class HeatConductionParameters(FEMParameter):
-    def __init__(self, C_v=1, k=sp.eye(3)):
-        self.C_v = sp.Float(C_v)
+    def __init__(self, C_v=1.0, k=sp.eye(3)):
+        self.C_v = C_v
         self.k = k
 
     @classmethod

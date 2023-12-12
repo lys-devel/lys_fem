@@ -1,14 +1,10 @@
-import sympy as sp
-import numpy as np
-
+from ngsolve import BilinearForm, LinearForm, GridFunction, x
 from ..fem import DirichletBoundary
-from . import mfem
-from .weakform import t, dt, dV, dS, prev, grad, WeakformParser
 
 modelList = {}
 
 
-def addMFEMModel(name, model):
+def addNGSModel(name, model):
     model.name = name
     modelList[name] = model
 
@@ -17,17 +13,13 @@ def generateModel(fem, mesh, mat):
     return [modelList[m.name](m, mesh, mat) for m in fem.models]
 
 
-class MFEMModel:
+class NGSModel:
     def __init__(self, model):
         self._model = model
 
     @property
     def variableName(self):
         return self._model.variableName
-
-    @property
-    def integrals(self):
-        return []
 
     @property
     def dirichletCondition(self):
@@ -39,35 +31,6 @@ class MFEMModel:
                     bdr_dir[axis].extend(b.boundaries.getSelection())
         return bdr_dir
 
-    def timeDiscretizedWeakForm(self, type="TimeDependent"):
-        wf = self.weakform
-        trials = self.trialFunctions
-        if type=="Stationary":
-            return discretizeTime_stationary(wf, trials)
-        else:
-            if self.__checkTimeDerivativeOrder(wf, trials) == 2:
-                return discretizeTime_generalizedAlpha(wf, trials, 0.9)
-            else:
-                return discretizeTime_backwardEuler(wf, trials)
-
-    def __checkTimeDerivativeOrder(self, weakform, trials):
-        trials_t2 = [trial.diff(t).diff(t) for trial in trials]
-        p = sp.poly(weakform, *trials_t2)
-        for order, value in p.as_dict().items():
-            if sum(order) > 0:
-                return 2
-        return 1
-
-
-def discretizeTime_stationary(wf, trials):
-    for trial in trials:
-        wf = wf.subs({trial.diff(t).diff(t): 0, trial.diff(t): 0})
-    return wf
-
-def discretizeTime_backwardEuler(wf, trials):
-    for trial in trials:
-        wf = wf.subs({trial.diff(t).diff(t): 0, trial.diff(t): (trial-prev(trial))/dt})
-    return wf
 
 
 class CompositeModel:
@@ -75,10 +38,6 @@ class CompositeModel:
         self._mesh = mesh
         self._models = models
         self._type = type
-
-        wf = self.weakform
-        self._nonlinear = self.__checkNonlinear(wf, self.trialFunctions)
-        self._parser = WeakformParser(wf, self.trialFunctions, self.coefficient, self.integrals)
 
     def __checkNonlinear(self, wf, trials):
         vars = []
@@ -93,15 +52,21 @@ class CompositeModel:
         return False
 
     def solve(self, solver, dt=1):
-        self.dt = dt
-        if not self.isNonlinear:
-            solver.setMaxIteration(1)
-        if not hasattr(self, "_x"):
-            self._x = self.__getFromGridFunctions()
-        self._update_t = True
-        self._x = solver.solve(self, self._x)
-        self.__setToGridFunctions(self._x)
-        return self.solution
+        fes = self.space
+        b = BilinearForm(fes)
+        b += self.weakform
+
+        l = LinearForm(fes)
+        b.Assemble()
+        l.Assemble()
+
+        u = GridFunction(fes)
+        u.Set(x)
+        
+        res = l.vec.CreateVector()
+        res.data = l.vec - b.mat * u.vec
+        u.vec.data += b.mat.Inverse(fes.FreeDofs()) * res
+        print(u.vec)
 
     def __getFromGridFunctions(self):
         x = mfem.BlockVector(self._block_offset)
@@ -159,36 +124,19 @@ class CompositeModel:
         return self._J
 
     @property
-    def _block_offset(self):
-        offsets =mfem.intArray([0]+[t.mfem.space.GetTrueVSize() for t in self.trialFunctions])
-        offsets.PartialSum()
-        return offsets
-
-    @property
     def weakform(self):
-        return sum(m.timeDiscretizedWeakForm(self._type) for m in self._models)
+        return sum(m.weakform for m in self._models)
 
     @property
-    def trialFunctions(self):
-        result = []
+    def space(self):
+        spaces = []
         for m in self._models:
-            result.extend(m.trialFunctions)
+            spaces.extend(m.spaces)
+        result = spaces[0]
+        for sp in spaces[1:]:
+            result = result * sp
         return result
-
-    @property
-    def coefficient(self):
-        result = {}
-        for m in self._models:
-            result.update(m.coefficient)
-        return result
-    
-    @property
-    def integrals(self):
-        result = [dV, dS]
-        for m in self._models:
-            result.extend(m.integrals)
-        return result
-    
+        
     @property
     def isNonlinear(self):
         return self._nonlinear
@@ -197,28 +145,4 @@ class CompositeModel:
     def solution(self):
         return {t.mfem.name.replace("trial_", ""): t.mfem.x.getData() for t in self.trialFunctions}
 
-    # --------------For debug only----------------
-
-    def printVector(self, vec):
-        for i, t in enumerate(self.trialFunctions):
-            gf = mfem.GridFunction(t.mfem.space)
-            self._mesh.GetNodes(gf)
-            print(str(t).replace("trial_", ""), [v[0] for v in zip(vec.GetBlock(i).GetDataArray())])
-
-    def dualToPrime(self, vec):
-        self.vb = mfem.BlockVector(vec, self._block_offset)
-        self._res_dtp = mfem.BlockVector(self._block_offset)
-        self._primes = [trial.mfem.dualToPrime(self.vb.GetBlock(i)) for i, trial in enumerate(self.trialFunctions)]
-        for i, p in enumerate(self._primes):
-            self._res_dtp.GetBlock(i).Set(1, p)
-        return self._res_dtp
-
-    def getNodalValue(self, vec):
-        vb = mfem.BlockVector(vec, self._block_offset)
-        res = []
-        for i, tri in enumerate(self.trialFunctions):
-            gf = mfem.GridFunction(tri.mfem.space)
-            gf.SetFromTrueDofs(vb.GetBlock(i))
-            r = gf.getData()[:,0]
-            res.append(r)
-        return np.array(res)
+ 

@@ -1,8 +1,6 @@
 import sympy as sp
 from lys_fem.fem import Source
-from lys_fem.mf import MFEMModel, util, weakform, mfem
-from lys_fem.mf.weakform import grad, t, dV, dS
-
+from ngsolve import H1, grad, dx
 
 
 class MFEMPoissonModel(MFEMModel):
@@ -12,8 +10,8 @@ class MFEMPoissonModel(MFEMModel):
         self._mat = mat
         self._model = model
 
-        self._dS1 = weakform.IntegralSymbol("dS1", "Surface", mfem.intArray([1]))
-
+        self._fes = H1(mesh, definedon=[1])
+        
         self._mesh1 = mfem.SubMesh.CreateFromDomain(mesh, mfem.intArray([1]))
         self._mesh2 = mfem.SubMesh.CreateFromDomain(mesh, mfem.intArray([2]))
         self._mesh3 = mfem.SubMesh.CreateFromBoundary(mesh, mfem.intArray([1]))
