@@ -1,0 +1,9 @@
+from lys_fem import ngs
+from ..models import heat_test
+
+class ngs_heat_test(heat_test):
+    def test_1d_dirichlet(self):
+        self.dirichlet_1d(ngs)
+
+    def test_1d_neumann(self):
+        self.neumann_1d(ngs)

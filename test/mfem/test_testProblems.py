@@ -7,7 +7,7 @@ from lys_fem.mf.weakform import x
 from lys_fem.fem import FEMProject, DirichletBoundary, InitialCondition, StationarySolver, CGSolver, GMRESSolver, FEMSolution
 from lys_fem.models import test
 
-from .base import FEMTestCase
+from ..base import FEMTestCase
 
 class testProblems_test(FEMTestCase):
     def test_linear(self):

@@ -1,3 +1,5 @@
+
+from .base import FEMObject, FEMObjectList
 from .geometry import GeometrySelection
 
 materialParameters = {}
@@ -15,30 +17,62 @@ def  _getParameters(name=None):
         return cls_dict[name]
 
 
-class Materials(list):
+class Materials(FEMObjectList):
+    def __init__(self, parent, materials):
+        super().__init__(parent)
+        list.__init__(materials)
+
     def defaultParameter(self, groupName, dim):
         default = _getParameters(groupName)()
         return default.getParameters(dim)
-        
 
-class Material(list):
+    def materialDict(self, dim):
+        # find all parameter names and their groups
+        groups = {}
+        for m in self:
+            for p in m:
+                if p.name in groups:
+                    groups[p.name] |= set(p.getParameters(dim).keys())
+                else:
+                    groups[p.name] = set(p.getParameters(dim).keys())
+
+        # create coefficient for respective parameter
+        res = {}
+        for group, params in groups.items():
+            for pname in params:
+                res[pname] = self.__generateCoefForParameter(pname, group, dim)
+        return res
+
+    def __generateCoefForParameter(self, pname, group, dim):
+        #coefs = {"default": self.defaultParameter(group, dim)[pname]}
+        coefs = {}
+        for m in self:
+            p = m[group]
+            if p is not None:
+                for d in m.domains:
+                    coefs[d] = p.getParameters(dim)[pname]
+        return coefs
+
+
+class Material(FEMObject):
     def __init__(self, name, domains=None, params=None):
         self._name = name
         if isinstance(domains, GeometrySelection):
             self._domains = domains
         else:
             self._domains = GeometrySelection("Domain", domains)
+        self._domains.setParent(self)
         if params is None:
             params = []
-        super().__init__(params)
+        self._params = params
 
     def __getitem__(self, i):
         if isinstance(i, str):
-            for p in self:
+            for p in self._params:
                 if p.name == i:
                     return p
         else:
-            return super().__getitem__(i)
+            return self._params.__getitem__(i)
 
     @property
     def name(self):

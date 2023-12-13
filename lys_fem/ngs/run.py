@@ -1,18 +1,26 @@
 from .mesh import generateMesh
-#from .material import generateMaterial
+from .util import generateCoefficient
 from .models import generateModel
 from .solver import generateSolver
 
 
 def run(fem, run=True):
-    print("\n-------------NGS started ---------------")
+    print("\n----------------------------NGS started ---------------------------")
+    print()
+
     mesh = generateMesh(fem)
     print("NGS Mesh generated: ", mesh.ne, "elements, ", mesh.nv, "nodes.")
     print("\tDomains:", mesh.GetMaterials())
     print("\tBoundaries:", mesh.GetBoundaries())
     print()
 
-    models = generateModel(fem, mesh, None)
+    mats = fem.materials.materialDict(mesh.dim)
+    mats = {key: generateCoefficient(value, mesh) for key, value in mats.items()}
+    print("NGS Material generated:")
+    print("\tParameters:", tuple(mats.keys()))
+    print()
+
+    models = generateModel(fem, mesh, mats)
     print(models)
     solvers = generateSolver(fem, mesh, models)
     print(solvers)

@@ -4,101 +4,23 @@ import sympy as sp
 
 from numpy.testing import assert_array_almost_equal, assert_allclose
 
-from lys_fem import geometry, ngs, mf
+from lys_fem import geometry, mf
 from lys_fem.fem import FEMProject, Material, DirichletBoundary, NeumannBoundary, InitialCondition, FEMSolution
 from lys_fem.fem import StationarySolver, CGSolver, TimeDependentSolver
 from lys_fem.models import heat
 
-from .base import FEMTestCase
+from ..base import FEMTestCase
+from ..models import heat_test
 
 x = sp.Symbol("x")
 
-class ngs_test(FEMTestCase):
-    def test_mesh(self):
-        mesh = self.generateSimpleNGSMesh(2)
-        print(mesh.GetBoundaries())
-        
+
+class mfem_heat_test(heat_test):
     def test_1d_dirichlet(self):
-        p = FEMProject(1)
-
-        # geometry
-        p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
-        p.geometries.add(geometry.Line(1, 0, 0, 2, 0, 0))
-        p.mesher.setRefinement(5)
-
-        # material
-        param = heat.HeatConductionParameters()
-        mat1 = Material("Material1", [1, 2], [param])
-        p.materials.append(mat1)
-
-        # model: boundary and initial conditions
-        model = heat.HeatConductionModel()
-        model.boundaryConditions.append(DirichletBoundary("Dirichlet boundary1", [True], [1, 3]))
-        model.initialConditions.append(InitialCondition("Initial condition1", 0, [1]))
-        model.initialConditions.append(InitialCondition("Initial condition2", 2, [2]))
-        p.models.append(model)
-
-        # solver
-        stationary = StationarySolver(CGSolver(), [model])
-        p.solvers.append(stationary)
-
-        # solve
-        ngs.run(p)
-
-        # solution
-        sol = FEMSolution(".", p)
-        res = sol.eval("T", data_number=1)
-        for w in res:
-            assert_array_almost_equal(w.data, w.x[:, 0])
-
-
-class heat_test(FEMTestCase):
-    def test_1d_dirichlet(self):
-        p = self.__create1D()
-        p.mesher.setRefinement(0)
-
-        # model: boundary and initial conditions
-        model = heat.HeatConductionModel()
-        model.boundaryConditions.append(DirichletBoundary("Dirichlet boundary1", [True], [1, 3]))
-        model.initialConditions.append(InitialCondition("Initial condition1", 0, [1]))
-        model.initialConditions.append(InitialCondition("Initial condition2", 2, [2]))
-        p.models.append(model)
-
-        # solver
-        stationary = StationarySolver(CGSolver(), [model])
-        p.solvers.append(stationary)
-
-        # solve
-        mf.run(p)
-
-        # solution
-        sol = FEMSolution(".", p)
-        res = sol.eval("T", data_number=1)
-        for w in res:
-            assert_array_almost_equal(w.data, w.x[:, 0])
+        self.dirichlet_1d(mf)
 
     def test_1d_neumann(self):
-        p = self.__create1D()
-
-        # model: boundary and initial conditions
-        model = heat.HeatConductionModel()
-        model.boundaryConditions.append(DirichletBoundary("Dirichlet boundary1", [True], [1]))
-        model.boundaryConditions.append(NeumannBoundary("Neumann boundary1", 0.5, [3]))
-        model.initialConditions.append(InitialCondition("Initial condition1", 0, [1, 2]))
-        p.models.append(model)
-
-        # solver
-        stationary = StationarySolver(CGSolver(), [model])
-        p.solvers.append(stationary)
-
-        # solve
-        mf.run(p)
-
-        # solution
-        sol = FEMSolution(".", p)
-        res = sol.eval("T", data_number=1)
-        for w in res:
-            assert_array_almost_equal(w.data, w.x[:, 0] / 2)
+        self.neumann_1d(mf)
 
     def test_1d_tdep(self):
         def calc_temp(x, t, kappa=1, DT=1, T_0=0):

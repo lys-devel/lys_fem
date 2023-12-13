@@ -5,7 +5,7 @@ from lys_fem import geometry, mf
 from lys_fem.fem import FEMProject, DirichletBoundary, InitialCondition, TimeDependentSolver, StationarySolver, GMRESSolver, FEMSolution, Material
 from lys_fem.models import llg
 
-from .base import FEMTestCase
+from ..base import FEMTestCase
 
 g = 1.760859770e11
 T = 2*np.pi/g

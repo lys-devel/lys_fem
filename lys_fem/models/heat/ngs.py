@@ -1,28 +1,29 @@
-from ngsolve import H1, grad, dx
+from ngsolve import grad, dx, ds
+
+from lys_fem.fem import NeumannBoundary
 from lys_fem.ngs import NGSModel, util
 
 
 class NGSHeatConductionModel(NGSModel):
-    def __init__(self, model, mesh, mat=None):
-        super().__init__(model)
-        self._mesh = mesh
+    def __init__(self, model, mesh, mat):
+        super().__init__(model, mesh)
         self._model = model
-        self._fes = H1(mesh, order=1, dirichlet=[1,3])
-        self._init = util.generateDomainCoefficient(mesh, self._model.initialConditions)
+        self._mat = mat
 
     @property
-    def spaces(self):
-        return [self._fes]
-
-    @property
-    def weakform(self):
-        u,v =self._fes.TnT()
+    def bilinearform(self):
+        Cv, k = self._mat["C_v"], self._mat["k"]
+        u,v =self.TnT()
         gu, gv = grad(u), grad(v)
-        #Cv, k = sp.symbols("Cv,k")
 
-        wf = (gu*gv) * dx
+        wf = k * (gu*gv) * dx
         return wf
-
+    
     @property
-    def initialValues(self):
-        return [self._init]
+    def linearform(self):
+        u,v =self.TnT()
+        wf = util.generateCoefficient(0) * ds
+        if self._model.boundaryConditions.have(NeumannBoundary):
+            f = util.generateBoundaryCoefficient(self.mesh, self._model.boundaryConditions.get(NeumannBoundary))
+            wf += f * v * ds
+        return wf

@@ -9,7 +9,7 @@ from lys_fem.fem import StationarySolver, CGSolver, TimeDependentSolver
 from lys_fem.models import general
 from lys_fem.mf.weakform import x,y,z
 
-from .base import FEMTestCase
+from ..base import FEMTestCase
 
 class poisson_test(FEMTestCase):
     def test_3d_dirichlet(self):

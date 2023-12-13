@@ -1,6 +1,9 @@
 import numpy as np
-from ngsolve import BilinearForm, LinearForm, GridFunction
+from ngsolve import BilinearForm, LinearForm, GridFunction, H1
+
 from ..fem import DirichletBoundary
+from . import util
+
 
 modelList = {}
 
@@ -15,22 +18,46 @@ def generateModel(fem, mesh, mat):
 
 
 class NGSModel:
-    def __init__(self, model):
+    def __init__(self, model, mesh, order=1):
         self._model = model
+        self._mesh = mesh
+
+        self._fes = [H1(mesh, order=order, dirichlet=d) for d in self._dirichletCondition]
+        if self._model.variableDimension() == 1:
+            self._vnames = [self._model.variableName]
+        else:
+            self._vnames = [self._model.variableName + str(i+1) for i in range(self._model.variableDimension)]
+        self._init = util.generateDomainCoefficient(mesh, self._model.initialConditions)
+
+    @property
+    def spaces(self):
+        return self._fes
+
+    @property
+    def mesh(self):
+        return self._mesh
 
     @property
     def variableNames(self):
-        return [self._model.variableName]
+        return self._vnames
 
     @property
-    def dirichletCondition(self):
-        conditions = [b for b in self._model.boundaryConditions if isinstance(b, DirichletBoundary)]
+    def initialValues(self):
+        return [self._init]
+
+    def TnT(self):
+        if self._model.variableDimension() == 1:
+            return self._fes[0].TnT()
+
+    @property
+    def _dirichletCondition(self):
+        conditions = self._model.boundaryConditions.get(DirichletBoundary)
         bdr_dir = {i: [] for i in range(self._model.variableDimension())}
         for b in conditions:
             for axis, check in enumerate(b.components):
                 if check:
                     bdr_dir[axis].extend(b.boundaries.getSelection())
-        return bdr_dir
+        return bdr_dir.values()
 
 
 
@@ -74,9 +101,10 @@ class CompositeModel:
         fes = self.space
         
         b = BilinearForm(fes)
-        b += self.weakform
+        b += self.bilinearform
 
         l = LinearForm(fes)
+        l += self.linearform
         b.Assemble()
         l.Assemble()
 
@@ -97,8 +125,12 @@ class CompositeModel:
         return self._J
 
     @property
-    def weakform(self):
-        return sum(m.weakform for m in self._models)
+    def bilinearform(self):
+        return sum(m.bilinearform for m in self._models)
+
+    @property
+    def linearform(self):
+        return sum(m.linearform for m in self._models)
 
     @property
     def space(self):

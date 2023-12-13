@@ -24,7 +24,7 @@ class FEMProject:
         self._dim = dim
         self._geom = GeometryGenerator()
         self._mesher = OccMesher()
-        self._materials = Materials([Material("Material1")])
+        self._materials = Materials(self, [Material("Material1")])
         self._models = FEMObjectList(self)
         self._solvers = []
         self._submit = {}

@@ -113,7 +113,6 @@ class CompositeModel:
         x0 = mfem.BlockVector(x, self._block_offset)
         for i, t in enumerate(self.trialFunctions):
             t.mfem.x.SetFromTrueDofs(x0.GetBlock(i))
-            print(t, t.mfem.x.GetDataArray())
 
     def update(self, x):
         # Translate x to grid functions

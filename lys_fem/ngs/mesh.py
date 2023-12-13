@@ -1,21 +1,29 @@
 import numpy as np
 import gmsh
-
-#from netgen.read_gmsh import ReadGmsh
-from netgen.meshing import *
 import ngsolve
 
-from netgen.meshing import Element0D
+from netgen.meshing import *
+from . import mpi
 
 def generateMesh(fem, file="mesh.msh"):
-    geom = fem.geometries.generateGeometry(fem.dimension)
-    fem.mesher.export(geom, file)
-    gmesh, points = ReadGmsh(file)
-    _createBoundaryFor1D(gmesh, file, points)
-    mesh = ngsolve.Mesh(gmesh)
-    exportMesh(mesh,"test.npz")
+    if mpi.isRoot:
+        geom = fem.geometries.generateGeometry(fem.dimension)
+        fem.mesher.export(geom, file)
+        gmesh, points = ReadGmsh(file)
+        if gmesh.dim == 1:
+            _createBoundaryFor1D(gmesh, file, points)
+
+    if mpi.isParallel():
+        from mpi4py import MPI
+        if mpi.isRoot:
+            mesh = ngsolve.Mesh(gmesh.Distribute(MPI.COMM_WORLD))
+        else:
+            mesh = ngsolve.Mesh(Mesh.Receive(MPI.COMM_WORLD))
+    else:
+        mesh = ngsolve.Mesh(gmesh)
     return mesh
-    
+
+
 def exportMesh(mesh, file):
     gmesh =mesh.ngmesh
     coords = np.array([p.p for p in gmesh.Points()])
@@ -43,7 +51,8 @@ def exportMesh(mesh, file):
         result.append(elements)
     np.savez(file, mesh=result, coords=coords)
 
-def _createBoundaryFor1D(mesh, file, points):
+
+def _createBoundaryFor1D(gmesh, file, points):
     # Load file by gmsh
     model = gmsh.model()
     model.add("Default")
@@ -55,10 +64,11 @@ def _createBoundaryFor1D(mesh, file, points):
 
     # Set the boundary nodes to mesh object.
     for t in tags:
-        mesh.Add(Element0D(points[t], index=t))
+        gmesh.Add(Element0D(points[t], index=t))
+        gmesh.SetBCName(t-1, str(t))
 
 
-def ReadGmsh(filename):
+def ReadGmsh(filename): #from netgen.read_gmsh import ReadGmsh
     if not filename.endswith(".msh"):
         filename += ".msh"
     meshdim = 1
@@ -133,7 +143,7 @@ def ReadGmsh(filename):
             break
 
         if line.split()[0] == "$PhysicalNames":
-            print('WARNING: Physical groups detected - Be sure to define them for every geometrical entity.')
+            #print('WARNING: Physical groups detected - Be sure to define them for every geometrical entity.')
             numnames = int(f.readline())
             for i in range(numnames):
                 f.readline

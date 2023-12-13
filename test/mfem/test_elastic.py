@@ -4,7 +4,7 @@ from lys_fem import geometry, mf
 from lys_fem.fem import FEMProject, Material, DirichletBoundary, InitialCondition, StationarySolver, CGSolver, FEMSolution
 from lys_fem.models import elasticity
 
-from .base import FEMTestCase
+from ..base import FEMTestCase
 
 class elasticity_test(FEMTestCase):
     def test_1d_dirichlet(self):

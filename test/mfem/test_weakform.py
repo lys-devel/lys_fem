@@ -3,7 +3,7 @@ import sympy as sp
 
 from lys_fem.mf import weakform, mfem
 from lys_fem.mf.weakform import x,y,z,t,dS,dV,grad
-from .base import FEMTestCase
+from ..base import FEMTestCase
 
 
 class weakform_test(FEMTestCase):
