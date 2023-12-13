@@ -25,7 +25,7 @@ if mfem_orig.isParallel():
             for dim, data in enumerate(data_list):
                 for i, d in zip(indices, data):
                     result[i, dim] = d
-            return result
+            return result[:,0]
         else:
             return None
 
@@ -49,4 +49,4 @@ else:
             for d in range(self.VectorDim()):
                 self.GetNodalValues(v, d + 1)
                 res.append(np.array(v.GetDataArray()))
-            return np.array(res).T
+            return np.array(res).T[:,0]

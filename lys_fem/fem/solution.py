@@ -1,4 +1,3 @@
-import os
 import numpy as np
 
 from lys import Wave
@@ -19,23 +18,17 @@ class FEMSolution:
         model = self._getModel(self._fem, model)
 
         path = self._path + "/Solutions/" + solver + "/"
-        meshes = self._loadMesh(path)
+        meshes = np.load(path + "mesh.npz", allow_pickle=True)
         data = self._loadData(path, data_number)
         array = model.eval(data, self._fem, varName)
-        print(array)
-        res = []
-        for mesh in meshes:
-            elems = {key: mesh[key] for key in self._keys if key in mesh}
-            res.append(Wave(array[mesh["nodes"]], mesh["coords"], elements=elems))
-        return res
 
-    def _loadMesh(self, path):
-        i = 0
-        meshes = []
-        while os.path.exists(path + "mesh" + str(i) + ".npz"):
-            meshes.append(np.load(path + "mesh" + str(i) + ".npz"))
-            i += 1
-        return meshes
+        res = []
+        coords = meshes["coords"]
+        for domain in meshes["mesh"]:
+            nodes = np.unique([n for n in domain.values()])
+            elems = {elem: np.searchsorted(nodes, n) for elem, n in domain.items()}
+            res.append(Wave(array[nodes-1], coords[nodes-1], elements=elems))
+        return res
 
     def _loadData(self, path, data_number):
         return np.load(path + "data" + str(data_number) + ".npz")

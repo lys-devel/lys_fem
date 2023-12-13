@@ -19,4 +19,4 @@ class HeatConductionModel(FEMFixedModel):
 
     def eval(self, data, fem, var):
         if var == "T":
-            return data["T"][:, 0]
+            return data["T"]

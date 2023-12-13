@@ -19,7 +19,7 @@ class LinearTestModel(FEMFixedModel):
 
     def eval(self, data, fem, var):
         if var == "x":
-            return data["x"][:, 0]
+            return data["x"]
 
 
 class NonlinearTestModel(FEMFixedModel):
@@ -40,4 +40,4 @@ class NonlinearTestModel(FEMFixedModel):
 
     def eval(self, data, fem, var):
         if var == "x":
-            return data["x"][:, 0]
+            return data["x"]

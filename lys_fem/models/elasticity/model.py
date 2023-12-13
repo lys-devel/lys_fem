@@ -19,8 +19,8 @@ class ElasticModel(FEMModel):
 
     def eval(self, data, fem, var):
         if var == "ux":
-            return data["u1"][:, 0]
+            return data["u1"]
         if var == "uy":
-            return data["u2"][:, 0]
+            return data["u2"]
         if var == "uz":
-            return data["u3"][:, 0]
+            return data["u3"]

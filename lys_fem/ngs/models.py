@@ -1,4 +1,5 @@
-from ngsolve import BilinearForm, LinearForm, GridFunction, x
+import numpy as np
+from ngsolve import BilinearForm, LinearForm, GridFunction
 from ..fem import DirichletBoundary
 
 modelList = {}
@@ -18,8 +19,8 @@ class NGSModel:
         self._model = model
 
     @property
-    def variableName(self):
-        return self._model.variableName
+    def variableNames(self):
+        return [self._model.variableName]
 
     @property
     def dirichletCondition(self):
@@ -82,7 +83,8 @@ class CompositeModel:
         res = l.vec.CreateVector()
         res.data = l.vec - b.mat * self._x.vec
         self._x.vec.data += b.mat.Inverse(fes.FreeDofs()) * res
-        print(self._x.vec)
+
+        return self.solution
 
     def __call__(self, x):
         K, b = self.K, self.b
@@ -107,7 +109,6 @@ class CompositeModel:
         for sp in spaces[1:]:
             result = result * sp
         return result
-        
 
     @property
     def isNonlinear(self):
@@ -115,6 +116,12 @@ class CompositeModel:
 
     @property
     def solution(self):
-        return {t.mfem.name.replace("trial_", ""): t.mfem.x.getData() for t in self.trialFunctions}
+        names = []
+        for m in self._models:
+            names.extend(m.variableNames)
+        if len(names) == 1:
+            return {names[0]: np.array(self._x.vec)}
+        else:
+            return {n: sol.vec for n, sol in zip(names, self._x.components)}
 
  

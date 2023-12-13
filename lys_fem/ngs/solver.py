@@ -2,6 +2,7 @@ import os
 import shutil
 import numpy as np
 
+from . import mpi, mesh
 from .models import CompositeModel
 
 
@@ -19,27 +20,25 @@ class SolverBase:
     def __init__(self, obj, dirname):
         self._obj = obj
         #self._solver = self._createFEMSolver(obj.solver)
-        #self._prepareDirectory(dirname)
-
-    def _prepareDirectory(self, dirname):
-        self._dirname = "Solutions/" + dirname
-        if mfem.isRoot:
-            if os.path.exists(self._dirname):
-                shutil.rmtree(self._dirname)
-        os.makedirs(self._dirname, exist_ok=True)
+        self._prepareDirectory(dirname)
 
     def _createFEMSolver(self, sol):
         subSolvers = {"CG Solver": CGSolver, "GMRES Solver": GMRESSolver}
         return NewtonSolver(subSolvers[sol.name](sol))
 
-    def exportMesh(self, mesh):
-        meshes = mfem.getMesh(mesh)
-        if mfem.isRoot:
-            for i, m in enumerate(meshes):
-                np.savez(self._dirname + "/mesh" + str(i) + ".npz", **m.dictionary())
+    def _prepareDirectory(self, dirname):
+        self._dirname = "Solutions/" + dirname
+        if mpi.isRoot:
+            if os.path.exists(self._dirname):
+                shutil.rmtree(self._dirname)
+        os.makedirs(self._dirname, exist_ok=True)
+
+    def exportMesh(self, m):
+        if mpi.isRoot:
+            mesh.exportMesh(m, self._dirname + "/mesh.npz")
 
     def exportSolution(self, index, solution):
-        if mfem.isRoot:
+        if mpi.isRoot:
             np.savez(self._dirname + "/data" + str(index), **solution)
 
     @property
@@ -58,11 +57,11 @@ class StationarySolver(SolverBase):
         self._model = CompositeModel(mesh, models, "Stationary")
 
     def execute(self):
-        #self.exportMesh(self._mesh)
-        #self.exportSolution(0, self._model.solution)
+        self.exportMesh(self._mesh)
+        self.exportSolution(0, self._model.solution)
 
         sol = self._model.solve(None)
-        #self.exportSolution(1, sol)
+        self.exportSolution(1, sol)
 
 
 class TimeDependentSolver(SolverBase):

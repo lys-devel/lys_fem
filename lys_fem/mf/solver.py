@@ -34,10 +34,9 @@ class SolverBase:
         return NewtonSolver(subSolvers[sol.name](sol))
 
     def exportMesh(self, mesh):
-        meshes = mfem.getMesh(mesh)
+        coords, elems = mfem.getMesh(mesh)
         if mfem.isRoot:
-            for i, m in enumerate(meshes):
-                np.savez(self._dirname + "/mesh" + str(i) + ".npz", **m.dictionary())
+            np.savez(self._dirname + "/mesh.npz", coords = coords, mesh=elems)
 
     def exportSolution(self, index, solution):
         if mfem.isRoot:

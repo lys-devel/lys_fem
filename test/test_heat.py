@@ -24,6 +24,7 @@ class ngs_test(FEMTestCase):
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
         p.geometries.add(geometry.Line(1, 0, 0, 2, 0, 0))
+        p.mesher.setRefinement(5)
 
         # material
         param = heat.HeatConductionParameters()
@@ -43,7 +44,6 @@ class ngs_test(FEMTestCase):
 
         # solve
         ngs.run(p)
-        return
 
         # solution
         sol = FEMSolution(".", p)
@@ -55,6 +55,7 @@ class ngs_test(FEMTestCase):
 class heat_test(FEMTestCase):
     def test_1d_dirichlet(self):
         p = self.__create1D()
+        p.mesher.setRefinement(0)
 
         # model: boundary and initial conditions
         model = heat.HeatConductionModel()
@@ -69,7 +70,6 @@ class heat_test(FEMTestCase):
 
         # solve
         mf.run(p)
-        return
 
         # solution
         sol = FEMSolution(".", p)

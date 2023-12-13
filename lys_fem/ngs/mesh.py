@@ -1,9 +1,9 @@
+import numpy as np
 import gmsh
 
 #from netgen.read_gmsh import ReadGmsh
 from netgen.meshing import *
 import ngsolve
-#from ngsolve import Mesh
 
 from netgen.meshing import Element0D
 
@@ -13,11 +13,35 @@ def generateMesh(fem, file="mesh.msh"):
     gmesh, points = ReadGmsh(file)
     _createBoundaryFor1D(gmesh, file, points)
     mesh = ngsolve.Mesh(gmesh)
-    print(dir(mesh))
-    e = [e for e in mesh.Elements()][0]
-    print(dir(e), e.vertices)
+    exportMesh(mesh,"test.npz")
     return mesh
     
+def exportMesh(mesh, file):
+    gmesh =mesh.ngmesh
+    coords = np.array([p.p for p in gmesh.Points()])
+
+    def add(d, type, vertices):
+        if type not in d:
+            d[type] = []
+        d[type].append(tuple([v.nr for v in vertices]))
+
+    result = []
+    for mat in range(1, 1+ len(mesh.GetMaterials())):
+        elements = {}
+        if gmesh.dim == 1:
+            for e in  gmesh.Elements1D():
+                if mat == e.index:
+                    add(elements, "line", e.vertices)
+        if gmesh.dim == 2:
+            for e in  gmesh.Elements1D():
+                if mat == e.index:
+                    pass
+        if gmesh.dim == 3:
+            for e in  gmesh.Elements1D():
+                if mat == e.index:
+                    pass
+        result.append(elements)
+    np.savez(file, mesh=result, coords=coords)
 
 def _createBoundaryFor1D(mesh, file, points):
     # Load file by gmsh

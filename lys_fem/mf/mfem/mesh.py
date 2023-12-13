@@ -18,45 +18,32 @@ else:
 def _parseMesh(mesh):
     fec = mfem_orig.H1_FECollection(1, mesh.Dimension())
     subs = [mfem_orig.SubMesh.CreateFromDomain(mesh, mfem_orig.intArray([index])) for index in mesh.attributes]
-    return [_Mesh.fromMFEM(fec, sub) for sub in subs]
-
+    if mesh.GetNodes() is None:
+        coords = _Mesh.getMeshCoordinates(fec, mesh)
+        mesh = [_Mesh.generateElementGroups(s) for s in subs]
+        return coords, mesh
 
 class _Mesh:
     _key_list = {0: "point", 1: "line", 2: "triangle", 3: "quad", 4: "tetra", 5: "hexa", 6: "prism", 7: "pyramid"}
     _num_list = {"point": 1, "line": 2, "triangle": 3, "quad": 4, "tetra": 4, "hexa": 8, "prism": 6, "pyramid": 5}
 
-    def __init__(self, coordinates, elementGroups, nodes_parent):
-        self.elementGroups = elementGroups
-        self.coordinates = coordinates
-        self.nodes_parent = nodes_parent
 
     @classmethod
-    def fromMFEM(cls, fec, mesh):
+    def generateElementGroups(cls, mesh):
         map = mesh.GetParentVertexIDMap()
-        if mesh.GetNodes() is None:
-            eg = cls.__generateElementGroups(mesh)
-            c = cls.__getMeshCoordinates(fec, mesh)
-            nodes = np.array([v for v in map])
-        else:
-            c, eg, nodes = cls.__generateFromNodes(fec, mesh)
-            nodes = np.array([map[v] for v in nodes])
-        return _Mesh(c, eg, nodes)
-
-    @classmethod
-    def __generateElementGroups(cls, mesh):
         elementGroups = {}
         for n, key in cls._key_list.items():
             # get all vertex list and its geometry for the element type n
             vtx = mfem_orig.intArray()
             mesh.GetElementData(n, vtx, mfem_orig.intArray())
-            vtx = np.array([v for v in vtx]).reshape(-1, cls._num_list[key])
+            vtx = np.array([map[v] for v in vtx]).reshape(-1, cls._num_list[key])
             if len(vtx) == 0:
                 continue
             elementGroups[key] = vtx
         return elementGroups
 
     @classmethod
-    def __getMeshCoordinates(cls, fec, mesh):
+    def getMeshCoordinates(cls, fec, mesh):
         dim = mesh.Dimension()
         space = mfem_orig.FiniteElementSpace(mesh, fec, dim, mfem_orig.Ordering.byVDIM)
         gf = mfem_orig.GridFunction(space)
@@ -64,6 +51,15 @@ class _Mesh:
         result = np.array([c for c in gf.GetDataArray()]).reshape(-1, dim)
         return np.hstack([result, np.zeros((len(result), 3 - dim))])
 
+
+    @classmethod
+    def fromMFEM(cls, fec, mesh):
+        """For periodic mesh, not working now"""
+        map = mesh.GetParentVertexIDMap()
+        c, eg, nodes = cls.__generateFromNodes(fec, mesh)
+        nodes = np.array([map[v] for v in nodes])
+        return _Mesh(c, eg, nodes)
+    
     @classmethod
     def __generateFromNodes(cls, fec, mesh):
         # get all coordinates in the periodic mesh
@@ -109,7 +105,3 @@ class _Mesh:
             pts.append(t.Transform(ip))
         return np.array(pts)
 
-    def dictionary(self):
-        d = {"coords": self.coordinates, "nodes": self.nodes_parent}
-        d.update(self.elementGroups)
-        return d
