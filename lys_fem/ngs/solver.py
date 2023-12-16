@@ -3,6 +3,7 @@ import shutil
 
 from . import mpi, mesh
 from .models import CompositeModel
+from ngsolve import sqrt
 
 
 def generateSolver(fem, mesh, models):
@@ -19,12 +20,8 @@ class SolverBase:
     def __init__(self, obj, mesh, dirname):
         self._obj = obj
         self._mesh = mesh
-        #self._solver = self._createFEMSolver(obj.solver)
+        self._solver = _NewtonSolver()
         self._prepareDirectory(dirname)
-
-    def _createFEMSolver(self, sol):
-        subSolvers = {"CG Solver": CGSolver, "GMRES Solver": GMRESSolver}
-        return NewtonSolver(subSolvers[sol.name](sol))
 
     def _prepareDirectory(self, dirname):
         self._dirname = "Solutions/" + dirname
@@ -58,7 +55,7 @@ class StationarySolver(SolverBase):
         self.exportMesh(self._mesh)
         self.exportSolution(0, self._model.solution)
 
-        sol = self._model.solve(None)
+        sol = self._model.solve(self._solver)
         self.exportSolution(1, sol)
 
 
@@ -76,35 +73,24 @@ class TimeDependentSolver(SolverBase):
         t = 0
         for i, dt in enumerate(self._tSolver.getStepList()):
             print("timestep", i, ", t =", t)
-            sol = self._model.solve(None, 1/dt)
+            sol = self._model.solve(self._solver, 1/dt)
             self.exportSolution(i + 1, sol)
             t = t + dt
 
 
-class NewtonSolver:
-    def __init__(self, subSolver, max_iter=30):
-        self._solver = subSolver
+class _NewtonSolver:
+    def __init__(self, max_iter=30):
         self._max_iter = max_iter
 
-    def setMaxIteration(self, max_iter):
-        self._max_iter = max_iter
-
-    def setPreconditioner(self, prec):
-        self._solver.SetPreconditioner(prec)
-
-    def solve(self, F, x, eps=1e-7):
-        x = mfem.Vector(x)
-        Ji = self._solver
+    def solve(self, F, x, eps=1e-10):
+        if not F.isNonlinear:
+            self._max_iter=1
+        dx = x.vec.CreateVector()
         for i in range(self._max_iter):
-            F.update(x)
-            J = F.grad(x)
-            Ji.SetOperator(J)
-            dx = Ji * F(x)
-            x -= dx
-            norm = mfem.getMax(x.Norml2())
-            R = mfem.getMax(dx.Norml2())
-            if norm != 0:
-                R = R/norm
+            Fx = F(x)
+            dx.data = F.Jacobian(x) * Fx
+            x.vec.data -= dx
+            R = sqrt(abs(Fx.InnerProduct(dx)))
             if R < eps:
                 print("Newton", i)
                 return x

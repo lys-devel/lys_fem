@@ -3,7 +3,7 @@ import numpy as np
 
 from lys_fem import geometry
 from lys_fem.fem import FEMProject, Material, DirichletBoundary, NeumannBoundary, InitialCondition, FEMSolution
-from lys_fem.fem import StationarySolver, CGSolver, TimeDependentSolver
+from lys_fem.fem import StationarySolver, TimeDependentSolver
 from lys_fem.models import heat
 
 from ..base import FEMTestCase
@@ -30,7 +30,7 @@ class heat_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        stationary = StationarySolver(CGSolver(), [model])
+        stationary = StationarySolver([model])
         p.solvers.append(stationary)
 
         # solve
@@ -62,7 +62,7 @@ class heat_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        stationary = StationarySolver(CGSolver(), [model])
+        stationary = StationarySolver([model])
         p.solvers.append(stationary)
 
         # solve
@@ -98,7 +98,7 @@ class heat_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        stationary = TimeDependentSolver(CGSolver(), [model], 0.0001, 0.02)
+        stationary = TimeDependentSolver([model], 0.0001, 0.02)
         p.solvers.append(stationary)
 
         # solve

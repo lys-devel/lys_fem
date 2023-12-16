@@ -1,5 +1,5 @@
 from lys_fem import geometry
-from lys_fem.fem import FEMProject, Material, DirichletBoundary, InitialCondition, StationarySolver, CGSolver, FEMSolution
+from lys_fem.fem import FEMProject, Material, DirichletBoundary, InitialCondition, StationarySolver, FEMSolution
 from lys_fem.models import elasticity
 
 from ..base import FEMTestCase
@@ -25,7 +25,7 @@ class elasticity_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        stationary = StationarySolver(CGSolver(), [model])
+        stationary = StationarySolver([model])
         p.solvers.append(stationary)
 
         # solve
@@ -57,7 +57,7 @@ class elasticity_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        stationary = StationarySolver(CGSolver(), [model])
+        stationary = StationarySolver([model])
         p.solvers.append(stationary)
 
         # solve
@@ -89,7 +89,7 @@ class elasticity_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        stationary = StationarySolver(CGSolver(), [model])
+        stationary = StationarySolver([model])
         p.solvers.append(stationary)
 
         # solve

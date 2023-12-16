@@ -51,6 +51,10 @@ class NGSModel:
     def sol(self):
         return self._sol
 
+    @property
+    def isNonlinear(self):
+        return False
+
     def TnT(self):
         return util.prod(self.spaces).TnT()
 
@@ -78,20 +82,20 @@ class CompositeModel:
         self._linear = LinearForm(self._fes)
         self._linear += self.linearform
 
-    def solve(self, solver, dt_inv=0):
-        fes = self.space
-        dti.Set(dt_inv)
+        self._dti_prev = None
 
+    def solve(self, solver, dt_inv=0):
+        dti.Set(dt_inv)
         if not hasattr(self, "_x"):
             self._x = self.__getSolution()
-        
-        self._bilinear.Assemble()
+
+        if (self._dti_prev != dt_inv) and (not self.isNonlinear):
+            self._bilinear.Assemble()
+            self._dti_prev = dt_inv
+
         self._linear.Assemble()
-
-        res = self._linear.vec.CreateVector()
-        res.data = self._linear.vec - self._bilinear.mat * self._x.vec
-        self._x.vec.data += self._bilinear.mat.Inverse(fes.FreeDofs(), "pardiso") * res
-
+        solver.solve(self, self._x)
+        
         self.__setSolution(self._x)
         return self.solution
     
@@ -114,6 +118,18 @@ class CompositeModel:
             for si, i in zip(sols, x.components):
                 si.Set(i)
 
+    def __call__(self, x):
+        self._linear.Assemble()
+        if self.isNonlinear:
+            return self._bilinear.Apply(x.vec) - self._linear.vec 
+        else:
+            return self._bilinear.mat * x.vec - self._linear.vec
+
+    def Jacobian(self, x):
+        if self.isNonlinear:
+            self._bilinear.AssembleLinearization(x.vec)
+        return self._bilinear.mat.Inverse(self._fes.FreeDofs(), "pardiso")
+
     @property
     def bilinearform(self):
         return sum(m.bilinearform for m in self._models)
@@ -128,6 +144,13 @@ class CompositeModel:
         for m in self._models:
             spaces.extend(m.spaces)
         return util.prod(spaces)
+    
+    @property
+    def isNonlinear(self):
+        for m in self._models:
+            if m.isNonlinear:
+                return True
+        return False
 
     @property
     def _sols(self):

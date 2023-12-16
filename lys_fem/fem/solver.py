@@ -2,7 +2,7 @@ from lys.Qt import QtWidgets
 
 
 class FEMSolver:
-    def __init__(self, solver, models=None):
+    def __init__(self, models=None, solver=None):
         if models is None:
             models = []
         self._solver = solver
@@ -55,8 +55,8 @@ class StationarySolver(FEMSolver):
 
 
 class TimeDependentSolver(FEMSolver):
-    def __init__(self, solver, models=None, step=1, stop=100):
-        super().__init__(solver, models)
+    def __init__(self, models=None, step=1, stop=100, solver=None):
+        super().__init__(models, solver)
         self._step = step
         self._stop = stop
 
