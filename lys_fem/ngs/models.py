@@ -78,18 +78,6 @@ class CompositeModel:
         self._linear = LinearForm(self._fes)
         self._linear += self.linearform
 
-    def __checkNonlinear(self, wf, trials):
-        vars = []
-        for trial in trials:
-            vars.append(trial)
-            for gt in grad(trial):
-                vars.append(gt)
-        p = sp.poly(wf, *vars)
-        for order in p.as_dict().keys():
-            if sum(order) > 1:
-                return True
-        return False
-
     def solve(self, solver, dt_inv=0):
         fes = self.space
         dti.Set(dt_inv)
@@ -102,7 +90,7 @@ class CompositeModel:
 
         res = self._linear.vec.CreateVector()
         res.data = self._linear.vec - self._bilinear.mat * self._x.vec
-        self._x.vec.data += self._bilinear.mat.Inverse(fes.FreeDofs()) * res
+        self._x.vec.data += self._bilinear.mat.Inverse(fes.FreeDofs(), "pardiso") * res
 
         self.__setSolution(self._x)
         return self.solution
@@ -139,10 +127,7 @@ class CompositeModel:
         spaces = []
         for m in self._models:
             spaces.extend(m.spaces)
-        result = spaces[0]
-        for sp in spaces[1:]:
-            result = result * sp
-        return result
+        return util.prod(spaces)
 
     @property
     def _sols(self):
@@ -150,10 +135,6 @@ class CompositeModel:
         for m in self._models:
             sols.extend(m.sol)
         return sols
-    
-    @property
-    def isNonlinear(self):
-        return self._nonlinear
 
     @property
     def solution(self):
