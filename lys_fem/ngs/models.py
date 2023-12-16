@@ -1,12 +1,11 @@
-import numpy as np
-from ngsolve import BilinearForm, LinearForm, GridFunction, H1
+from ngsolve import BilinearForm, LinearForm, GridFunction, H1, Parameter, VectorH1
 
 from ..fem import DirichletBoundary
 from . import util
 
 
 modelList = {}
-
+dti = Parameter(0.0)
 
 def addNGSModel(name, model):
     model.name = name
@@ -22,12 +21,19 @@ class NGSModel:
         self._model = model
         self._mesh = mesh
 
-        self._fes = [H1(mesh, order=order, dirichlet=d) for d in self._dirichletCondition]
-        if self._model.variableDimension() == 1:
-            self._vnames = [self._model.variableName]
-        else:
-            self._vnames = [self._model.variableName + str(i+1) for i in range(self._model.variableDimension)]
-        self._init = util.generateDomainCoefficient(mesh, self._model.initialConditions)
+        vdim = self._model.variableDimension()
+        dirichlet = self._dirichletCondition
+        if vdim == 1:
+            self._fes = [H1(mesh, order=order, dirichlet=dirichlet[0])]
+        elif vdim==2:
+            self._fes = [VectorH1(mesh, order=order, dirichletx=dirichlet[0], dirichlety=dirichlet[1])]
+        elif vdim==3:
+            self._fes = [VectorH1(mesh, order=order, dirichletx=dirichlet[0], dirichlety=dirichlet[1], dirichletz=dirichlet[2])]
+        self._vnames = [self._model.variableName]
+
+        sol = GridFunction(self._fes[0])
+        sol.Set(util.generateDomainCoefficient(mesh, self._model.initialConditions))
+        self._sol = [sol]
 
     @property
     def spaces(self):
@@ -42,12 +48,11 @@ class NGSModel:
         return self._vnames
 
     @property
-    def initialValues(self):
-        return [self._init]
+    def sol(self):
+        return self._sol
 
     def TnT(self):
-        if self._model.variableDimension() == 1:
-            return self._fes[0].TnT()
+        return util.prod(self.spaces).TnT()
 
     @property
     def _dirichletCondition(self):
@@ -57,18 +62,21 @@ class NGSModel:
             for axis, check in enumerate(b.components):
                 if check:
                     bdr_dir[axis].extend(b.boundaries.getSelection())
-        return bdr_dir.values()
+        return ["|".join([str(item) for item in value]) for value in bdr_dir.values()]
 
 
 
 class CompositeModel:
-    def __init__(self, mesh, models, type):
+    def __init__(self, mesh, models):
         self._mesh = mesh
         self._models = models
-        self._type = type
-
         self._fes = self.space
-        self._x = self.__getInitialValue()
+
+        self._bilinear = BilinearForm(self._fes)
+        self._bilinear += self.bilinearform
+
+        self._linear = LinearForm(self._fes)
+        self._linear += self.linearform
 
     def __checkNonlinear(self, wf, trials):
         vars = []
@@ -82,47 +90,41 @@ class CompositeModel:
                 return True
         return False
 
-    def __getInitialValue(self):
-        # gather all initial values
-        inits = []
-        for m in self._models:
-            inits.extend(m.initialValues)
+    def solve(self, solver, dt_inv=0):
+        fes = self.space
+        dti.Set(dt_inv)
 
-        # set it to grid function
+        if not hasattr(self, "_x"):
+            self._x = self.__getSolution()
+        
+        self._bilinear.Assemble()
+        self._linear.Assemble()
+
+        res = self._linear.vec.CreateVector()
+        res.data = self._linear.vec - self._bilinear.mat * self._x.vec
+        self._x.vec.data += self._bilinear.mat.Inverse(fes.FreeDofs()) * res
+
+        self.__setSolution(self._x)
+        return self.solution
+    
+    def __getSolution(self):
+        sols = self._sols
         u = GridFunction(self._fes)
-        if len(inits) == 1:
-            u.Set(*inits)
+        if len(sols) == 1:
+            u.Set(*sols)
         else:
-            for ui, i in zip(u.components, inits):
+            for ui, i in zip(u.components, sols):
                 ui.Set(i)
         return u
-
-    def solve(self, solver, dt=1):
-        fes = self.space
-        
-        b = BilinearForm(fes)
-        b += self.bilinearform
-
-        l = LinearForm(fes)
-        l += self.linearform
-        b.Assemble()
-        l.Assemble()
-
-        res = l.vec.CreateVector()
-        res.data = l.vec - b.mat * self._x.vec
-        self._x.vec.data += b.mat.Inverse(fes.FreeDofs()) * res
-
-        return self.solution
-
-    def __call__(self, x):
-        K, b = self.K, self.b
-        res = mfem.Vector(x.Size())
-        K.Mult(x, res)
-        res -= b
-        return res
-
-    def grad(self, x):
-        return self._J
+    
+    def __setSolution(self, x):
+        # Set respective grid functions
+        sols = self._sols
+        if len(sols) == 1:
+            sols[0].Set(x)
+        else:
+            for si, i in zip(sols, x.components):
+                si.Set(i)
 
     @property
     def bilinearform(self):
@@ -143,17 +145,26 @@ class CompositeModel:
         return result
 
     @property
+    def _sols(self):
+        sols = []
+        for m in self._models:
+            sols.extend(m.sol)
+        return sols
+    
+    @property
     def isNonlinear(self):
         return self._nonlinear
 
     @property
     def solution(self):
-        names = []
+        result = {}
         for m in self._models:
-            names.extend(m.variableNames)
-        if len(names) == 1:
-            return {names[0]: np.array(self._x.vec)}
-        else:
-            return {n: sol.vec for n, sol in zip(names, self._x.components)}
+            for name, sol in zip(m.variableNames, m.sol):
+                if len(sol.shape) == 0:
+                    result[name] = sol.vec
+                else:
+                    for i, s in enumerate(sol.components):
+                        result[name+str(i+1)] = s.vec
+        return result
 
  

@@ -1,8 +1,10 @@
 import numpy as np
+from scipy.spatial import KDTree
+
 import gmsh
 import ngsolve
-
 from netgen.meshing import *
+
 from . import mpi
 
 def generateMesh(fem, file="mesh.msh"):
@@ -12,44 +14,20 @@ def generateMesh(fem, file="mesh.msh"):
         gmesh, points = ReadGmsh(file)
         if gmesh.dim == 1:
             _createBoundaryFor1D(gmesh, file, points)
+        coords = np.array(gmesh.Coordinates())
 
     if mpi.isParallel():
         from mpi4py import MPI
         if mpi.isRoot:
             mesh = ngsolve.Mesh(gmesh.Distribute(MPI.COMM_WORLD))
+            mesh._coords_global = coords
         else:
             mesh = ngsolve.Mesh(Mesh.Receive(MPI.COMM_WORLD))
+        _createMapping(mesh)
     else:
         mesh = ngsolve.Mesh(gmesh)
+        mesh._coords_global = coords
     return mesh
-
-
-def exportMesh(mesh, file):
-    gmesh =mesh.ngmesh
-    coords = np.array([p.p for p in gmesh.Points()])
-
-    def add(d, type, vertices):
-        if type not in d:
-            d[type] = []
-        d[type].append(tuple([v.nr for v in vertices]))
-
-    result = []
-    for mat in range(1, 1+ len(mesh.GetMaterials())):
-        elements = {}
-        if gmesh.dim == 1:
-            for e in  gmesh.Elements1D():
-                if mat == e.index:
-                    add(elements, "line", e.vertices)
-        if gmesh.dim == 2:
-            for e in  gmesh.Elements1D():
-                if mat == e.index:
-                    pass
-        if gmesh.dim == 3:
-            for e in  gmesh.Elements1D():
-                if mat == e.index:
-                    pass
-        result.append(elements)
-    np.savez(file, mesh=result, coords=coords)
 
 
 def _createBoundaryFor1D(gmesh, file, points):
@@ -66,6 +44,86 @@ def _createBoundaryFor1D(gmesh, file, points):
     for t in tags:
         gmesh.Add(Element0D(points[t], index=t))
         gmesh.SetBCName(t-1, str(t))
+
+
+def _createMapping(mesh):
+    coords_local = mpi.gatherArray(mesh.ngmesh.Coordinates())
+    if not mpi.isRoot:
+        return
+    coords_local = [arr.reshape(-1,mesh.dim) for arr in coords_local] 
+    kdtree = KDTree(mesh._coords_global)
+    mesh._map_to_global = [kdtree.query(c)[1] for c in coords_local]
+
+
+def exportMesh(mesh, file):
+    gmesh = mesh.ngmesh
+
+    def add(d, type, vertices):
+        if type not in d:
+            d[type] = []
+        d[type].append(tuple([v.nr for v in vertices]))
+
+    result = []
+    for mat in range(1, 1+ len(mesh.GetMaterials())):
+        elements = {}
+        if gmesh.dim == 1:
+            for e in gmesh.Elements1D():
+                if mat == e.index:
+                    add(elements, "line", e.vertices)
+        if gmesh.dim == 2:
+            for e in gmesh.Elements2D():
+                if mat == e.index:
+                    if len(e.vertices) == 4:
+                        add(elements, "quad", e.vertices)
+                    if len(e.vertices) == 3:
+                        add(elements, "triangle", e.vertices)
+        if gmesh.dim == 3:
+            for e in gmesh.Elements3D():
+                if mat == e.index:
+                    if len(e.vertices) == 4:
+                        add(elements, "tetra", e.vertices)
+                    if len(e.vertices) == 5:
+                        add(elements, "pyramid", e.vertices)
+                    if len(e.vertices) == 6:
+                        add(elements, "prism", e.vertices)
+                    if len(e.vertices) == 8:
+                        add(elements, "hexa", e.vertices)
+        result.append(elements)
+
+    if mpi.isParallel():
+        result = _gatherMesh(mesh, result)
+    if mpi.isRoot:
+        np.savez(file, mesh=result, coords=mesh._coords_global)
+
+
+def exportSolution(mesh, solution, file):
+    if not mpi.isParallel():
+        return np.savez(file, **solution)
+    result = {}
+    for key, sol_loc in solution.items():
+        sol_loc = mpi.gatherArray(sol_loc)
+        if mpi.isRoot:
+            sol_glob = np.empty((len(mesh._coords_global)))
+            for map, sol in zip(mesh._map_to_global, sol_loc):
+                sol_glob[map] = sol
+            result[key] = sol_glob
+    if mpi.isRoot:
+        np.savez(file, **result)
+
+
+def _gatherMesh(mesh, result):
+    elem_list = {"line": 2, "quad": 4, "triangle": 3, "tetra": 4, "pyramid": 5, "prism": 6, "hexa": 8}
+    result_glob = []
+    for res_mat in result:
+        res_mat_glob = {}
+        for key, nnodes in elem_list.items():
+            nodes = mpi.gatherArray(res_mat.get(key, []), int, True)
+            if mpi.isRoot:
+                tmp = np.vstack([map[nodes_local-1].reshape(-1, nnodes) for nodes_local, map in zip(nodes, mesh._map_to_global)])
+                if len(tmp) > 0:
+                    res_mat_glob[key] = tmp
+        result_glob.append(res_mat_glob)
+    return result_glob
 
 
 def ReadGmsh(filename): #from netgen.read_gmsh import ReadGmsh

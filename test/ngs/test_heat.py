@@ -7,3 +7,8 @@ class ngs_heat_test(heat_test):
 
     def test_1d_neumann(self):
         self.neumann_1d(ngs)
+
+    def test_1d_tdep(self):
+        self.tdep_1d(ngs)
+
+

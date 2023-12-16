@@ -17,7 +17,7 @@ def run(fem, run=True):
     mats = fem.materials.materialDict(mesh.dim)
     mats = {key: generateCoefficient(value, mesh) for key, value in mats.items()}
     print("NGS Material generated:")
-    print("\tParameters:", tuple(mats.keys()))
+    print("\tParameters:", {key: value.shape if len(value.shape)>0 else "scalar" for key, value in mats.items()})
     print()
 
     models = generateModel(fem, mesh, mats)

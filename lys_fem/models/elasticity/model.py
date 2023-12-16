@@ -15,9 +15,11 @@ class ElasticModel(FEMModel):
         return "u"
 
     def evalList(self):
-        return ["ux", "uy", "uz"]
+        return ["u", "ux", "uy", "uz"]
 
     def eval(self, data, fem, var):
+        if var == "u":
+            return data["u"]
         if var == "ux":
             return data["u1"]
         if var == "uy":

@@ -1,2 +1,2 @@
 from .run import run
-from .models import addNGSModel, NGSModel
+from .models import addNGSModel, NGSModel, dti

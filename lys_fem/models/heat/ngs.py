@@ -1,7 +1,7 @@
 from ngsolve import grad, dx, ds
 
 from lys_fem.fem import NeumannBoundary
-from lys_fem.ngs import NGSModel, util
+from lys_fem.ngs import NGSModel, dti, util
 
 
 class NGSHeatConductionModel(NGSModel):
@@ -16,13 +16,17 @@ class NGSHeatConductionModel(NGSModel):
         u,v =self.TnT()
         gu, gv = grad(u), grad(v)
 
-        wf = k * (gu*gv) * dx
+        wf = Cv*u*v * dti * dx + k * (gu*gv) * dx
+
         return wf
     
     @property
     def linearform(self):
         u,v =self.TnT()
-        wf = util.generateCoefficient(0) * ds
+        u0 = self.sol[0]
+        Cv = self._mat["C_v"]
+        wf = Cv * u0 * v * dti * dx
+        
         if self._model.boundaryConditions.have(NeumannBoundary):
             f = util.generateBoundaryCoefficient(self.mesh, self._model.boundaryConditions.get(NeumannBoundary))
             wf += f * v * ds

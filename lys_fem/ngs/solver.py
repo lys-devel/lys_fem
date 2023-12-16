@@ -17,8 +17,9 @@ def generateSolver(fem, mesh, models):
 
 
 class SolverBase:
-    def __init__(self, obj, dirname):
+    def __init__(self, obj, mesh, dirname):
         self._obj = obj
+        self._mesh = mesh
         #self._solver = self._createFEMSolver(obj.solver)
         self._prepareDirectory(dirname)
 
@@ -34,12 +35,10 @@ class SolverBase:
         os.makedirs(self._dirname, exist_ok=True)
 
     def exportMesh(self, m):
-        if mpi.isRoot:
-            mesh.exportMesh(m, self._dirname + "/mesh.npz")
+        mesh.exportMesh(m, self._dirname + "/mesh.npz")
 
     def exportSolution(self, index, solution):
-        if mpi.isRoot:
-            np.savez(self._dirname + "/data" + str(index), **solution)
+        mesh.exportSolution(self._mesh, solution, self._dirname + "/data" + str(index))
 
     @property
     def solver(self):
@@ -52,9 +51,9 @@ class SolverBase:
 
 class StationarySolver(SolverBase):
     def __init__(self, obj, mesh, models, dirname):
-        super().__init__(obj, dirname)
+        super().__init__(obj, mesh, dirname)
         self._mesh = mesh
-        self._model = CompositeModel(mesh, models, "Stationary")
+        self._model = CompositeModel(mesh, models)
 
     def execute(self):
         self.exportMesh(self._mesh)
@@ -66,18 +65,19 @@ class StationarySolver(SolverBase):
 
 class TimeDependentSolver(SolverBase):
     def __init__(self, obj, mesh, models, dirname):
-        super().__init__(obj, dirname)
+        super().__init__(obj, mesh, dirname)
         self._tSolver = obj
         self._mesh = mesh
-        self._model = CompositeModel(mesh, models, "TimeDependent")
+        self._model = CompositeModel(mesh, models)
 
     def execute(self):
         self.exportMesh(self._mesh)
         self.exportSolution(0, self._model.solution)
+
         t = 0
         for i, dt in enumerate(self._tSolver.getStepList()):
-            mfem.print_("timestep", i, ", t =", t)
-            sol = self._model.solve(self.solver, dt)
+            print("timestep", i, ", t =", t)
+            sol = self._model.solve(None, 1/dt)
             self.exportSolution(i + 1, sol)
             t = t + dt
 

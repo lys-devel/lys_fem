@@ -4,7 +4,7 @@ import shutil
 import gmsh
 
 from lys_fem import mf
-from numpy.testing import assert_array_almost_equal
+from numpy.testing import assert_array_almost_equal, assert_allclose
 
 
 class FEMTestCase(unittest.TestCase):
@@ -24,6 +24,9 @@ class FEMTestCase(unittest.TestCase):
 
     def assert_array_almost_equal(self, *args, **kwargs):
         assert_array_almost_equal(*args, **kwargs)
+
+    def assert_allclose(self, *args, **kwargs):
+        assert_allclose(*args, **kwargs)
 
     def generateSimpleGeometry(self, dim=1, file="mesh.msh"):
         model = gmsh.model()
