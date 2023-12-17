@@ -23,18 +23,32 @@ class GeometryGenerator:
             order.execute(model)
         model.occ.removeAllDuplicates()
         model.occ.synchronize()
+        for i in [1,2,3]:
+            if len(model.getEntities(i))!=0:
+                dim = i
         for i, obj in enumerate(model.getEntities(3)):
             model.add_physical_group(dim=3, tags=[obj[1]], tag=i + 1)
-            model.setPhysicalName(dim=3, tag=i+1, name=str(i+1))
+            model.setPhysicalName(dim=3, tag=i+1, name="domain"+str(i+1))
         for i, obj in enumerate(model.getEntities(2)):
             model.add_physical_group(dim=2, tags=[obj[1]], tag=i + 1)
-            model.setPhysicalName(dim=2, tag=i+1, name=str(i+1))
+            if dim == 2:
+                model.setPhysicalName(dim=2, tag=i+1, name="domain"+str(i+1))
+            elif dim == 3:
+                model.setPhysicalName(dim=2, tag=i+1, name="boundary"+str(i+1))
         for i, obj in enumerate(model.getEntities(1)):
             model.add_physical_group(dim=1, tags=[obj[1]], tag=i + 1)
-            model.setPhysicalName(dim=1, tag=i+1, name=str(i+1))
+            if dim == 1:
+                model.setPhysicalName(dim=1, tag=i+1, name="domain" + str(i+1))
+            elif dim == 2:
+                model.setPhysicalName(dim=1, tag=i+1, name="boundary" + str(i+1))
+            else:
+                model.setPhysicalName(dim=1, tag=i+1, name="edge" + str(i+1))
         for i, obj in enumerate(model.getEntities(0)):
             model.add_physical_group(dim=0, tags=[obj[1]], tag=i + 1)
-            model.setPhysicalName(dim=0, tag=i+1, name=str(i+1))
+            if dim == 1:
+                model.setPhysicalName(dim=0, tag=i+1, name="boundary" + str(i+1))
+            else:
+                model.setPhysicalName(dim=0, tag=i+1, name="point" + str(i+1))
         return model
 
     def geometryAttributes(self, dim):

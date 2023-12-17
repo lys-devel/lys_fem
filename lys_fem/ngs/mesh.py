@@ -14,6 +14,7 @@ def generateMesh(fem, file="mesh.msh"):
         gmesh, points = ReadGmsh(file)
         if gmesh.dim == 1:
             _createBoundaryFor1D(gmesh, file, points)
+        _setBCNames(gmesh, file)
         coords = np.array(gmesh.Coordinates())
 
     if mpi.isParallel():
@@ -29,6 +30,14 @@ def generateMesh(fem, file="mesh.msh"):
         mesh._coords_global = coords
     return mesh
 
+def _setBCNames(gmesh, file):
+    # Load file by gmsh
+    model = gmsh.model()
+    model.add("Default")
+    model.setCurrent("Default")
+    gmsh.merge(file)
+    for dim, tag in model.getEntities(gmesh.dim-1):
+        gmesh.SetBCName(tag-1, "boundary"+str(tag))
 
 def _createBoundaryFor1D(gmesh, file, points):
     # Load file by gmsh
@@ -43,7 +52,7 @@ def _createBoundaryFor1D(gmesh, file, points):
     # Set the boundary nodes to mesh object.
     for t in tags:
         gmesh.Add(Element0D(points[t], index=t))
-        gmesh.SetBCName(t-1, str(t))
+        gmesh.SetBCName(t-1, "boundary"+str(t))
 
 
 def _createMapping(mesh):

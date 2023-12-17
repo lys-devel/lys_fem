@@ -19,8 +19,8 @@ class PoissonModel(FEMFixedModel):
 
     def eval(self, data, fem, var):
         if var == "phi":
-            return data["phi"][:, 0]
+            return data["phi"][:]
         if var == "phi1":
-            return data["phi1"][:, 0]
+            return data["phi1"][:]
         if var == "phi2":
-            return data["phi2"][:, 0]
+            return data["phi2"][:]

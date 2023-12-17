@@ -1,6 +1,5 @@
 from ngsolve import BilinearForm, LinearForm, GridFunction, H1, Parameter, VectorH1
 
-from ..fem import DirichletBoundary
 from . import util
 
 
@@ -17,23 +16,45 @@ def generateModel(fem, mesh, mat):
 
 
 class NGSModel:
-    def __init__(self, model, mesh, order=1):
-        self._model = model
+    def __init__(self, model, mesh, order=1, addModel=True):
         self._mesh = mesh
 
-        vdim = self._model.variableDimension()
-        dirichlet = self._dirichletCondition
-        if vdim == 1:
-            self._fes = [H1(mesh, order=order, dirichlet=dirichlet[0])]
-        elif vdim==2:
-            self._fes = [VectorH1(mesh, order=order, dirichletx=dirichlet[0], dirichlety=dirichlet[1])]
-        elif vdim==3:
-            self._fes = [VectorH1(mesh, order=order, dirichletx=dirichlet[0], dirichlety=dirichlet[1], dirichletz=dirichlet[2])]
-        self._vnames = [self._model.variableName]
+        self._fes = []
+        self._vnames = []
+        self._sol = []
 
-        sol = GridFunction(self._fes[0])
-        sol.Set(util.generateDomainCoefficient(mesh, self._model.initialConditions))
-        self._sol = [sol]
+        if addModel:    
+            self.addVariable(model.variableName, model.variableDimension(), util.generateDirichletCondition(model), util.generateDomainCoefficient(mesh, model.initialConditions))
+
+    def addVariable(self, name, vdim, dirichlet=None, initialValue=None, region=None, order=1):
+        if initialValue is None:
+            initialValue = util.generateCoefficient([0]*vdim)
+
+        kwargs = {}
+        if dirichlet is not None:
+            if vdim == 1:
+                kwargs["dirichlet"] = "|".join(["boundary" + str(item) for item in dirichlet[0]])
+            if vdim  > 1:
+                kwargs["dirichletx"] = "|".join(["boundary" + str(item) for item in dirichlet[0]])
+                kwargs["dirichlety"] = "|".join(["boundary" + str(item) for item in dirichlet[1]])
+            if vdim == 3:
+                kwargs["dirichletz"] = "|".join(["boundary" + str(item) for item in dirichlet[2]])
+
+        if region is not None:
+            kwargs["definedon"] = "|".join([str(item) for item in region])
+
+        if vdim == 1:
+            fes = H1(self._mesh, order=order, **kwargs)
+        elif vdim==2:
+            fes = VectorH1(self._mesh, order=order, **kwargs)
+        elif vdim==3:
+            fes = VectorH1(self._mesh, order=order, **kwargs)
+        sol = GridFunction(fes)
+        sol.Set(initialValue)
+
+        self._fes.append(fes)
+        self._vnames.append(name)
+        self._sol.append(sol)
 
     @property
     def spaces(self):
@@ -57,17 +78,6 @@ class NGSModel:
 
     def TnT(self):
         return util.prod(self.spaces).TnT()
-
-    @property
-    def _dirichletCondition(self):
-        conditions = self._model.boundaryConditions.get(DirichletBoundary)
-        bdr_dir = {i: [] for i in range(self._model.variableDimension())}
-        for b in conditions:
-            for axis, check in enumerate(b.components):
-                if check:
-                    bdr_dir[axis].extend(b.boundaries.getSelection())
-        return ["|".join([str(item) for item in value]) for value in bdr_dir.values()]
-
 
 
 class CompositeModel:

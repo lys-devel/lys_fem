@@ -1,0 +1,11 @@
+from lys_fem import ngs
+from ..models import LLG_test
+
+class ngs_heat_test(LLG_test):
+    def test_precession(self):
+        self.precession(ngs)
+
+    def test_stationary(self):
+        self.stationary(ngs)
+
+
