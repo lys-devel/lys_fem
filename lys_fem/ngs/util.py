@@ -1,6 +1,7 @@
 import sympy as sp
 import numpy as np
 
+import ngsolve
 from ngsolve import x,y,z, CoefficientFunction
 from ngsolve.fem import Einsum
 from ..fem import DirichletBoundary
@@ -60,4 +61,4 @@ def generateCoefficient(coef, mesh=None, geom="domain"):
     elif isinstance(coef, CoefficientFunction):
         return coef
     else:
-        return sp.lambdify(sp.symbols("x,y,z"), coef)(x,y,z)
+        return sp.lambdify(sp.symbols("x,y,z"), coef, modules=ngsolve)(x,y,z)
