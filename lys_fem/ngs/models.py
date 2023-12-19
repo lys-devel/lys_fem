@@ -17,6 +17,7 @@ def generateModel(fem, mesh, mat):
 
 class NGSModel:
     def __init__(self, model, mesh, addModel=True):
+        self._model = model
         self._mesh = mesh
 
         self._fes = []
@@ -82,6 +83,10 @@ class NGSModel:
 
     def TnT(self):
         return util.prod(self.spaces).TnT()
+
+    @property
+    def name(self):
+        return self._model.name
 
 
 class CompositeModel:

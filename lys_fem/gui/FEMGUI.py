@@ -124,9 +124,9 @@ class FEMGUI(LysSubWindow):
             self.__save(path=path + "/input.dic")
             ncore = 1 if sub["type"] == "Serial" else sub["ncore"]
             if sub["type"] in ["Serial", "Parallel"]:
-                qsub.execute("python -m lys_fem.mf", path, ncore=ncore)
+                qsub.execute("python -m lys_fem.ngs", path, ncore=ncore)
             elif sub["type"] == "qsub":
-                command = "python -m lys_fem.mf"
+                command = "python -m lys_fem.ngs"
                 qsub.submit(command, path=path, ncore=ncore, nodes=sub["nnodes"], name="mfem", queue=sub["queue"])
 
     def __loadProj(self):

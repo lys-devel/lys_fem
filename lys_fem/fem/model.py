@@ -10,14 +10,14 @@ class FEMModel(FEMObject):
     def __init__(self, nvar, initialConditions=None, boundaryConditions=None, domainConditions=None):
         self._nvar = nvar
         if initialConditions is None:
-            initialConditions = FEMObjectList(self)
+            initialConditions = []
         if boundaryConditions is None:
-            boundaryConditions = BoundaryConditions(self)
+            boundaryConditions = []
         if domainConditions is None:
-            domainConditions = DomainConditions(self)
-        self._init = initialConditions
-        self._bdrs = boundaryConditions
-        self._dcs = domainConditions
+            domainConditions = []
+        self._init = FEMObjectList(self, initialConditions)
+        self._bdrs = BoundaryConditions(self, boundaryConditions)
+        self._dcs = DomainConditions(self, domainConditions)
 
     def setVariableDimension(self, dim):
         self._nvar = dim

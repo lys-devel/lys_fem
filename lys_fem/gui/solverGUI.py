@@ -1,6 +1,6 @@
 from lys.Qt import QtWidgets
 from ..widgets import FEMTreeItem, ModelSelector
-from ..fem.solver import solvers, subSolvers
+from ..fem.solver import solvers
 
 
 class SolverTree(FEMTreeItem):
@@ -66,8 +66,8 @@ class StationarySolverWidget(QtWidgets.QWidget):
 
     def __initLayout(self):
         self._tree = QtWidgets.QTreeWidget()
-        self._tree.setColumnCount(2)
-        self._tree.setHeaderLabels(["Model", "FEM Solver"])
+        self._tree.setColumnCount(1)
+        self._tree.setHeaderLabels(["Model"])
         self._tree.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
 
         h = QtWidgets.QHBoxLayout()
@@ -81,13 +81,13 @@ class StationarySolverWidget(QtWidgets.QWidget):
 
     def _update(self):
         self._tree.clear()
-        for m, s in zip(self._solver.models, self._solver.subSolvers):
-            self._tree.addTopLevelItem(QtWidgets.QTreeWidgetItem([m.name, s.name]))
+        for m in self._solver.models:
+            self._tree.addTopLevelItem(QtWidgets.QTreeWidgetItem([m.name]))
 
     def __add(self):
         d = _AddModelDialog(self, self._fem)
         if d.exec_():
-            self._solver.addModel(d.model, d.femSolver)
+            self._solver.addModel(d.model)
         self._update()
 
     def __remove(self):
@@ -161,29 +161,17 @@ class TimeDependentSolverWidget(QtWidgets.QWidget):
 
 
 class _AddModelDialog(QtWidgets.QDialog):
-    def __init__(self, parent, fem, tdep=False):
+    def __init__(self, parent, fem):
         super().__init__(parent)
         self._fem = fem
-        self.__initLayout(fem, tdep)
+        self.__initLayout(fem)
 
-    def __initLayout(self, fem, tdep):
+    def __initLayout(self, fem):
         self._model = ModelSelector(fem)
-        self._femSolver = QtWidgets.QComboBox()
-        self._femSolver.addItems(list(subSolvers.keys()))
-        self._tSolver = QtWidgets.QComboBox()
-        self._tSolver.addItems(list(tSolvers.keys()))
 
         g = QtWidgets.QGridLayout()
         g.addWidget(QtWidgets.QLabel("Model"), 0, 0)
         g.addWidget(self._model, 0, 1)
-        if tdep:
-            g.addWidget(QtWidgets.QLabel("Time Dependent Solver"), 1, 0)
-            g.addWidget(self._tSolver, 1, 1)
-            g.addWidget(QtWidgets.QLabel("FEM Solver"), 2, 0)
-            g.addWidget(self._femSolver, 2, 1)
-        else:
-            g.addWidget(QtWidgets.QLabel("FEM Solver"), 1, 0)
-            g.addWidget(self._femSolver, 1, 1)
 
         h = QtWidgets.QHBoxLayout()
         h.addWidget(QtWidgets.QPushButton("O K", clicked=self.accept))
@@ -193,14 +181,6 @@ class _AddModelDialog(QtWidgets.QDialog):
         layout.addLayout(g)
         layout.addLayout(h)
         self.setLayout(layout)
-
-    @property
-    def femSolver(self):
-        return subSolvers[self._femSolver.currentText()]()
-
-    @property
-    def tSolver(self):
-        return tSolvers[self._tSolver.currentText()](self.femSolver)
 
     @property
     def model(self):

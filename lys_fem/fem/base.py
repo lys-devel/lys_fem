@@ -18,8 +18,12 @@ class FEMObject:
 
 
 class FEMObjectList(list, FEMObject):
-    def __init__(self, parent):
+    def __init__(self, parent, items=[]):
+        super().__init__(items)
         self.setParent(parent)
+        for item in items:
+            if isinstance(item, FEMObject):
+                item.setParent(self)
 
     def append(self, item):
         super().append(item)

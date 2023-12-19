@@ -14,7 +14,6 @@ class MaterialTree(FEMTreeItem):
         self._materials = materials
         for m in self._materials:
             super().append(_MaterialGUI(m, self))
-        self.children[0].setDefault(True)
 
     def append(self, material=None):
         if not isinstance(material, Material):
@@ -46,12 +45,12 @@ class _MaterialGUI(FEMTreeItem):
         self._default = b
 
     def append(self, p):
-        self._material.append(p)
+        self._material.parameters.append(p)
         super().append(_ParameterGUI(self, p))
 
     def remove(self, param):
         i = super().remove(param)
-        self._material.remove(self._material[i])
+        self._material.parameters.remove(self._material[i])
 
     @property
     def name(self):

@@ -17,10 +17,11 @@ def generateSolver(fem, mesh, models):
 
 
 class SolverBase:
-    def __init__(self, obj, mesh, dirname):
+    def __init__(self, obj, mesh, models, dirname):
         self._obj = obj
         self._mesh = mesh
         self._solver = _NewtonSolver()
+        self._model = CompositeModel(mesh, models)
         self._prepareDirectory(dirname)
 
     def _prepareDirectory(self, dirname):
@@ -40,6 +41,10 @@ class SolverBase:
     def solver(self):
         return self._solver
 
+    @property    
+    def model(self):
+        return self._model
+
     @property
     def name(self):
         return self._obj.name
@@ -47,33 +52,31 @@ class SolverBase:
 
 class StationarySolver(SolverBase):
     def __init__(self, obj, mesh, models, dirname):
-        super().__init__(obj, mesh, dirname)
+        super().__init__(obj, mesh, models, dirname)
         self._mesh = mesh
-        self._model = CompositeModel(mesh, models)
 
     def execute(self):
         self.exportMesh(self._mesh)
-        self.exportSolution(0, self._model.solution)
+        self.exportSolution(0, self.model.solution)
 
-        sol = self._model.solve(self._solver)
+        sol = self.model.solve(self._solver)
         self.exportSolution(1, sol)
 
 
 class TimeDependentSolver(SolverBase):
     def __init__(self, obj, mesh, models, dirname):
-        super().__init__(obj, mesh, dirname)
+        super().__init__(obj, mesh, models, dirname)
         self._tSolver = obj
         self._mesh = mesh
-        self._model = CompositeModel(mesh, models)
 
     def execute(self):
         self.exportMesh(self._mesh)
-        self.exportSolution(0, self._model.solution)
+        self.exportSolution(0, self.model.solution)
 
         t = 0
         for i, dt in enumerate(self._tSolver.getStepList()):
             print("timestep", i, ", t =", t)
-            sol = self._model.solve(self._solver, 1/dt)
+            sol = self.model.solve(self._solver, 1/dt)
             self.exportSolution(i + 1, sol)
             t = t + dt
 

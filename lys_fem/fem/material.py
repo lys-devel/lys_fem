@@ -19,8 +19,7 @@ def  _getParameters(name=None):
 
 class Materials(FEMObjectList):
     def __init__(self, parent, materials):
-        super().__init__(parent)
-        list.__init__(materials)
+        super().__init__(parent, materials)
 
     def defaultParameter(self, groupName, dim):
         default = _getParameters(groupName)()
@@ -77,6 +76,10 @@ class Material(FEMObject):
     @property
     def name(self):
         return self._name
+
+    @property
+    def parameters(self):
+        return self._params
 
     @property
     def domains(self):

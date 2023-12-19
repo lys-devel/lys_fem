@@ -21,9 +21,14 @@ def run(fem, run=True):
     print()
 
     models = generateModel(fem, mesh, mats)
-    print(models)
+    print("NGS Models generated:")
+    for m in models:
+        print("\t"+m.name+":", [key for key in m.variableNames])
+    print()
+
     solvers = generateSolver(fem, mesh, models)
-    print(solvers)
+    print("NGS Solvers generated:"+str([s.name for s in solvers]))
+    print()
  
     if run:
         for i, s in enumerate(solvers):
@@ -33,5 +38,5 @@ def run(fem, run=True):
             s.execute()
             print(time.time()-start)
     else:
-        return mesh, material, models, solvers
+        return mesh, mats, models, solvers
 

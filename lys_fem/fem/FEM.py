@@ -36,9 +36,9 @@ class FEMProject:
         if "mesh" in d:
             self._mesher = OccMesher.loadFromDictionary(d["mesh"])
         if "materials" in d:
-            self._materials = [Material.loadFromDictionary(dic) for dic in d["materials"]]
+            self._materials = Materials(self, [Material.loadFromDictionary(dic) for dic in d["materials"]])
         if "models" in d:
-            self._models = [loadModel(dic) for dic in d["models"]]
+            self._models = FEMObjectList(self, [loadModel(dic) for dic in d["models"]])
         if "solvers" in d:
             self._solvers = [FEMSolver.loadFromDictionary(self, dic) for dic in d["solvers"]]
         if "submit" in d:
