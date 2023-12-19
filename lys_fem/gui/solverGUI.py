@@ -1,6 +1,6 @@
 from lys.Qt import QtWidgets
 from ..widgets import FEMTreeItem, ModelSelector
-from ..fem.solver import solvers, subSolvers, tSolvers
+from ..fem.solver import solvers, subSolvers
 
 
 class SolverTree(FEMTreeItem):

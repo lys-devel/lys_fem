@@ -8,13 +8,12 @@ class NGSPoissonModel(NGSModel):
     def __init__(self, model, mesh, mat):
         super().__init__(model, mesh)
         self._model = model
+        self._mesh = mesh
 
     @property
     def bilinearform(self):
         u,v =self.TnT()
-        gu, gv = grad(u), grad(v)
-
-        wf = (gu*gv) * dx
+        wf = (grad(u)*grad(v)) * dx
         return wf
     
     @property
@@ -24,5 +23,5 @@ class NGSPoissonModel(NGSModel):
         if self._model.domainConditions.have(Source):
             source = self._model.domainConditions.get(Source)
             f = util.generateDomainCoefficient(self._mesh, source)
-            wf += f*v*dx
+            wf += -f*v*dx
         return wf

@@ -9,7 +9,7 @@ from . import mpi
 
 def generateMesh(fem, file="mesh.msh"):
     if mpi.isRoot:
-        geom = fem.geometries.generateGeometry(fem.dimension)
+        geom = fem.geometries.generateGeometry()
         fem.mesher.export(geom, file)
         gmesh, points = ReadGmsh(file)
         if gmesh.dim == 1:
@@ -37,6 +37,7 @@ def _setBCNames(gmesh, file):
     model.setCurrent("Default")
     gmsh.merge(file)
     for dim, tag in model.getEntities(gmesh.dim-1):
+        print(model.getValue(dim, tag, []), "boundary"+str(tag))
         gmesh.SetBCName(tag-1, "boundary"+str(tag))
 
 def _createBoundaryFor1D(gmesh, file, points):

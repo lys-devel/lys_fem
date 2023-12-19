@@ -16,7 +16,7 @@ def generateModel(fem, mesh, mat):
 
 
 class NGSModel:
-    def __init__(self, model, mesh, order=1, addModel=True):
+    def __init__(self, model, mesh, addModel=True):
         self._mesh = mesh
 
         self._fes = []
@@ -41,7 +41,10 @@ class NGSModel:
                 kwargs["dirichletz"] = "|".join(["boundary" + str(item) for item in dirichlet[2]])
 
         if region is not None:
-            kwargs["definedon"] = "|".join([str(item) for item in region])
+            if isinstance(region, list):
+                kwargs["definedon"] = "|".join(region)
+            else:
+                kwargs["definedon"] = region
 
         if vdim == 1:
             fes = H1(self._mesh, order=order, **kwargs)
@@ -49,6 +52,7 @@ class NGSModel:
             fes = VectorH1(self._mesh, order=order, **kwargs)
         elif vdim==3:
             fes = VectorH1(self._mesh, order=order, **kwargs)
+
         sol = GridFunction(fes)
         sol.Set(initialValue)
 
@@ -181,4 +185,3 @@ class CompositeModel:
                         result[name+str(i+1)] = s.vec
         return result
 
- 

@@ -7,7 +7,7 @@ if mfem.isParallel():
 
 
 def generateMesh(fem, file="mesh.msh"):
-    geom = fem.geometries.generateGeometry(fem.dimension)
+    geom = fem.geometries.generateGeometry()
     if mfem.isRoot:
         fem.mesher.export(geom, file)
     mfem.wait()
