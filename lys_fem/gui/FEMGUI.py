@@ -1,11 +1,10 @@
 import os
 from lys.Qt import QtWidgets
-from lys.widgets import LysSubWindow
+from lys.widgets import LysSubWindow, lysCanvas3D
 from simtools import qsub
 
 from ..fem import FEMProject
 from ..widgets import TreeStyleEditor, FEMFileSystemView, FEMFileDialog
-from ..canvas3d import Canvas3d
 
 from .geometryGUI import GeometryEditor
 from .meshGUI import MeshEditor
@@ -43,7 +42,7 @@ class FEMGUI(LysSubWindow):
         self.adjustSize()
 
     def __initInputUI(self):
-        self._canvas = Canvas3d()
+        self._canvas = lysCanvas3D()
 
         buttons = QtWidgets.QHBoxLayout()
         buttons.addWidget(QtWidgets.QPushButton("New Project", clicked=self.__new))
@@ -75,7 +74,7 @@ class FEMGUI(LysSubWindow):
         return w
 
     def __initOutputUI(self):
-        self._canvas_out = Canvas3d()
+        self._canvas_out = lysCanvas3D()
         self._tree = SolutionTree(self._canvas_out)
         self._edit = TreeStyleEditor(self._tree)
         self._view = FEMFileSystemView()
