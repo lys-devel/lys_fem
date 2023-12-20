@@ -4,7 +4,7 @@ from .mesh import OccMesher
 from .material import Material, FEMParameter, materialParameters
 from .model import FEMModel, FEMFixedModel
 from .solver import FEMSolver, solvers, StationarySolver, TimeDependentSolver
-from .boundaryConditions import DirichletBoundary, NeumannBoundary
-from .domainConditions import Source
+from .boundaryConditions import BoundaryCondition, DirichletBoundary, NeumannBoundary
+from .domainConditions import DomainCondition, Source
 from .initialCondition import InitialCondition
 from .solution import FEMSolution

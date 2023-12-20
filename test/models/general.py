@@ -114,3 +114,36 @@ class poisson_test(FEMTestCase):
         for w in res:
             r = np.sqrt(w.x[:,0]**2+w.x[:,1]**2+w.x[:,2]**2)
             self.assert_allclose(w.data, -solution(r, 1, 2, 1), atol=0.1, rtol=0)
+
+    def infinite_3d(self, lib):
+        p = FEMProject(3)
+
+        # geometry
+        p.geometries.add(geometry.Sphere(0, 0, 0, 1))
+        p.geometries.add(geometry.Box(-0.5, -0.5, -0.5))
+        p.geometries.add(geometry.InfiniteVolume(1, 1, 1, 2, 2, 2))
+        p.mesher.setRefinement(1)
+
+        # model: boundary and initial conditions
+        model = general.PoissonModel()
+        model.domainConditions.append(Source("Source1", 1, [1]))
+        model.domainConditions.append(general.InfiniteVolume("InfVol", []))
+        model.boundaryConditions.append(DirichletBoundary("Dirichlet boundary1", [True], [2]))
+        p.models.append(model)
+
+        # solver
+        stationary = StationarySolver([model])
+        p.solvers.append(stationary)
+
+        # solve
+        lib.run(p)
+
+        def solution(r, a, rho):
+            return rho*np.where(r<=a, -r**2/6+a**2/2, a**3/(3*r))
+
+
+        sol = FEMSolution(".", p)
+        res = sol.eval("phi", data_number=1)
+        for w in res:
+            r = np.sqrt(w.x[:,0]**2+w.x[:,1]**2+w.x[:,2]**2)
+            self.assert_allclose(w.data, -solution(r, 1, 1), atol=0.1, rtol=0)

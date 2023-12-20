@@ -62,7 +62,7 @@ class OccMesher(object):
             model.mesh.setSizeCallback(self.__callback)
 
         # generate and refine
-        model.mesh.setTransfiniteAutomatic()
+        #model.mesh.setTransfiniteAutomatic()
         model.mesh.generate()
 
         for _ in range(self._refine):

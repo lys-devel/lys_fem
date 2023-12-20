@@ -1,4 +1,4 @@
-from lys_fem import FEMFixedModel
+from lys_fem import FEMFixedModel, DomainCondition, GeometrySelection
 
 
 class PoissonModel(FEMFixedModel):
@@ -19,4 +19,26 @@ class PoissonModel(FEMFixedModel):
 
     def eval(self, data, fem, var):
         if var == "phi":
-            return data["phi"][:]
+            return data["phi"]
+
+
+class InfiniteVolume(DomainCondition):
+    def __init__(self, name, domains=None):
+        super().__init__(name, domains)
+
+    @classmethod
+    @property
+    def name(cls):
+        return "Infinite Volume"
+
+    def widget(self, fem, canvas):
+        pass
+
+    def saveAsDictionary(self):
+        return {"type": self.name, "name": self.objName, "values": self._value, "domains": self.domains.saveAsDictionary()}
+
+    @staticmethod
+    def loadFromDictionary(d):
+        domains = GeometrySelection.loadFromDictionary(d["domains"])
+        return InfiniteVolume(d["name"], domains=domains)
+

@@ -3,9 +3,12 @@ from scipy.spatial import KDTree
 
 import gmsh
 import ngsolve
-from netgen.meshing import *
+from netgen.meshing import Mesh, Element0D, Element1D, Element2D, Element3D, FaceDescriptor, Pnt, MeshPoint
 
 from . import mpi
+
+class NGSMesh(ngsolve.Mesh):
+    pass
 
 def generateMesh(fem, file="mesh.msh"):
     if mpi.isRoot:
@@ -20,13 +23,13 @@ def generateMesh(fem, file="mesh.msh"):
     if mpi.isParallel():
         from mpi4py import MPI
         if mpi.isRoot:
-            mesh = ngsolve.Mesh(gmesh.Distribute(MPI.COMM_WORLD))
+            mesh = NGSMesh(gmesh.Distribute(MPI.COMM_WORLD))
             mesh._coords_global = coords
         else:
-            mesh = ngsolve.Mesh(Mesh.Receive(MPI.COMM_WORLD))
+            mesh = NGSMesh(Mesh.Receive(MPI.COMM_WORLD))
         _createMapping(mesh)
     else:
-        mesh = ngsolve.Mesh(gmesh)
+        mesh = NGSMesh(gmesh)
         mesh._coords_global = coords
     return mesh
 
