@@ -20,13 +20,13 @@ def run(fem, run=True):
     print("\tParameters:", {key: value.shape if len(value.shape)>0 else "scalar" for key, value in mats.items()})
     print()
 
-    models = generateModel(fem, mesh, mats)
+    model = generateModel(fem, mesh, mats)
     print("NGS Models generated:")
-    for m in models:
+    for m in model.models:
         print("\t"+m.name+":", [key for key in m.variableNames])
     print()
 
-    solvers = generateSolver(fem, mesh, models)
+    solvers = generateSolver(fem, mesh, model)
     print("NGS Solvers generated:"+str([s.name for s in solvers]))
     print()
  

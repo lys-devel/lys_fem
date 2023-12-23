@@ -30,7 +30,7 @@ class heat_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        stationary = StationarySolver([model])
+        stationary = StationarySolver()
         p.solvers.append(stationary)
 
         # solve
@@ -62,7 +62,7 @@ class heat_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        stationary = StationarySolver([model])
+        stationary = StationarySolver()
         p.solvers.append(stationary)
 
         # solve
@@ -98,7 +98,7 @@ class heat_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        stationary = TimeDependentSolver([model], 0.0001, 0.02)
+        stationary = TimeDependentSolver(0.0001, 0.02)
         p.solvers.append(stationary)
 
         # solve

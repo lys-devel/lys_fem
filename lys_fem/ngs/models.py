@@ -12,7 +12,7 @@ def addNGSModel(name, model):
 
 
 def generateModel(fem, mesh, mat):
-    return [modelList[m.name](m, mesh, mat) for m in fem.models]
+    return CompositeModel(mesh, [modelList[m.name](m, mesh, mat) for m in fem.models])
 
 
 class NGSModel:
@@ -190,3 +190,6 @@ class CompositeModel:
                         result[name+str(i+1)] = s.vec
         return result
 
+    @property
+    def models(self):
+        return self._models

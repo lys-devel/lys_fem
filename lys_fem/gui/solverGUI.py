@@ -59,42 +59,7 @@ class _SolverGUI(FEMTreeItem):
 class StationarySolverWidget(QtWidgets.QWidget):
     def __init__(self, fem, solver):
         super().__init__()
-        self._fem = fem
-        self._solver = solver
-        self.__initLayout()
-        self._update()
-
-    def __initLayout(self):
-        self._tree = QtWidgets.QTreeWidget()
-        self._tree.setColumnCount(1)
-        self._tree.setHeaderLabels(["Model"])
-        self._tree.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
-
-        h = QtWidgets.QHBoxLayout()
-        h.addWidget(QtWidgets.QPushButton("Add", clicked=self.__add))
-        h.addWidget(QtWidgets.QPushButton("Remove", clicked=self.__remove))
-
-        layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(self._tree)
-        layout.addLayout(h)
-        self.setLayout(layout)
-
-    def _update(self):
-        self._tree.clear()
-        for m in self._solver.models:
-            self._tree.addTopLevelItem(QtWidgets.QTreeWidgetItem([m.name]))
-
-    def __add(self):
-        d = _AddModelDialog(self, self._fem)
-        if d.exec_():
-            self._solver.addModel(d.model)
-        self._update()
-
-    def __remove(self):
-        index = self._tree.currentIndex().row()
-        if index != -1:
-            self._solver.remove(index)
-            self._update()
+        pass
 
 
 class TimeDependentSolverWidget(QtWidgets.QWidget):
@@ -103,7 +68,6 @@ class TimeDependentSolverWidget(QtWidgets.QWidget):
         self._fem = fem
         self._solver = solver
         self.__initlayout()
-        self._update()
 
     def __initlayout(self):
         self._step = QtWidgets.QDoubleSpinBox()
@@ -123,65 +87,10 @@ class TimeDependentSolverWidget(QtWidgets.QWidget):
         grid.addWidget(QtWidgets.QLabel("Stop"), 1, 0)
         grid.addWidget(self._stop, 1, 1)
 
-        self._tree = QtWidgets.QTreeWidget()
-        self._tree.setColumnCount(3)
-        self._tree.setHeaderLabels(["Model", "Time Dep. Solver", "FEM Solver"])
-        self._tree.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
-
-        h = QtWidgets.QHBoxLayout()
-        h.addWidget(QtWidgets.QPushButton("Add", clicked=self.__add))
-        h.addWidget(QtWidgets.QPushButton("Remove", clicked=self.__remove))
-
-        layout = QtWidgets.QVBoxLayout()
-        layout.addLayout(grid)
-        layout.addWidget(self._tree)
-        layout.addLayout(h)
-        self.setLayout(layout)
-
-    def _update(self):
-        self._tree.clear()
-        for m, s in zip(self._solver.models, self._solver.subSolvers):
-            self._tree.addTopLevelItem(QtWidgets.QTreeWidgetItem([m.name, s.name, s.femSolver.name]))
+        self.setLayout(grid)
 
     def __change(self):
         self._solver._step = self._step.value()
         self._solver._stop = self._stop.value()
 
-    def __add(self):
-        d = _AddModelDialog(self, self._fem, tdep=True)
-        if d.exec_():
-            self._solver.addModel(d.model, d.tSolver)
-        self._update()
 
-    def __remove(self):
-        index = self._tree.currentIndex().row()
-        if index != -1:
-            self._solver.remove(index)
-            self._update()
-
-
-class _AddModelDialog(QtWidgets.QDialog):
-    def __init__(self, parent, fem):
-        super().__init__(parent)
-        self._fem = fem
-        self.__initLayout(fem)
-
-    def __initLayout(self, fem):
-        self._model = ModelSelector(fem)
-
-        g = QtWidgets.QGridLayout()
-        g.addWidget(QtWidgets.QLabel("Model"), 0, 0)
-        g.addWidget(self._model, 0, 1)
-
-        h = QtWidgets.QHBoxLayout()
-        h.addWidget(QtWidgets.QPushButton("O K", clicked=self.accept))
-        h.addWidget(QtWidgets.QPushButton("CANCEL", clicked=self.reject))
-
-        layout = QtWidgets.QVBoxLayout()
-        layout.addLayout(g)
-        layout.addLayout(h)
-        self.setLayout(layout)
-
-    @property
-    def model(self):
-        return self._model.getSelectedModel()

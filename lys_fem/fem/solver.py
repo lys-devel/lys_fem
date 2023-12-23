@@ -2,24 +2,8 @@ from lys.Qt import QtWidgets
 
 
 class FEMSolver:
-    def __init__(self, models=None):
-        if models is None:
-            models = []
-        self._models = models
-
-    def addModel(self, model):
-        self._models.append(model)
-
-    def remove(self, index):
-        self._models.remove(self._models[index])
-
-    @property
-    def models(self):
-        return self._models
-
     def saveAsDictionary(self, fem):
         d = {"solver": self.name}
-        d["models"] = [fem.models.index(m) for m in self._models]
         return d
 
     @staticmethod
@@ -43,13 +27,12 @@ class StationarySolver(FEMSolver):
 
     @classmethod
     def loadFromDictionary(cls, fem, d):
-        models = [fem.models[index]for index in d["models"]]
-        return StationarySolver(models)
+        return StationarySolver()
 
 
 class TimeDependentSolver(FEMSolver):
-    def __init__(self, models=None, step=1, stop=100):
-        super().__init__(models)
+    def __init__(self, step=1, stop=100):
+        super().__init__()
         self._step = step
         self._stop = stop
 
@@ -73,8 +56,7 @@ class TimeDependentSolver(FEMSolver):
 
     @classmethod
     def loadFromDictionary(cls, fem, d):
-        models = [fem.models[index]for index in d["models"]]
-        return TimeDependentSolver(models, d["step"], d["stop"])
+        return TimeDependentSolver(d["step"], d["stop"])
 
 
 solvers = {"Stationary": [StationarySolver], "Time dependent": [TimeDependentSolver]}

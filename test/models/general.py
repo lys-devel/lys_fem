@@ -30,7 +30,7 @@ class poisson_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        stationary = StationarySolver([model])
+        stationary = StationarySolver()
         p.solvers.append(stationary)
 
         # solve
@@ -66,7 +66,7 @@ class poisson_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        stationary = StationarySolver([model])
+        stationary = StationarySolver()
         p.solvers.append(stationary)
 
         # solve
@@ -99,7 +99,7 @@ class poisson_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        stationary = StationarySolver([model])
+        stationary = StationarySolver()
         p.solvers.append(stationary)
 
         # solve
@@ -132,7 +132,7 @@ class poisson_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        stationary = StationarySolver([model])
+        stationary = StationarySolver()
         p.solvers.append(stationary)
 
         # solve

@@ -28,7 +28,7 @@ class LLG_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        solver = StationarySolver([model])
+        solver = StationarySolver()
         p.solvers.append(solver)
 
         # solve
@@ -59,7 +59,7 @@ class LLG_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        solver = TimeDependentSolver([model], T/100/factor, T/2)
+        solver = TimeDependentSolver(T/100/factor, T/2)
         p.solvers.append(solver)
 
         # solve

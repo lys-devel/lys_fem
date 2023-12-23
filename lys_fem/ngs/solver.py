@@ -6,22 +6,21 @@ from .models import CompositeModel
 from ngsolve import sqrt
 
 
-def generateSolver(fem, mesh, models):
+def generateSolver(fem, mesh, model):
     solvers = {"Stationary Solver": StationarySolver, "Time Dependent Solver": TimeDependentSolver}
     result = []
     for i, s in enumerate(fem.solvers):
         sol = solvers[s.name]
-        model_list = [models[fem.models.index(m)] for m in s.models]
-        result.append(sol(s, mesh, model_list, "Solver" + str(i)))
+        result.append(sol(s, mesh, model, "Solver" + str(i)))
     return result
 
 
 class SolverBase:
-    def __init__(self, obj, mesh, models, dirname):
+    def __init__(self, obj, mesh, model, dirname):
         self._obj = obj
         self._mesh = mesh
         self._solver = _NewtonSolver()
-        self._model = CompositeModel(mesh, models)
+        self._model = model
         self._prepareDirectory(dirname)
 
     def _prepareDirectory(self, dirname):
@@ -51,8 +50,8 @@ class SolverBase:
 
 
 class StationarySolver(SolverBase):
-    def __init__(self, obj, mesh, models, dirname):
-        super().__init__(obj, mesh, models, dirname)
+    def __init__(self, obj, mesh, model, dirname):
+        super().__init__(obj, mesh, model, dirname)
         self._mesh = mesh
 
     def execute(self):
@@ -64,8 +63,8 @@ class StationarySolver(SolverBase):
 
 
 class TimeDependentSolver(SolverBase):
-    def __init__(self, obj, mesh, models, dirname):
-        super().__init__(obj, mesh, models, dirname)
+    def __init__(self, obj, mesh, model, dirname):
+        super().__init__(obj, mesh, model, dirname)
         self._tSolver = obj
         self._mesh = mesh
 

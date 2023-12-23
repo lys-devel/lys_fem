@@ -25,7 +25,7 @@ class elasticity_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        stationary = StationarySolver([model])
+        stationary = StationarySolver()
         p.solvers.append(stationary)
 
         # solve
@@ -57,7 +57,7 @@ class elasticity_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        stationary = StationarySolver([model])
+        stationary = StationarySolver()
         p.solvers.append(stationary)
 
         # solve
@@ -89,7 +89,7 @@ class elasticity_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        stationary = StationarySolver([model])
+        stationary = StationarySolver()
         p.solvers.append(stationary)
 
         # solve
