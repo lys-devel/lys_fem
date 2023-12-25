@@ -21,6 +21,10 @@ def CrossProduct(u, v):
     return Einsum('ijk,i,j->k', eijk, u, v)
 
 
+def generateGeometry(region):
+    return  "|".join([region.geometryType.lower() + str(r) for r in region])
+
+
 def generateDirichletCondition(model):
     conditions = model.boundaryConditions.get(DirichletBoundary)
     bdr_dir = {i: [] for i in range(model.variableDimension())}

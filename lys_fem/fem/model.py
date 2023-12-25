@@ -1,4 +1,5 @@
 from .base import FEMObject, FEMObjectList
+from .equations import Equations
 from .initialCondition import InitialCondition
 from .boundaryConditions import BoundaryConditions, DirichletBoundary, NeumannBoundary
 from .domainConditions import DomainConditions
@@ -7,7 +8,7 @@ models = {}
 
 
 class FEMModel(FEMObject):
-    def __init__(self, nvar, initialConditions=None, boundaryConditions=None, domainConditions=None):
+    def __init__(self, nvar, equations, initialConditions=None, boundaryConditions=None, domainConditions=None):
         self._nvar = nvar
         if initialConditions is None:
             initialConditions = []
@@ -15,6 +16,7 @@ class FEMModel(FEMObject):
             boundaryConditions = []
         if domainConditions is None:
             domainConditions = []
+        self._eqs = Equations(self, equations)
         self._init = FEMObjectList(self, initialConditions)
         self._bdrs = BoundaryConditions(self, boundaryConditions)
         self._dcs = DomainConditions(self, domainConditions)
@@ -26,6 +28,15 @@ class FEMModel(FEMObject):
 
     def variableDimension(self):
         return self._nvar
+
+    @classmethod
+    @property
+    def equationTypes(self):
+        return []
+    
+    @property
+    def equations(self):
+        return self._eqs
 
     @classmethod
     @property

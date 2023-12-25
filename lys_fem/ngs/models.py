@@ -16,16 +16,13 @@ def generateModel(fem, mesh, mat):
 
 
 class NGSModel:
-    def __init__(self, model, mesh, addModel=True):
+    def __init__(self, model, mesh):
         self._model = model
         self._mesh = mesh
 
         self._fes = []
         self._vnames = []
         self._sol = []
-
-        if addModel:    
-            self.addVariable(model.variableName, model.variableDimension(), util.generateDirichletCondition(model), util.generateDomainCoefficient(mesh, model.initialConditions))
 
     def addVariable(self, name, vdim, dirichlet=None, initialValue=None, region=None, order=1):
         if initialValue is None:
@@ -42,10 +39,8 @@ class NGSModel:
                 kwargs["dirichletz"] = "|".join(["boundary" + str(item) for item in dirichlet[2]])
 
         if region is not None:
-            if isinstance(region, list):
-                kwargs["definedon"] = "|".join(region)
-            else:
-                kwargs["definedon"] = region
+            if region.selectionType() == "Selected":
+                kwargs["definedon"] = "|".join([region.geometryType.lower() + str(r) for r in region])
 
         if vdim == 1:
             fes = H1(self._mesh, order=order, **kwargs)

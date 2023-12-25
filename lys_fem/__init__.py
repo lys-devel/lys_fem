@@ -1,5 +1,5 @@
 import simtools
-from .fem import FEMGeometry, FEMParameter, FEMModel, FEMFixedModel, GeometrySelection, FEMSolver, FEMSolution, DomainCondition, BoundaryCondition
+from .fem import FEMGeometry, FEMParameter, FEMModel, FEMFixedModel, GeometrySelection, FEMSolver, FEMSolution, DomainCondition, BoundaryCondition, Equation
 from .functions import addMaterialParameter, addModel, addGeometry, addSolver
 from . import geometry
 from . import models
