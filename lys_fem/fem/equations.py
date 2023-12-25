@@ -7,7 +7,7 @@ class Equations(FEMObjectList):
 
 
 class Equation(FEMObject):
-    def __init__(self, name, varName, varDim, geometries="all", geometryType="Domain"):
+    def __init__(self, name, varName, varDim=None, geometries="all", geometryType="Domain"):
         self._varName = varName
         self._varDim = varDim
         self._name = name
@@ -32,7 +32,10 @@ class Equation(FEMObject):
 
     @property
     def variableDimension(self):
-        return self._varDim
+        if self._varDim is None:
+            return self.parent.parent.variableDimension()
+        else:
+            return self._varDim
 
     @property
     def geometries(self):

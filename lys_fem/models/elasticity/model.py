@@ -1,14 +1,19 @@
-from lys_fem import FEMModel
+from lys_fem import FEMModel, Equation
 
 
 class ElasticModel(FEMModel):
     def __init__(self, nvar=3, *args, **kwargs):
-        super().__init__(nvar, *args, **kwargs)
+        super().__init__(nvar, [ChristffelEquation("u")], *args, **kwargs)
 
     @classmethod
     @property
     def name(cls):
         return "Elasticity"
+
+    @classmethod
+    @property
+    def equationTypes(self):
+        return [ChristffelEquation]
 
     @property
     def variableName(self):
@@ -26,3 +31,9 @@ class ElasticModel(FEMModel):
             return data["u2"]
         if var == "uz":
             return data["u3"]
+
+
+
+class ChristffelEquation(Equation):
+    def __init__(self, varName, domain="all", name="Christffel Equation"):
+        super().__init__(name, varName, geometries=domain)

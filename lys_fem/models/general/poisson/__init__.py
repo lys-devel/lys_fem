@@ -1,3 +1,3 @@
-from .model import PoissonModel, InfiniteVolume
+from .model import PoissonModel
 from .mfem import MFEMPoissonModel
 from .ngs import NGSPoissonModel

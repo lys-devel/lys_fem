@@ -25,4 +25,4 @@ class HeatConductionModel(FEMFixedModel):
 
 class HeatConductionEquation(Equation):
     def __init__(self, varName, domain="all", name="Heat Conduction Equation"):
-        super().__init__(name, varName, 1, domain)
+        super().__init__(name, varName, geometries = domain)

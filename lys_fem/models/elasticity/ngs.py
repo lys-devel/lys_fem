@@ -14,23 +14,34 @@ class NGSElasticModel(NGSModel):
         self._mat = mat
         self._vdim = self._model.variableDimension()
         self._C = self.__getC(mesh.dim, self._mat["C"])
+        self.__generateVariables(mesh, model)
+
+    def __generateVariables(self, mesh, model):
+        dirichlet = util.generateDirichletCondition(model)
+        init = util.generateDomainCoefficient(mesh, model.initialConditions)
+        for eq in model.equations:
+            self.addVariable(eq.variableName, eq.variableDimension, dirichlet, init, eq.geometries)
 
     @property
     def bilinearform(self):
         C, rho = self._C, self._mat["rho"]
-        u,v =self.TnT()
-        gu, gv = grad(u), grad(v)
 
-        if self._vdim == 1:
-            wf = gu * C * gv * dx
-        else:
-            wf =  Einsum("ij,ijkl,kl", gu, C, gv) * dx
+        wf = 0
+        for sp, eq in zip(self.spaces, self._model.equations):
+            u,v =sp.TnT()
+            gu, gv = grad(u), grad(v)
+            if self._vdim == 1:
+                wf += gu * C * gv * dx
+            else:
+                wf +=  Einsum("ij,ijkl,kl", gu, C, gv) * dx
         return wf
     
     @property
     def linearform(self):
-        u,v =self.TnT()
-        wf = util.generateCoefficient([0]*self._vdim) * v * dx
+        wf = 0
+        for sp, u0, eq in zip(self.spaces, self.sol, self._model.equations):
+            u,v =sp.TnT()
+            wf += util.generateCoefficient([0]*self._vdim) * v * dx
         return wf
 
     def __getC(self, dim, C):

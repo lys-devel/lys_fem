@@ -9,19 +9,30 @@ class NGSPoissonModel(NGSModel):
         super().__init__(model, mesh)
         self._model = model
         self._mesh = mesh
+        self.__generateVariables(mesh, model)
+
+    def __generateVariables(self, mesh, model):
+        dirichlet = util.generateDirichletCondition(model)
+        init = util.generateDomainCoefficient(mesh, model.initialConditions)
+        for eq in model.equations:
+            self.addVariable(eq.variableName, eq.variableDimension, dirichlet, init, eq.geometries)
 
     @property
     def bilinearform(self):
-        u,v =self.TnT()
-        wf = (grad(u)*grad(v)) * dx
+        wf = 0
+        for sp, eq in zip(self.spaces, self._model.equations):
+            u,v = sp.TnT()
+            wf += (grad(u)*grad(v)) * dx
         return wf
     
     @property
     def linearform(self):
-        u,v =self.TnT()
         wf = util.generateCoefficient(0) * dx
-        if self._model.domainConditions.have(Source):
-            source = self._model.domainConditions.get(Source)
-            f = util.generateDomainCoefficient(self._mesh, source)
-            wf += -f*v*dx
+        wf = 0
+        for sp, eq in zip(self.spaces, self._model.equations):
+            u,v =sp.TnT()
+            if self._model.domainConditions.have(Source):
+                source = self._model.domainConditions.get(Source)
+                f = util.generateDomainCoefficient(self._mesh, source)
+                wf += -f*v*dx
         return wf
