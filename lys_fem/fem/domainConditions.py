@@ -9,53 +9,57 @@ class DomainConditions(FEMObjectList):
     def have(self, cls):
         return len(self.get(cls)) > 0
 
-class DomainCondition(FEMObject):
-    def __init__(self, name, domains=None):
-        self._name = name
-        if isinstance(domains, GeometrySelection):
-            self._domains = domains
-        else:
-            self._domains = GeometrySelection("Domain", domains)
-        self._domains.setParent(self)
+    def append(self, condition):
+        if condition.objName is None:
+            names_used = [c.objName for c in self.parent.domainConditions]
+            i = 1
+            while condition.className + str(i) in names_used:
+                i += 1
+            condition.objName = condition.className + str(i)
+        super().append(condition)
+
+
+class ConditionBase(FEMObject):
+    def __init__(self, geomType, values=None, objName=None, geometries=None):
+        super().__init__(objName)
+        self._geomType = geomType
+        self._geom = GeometrySelection(self._geomType, geometries, parent=self)
+        self._values = values
 
     @property
-    def objName(self):
-        return self._name
+    def geometries(self):
+        return self._geom
 
-    @property
-    def domains(self):
-        return self._domains
-
-    @domains.setter
-    def domains(self, value):
-        self._domains = value
-
-
-class Source(DomainCondition):
-    def __init__(self, name, values, domains=None):
-        super().__init__(name, domains)
-        self._value = values
-
-    @classmethod
-    @property
-    def name(cls):
-        return "Source Term"
-
-    def widget(self, fem, canvas):
-        pass
-
-    def saveAsDictionary(self):
-        return {"type": self.name, "name": self.objName, "values": self._value, "domains": self.domains.saveAsDictionary()}
-
-    @staticmethod
-    def loadFromDictionary(d):
-        domains = GeometrySelection.loadFromDictionary(d["domains"])
-        return Source(d["name"], d["values"], domains=domains)
+    @geometries.setter
+    def geometries(self, value):
+        self._geom = GeometrySelection(self._geomType, value, parent=self)
 
     @property
     def values(self):
-        return self._value
-
+        return self._values
+    
     @values.setter
-    def values(self, value):
-        self._value = value
+    def values(self, values):
+        self._values = values
+
+    def saveAsDictionary(self):
+        return {"type": self.className, "objName": self.objName, "values": self.values, "geometries": self.geometries.saveAsDictionary()}
+
+    @classmethod
+    def loadFromDictionary(cls, d):
+        domains = GeometrySelection.loadFromDictionary(d["geometries"])
+        return cls(values = d["values"], geometries=domains, objName=d["objName"])
+
+    @classmethod
+    def default(self, model):
+        raise NotImplementedError
+
+    def widget(self, fem, canvas):
+        raise NotImplementedError
+
+
+class DomainCondition(ConditionBase):
+    def __init__(self, *args, **kwargs):
+        super().__init__("Domain", *args, **kwargs)
+
+

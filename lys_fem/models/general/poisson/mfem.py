@@ -1,5 +1,4 @@
 import sympy as sp
-from lys_fem.fem import Source
 from lys_fem.mf import MFEMModel, util, weakform, mfem
 from lys_fem.mf.weakform import grad, t, dV, dS
 

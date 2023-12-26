@@ -80,7 +80,10 @@ class FEMGeometry(object):
 
 
 class GeometrySelection(FEMObject):
-    def __init__(self, geometryType="Domain", selection=None):
+    def __init__(self, geometryType="Domain", selection=None, parent=None):
+        if isinstance(selection, GeometrySelection):
+            geometryType = selection.geometryType()
+            selection = selection.getSelection()
         if selection is None:
             selection = []
         self._geom = geometryType
@@ -88,6 +91,8 @@ class GeometrySelection(FEMObject):
             self._selection = selection
         else:
             self._selection = list(selection)
+        if parent is not None:
+            self.setParent(parent)
 
     def check(self, item):
         if self._selection == "all":

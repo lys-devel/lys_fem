@@ -38,5 +38,5 @@ def run(fem, run=True):
             s.execute()
             print(time.time()-start)
     else:
-        return mesh, mats, models, solvers
+        return mesh, mats, model, solvers
 

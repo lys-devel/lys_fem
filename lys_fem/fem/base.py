@@ -1,6 +1,22 @@
 import weakref
 
 class FEMObject:
+    def __init__(self, objName=None):
+        self._objName = objName
+
+    @property
+    def objName(self):
+        return self._objName
+    
+    @objName.setter
+    def objName(self, value):
+        self._objName = value
+
+    @classmethod
+    @property
+    def className(cls):
+        raise NotImplementedError
+
     @property
     def fem(self):
         from .FEM import FEMProject

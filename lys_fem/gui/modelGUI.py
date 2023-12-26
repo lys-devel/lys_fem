@@ -58,8 +58,9 @@ class _DomainGUI(FEMTreeItem):
         self._model = model
 
     def append(self, type):
-        i = self._model.addDomainCondition(type)
-        super().append(_DomainCondition(i, self))
+        cond = type.default(self._model)
+        self._model.domainConditions.append(cond)
+        super().append(_DomainCondition(cond, self))
 
     def remove(self, init):
         i = super().remove(init)
@@ -73,7 +74,7 @@ class _DomainGUI(FEMTreeItem):
     def menu(self):
         self._menu = QtWidgets.QMenu()
         for i in self._model.domainConditionTypes:
-            self._menu.addAction(QtWidgets.QAction("Add " + i.name, self.treeWidget(), triggered=lambda x, y=i: self.append(y)))
+            self._menu.addAction(QtWidgets.QAction("Add " + i.className, self.treeWidget(), triggered=lambda x, y=i: self.append(y)))
         return self._menu
 
 

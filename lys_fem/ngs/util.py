@@ -51,6 +51,15 @@ def generateBoundaryCoefficient(mesh, conditions):
     return generateCoefficient(coefs, mesh, geom="boundary")
 
 
+def generateGeometryCoefficient(mesh, conditions):
+    coefs = {}
+    for c in conditions:
+        for d in c.geometries:
+            coefs[d] = c.values
+        type = c.geometries.geometryType.lower()
+    return generateCoefficient(coefs, mesh, type)
+
+
 def generateCoefficient(coef, mesh=None, geom="domain"):
     if isinstance(coef, dict):
         coefs = {geom+str(key): generateCoefficient(value) for key, value in coef.items()}

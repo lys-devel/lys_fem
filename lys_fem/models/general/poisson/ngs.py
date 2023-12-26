@@ -1,6 +1,6 @@
 from ngsolve import grad, dx, ds
 
-from lys_fem.fem import Source
+from .. import Source
 from lys_fem.ngs import NGSModel, util
 
 
@@ -33,6 +33,6 @@ class NGSPoissonModel(NGSModel):
             u,v =sp.TnT()
             if self._model.domainConditions.have(Source):
                 source = self._model.domainConditions.get(Source)
-                f = util.generateDomainCoefficient(self._mesh, source)
+                f = util.generateGeometryCoefficient(self._mesh, source)
                 wf += -f*v*dx
         return wf

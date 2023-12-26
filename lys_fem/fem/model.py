@@ -65,15 +65,6 @@ class FEMModel(FEMObject):
     def initialConditions(self):
         return self._init
 
-    def addDomainCondition(self, cond):
-        i = 1
-        while cond.name + str(i) in [c.objName for c in self._dcs]:
-            i += 1
-        name = cond.name + str(i)
-        obj = cond(name)
-        self._dcs.append(obj)
-        return obj
-
     def addBoundaryCondition(self, bdr):
         i = 1
         while bdr.name + str(i) in [c.objName for c in self._bdrs]:

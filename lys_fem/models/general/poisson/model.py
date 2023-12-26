@@ -1,5 +1,5 @@
 from lys_fem import FEMFixedModel, Equation
-
+from lys_fem.models.common import Source
 
 class PoissonModel(FEMFixedModel):
     def __init__(self, *args, **kwargs):
@@ -9,6 +9,11 @@ class PoissonModel(FEMFixedModel):
     @property
     def name(cls):
         return "Poisson"
+
+    @classmethod
+    @property
+    def domainConditionTypes(cls):
+        return [Source]
 
     @property
     def variableName(self):
