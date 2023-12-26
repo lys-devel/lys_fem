@@ -6,16 +6,9 @@ from lys_fem.ngs import NGSModel, util
 
 class NGSPoissonModel(NGSModel):
     def __init__(self, model, mesh, mat):
-        super().__init__(model, mesh)
+        super().__init__(model, mesh, addVariables=True)
         self._model = model
         self._mesh = mesh
-        self.__generateVariables(mesh, model)
-
-    def __generateVariables(self, mesh, model):
-        dirichlet = util.generateDirichletCondition(model)
-        init = util.generateGeometryCoefficient(mesh, model.initialConditions)
-        for eq in model.equations:
-            self.addVariable(eq.variableName, eq.variableDimension, dirichlet, init, eq.geometries)
 
     @property
     def bilinearform(self):

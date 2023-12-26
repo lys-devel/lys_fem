@@ -1,4 +1,4 @@
-from .base import FEMObject, FEMObjectList
+from .base import FEMObject
 from .equations import Equations
 from .conditions import DomainConditions, BoundaryConditions, InitialConditions
 
@@ -44,7 +44,7 @@ class FEMModel(FEMObject):
         return self._init
 
     def saveAsDictionary(self):
-        d = {"model": self.name}
+        d = {"model": self.className}
         d["nvar"] = self._nvar
         d["init"] = [i.saveAsDictionary() for i in self.initialConditions]
         d["bdr"] = [b.saveAsDictionary() for b in self.boundaryConditions]
@@ -53,9 +53,8 @@ class FEMModel(FEMObject):
 
     @classmethod
     def loadFromDictionary(cls, d):
-        nvar = d["nvar"]
         init, bdr, domain = cls._loadConditions(d)
-        return cls(nvar=nvar, initialConditions=init, boundaryConditions=bdr, domainConditions=domain)
+        return cls(nvar=d["nvar"], initialConditions=init, boundaryConditions=bdr, domainConditions=domain)
 
     @classmethod
     def _loadConditions(cls, d):
@@ -66,7 +65,7 @@ class FEMModel(FEMObject):
 
     @classmethod
     def _loadCondition(cls, d, types):
-        cls_dict = {t.name: t for t in types}
+        cls_dict = {t.className: t for t in types}
         c = cls_dict[d["type"]]
         del d["type"]
         return c.loadFromDictionary(d)
@@ -109,7 +108,7 @@ class FEMFixedModel(FEMModel):
 
 def loadModel(d):
     cls_list = set(sum(models.values(), []))
-    cls_dict = {m.name: m for m in cls_list}
+    cls_dict = {m.className: m for m in cls_list}
     model = cls_dict[d["model"]]
     del d["model"]
     return model.loadFromDictionary(d)

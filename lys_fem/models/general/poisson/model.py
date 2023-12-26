@@ -2,13 +2,10 @@ from lys_fem import FEMFixedModel, Equation
 from lys_fem.models.common import Source
 
 class PoissonModel(FEMFixedModel):
+    className = "Poisson"
+
     def __init__(self, *args, **kwargs):
         super().__init__(1, [PoissonEquation("phi")], *args, **kwargs)
-
-    @classmethod
-    @property
-    def name(cls):
-        return "Poisson"
 
     @classmethod
     @property

@@ -1,18 +1,16 @@
-from lys.Qt import QtWidgets
-
 
 class FEMSolver:
-    def saveAsDictionary(self, fem):
+    def saveAsDictionary(self):
         d = {"solver": self.name}
         return d
 
     @staticmethod
-    def loadFromDictionary(fem, d):
+    def loadFromDictionary(d):
         cls_list = set(sum(solvers.values(), []))
         cls_dict = {m.name: m for m in cls_list}
         solver = cls_dict[d["solver"]]
         del d["solver"]
-        return solver.loadFromDictionary(fem, d)
+        return solver.loadFromDictionary(d)
 
 
 class StationarySolver(FEMSolver):
@@ -26,7 +24,7 @@ class StationarySolver(FEMSolver):
         return StationarySolverWidget(fem, self)
 
     @classmethod
-    def loadFromDictionary(cls, fem, d):
+    def loadFromDictionary(cls, d):
         return StationarySolver()
 
 
@@ -55,7 +53,7 @@ class TimeDependentSolver(FEMSolver):
         return d
 
     @classmethod
-    def loadFromDictionary(cls, fem, d):
+    def loadFromDictionary(cls, d):
         return TimeDependentSolver(d["step"], d["stop"])
 
 

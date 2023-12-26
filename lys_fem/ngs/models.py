@@ -12,11 +12,11 @@ def addNGSModel(name, model):
 
 
 def generateModel(fem, mesh, mat):
-    return CompositeModel(mesh, [modelList[m.name](m, mesh, mat) for m in fem.models])
+    return CompositeModel(mesh, [modelList[m.className](m, mesh, mat) for m in fem.models])
 
 
 class NGSModel:
-    def __init__(self, model, mesh):
+    def __init__(self, model, mesh, addVariables=False):
         self._model = model
         self._mesh = mesh
 
@@ -24,11 +24,19 @@ class NGSModel:
         self._vnames = []
         self._sol = []
 
+        if addVariables:
+            for eq in model.equations:
+                self.addVariable(eq.variableName, eq.variableDimension, "auto", "auto", eq.geometries)      
+
     def addVariable(self, name, vdim, dirichlet=None, initialValue=None, region=None, order=1):
         if initialValue is None:
             initialValue = util.generateCoefficient([0]*vdim)
+        elif initialValue == "auto":
+            initialValue = util.generateGeometryCoefficient(self._mesh, self._model.initialConditions)
 
         kwargs = {}
+        if dirichlet == "auto":
+            dirichlet = util.generateDirichletCondition(self._model)
         if dirichlet is not None:
             if vdim == 1:
                 kwargs["dirichlet"] = "|".join(["boundary" + str(item) for item in dirichlet[0]])

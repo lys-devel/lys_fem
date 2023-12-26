@@ -9,18 +9,11 @@ from lys_fem.ngs import NGSModel, dti, util
 
 class NGSElasticModel(NGSModel):
     def __init__(self, model, mesh, mat):
-        super().__init__(model, mesh)
+        super().__init__(model, mesh, addVariables=True)
         self._model = model
         self._mat = mat
         self._vdim = self._model.variableDimension()
         self._C = self.__getC(mesh.dim, self._mat["C"])
-        self.__generateVariables(mesh, model)
-
-    def __generateVariables(self, mesh, model):
-        dirichlet = util.generateDirichletCondition(model)
-        init = util.generateGeometryCoefficient(mesh, model.initialConditions)
-        for eq in model.equations:
-            self.addVariable(eq.variableName, eq.variableDimension, dirichlet, init, eq.geometries)
 
     @property
     def bilinearform(self):

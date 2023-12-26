@@ -16,7 +16,7 @@ class FEMProject:
         d["mesh"] = self._mesher.saveAsDictionary()
         d["materials"] = [m.saveAsDictionary() for m in self._materials]
         d["models"] = [m.saveAsDictionary() for m in self._models]
-        d["solvers"] = [s.saveAsDictionary(self) for s in self._solvers]
+        d["solvers"] = [s.saveAsDictionary() for s in self._solvers]
         d["submit"] = self._submit
         return d
 
@@ -40,7 +40,7 @@ class FEMProject:
         if "models" in d:
             self._models = FEMObjectList(self, [loadModel(dic) for dic in d["models"]])
         if "solvers" in d:
-            self._solvers = [FEMSolver.loadFromDictionary(self, dic) for dic in d["solvers"]]
+            self._solvers = [FEMSolver.loadFromDictionary(dic) for dic in d["solvers"]]
         if "submit" in d:
             self._submit = d["submit"]
 

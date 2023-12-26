@@ -2,13 +2,10 @@ from lys_fem import FEMFixedModel, Equation
 
 
 class LinearTestModel(FEMFixedModel):
+    className = "Linear Test"
+
     def __init__(self, *args, **kwargs):
         super().__init__(1, [LinearTestEquation("x")], *args, **kwargs)
-
-    @classmethod
-    @property
-    def name(cls):
-        return "Linear Test"
 
     def evalList(self):
         return ["x"]
@@ -24,13 +21,10 @@ class LinearTestEquation(Equation):
 
 
 class NonlinearTestModel(FEMFixedModel):
+    className = "Nonlinear Test"
+
     def __init__(self, *args, **kwargs):
         super().__init__(1, [NonlinearTestEquation("x")], *args, **kwargs)
-
-    @classmethod
-    @property
-    def name(cls):
-        return "Nonlinear Test"
 
     def evalList(self):
         return ["x"]

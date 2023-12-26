@@ -2,13 +2,10 @@ from lys_fem import FEMFixedModel, Equation
 
 
 class LLGModel(FEMFixedModel):
+    className = "LLG"
+
     def __init__(self, *args, **kwargs):
         super().__init__(3, [LLGEquation("m")], *args, **kwargs)
-
-    @classmethod
-    @property
-    def name(cls):
-        return "LLG"
 
     def evalList(self):
         return ["mx", "my", "mz"]

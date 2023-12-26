@@ -1,4 +1,4 @@
-from ngsolve import H1, GridFunction, grad, dx, ds
+from ngsolve import grad, dx, ds
 from lys_fem.ngs import NGSModel, util, dti
 
 class NGSLLGModel(NGSModel):
@@ -6,13 +6,8 @@ class NGSLLGModel(NGSModel):
         super().__init__(model, mesh)
         self._model = model
         self._mat = mat
-        self.__generateVariables(mesh, model)
-
-    def __generateVariables(self, mesh, model):
-        dirichlet = util.generateDirichletCondition(model)
-        init = util.generateGeometryCoefficient(mesh, model.initialConditions)
         for eq in model.equations:
-            self.addVariable(eq.variableName, eq.variableDimension, dirichlet, init, eq.geometries)
+            self.addVariable(eq.variableName, eq.variableDimension, "auto", "auto", eq.geometries)
             self.addVariable(eq.variableName+"_lam", 1, region=eq.geometries)
 
     @property

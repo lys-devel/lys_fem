@@ -2,13 +2,10 @@ from lys_fem import FEMModel, Equation
 
 
 class ElasticModel(FEMModel):
+    className = "Elasticity"
+    
     def __init__(self, nvar=3, *args, **kwargs):
         super().__init__(nvar, [ChristffelEquation("u")], *args, **kwargs)
-
-    @classmethod
-    @property
-    def name(cls):
-        return "Elasticity"
 
     @classmethod
     @property

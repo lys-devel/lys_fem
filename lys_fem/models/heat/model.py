@@ -2,13 +2,10 @@ from lys_fem import FEMFixedModel, Equation
 
 
 class HeatConductionModel(FEMFixedModel):
+    className = "Heat Conduction"
+
     def __init__(self, *args, **kwargs):
         super().__init__(1, [HeatConductionEquation("T")], *args, **kwargs)
-
-    @classmethod
-    @property
-    def name(cls):
-        return "Heat Conduction"
 
     @classmethod
     @property

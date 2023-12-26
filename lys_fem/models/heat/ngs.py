@@ -6,16 +6,9 @@ from ..common import NeumannBoundary
 
 class NGSHeatConductionModel(NGSModel):
     def __init__(self, model, mesh, mat):
-        super().__init__(model, mesh)
+        super().__init__(model, mesh, addVariables=True)
         self._model = model
         self._mat = mat
-        self.__generateVariables(mesh, model)
-
-    def __generateVariables(self, mesh, model):
-        dirichlet = util.generateDirichletCondition(model)
-        init = util.generateGeometryCoefficient(mesh, model.initialConditions)
-        for eq in model.equations:
-            self.addVariable(eq.variableName, eq.variableDimension, dirichlet, init, eq.geometries)
 
     @property
     def bilinearform(self):
@@ -36,7 +29,7 @@ class NGSHeatConductionModel(NGSModel):
             u,v =sp.TnT()
             wf += Cv * u0 * v * dti * dx(definedon=util.generateGeometry(eq.geometries))
         
-        if self._model.boundaryConditions.have(NeumannBoundary):
-            f = util.generateGeometryCoefficient(self.mesh, self._model.boundaryConditions.get(NeumannBoundary))
-            wf += f * v * ds
+            if self._model.boundaryConditions.have(NeumannBoundary):
+                f = util.generateGeometryCoefficient(self.mesh, self._model.boundaryConditions.get(NeumannBoundary))
+                wf += f * v * ds
         return wf
