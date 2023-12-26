@@ -26,6 +26,6 @@ def __generateCoefForParameter(pname, mats, group, mesh):
         if p is None:
             continue
         for d in mesh.attributes:
-            if m.domains.check(d):
+            if m.geometries.check(d):
                 coefs[d] = p.getParameters(mesh.SpaceDimension())[pname]
     return generateCoefficient(coefs)

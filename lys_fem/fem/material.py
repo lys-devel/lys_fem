@@ -21,6 +21,15 @@ class Materials(FEMObjectList):
     def __init__(self, parent, materials):
         super().__init__(parent, materials)
 
+    def append(self, material):
+        if material.objName is None:
+            names_used = [c.objName for c in self.parent.materials]
+            i = 1
+            while "Material" + str(i) in names_used:
+                i += 1
+            material.objName = "Material" + str(i)
+        super().append(material)
+
     def defaultParameter(self, groupName, dim):
         default = _getParameters(groupName)()
         return default.getParameters(dim)
@@ -48,19 +57,15 @@ class Materials(FEMObjectList):
         for m in self:
             p = m[group]
             if p is not None:
-                for d in m.domains:
+                for d in m.geometries:
                     coefs[d] = p.getParameters(dim)[pname]
         return coefs
 
 
 class Material(FEMObject):
-    def __init__(self, name, domains=None, params=None):
-        self._name = name
-        if isinstance(domains, GeometrySelection):
-            self._domains = domains
-        else:
-            self._domains = GeometrySelection("Domain", domains)
-        self._domains.setParent(self)
+    def __init__(self, params=None, geometries=None, objName=None):
+        super().__init__(objName)
+        self._geometries = GeometrySelection("Domain", geometries, parent=self)
         if params is None:
             params = []
         self._params = params
@@ -72,30 +77,26 @@ class Material(FEMObject):
                     return p
         else:
             return self._params.__getitem__(i)
-
-    @property
-    def name(self):
-        return self._name
-
+        
     @property
     def parameters(self):
         return self._params
 
     @property
-    def domains(self):
-        return self._domains
+    def geometries(self):
+        return self._geometries
 
-    @domains.setter
-    def domains(self, value):
-        self._domains = value
+    @geometries.setter
+    def geometries(self, value):
+        self._geometries = GeometrySelection("Domain", value, parent=self)
 
     def saveAsDictionary(self):
-        return {"name": self._name, "domains": self.domains.saveAsDictionary(), "params": [p.saveAsDictionary() for p in self]}
+        return {"name": self._name, "geometries": self.geometries.saveAsDictionary(), "params": [p.saveAsDictionary() for p in self]}
 
     @staticmethod
     def loadFromDictionary(d):
         params = [FEMParameter.loadFromDictionary(p) for p in d["params"]]
-        return Material(d["name"], GeometrySelection.loadFromDictionary(d["domains"]), params)
+        return Material(d["name"], GeometrySelection.loadFromDictionary(d["geometries"]), params)
 
 
 class FEMParameter:

@@ -2,8 +2,7 @@ from scipy import special
 import numpy as np
 
 from lys_fem import geometry
-from lys_fem.fem import FEMProject, Material, InitialCondition, FEMSolution
-from lys_fem.fem import StationarySolver, TimeDependentSolver
+from lys_fem.fem import FEMProject, Material, FEMSolution, StationarySolver, TimeDependentSolver
 from lys_fem.models import heat
 from ..base import FEMTestCase
 
@@ -18,7 +17,7 @@ class heat_test(FEMTestCase):
 
         # material
         param = heat.HeatConductionParameters()
-        mat1 = Material("Material1", [1, 2], [param])
+        mat1 = Material([param], geometries=[1, 2])
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
@@ -50,7 +49,7 @@ class heat_test(FEMTestCase):
 
         # material
         param = heat.HeatConductionParameters()
-        mat1 = Material("Material1", [1, 2], [param])
+        mat1 = Material([param], geometries=[1, 2])
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
@@ -85,7 +84,7 @@ class heat_test(FEMTestCase):
 
         # material
         param = heat.HeatConductionParameters()
-        mat1 = Material("Material1", [1, 2], [param])
+        mat1 = Material([param], geometries=[1, 2])
         p.materials.append(mat1)
 
         p.mesher.setRefinement(6)

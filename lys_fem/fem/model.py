@@ -27,54 +27,21 @@ class FEMModel(FEMObject):
     def variableDimension(self):
         return self._nvar
 
-    @classmethod
-    @property
-    def equationTypes(self):
-        return []
-    
     @property
     def equations(self):
         return self._eqs
-
-    @classmethod
-    @property
-    def domainConditionTypes(self):
-        return []
 
     @property
     def domainConditions(self):
         return self._dcs
 
-    @classmethod
-    @property
-    def boundaryConditionTypes(self):
-        return []
-
     @property
     def boundaryConditions(self):
         return self._bdrs
 
-    @classmethod
-    @property
-    def initialConditionTypes(self):
-        return []
-
     @property
     def initialConditions(self):
         return self._init
-
-    def addInitialCondition(self, init):
-        i = 1
-        while init.name + str(i) in [c.objName for c in self._init]:
-            i += 1
-        name = init.name + str(i)
-        obj = init(name, [0] * self._nvar)
-        self._init.append(obj)
-        return obj
-
-    def widget(self, fem, canvas):
-        from ..gui import FEMModelWidget
-        return FEMModelWidget(self)
 
     def saveAsDictionary(self):
         d = {"model": self.name}
@@ -104,7 +71,31 @@ class FEMModel(FEMObject):
         del d["type"]
         return c.loadFromDictionary(d)
 
+    def widget(self, fem, canvas):
+        from ..gui import FEMModelWidget
+        return FEMModelWidget(self)
+    
+    @classmethod
+    @property
+    def equationTypes(self):
+        return []
 
+    @classmethod
+    @property
+    def domainConditionTypes(self):
+        return []
+
+    @classmethod
+    @property
+    def boundaryConditionTypes(self):
+        return []
+
+    @classmethod
+    @property
+    def initialConditionTypes(self):
+        return []
+    
+    
 class FEMFixedModel(FEMModel):
     @classmethod
     def loadFromDictionary(cls, d):

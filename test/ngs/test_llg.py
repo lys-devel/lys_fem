@@ -1,7 +1,7 @@
 from lys_fem import ngs
 from ..models import LLG_test
 
-class ngs_heat_test(LLG_test):
+class ngs_LLG_test(LLG_test):
     def test_precession(self):
         self.precession(ngs)
 

@@ -15,10 +15,6 @@ class ElasticModel(FEMModel):
     def equationTypes(self):
         return [ChristffelEquation]
 
-    @property
-    def variableName(self):
-        return "u"
-
     def evalList(self):
         return ["u", "ux", "uy", "uz"]
 

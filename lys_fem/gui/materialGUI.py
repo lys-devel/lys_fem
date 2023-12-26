@@ -80,7 +80,7 @@ class _MaterialWidget(QtWidgets.QWidget):
         self.__initlayout(canvas, fem, mat)
 
     def __initlayout(self, canvas, fem, mat):
-        domain = GeometrySelector(canvas, fem, mat.domains)
+        domain = GeometrySelector(canvas, fem, mat.geometries)
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(domain)

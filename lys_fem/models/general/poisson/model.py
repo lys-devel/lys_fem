@@ -15,10 +15,6 @@ class PoissonModel(FEMFixedModel):
     def domainConditionTypes(cls):
         return [Source]
 
-    @property
-    def variableName(self):
-        return "phi"
-
     def evalList(self):
         return ["phi"]
 

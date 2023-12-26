@@ -9,7 +9,7 @@ class InitialConditionWidget(QtWidgets.QWidget):
         self.__initlayout(fem, canvas)
 
     def __initlayout(self, fem, canvas):
-        self._selector = GeometrySelector(canvas, fem, self._init.domains)
+        self._selector = GeometrySelector(canvas, fem, self._init.geometries)
         self._value = VectorFunctionWidget("Initial values", self._init.values, valueChanged=self.__valueChanged)
 
         layout = QtWidgets.QVBoxLayout()

@@ -10,10 +10,6 @@ class LLGModel(FEMFixedModel):
     def name(cls):
         return "LLG"
 
-    @property
-    def variableName(self):
-        return "m"
-
     def evalList(self):
         return ["mx", "my", "mz"]
 

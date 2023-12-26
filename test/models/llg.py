@@ -19,7 +19,7 @@ class LLG_test(FEMTestCase):
 
         # material
         param = llg.LLGParameters(0)
-        mat1 = Material("Material1", [1], [param])
+        mat1 = Material([param], geometries=[1])
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
@@ -50,7 +50,7 @@ class LLG_test(FEMTestCase):
 
         # material
         param = llg.LLGParameters(0)
-        mat1 = Material("Material1", [1, 2], [param])
+        mat1 = Material([param], geometries=[1, 2])
         p.materials.append(mat1)
 
         # model: boundary and initial conditions

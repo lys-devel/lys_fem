@@ -35,22 +35,6 @@ def generateDirichletCondition(model):
     return list(bdr_dir.values())
 
 
-def generateDomainCoefficient(mesh, conditions):
-    coefs = {}
-    for c in conditions:
-        for d in c.domains:
-            coefs[d] = c.values
-    return generateCoefficient(coefs, mesh)
-
-
-def generateBoundaryCoefficient(mesh, conditions):
-    coefs = {}
-    for c in conditions:
-        for d in c.boundaries:
-            coefs[d] = c.values
-    return generateCoefficient(coefs, mesh, geom="boundary")
-
-
 def generateGeometryCoefficient(mesh, conditions):
     coefs = {}
     for c in conditions:

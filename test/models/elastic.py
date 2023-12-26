@@ -1,5 +1,5 @@
 from lys_fem import geometry
-from lys_fem.fem import FEMProject, Material, InitialCondition, StationarySolver, FEMSolution
+from lys_fem.fem import FEMProject, Material, StationarySolver, FEMSolution
 from lys_fem.models import elasticity
 
 from ..base import FEMTestCase
@@ -14,7 +14,7 @@ class elasticity_test(FEMTestCase):
 
         # material
         param = elasticity.ElasticParameters()
-        mat1 = Material("Material1", [1, 2], [param])
+        mat1 = Material([param], geometries=[1, 2])
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
@@ -46,7 +46,7 @@ class elasticity_test(FEMTestCase):
 
         # material
         param = elasticity.ElasticParameters()
-        mat1 = Material("Material1", [1, 2], [param])
+        mat1 = Material([param], geometries=[1, 2])
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
@@ -78,7 +78,7 @@ class elasticity_test(FEMTestCase):
 
         # material
         param = elasticity.ElasticParameters()
-        mat1 = Material("Material1", [1, 2], [param])
+        mat1 = Material([param], geometries=[1, 2])
         p.materials.append(mat1)
 
         # model: boundary and initial conditions

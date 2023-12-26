@@ -12,10 +12,10 @@ class Equation(FEMObject):
         self._varDim = varDim
         self._name = name
         if isinstance(geometries, GeometrySelection):
-            self._domains = geometries
+            self._geometries = geometries
         else:
-            self._domains = GeometrySelection(geometryType, geometries)
-        self._domains.setParent(self)
+            self._geometries = GeometrySelection(geometryType, geometries)
+        self._geometries.setParent(self)
 
     @classmethod
     @property
@@ -39,24 +39,8 @@ class Equation(FEMObject):
 
     @property
     def geometries(self):
-        return self._domains
+        return self._geometries
 
     @geometries.setter
     def geometries(self, value):
-        self._domains = value
-
-    @property
-    def domains(self):
-        return self._domains
-
-    @domains.setter
-    def domains(self, value):
-        self._domains = value
-
-    @property
-    def boundaries(self):
-        return self._domains
-
-    @boundaries.setter
-    def boundaries(self, value):
-        self._domains = value
+        self._geometries = value

@@ -9,7 +9,7 @@ class DirichletBoundaryWidget(QtWidgets.QWidget):
         self.__initlayout(fem, canvas)
 
     def __initlayout(self, fem, canvas):
-        self._selector = GeometrySelector(canvas, fem, self._cond.boundaries)
+        self._selector = GeometrySelector(canvas, fem, self._cond.geometries)
         self._fix = [QtWidgets.QCheckBox(axis, toggled=self.__toggled) for axis in ["x", "y", "z"][:len(self._cond.components)]]
 
         h = QtWidgets.QHBoxLayout()
@@ -34,7 +34,7 @@ class NeumannBoundaryWidget(QtWidgets.QWidget):
         self.__initlayout(fem, canvas)
 
     def __initlayout(self, fem, canvas):
-        self._selector = GeometrySelector(canvas, fem, self._cond.boundaries)
+        self._selector = GeometrySelector(canvas, fem, self._cond.geometries)
         self._value = VectorFunctionWidget("Initial values", self._cond.values, valueChanged=self.__setValue)
 
         layout = QtWidgets.QVBoxLayout()

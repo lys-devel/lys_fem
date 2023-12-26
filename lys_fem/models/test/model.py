@@ -10,10 +10,6 @@ class LinearTestModel(FEMFixedModel):
     def name(cls):
         return "Linear Test"
 
-    @property
-    def variableName(self):
-        return "x"
-
     def evalList(self):
         return ["x"]
 
@@ -35,10 +31,6 @@ class NonlinearTestModel(FEMFixedModel):
     @property
     def name(cls):
         return "Nonlinear Test"
-
-    @property
-    def variableName(self):
-        return "x"
 
     def evalList(self):
         return ["x"]

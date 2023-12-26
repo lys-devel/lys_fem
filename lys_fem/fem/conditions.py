@@ -75,8 +75,8 @@ class ConditionBase(FEMObject):
 
     @classmethod
     def loadFromDictionary(cls, d):
-        domains = GeometrySelection.loadFromDictionary(d["geometries"])
-        return cls(values = d["values"], geometries=domains, objName=d["objName"])
+        geometries = GeometrySelection.loadFromDictionary(d["geometries"])
+        return cls(values = d["values"], geometries=geometries, objName=d["objName"])
 
     @classmethod
     def default(self, model):

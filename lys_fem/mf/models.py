@@ -35,7 +35,7 @@ class MFEMModel:
         for b in conditions:
             for axis, check in enumerate(b.components):
                 if check:
-                    bdr_dir[axis].extend(b.boundaries.getSelection())
+                    bdr_dir[axis].extend(b.geometries.getSelection())
         return bdr_dir
 
     def timeDiscretizedWeakForm(self, type="TimeDependent"):
