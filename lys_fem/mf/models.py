@@ -1,7 +1,6 @@
 import sympy as sp
 import numpy as np
 
-from ..fem import DirichletBoundary
 from . import mfem
 from .weakform import t, dt, dV, dS, prev, grad, WeakformParser
 

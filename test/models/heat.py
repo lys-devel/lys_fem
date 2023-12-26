@@ -2,10 +2,9 @@ from scipy import special
 import numpy as np
 
 from lys_fem import geometry
-from lys_fem.fem import FEMProject, Material, DirichletBoundary, NeumannBoundary, InitialCondition, FEMSolution
+from lys_fem.fem import FEMProject, Material, InitialCondition, FEMSolution
 from lys_fem.fem import StationarySolver, TimeDependentSolver
 from lys_fem.models import heat
-
 from ..base import FEMTestCase
 
 class heat_test(FEMTestCase):     
@@ -24,7 +23,7 @@ class heat_test(FEMTestCase):
 
         # model: boundary and initial conditions
         model = heat.HeatConductionModel()
-        model.boundaryConditions.append(DirichletBoundary("Dirichlet boundary1", [True], [1, 3]))
+        model.boundaryConditions.append(heat.DirichletBoundary([True], geometries=[1, 3]))
         model.initialConditions.append(InitialCondition("Initial condition1", 0, [1]))
         model.initialConditions.append(InitialCondition("Initial condition2", 2, [2]))
         p.models.append(model)
@@ -56,8 +55,8 @@ class heat_test(FEMTestCase):
 
         # model: boundary and initial conditions
         model = heat.HeatConductionModel()
-        model.boundaryConditions.append(DirichletBoundary("Dirichlet boundary1", [True], [1]))
-        model.boundaryConditions.append(NeumannBoundary("Neumann boundary1", 0.5, [3]))
+        model.boundaryConditions.append(heat.DirichletBoundary([True], geometries=[1]))
+        model.boundaryConditions.append(heat.NeumannBoundary(0.5, geometries=[3]))
         model.initialConditions.append(InitialCondition("Initial condition1", 0, [1, 2]))
         p.models.append(model)
 

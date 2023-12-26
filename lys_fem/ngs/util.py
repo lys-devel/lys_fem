@@ -4,7 +4,7 @@ import numpy as np
 import ngsolve
 from ngsolve import x,y,z, CoefficientFunction
 from ngsolve.fem import Einsum
-from ..fem import DirichletBoundary
+from ..models.common import DirichletBoundary
 
 def prod(args):
     res = args[0]
@@ -29,9 +29,9 @@ def generateDirichletCondition(model):
     conditions = model.boundaryConditions.get(DirichletBoundary)
     bdr_dir = {i: [] for i in range(model.variableDimension())}
     for b in conditions:
-        for axis, check in enumerate(b.components):
+        for axis, check in enumerate(b.values):
             if check:
-                bdr_dir[axis].extend(b.boundaries.getSelection())
+                bdr_dir[axis].extend(b.geometries.getSelection())
     return list(bdr_dir.values())
 
 

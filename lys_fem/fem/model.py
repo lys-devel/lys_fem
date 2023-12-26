@@ -1,8 +1,7 @@
 from .base import FEMObject, FEMObjectList
 from .equations import Equations
 from .initialCondition import InitialCondition
-from .boundaryConditions import BoundaryConditions, DirichletBoundary, NeumannBoundary
-from .domainConditions import DomainConditions
+from .domainConditions import DomainConditions, BoundaryConditions
 
 models = {}
 
@@ -65,17 +64,6 @@ class FEMModel(FEMObject):
     def initialConditions(self):
         return self._init
 
-    def addBoundaryCondition(self, bdr):
-        i = 1
-        while bdr.name + str(i) in [c.objName for c in self._bdrs]:
-            i += 1
-        name = bdr.name + str(i)
-        if bdr == DirichletBoundary:
-            obj = bdr(name, [False] * self._nvar)
-        elif bdr == NeumannBoundary:
-            obj = bdr(name, ["0"] * self._nvar)
-        self._bdrs.append(obj)
-        return obj
 
     def addInitialCondition(self, init):
         i = 1

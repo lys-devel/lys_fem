@@ -5,7 +5,7 @@ import sympy as sp
 from lys_fem.mf import mfem, MFEMModel, util, weakform
 from lys_fem.mf.weakform import grad, TrialFunction, TestFunction, dV, dS, t
 
-from lys_fem.fem import NeumannBoundary
+#from lys_fem.fem import NeumannBoundary
 
 class MFEMElasticModel(MFEMModel):
     def __init__(self, model, mesh, mat):

@@ -19,6 +19,23 @@ class DomainConditions(FEMObjectList):
         super().append(condition)
 
 
+class BoundaryConditions(FEMObjectList):
+    def get(self, cls):
+        return [condition for condition in self if isinstance(condition, cls)]
+
+    def have(self, cls):
+        return len(self.get(cls)) > 0
+
+    def append(self, condition):
+        if condition.objName is None:
+            names_used = [c.objName for c in self.parent.boundaryConditions]
+            i = 1
+            while condition.className + str(i) in names_used:
+                i += 1
+            condition.objName = condition.className + str(i)
+        super().append(condition)
+
+
 class ConditionBase(FEMObject):
     def __init__(self, geomType, values=None, objName=None, geometries=None):
         super().__init__(objName)
@@ -63,3 +80,12 @@ class DomainCondition(ConditionBase):
         super().__init__("Domain", *args, **kwargs)
 
 
+class BoundaryCondition(ConditionBase):
+    def __init__(self, *args, **kwargs):
+        super().__init__("Boundary", *args, **kwargs)
+
+
+class InitialCondition(ConditionBase):
+    className="InitialCondition"
+    def __init__(self, *args, **kwargs):
+        super().__init__("Domain", *args, **kwargs)

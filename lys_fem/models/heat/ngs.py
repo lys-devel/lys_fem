@@ -1,7 +1,7 @@
 from ngsolve import grad, dx, ds
 
-from lys_fem.fem import NeumannBoundary
 from lys_fem.ngs import NGSModel, dti, util
+from ..common import NeumannBoundary
 
 
 class NGSHeatConductionModel(NGSModel):
@@ -37,6 +37,6 @@ class NGSHeatConductionModel(NGSModel):
             wf += Cv * u0 * v * dti * dx(definedon=util.generateGeometry(eq.geometries))
         
         if self._model.boundaryConditions.have(NeumannBoundary):
-            f = util.generateBoundaryCoefficient(self.mesh, self._model.boundaryConditions.get(NeumannBoundary))
+            f = util.generateGeometryCoefficient(self.mesh, self._model.boundaryConditions.get(NeumannBoundary))
             wf += f * v * ds
         return wf

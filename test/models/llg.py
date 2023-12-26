@@ -1,7 +1,7 @@
 import numpy as np
 
 from lys_fem import geometry
-from lys_fem.fem import FEMProject, DirichletBoundary, InitialCondition, TimeDependentSolver, StationarySolver, FEMSolution, Material
+from lys_fem.fem import FEMProject, InitialCondition, TimeDependentSolver, StationarySolver, FEMSolution, Material
 from lys_fem.models import llg
 
 from ..base import FEMTestCase

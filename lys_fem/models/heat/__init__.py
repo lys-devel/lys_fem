@@ -5,6 +5,7 @@ from .material import HeatConductionParameters
 from .model import HeatConductionModel
 from .mfem import MFEMHeatConductionModel
 from .ngs import NGSHeatConductionModel
+from ..common import NeumannBoundary, DirichletBoundary
 
 addMaterialParameter("Heat", HeatConductionParameters)
 addModel("Heat", HeatConductionModel)
