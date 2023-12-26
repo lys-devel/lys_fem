@@ -100,3 +100,11 @@ class InitialCondition(ConditionBase):
     className="InitialCondition"
     def __init__(self, *args, **kwargs):
         super().__init__("Domain", *args, **kwargs)
+
+    @classmethod
+    def default(cls, model):
+        return InitialCondition([0]*model.variableDimension())
+    
+    def widget(self, fem, canvas):
+        from lys_fem.gui import InitialConditionWidget
+        return InitialConditionWidget(self, fem, canvas)

@@ -1,9 +1,10 @@
 from lys_fem import FEMModel, Equation
+from . import DirichletBoundary, InitialCondition
 
 
 class ElasticModel(FEMModel):
     className = "Elasticity"
-    
+
     def __init__(self, nvar=3, *args, **kwargs):
         super().__init__(nvar, [ChristffelEquation("u")], *args, **kwargs)
 
@@ -12,19 +13,15 @@ class ElasticModel(FEMModel):
     def equationTypes(self):
         return [ChristffelEquation]
 
-    def evalList(self):
-        return ["u", "ux", "uy", "uz"]
-
-    def eval(self, data, fem, var):
-        if var == "u":
-            return data["u"]
-        if var == "ux":
-            return data["u1"]
-        if var == "uy":
-            return data["u2"]
-        if var == "uz":
-            return data["u3"]
-
+    @classmethod
+    @property
+    def boundaryConditionTypes(cls):
+        return [DirichletBoundary]
+    
+    @classmethod
+    @property
+    def initialConditionTypes(cls):
+        return [InitialCondition]
 
 
 class ChristffelEquation(Equation):

@@ -65,7 +65,7 @@ class elasticity_test(FEMTestCase):
 
         # solution
         sol = FEMSolution(".", p)
-        res = sol.eval("ux", data_number=1)
+        res = sol.eval("u1", data_number=1)
         for w in res:
             self.assert_array_almost_equal(w.data, w.x[:, 0])
 
@@ -97,6 +97,6 @@ class elasticity_test(FEMTestCase):
 
         # solution
         sol = FEMSolution(".", p)
-        res = sol.eval("ux", data_number=1)
+        res = sol.eval("u1", data_number=1)
         for w in res:
             self.assert_array_almost_equal(w.data, w.x[:, 0])

@@ -14,16 +14,21 @@ class FEMSolution:
             self._fem = fem
         self._path = path
 
-    def eval(self, varName, model=None, data_number=0, solver="Solver0"):
-        model = self._getModel(self._fem, model)
+    def variableList(self, data_number=0, solver="Solver0"):
+        path = self._path + "/Solutions/" + solver + "/"
+        data = self._loadData(path, data_number)
+        return data.keys()
 
+    def eval(self, varName, data_number=0, solver="Solver0"):
         path = self._path + "/Solutions/" + solver + "/"
         meshes = np.load(path + "mesh.npz", allow_pickle=True)
         data = self._loadData(path, data_number)
-        array = model.eval(data, self._fem, varName)
+        array = data[varName]
 
         res = []
         coords = meshes["coords"]
+        if coords.shape[1] < 3:
+            coords = np.hstack([coords, np.zeros((coords.shape[0], 3-coords.shape[1]))])
         for domain in meshes["mesh"]:
             nodes = np.unique([n for n in domain.values()])
             elems = {elem: np.searchsorted(nodes, n) for elem, n in domain.items()}
@@ -33,8 +38,3 @@ class FEMSolution:
     def _loadData(self, path, data_number):
         return np.load(path + "data" + str(data_number) + ".npz")
 
-    def _getModel(self, fem, model):
-        if model is None:
-            return fem.models[0]
-        else:
-            return model

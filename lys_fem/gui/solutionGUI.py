@@ -16,49 +16,36 @@ class SolutionTree(FEMTreeItem):
         self._obj = FEMProject.fromFile("FEM/" + path + "/input.dic")
         dirs = os.listdir("FEM/" + path + "/Solutions")
         for d, sol in zip(dirs, self._obj.solvers):
-            self.append(_SolutionGUI(self, self._obj, d, sol, path="FEM/" + path, solverName=d))
+            self.append(_SolutionGUI(self, d, sol, path="FEM/" + path))
 
 
 class _SolutionGUI(FEMTreeItem):
-    def __init__(self, parent, fem, solution, solver, path, solverName):
-        super().__init__(parent=parent, children=[_ModelGUI(self, m, path, solverName) for m in fem.models])
+    def __init__(self, parent, solution, solver, path):
+        super().__init__(parent=parent)
         self._solution = solution
         self._solver = solver
+        self._path = path
 
     @property
     def name(self):
         return self._solution + ": " + self._solver.name
 
-
-class _ModelGUI(FEMTreeItem):
-    def __init__(self, parent, model, path, solverName):
-        super().__init__(parent=parent)
-        self._model = model
-        self._path = path
-        self._solver = solverName
-
-    @property
-    def name(self):
-        return self._model.name
-
     @property
     def widget(self):
-        return _FEMSolutionWidget(self.fem(), self.canvas(), self._path, self._solver, self._model)
+        return _FEMSolutionWidget(self.canvas(), self._path, self._solution)
 
 
 class _FEMSolutionWidget(QtWidgets.QWidget):
-    def __init__(self, fem, canvas, path, solver, model):
+    def __init__(self, canvas, path, solver):
         super().__init__()
-        self._fem = fem
         self._canvas = canvas
-        self._path = path
         self._solver = solver
-        self._model = model
+        self._sol = FEMSolution(path)
         self.__initlayout()
 
     def __initlayout(self):
         self._list = QtWidgets.QComboBox()
-        self._list.addItems(self._model.evalList())
+        self._list.addItems(self._sol.variableList(solver=self._solver))
         self._time = QtWidgets.QSpinBox()
         self._time.setRange(0, 10000000)
         self._time.valueChanged.connect(self.__show)
@@ -83,5 +70,4 @@ class _FEMSolutionWidget(QtWidgets.QWidget):
 
     def __loadData(self):
         var = self._list.currentText()
-        sol = FEMSolution(self._path)
-        return sol.eval(var, model=self._model, data_number=self._time.value(), solver=self._solver)
+        return self._sol.eval(var, data_number=self._time.value(), solver=self._solver)

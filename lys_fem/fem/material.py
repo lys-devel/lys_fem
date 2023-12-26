@@ -91,12 +91,12 @@ class Material(FEMObject):
         self._geometries = GeometrySelection("Domain", value, parent=self)
 
     def saveAsDictionary(self):
-        return {"name": self._name, "geometries": self.geometries.saveAsDictionary(), "params": [p.saveAsDictionary() for p in self]}
+        return {"name": self.objName, "geometries": self.geometries.saveAsDictionary(), "params": [p.saveAsDictionary() for p in self]}
 
     @staticmethod
     def loadFromDictionary(d):
         params = [FEMParameter.loadFromDictionary(p) for p in d["params"]]
-        return Material(d["name"], GeometrySelection.loadFromDictionary(d["geometries"]), params)
+        return Material(params, GeometrySelection.loadFromDictionary(d["geometries"]), objName=d["name"])
 
 
 class FEMParameter:

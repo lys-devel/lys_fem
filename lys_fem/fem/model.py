@@ -6,7 +6,8 @@ models = {}
 
 
 class FEMModel(FEMObject):
-    def __init__(self, nvar, equations, initialConditions=None, boundaryConditions=None, domainConditions=None):
+    def __init__(self, nvar, equations, initialConditions=None, boundaryConditions=None, domainConditions=None, objName=None):
+        super().__init__(objName)
         self._nvar = nvar
         if initialConditions is None:
             initialConditions = []

@@ -17,10 +17,7 @@ class MaterialTree(FEMTreeItem):
 
     def append(self, material=None):
         if not isinstance(material, Material):
-            i = 1
-            while "Material" + str(i) in [m.name for m in self._materials]:
-                i += 1
-            material = Material("Material" + str(i))
+            material = Material()
         self._materials.append(material)
         super().append(_MaterialGUI(material, self))
 
@@ -54,7 +51,7 @@ class _MaterialGUI(FEMTreeItem):
 
     @property
     def name(self):
-        return self._material.name
+        return self._material.objName
 
     @property
     def widget(self):

@@ -28,7 +28,7 @@ class ModelTree(FEMTreeItem):
         for group, ms in models.items():
             sub = self._menu.addMenu(group)
             for m in ms:
-                sub.addAction(QtWidgets.QAction("Add " + m.name, self.treeWidget(), triggered=lambda x, y=m: self.append(y())))
+                sub.addAction(QtWidgets.QAction("Add " + m.className, self.treeWidget(), triggered=lambda x, y=m: self.append(y())))
         return self._menu
 
 
@@ -39,7 +39,7 @@ class _ModelGUI(FEMTreeItem):
 
     @ property
     def name(self):
-        return self._model.name
+        return self._model.className
 
     @ property
     def widget(self):
@@ -84,8 +84,9 @@ class _BoundaryGUI(FEMTreeItem):
         self._model = model
 
     def append(self, type):
-        i = self._model.addBoundaryCondition(type)
-        super().append(_BoundaryCondition(i, self))
+        cond = type.default(self._model)
+        self._model.boundaryConditions.append(cond)
+        super().append(_BoundaryCondition(cond, self))
 
     def remove(self, init):
         i = super().remove(init)
@@ -99,7 +100,7 @@ class _BoundaryGUI(FEMTreeItem):
     def menu(self):
         self._menu = QtWidgets.QMenu()
         for i in self._model.boundaryConditionTypes:
-            self._menu.addAction(QtWidgets.QAction("Add " + i.name, self.treeWidget(), triggered=lambda x, y=i: self.append(y)))
+            self._menu.addAction(QtWidgets.QAction("Add " + i.className, self.treeWidget(), triggered=lambda x, y=i: self.append(y)))
         return self._menu
 
 
@@ -109,8 +110,9 @@ class _InitialConditionGUI(FEMTreeItem):
         self._model = model
 
     def append(self, type):
-        i = self._model.addInitialCondition(type)
-        super().append(_InitialCondition(i, self))
+        cond = type.default(self._model)
+        self._model.initialConditions.append(cond)
+        super().append(_InitialCondition(cond, self))
 
     def remove(self, init):
         i = super().remove(init)
@@ -124,7 +126,7 @@ class _InitialConditionGUI(FEMTreeItem):
     def menu(self):
         self._menu = QtWidgets.QMenu()
         for i in self._model.initialConditionTypes:
-            self._menu.addAction(QtWidgets.QAction("Add " + i.name, self.treeWidget(), triggered=lambda x, y=i: self.append(y)))
+            self._menu.addAction(QtWidgets.QAction("Add " + i.className, self.treeWidget(), triggered=lambda x, y=i: self.append(y)))
         return self._menu
 
 

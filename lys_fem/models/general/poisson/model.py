@@ -12,13 +12,6 @@ class PoissonModel(FEMFixedModel):
     def domainConditionTypes(cls):
         return [Source]
 
-    def evalList(self):
-        return ["phi"]
-
-    def eval(self, data, fem, var):
-        if var == "phi":
-            return data["phi"]
-
 
 class PoissonEquation(Equation):
     def __init__(self, varName, domain="all", name="Poisson Equation"):

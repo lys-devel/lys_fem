@@ -82,7 +82,7 @@ class FEMGeometry(object):
 class GeometrySelection(FEMObject):
     def __init__(self, geometryType="Domain", selection=None, parent=None):
         if isinstance(selection, GeometrySelection):
-            geometryType = selection.geometryType()
+            geometryType = selection.geometryType
             selection = selection.getSelection()
         if selection is None:
             selection = []

@@ -5,7 +5,7 @@ from lys.Qt import QtCore, QtWidgets, QtGui
 class GeometrySelector(QtWidgets.QWidget):
     def __init__(self, canvas, fem, selected, acceptedTypes=["All", "Selected"], autoStart=True):
         super().__init__()
-        dimDict = {"Domain": fem.dimension, "Surface": fem.dimension - 1}
+        dimDict = {"Domain": fem.dimension, "Boundary": fem.dimension-1, "Surface": 2}
         self._dim = dimDict[selected.geometryType]
         self._geomType = selected.geometryType
         self._selected = selected
