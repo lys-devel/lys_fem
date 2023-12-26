@@ -36,6 +36,17 @@ class BoundaryConditions(FEMObjectList):
         super().append(condition)
 
 
+class InitialConditions(FEMObjectList):
+    def append(self, condition):
+        if condition.objName is None:
+            names_used = [c.objName for c in self.parent.initialConditions]
+            i = 1
+            while condition.className + str(i) in names_used:
+                i += 1
+            condition.objName = condition.className + str(i)
+        super().append(condition)
+
+
 class ConditionBase(FEMObject):
     def __init__(self, geomType, values=None, objName=None, geometries=None):
         super().__init__(objName)

@@ -10,7 +10,7 @@ class NGSLinearTestModel(NGSModel):
 
     def __generateVariables(self, mesh, model):
         dirichlet = util.generateDirichletCondition(model)
-        init = util.generateDomainCoefficient(mesh, model.initialConditions)
+        init = util.generateGeometryCoefficient(mesh, model.initialConditions)
         for eq in model.equations:
             self.addVariable(eq.variableName, eq.variableDimension, dirichlet, init, eq.geometries)
 
@@ -39,7 +39,7 @@ class NGSNonlinearTestModel(NGSModel):
 
     def __generateVariables(self, mesh, model):
         dirichlet = util.generateDirichletCondition(model)
-        init = util.generateDomainCoefficient(mesh, model.initialConditions)
+        init = util.generateGeometryCoefficient(mesh, model.initialConditions)
         for eq in model.equations:
             self.addVariable(eq.variableName, eq.variableDimension, dirichlet, init, eq.geometries)
 

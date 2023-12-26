@@ -1,7 +1,7 @@
 import numpy as np
 
 from lys_fem import geometry
-from lys_fem.fem import FEMProject, InitialCondition, TimeDependentSolver, StationarySolver, FEMSolution, Material
+from lys_fem.fem import FEMProject, TimeDependentSolver, StationarySolver, FEMSolution, Material
 from lys_fem.models import llg
 
 from ..base import FEMTestCase
@@ -24,7 +24,7 @@ class LLG_test(FEMTestCase):
 
         # model: boundary and initial conditions
         model = llg.LLGModel()
-        model.initialConditions.append(InitialCondition("Initial condition1", [1/np.sqrt(2), 0, 1/np.sqrt(2)], [1]))
+        model.initialConditions.append(llg.InitialCondition([1/np.sqrt(2), 0, 1/np.sqrt(2)], geometries=[1]))
         p.models.append(model)
 
         # solver
@@ -55,7 +55,7 @@ class LLG_test(FEMTestCase):
 
         # model: boundary and initial conditions
         model = llg.LLGModel()
-        model.initialConditions.append(InitialCondition("Initial condition1", [1, 0, 0], [1]))
+        model.initialConditions.append(llg.InitialCondition([1, 0, 0], geometries=[1]))
         p.models.append(model)
 
         # solver

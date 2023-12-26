@@ -24,8 +24,8 @@ class heat_test(FEMTestCase):
         # model: boundary and initial conditions
         model = heat.HeatConductionModel()
         model.boundaryConditions.append(heat.DirichletBoundary([True], geometries=[1, 3]))
-        model.initialConditions.append(InitialCondition("Initial condition1", 0, [1]))
-        model.initialConditions.append(InitialCondition("Initial condition2", 2, [2]))
+        model.initialConditions.append(heat.InitialCondition(0, geometries=[1]))
+        model.initialConditions.append(heat.InitialCondition(2, geometries=[2]))
         p.models.append(model)
 
         # solver
@@ -57,7 +57,7 @@ class heat_test(FEMTestCase):
         model = heat.HeatConductionModel()
         model.boundaryConditions.append(heat.DirichletBoundary([True], geometries=[1]))
         model.boundaryConditions.append(heat.NeumannBoundary(0.5, geometries=[3]))
-        model.initialConditions.append(InitialCondition("Initial condition1", 0, [1, 2]))
+        model.initialConditions.append(heat.InitialCondition(0, geometries=[1, 2]))
         p.models.append(model)
 
         # solver
@@ -92,8 +92,8 @@ class heat_test(FEMTestCase):
 
         # model: boundary and initial conditions
         model = heat.HeatConductionModel()
-        model.initialConditions.append(InitialCondition("Initial condition1", 0, [1]))
-        model.initialConditions.append(InitialCondition("Initial condition2", 1, [2]))
+        model.initialConditions.append(heat.InitialCondition(0, geometries=[1]))
+        model.initialConditions.append(heat.InitialCondition(1, geometries=[2]))
         p.models.append(model)
 
         # solver

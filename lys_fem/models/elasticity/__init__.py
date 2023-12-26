@@ -6,7 +6,7 @@ from .material import ElasticParameters
 from .model import ElasticModel
 from .mfem import MFEMElasticModel
 from .ngs import NGSElasticModel
-from ..common import DirichletBoundary
+from ..common import DirichletBoundary, InitialCondition
 
 addMaterialParameter("Acoustics", ElasticParameters)
 addModel("Acoustics", ElasticModel)

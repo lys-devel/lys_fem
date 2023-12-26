@@ -25,8 +25,8 @@ class poisson_test(FEMTestCase):
         model = general.PoissonModel()
         model.domainConditions.append(general.Source(rho, geometries=[2]))
         model.boundaryConditions.append(general.DirichletBoundary([True], geometries=[1, 4]))
-        model.initialConditions.append(InitialCondition("Initial condition1", 0, [1, 3]))
-        model.initialConditions.append(InitialCondition("Initial condition2", 1, [2]))
+        model.initialConditions.append(general.InitialCondition(0, geometries=[1, 3]))
+        model.initialConditions.append(general.InitialCondition(1, geometries=[2]))
         p.models.append(model)
 
         # solver
@@ -61,8 +61,8 @@ class poisson_test(FEMTestCase):
         model = general.PoissonModel()
         model.domainConditions.append(general.Source(rho, geometries=[1]))
         model.boundaryConditions.append(general.DirichletBoundary([True], geometries=[1]))
-        model.initialConditions.append(InitialCondition("Initial condition1", 0, [2]))
-        model.initialConditions.append(InitialCondition("Initial condition2", 1, [1]))
+        model.initialConditions.append(general.InitialCondition(0, geometries=[2]))
+        model.initialConditions.append(general.InitialCondition(1, geometries=[1]))
         p.models.append(model)
 
         # solver
@@ -95,7 +95,7 @@ class poisson_test(FEMTestCase):
         model = general.PoissonModel()
         model.domainConditions.append(general.Source(1, geometries=[1]))
         model.boundaryConditions.append(general.DirichletBoundary([True], geometries=[2]))
-        model.initialConditions.append(InitialCondition("Initial condition1", 0, [1,2]))
+        model.initialConditions.append(general.InitialCondition(0, geometries=[1,2]))
         p.models.append(model)
 
         # solver

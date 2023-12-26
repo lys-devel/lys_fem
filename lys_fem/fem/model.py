@@ -1,7 +1,6 @@
 from .base import FEMObject, FEMObjectList
 from .equations import Equations
-from .initialCondition import InitialCondition
-from .domainConditions import DomainConditions, BoundaryConditions
+from .conditions import DomainConditions, BoundaryConditions, InitialConditions
 
 models = {}
 
@@ -16,7 +15,7 @@ class FEMModel(FEMObject):
         if domainConditions is None:
             domainConditions = []
         self._eqs = Equations(self, equations)
-        self._init = FEMObjectList(self, initialConditions)
+        self._init = InitialConditions(self, initialConditions)
         self._bdrs = BoundaryConditions(self, boundaryConditions)
         self._dcs = DomainConditions(self, domainConditions)
 
@@ -49,7 +48,7 @@ class FEMModel(FEMObject):
     @classmethod
     @property
     def boundaryConditionTypes(self):
-        return [DirichletBoundary, NeumannBoundary]
+        return []
 
     @property
     def boundaryConditions(self):
@@ -58,12 +57,11 @@ class FEMModel(FEMObject):
     @classmethod
     @property
     def initialConditionTypes(self):
-        return [InitialCondition]
+        return []
 
     @property
     def initialConditions(self):
         return self._init
-
 
     def addInitialCondition(self, init):
         i = 1

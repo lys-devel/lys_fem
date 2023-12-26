@@ -1,5 +1,5 @@
 from lys_fem import addMaterialParameter, addModel
-from ..common import Source, DirichletBoundary
+from ..common import Source, DirichletBoundary, InitialCondition
 
 from lys_fem.mf import addMFEMModel
 from lys_fem.ngs import addNGSModel

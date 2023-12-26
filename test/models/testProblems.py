@@ -4,7 +4,7 @@ import sympy as sp
 from numpy.testing import assert_array_almost_equal
 
 from lys_fem import geometry
-from lys_fem.fem import FEMProject, InitialCondition, StationarySolver, FEMSolution
+from lys_fem.fem import FEMProject, StationarySolver, FEMSolution
 from lys_fem.models import test
 
 from ..base import FEMTestCase
@@ -20,8 +20,8 @@ class testProblems_test(FEMTestCase):
         # model: boundary and initial conditions
         model = test.LinearTestModel()
         model.boundaryConditions.append(test.DirichletBoundary([True], geometries=[1, 3]))
-        model.initialConditions.append(InitialCondition("Initial condition1", 0.0, [1]))
-        model.initialConditions.append(InitialCondition("Initial condition2", 2.0, [2]))
+        model.initialConditions.append(test.InitialCondition(0.0, geometries=[1]))
+        model.initialConditions.append(test.InitialCondition(2.0, geometries=[2]))
         p.models.append(model)
 
         # solver
@@ -49,8 +49,8 @@ class testProblems_test(FEMTestCase):
         x = sp.Symbol("x")
         model = test.NonlinearTestModel()
         model.boundaryConditions.append(test.DirichletBoundary([True], geometries=[1, 3]))
-        model.initialConditions.append(InitialCondition("Initial condition1", x, [1]))
-        model.initialConditions.append(InitialCondition("Initial condition2", x, [2]))
+        model.initialConditions.append(test.InitialCondition(x, geometries=[1]))
+        model.initialConditions.append(test.InitialCondition(x, geometries=[2]))
         p.models.append(model)
 
         # solver

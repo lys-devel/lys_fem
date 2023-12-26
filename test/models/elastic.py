@@ -20,8 +20,8 @@ class elasticity_test(FEMTestCase):
         # model: boundary and initial conditions
         model = elasticity.ElasticModel(1)
         model.boundaryConditions.append(elasticity.DirichletBoundary([True], geometries=[1, 3]))
-        model.initialConditions.append(InitialCondition("Initial condition1", 0, [1]))
-        model.initialConditions.append(InitialCondition("Initial condition2", 2, [2]))
+        model.initialConditions.append(elasticity.InitialCondition(0, geometries=[1]))
+        model.initialConditions.append(elasticity.InitialCondition(2, geometries=[2]))
         p.models.append(model)
 
         # solver
@@ -52,8 +52,8 @@ class elasticity_test(FEMTestCase):
         # model: boundary and initial conditions
         model = elasticity.ElasticModel(2)
         model.boundaryConditions.append(elasticity.DirichletBoundary([True, False], geometries=[4, 6]))
-        model.initialConditions.append(InitialCondition("Initial condition1", [0, 0], [1]))
-        model.initialConditions.append(InitialCondition("Initial condition2", [2, 0], [2]))
+        model.initialConditions.append(elasticity.InitialCondition([0, 0], geometries=[1]))
+        model.initialConditions.append(elasticity.InitialCondition([2, 0], geometries=[2]))
         p.models.append(model)
 
         # solver
@@ -84,8 +84,8 @@ class elasticity_test(FEMTestCase):
         # model: boundary and initial conditions
         model = elasticity.ElasticModel(3)
         model.boundaryConditions.append(elasticity.DirichletBoundary([True, False, False], geometries=[1, 7]))
-        model.initialConditions.append(InitialCondition("Initial condition1", [0, 0, 0], [1]))
-        model.initialConditions.append(InitialCondition("Initial condition2", [2, 0, 0], [2]))
+        model.initialConditions.append(elasticity.InitialCondition([0, 0, 0], geometries=[1]))
+        model.initialConditions.append(elasticity.InitialCondition([2, 0, 0], geometries=[2]))
         p.models.append(model)
 
         # solver

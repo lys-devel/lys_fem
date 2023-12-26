@@ -1,7 +1,7 @@
 from lys_fem import addModel
 from lys_fem.mf import addMFEMModel
 from lys_fem.ngs import addNGSModel
-from ..common import DirichletBoundary
+from ..common import DirichletBoundary, InitialCondition
 
 from .model import LinearTestModel, NonlinearTestModel
 from .mfem import MFEMLinearTestModel, MFEMNonlinearTestModel

@@ -10,7 +10,7 @@ class NGSLLGModel(NGSModel):
 
     def __generateVariables(self, mesh, model):
         dirichlet = util.generateDirichletCondition(model)
-        init = util.generateDomainCoefficient(mesh, model.initialConditions)
+        init = util.generateGeometryCoefficient(mesh, model.initialConditions)
         for eq in model.equations:
             self.addVariable(eq.variableName, eq.variableDimension, dirichlet, init, eq.geometries)
             self.addVariable(eq.variableName+"_lam", 1, region=eq.geometries)
