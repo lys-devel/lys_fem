@@ -23,6 +23,7 @@ class model_test(FEMTestCase):
         model.equations.append(c1)
 
         self.assertEqual(model.equations[1].geometries.getSelection(), [1])
+        self.assertEqual(model.equations[1].objName, "Test Equation1")
 
         d = model.equations.saveAsDictionary()
         d_list = model.equations.loadFromDictionary(d, model.equationTypes)

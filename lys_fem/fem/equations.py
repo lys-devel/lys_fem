@@ -69,3 +69,7 @@ class Equation(FEMObject):
     def loadFromDictionary(cls, d):
         geometries = GeometrySelection.loadFromDictionary(d["geometries"])
         return cls(d["varName"], varDim = d["dim"], geometries=geometries, objName=d["objName"])
+
+    def widget(self, fem, canvas):
+        from lys_fem.gui import EquationWidget
+        return EquationWidget(self, fem, canvas)

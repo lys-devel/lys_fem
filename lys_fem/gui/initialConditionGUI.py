@@ -20,3 +20,8 @@ class InitialConditionWidget(QtWidgets.QWidget):
 
     def __valueChanged(self, vector):
         self._init.values = vector
+
+
+class EquationWidget(GeometrySelector):
+    def __init__(self, eq, fem, canvas):
+        super().__init__(canvas, fem, eq.geometries)

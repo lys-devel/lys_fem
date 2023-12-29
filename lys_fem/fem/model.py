@@ -10,7 +10,7 @@ class FEMModel(FEMObject):
         super().__init__(objName)
         self._nvar = nvar
         if equations == "auto":
-            equations=[self.equationTypes[0]()]
+            equations=[self.equationTypes[0](objName=self.equationTypes[0].className)]
         if initialConditions is None:
             initialConditions = []
         if boundaryConditions is None:

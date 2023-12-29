@@ -34,7 +34,7 @@ class ModelTree(FEMTreeItem):
 
 class _ModelGUI(FEMTreeItem):
     def __init__(self, model, parent):
-        super().__init__(parent, children=[_DomainGUI(model, self), _BoundaryGUI(model, self), _InitialConditionGUI(model, self)])
+        super().__init__(parent, children=[_EquationGUI(model, self), _DomainGUI(model, self), _BoundaryGUI(model, self), _InitialConditionGUI(model, self)])
         self._model = model
 
     @ property
@@ -50,6 +50,32 @@ class _ModelGUI(FEMTreeItem):
         menu = self.parent.menu
         menu.addAction(QtWidgets.QAction("Remove", self.treeWidget(), triggered=lambda: self.parent.remove(self)))
         return menu
+
+
+class _EquationGUI(FEMTreeItem):
+    def __init__(self, model, parent):
+        super().__init__(parent, children=[_EquationCondition(d, self) for d in model.equations])
+        self._model = model
+
+    def append(self, type):
+        eq = type()
+        self._model.equations.append(eq)
+        super().append(_EquationCondition(eq, self))
+
+    def remove(self, init):
+        i = super().remove(init)
+        self._model.equations.remove(self._model.equations[i])
+
+    @ property
+    def name(self):
+        return "Equations"
+
+    @ property
+    def menu(self):
+        self._menu = QtWidgets.QMenu()
+        for i in self._model.equationTypes:
+            self._menu.addAction(QtWidgets.QAction("Add " + i.className, self.treeWidget(), triggered=lambda x, y=i: self.append(y)))
+        return self._menu
 
 
 class _DomainGUI(FEMTreeItem):
@@ -127,6 +153,25 @@ class _InitialConditionGUI(FEMTreeItem):
         self._menu = QtWidgets.QMenu()
         for i in self._model.initialConditionTypes:
             self._menu.addAction(QtWidgets.QAction("Add " + i.className, self.treeWidget(), triggered=lambda x, y=i: self.append(y)))
+        return self._menu
+
+class _EquationCondition(FEMTreeItem):
+    def __init__(self, cond, parent):
+        super().__init__(parent)
+        self._cond = cond
+
+    @ property
+    def name(self):
+        return self._cond.objName
+
+    @ property
+    def widget(self):
+        return self._cond.widget(self.fem(), self.canvas())
+
+    @ property
+    def menu(self):
+        self._menu = QtWidgets.QMenu()
+        self._menu.addAction(QtWidgets.QAction("Remove", self.treeWidget(), triggered=lambda: self.parent.remove(self)))
         return self._menu
 
 
