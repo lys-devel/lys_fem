@@ -1,14 +1,16 @@
 from .base import FEMObject
 from .equations import Equations
-from .conditions import DomainConditions, BoundaryConditions, InitialConditions
+from .conditions import DomainConditions, BoundaryConditions, InitialConditions, InitialCondition
 
 models = {}
 
 
 class FEMModel(FEMObject):
-    def __init__(self, nvar, equations, initialConditions=None, boundaryConditions=None, domainConditions=None, objName=None):
+    def __init__(self, nvar, equations="auto", initialConditions=None, boundaryConditions=None, domainConditions=None, objName=None):
         super().__init__(objName)
         self._nvar = nvar
+        if equations == "auto":
+            equations=[self.equationTypes[0]()]
         if initialConditions is None:
             initialConditions = []
         if boundaryConditions is None:
@@ -47,29 +49,23 @@ class FEMModel(FEMObject):
     def saveAsDictionary(self):
         d = {"model": self.className}
         d["nvar"] = self._nvar
-        d["init"] = [i.saveAsDictionary() for i in self.initialConditions]
-        d["bdr"] = [b.saveAsDictionary() for b in self.boundaryConditions]
-        d["domain"] = [d.saveAsDictionary() for d in self.domainConditions]
+        d["eqs"] = self.equations.saveAsDictionary()
+        d["init"] = self.initialConditions.saveAsDictionary()
+        d["bdr"] = self.boundaryConditions.saveAsDictionary()
+        d["domain"] = self.domainConditions.saveAsDictionary()
         return d
 
     @classmethod
     def loadFromDictionary(cls, d):
-        init, bdr, domain = cls._loadConditions(d)
-        return cls(nvar=d["nvar"], initialConditions=init, boundaryConditions=bdr, domainConditions=domain)
+        return cls(nvar=d["nvar"], **cls._loadConditions(d))
 
     @classmethod
     def _loadConditions(cls, d):
-        init = [cls._loadCondition(dic, cls.initialConditionTypes) for dic in d["init"]]
-        bdr = [cls._loadCondition(dic, cls.boundaryConditionTypes) for dic in d.get("bdr", [])]
-        domain = [cls._loadCondition(dic, cls.domainConditionTypes) for dic in d.get("domain", [])]
-        return init, bdr, domain
-
-    @classmethod
-    def _loadCondition(cls, d, types):
-        cls_dict = {t.className: t for t in types}
-        c = cls_dict[d["type"]]
-        del d["type"]
-        return c.loadFromDictionary(d)
+        eqs = Equations.loadFromDictionary(d["eqs"], cls.equationTypes)
+        init = InitialConditions.loadFromDictionary(d["init"], cls.initialConditionTypes)
+        bdr = BoundaryConditions.loadFromDictionary(d.get("bdr", []), cls.boundaryConditionTypes)
+        domain = DomainConditions.loadFromDictionary(d.get("domain", []), cls.domainConditionTypes)
+        return {"equations": eqs, "initialConditions": init, "boundaryConditions": bdr, "domainConditions": domain}
 
     def widget(self, fem, canvas):
         from ..gui import FEMModelWidget
@@ -77,7 +73,7 @@ class FEMModel(FEMObject):
     
     @classmethod
     @property
-    def equationTypes(self):
+    def equationTypes(cls):
         return []
 
     @classmethod
@@ -93,14 +89,13 @@ class FEMModel(FEMObject):
     @classmethod
     @property
     def initialConditionTypes(self):
-        return []
+        return [InitialCondition]
     
     
 class FEMFixedModel(FEMModel):
     @classmethod
     def loadFromDictionary(cls, d):
-        init, bdr, domain = cls._loadConditions(d)
-        return cls(initialConditions=init, boundaryConditions=bdr, domainConditions=domain)
+        return cls(**cls._loadConditions(d))
 
     def widget(self, fem, canvas):
         from ..gui import FEMFixedModelWidget

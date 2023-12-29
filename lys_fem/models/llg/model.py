@@ -5,9 +5,14 @@ class LLGModel(FEMFixedModel):
     className = "LLG"
 
     def __init__(self, *args, **kwargs):
-        super().__init__(3, [LLGEquation("m")], *args, **kwargs)
+        super().__init__(3, *args, **kwargs)
 
+    @classmethod
+    @property
+    def equationTypes(cls):
+        return [LLGEquation]
 
 class LLGEquation(Equation):
-    def __init__(self, varName, domain="all", name="LLG Equation"):
-        super().__init__(name, varName, geometries = domain)
+    className = "LLG Equation"
+    def __init__(self, varName="m", **kwargs):
+        super().__init__(varName, **kwargs)

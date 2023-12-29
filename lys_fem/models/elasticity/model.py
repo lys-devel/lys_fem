@@ -6,7 +6,7 @@ class ElasticModel(FEMModel):
     className = "Elasticity"
 
     def __init__(self, nvar=3, *args, **kwargs):
-        super().__init__(nvar, [ChristffelEquation("u")], *args, **kwargs)
+        super().__init__(nvar, *args, **kwargs)
 
     @classmethod
     @property
@@ -25,5 +25,6 @@ class ElasticModel(FEMModel):
 
 
 class ChristffelEquation(Equation):
-    def __init__(self, varName, domain="all", name="Christffel Equation"):
-        super().__init__(name, varName, geometries=domain)
+    className = "Christffel Equation"
+    def __init__(self, varName="u", **kwargs):
+        super().__init__(varName, **kwargs)

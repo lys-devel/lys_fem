@@ -2,7 +2,22 @@ from .base import FEMObject, FEMObjectList
 from .geometry import GeometrySelection
 
 
-class DomainConditions(FEMObjectList):
+class ModelConditionBase(FEMObjectList):
+    def saveAsDictionary(self):
+        return [item.saveAsDictionary() for item in self]
+
+    @classmethod
+    def loadFromDictionary(self, dic, types):
+        cls_dict = {t.className: t for t in types}
+        result = []
+        for d in dic:
+            c = cls_dict[d["type"]]
+            del d["type"]
+            result.append(c.loadFromDictionary(d))
+        return result
+
+
+class DomainConditions(ModelConditionBase):
     def get(self, cls):
         return [condition for condition in self if isinstance(condition, cls)]
     
@@ -19,7 +34,7 @@ class DomainConditions(FEMObjectList):
         super().append(condition)
 
 
-class BoundaryConditions(FEMObjectList):
+class BoundaryConditions(ModelConditionBase):
     def get(self, cls):
         return [condition for condition in self if isinstance(condition, cls)]
 
@@ -36,7 +51,7 @@ class BoundaryConditions(FEMObjectList):
         super().append(condition)
 
 
-class InitialConditions(FEMObjectList):
+class InitialConditions(ModelConditionBase):
     def append(self, condition):
         if condition.objName is None:
             names_used = [c.objName for c in self.parent.initialConditions]
@@ -97,7 +112,7 @@ class BoundaryCondition(ConditionBase):
 
 
 class InitialCondition(ConditionBase):
-    className="InitialCondition"
+    className="Initial Condition"
     def __init__(self, *args, **kwargs):
         super().__init__("Domain", *args, **kwargs)
 

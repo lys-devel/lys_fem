@@ -3,32 +3,49 @@ from .geometry import GeometrySelection
 
 
 class Equations(FEMObjectList):
-    pass
+    def append(self, equation):
+        if equation.objName is None:
+            names_used = [c.objName for c in self.parent.equations]
+            i = 1
+            while equation.className + str(i) in names_used:
+                i += 1
+            equation.objName = equation.className + str(i)
+        varNames_used = [c.variableName for c in self.parent.equations]
+        if equation.variableName in varNames_used:
+            i = 1
+            while equation.variableName + str(i) in varNames_used:
+                i += 1
+            equation.variableName = equation.variableName + str(i)
+        super().append(equation)
+
+    def saveAsDictionary(self):
+        return [item.saveAsDictionary() for item in self]
+
+    @classmethod
+    def loadFromDictionary(self, dic, types):
+        cls_dict = {t.className: t for t in types}
+        result = []
+        for d in dic:
+            c = cls_dict[d["type"]]
+            del d["type"]
+            result.append(c.loadFromDictionary(d))
+        return result
 
 
 class Equation(FEMObject):
-    def __init__(self, name, varName, varDim=None, geometries="all", geometryType="Domain"):
+    def __init__(self, varName, varDim=None, geometries="all", geometryType="Domain", objName=None):
+        super().__init__(objName)
         self._varName = varName
         self._varDim = varDim
-        self._name = name
-        if isinstance(geometries, GeometrySelection):
-            self._geometries = geometries
-        else:
-            self._geometries = GeometrySelection(geometryType, geometries)
-        self._geometries.setParent(self)
-
-    @classmethod
-    @property
-    def name(cls):
-        raise NotImplementedError
-
-    @property
-    def objName(self):
-        return self._name
+        self._geometries = GeometrySelection(geometryType, geometries, parent=self)
 
     @property
     def variableName(self):
         return self._varName
+    
+    @variableName.setter
+    def variableName(self, value):
+        self._varName = value
 
     @property
     def variableDimension(self):
@@ -43,4 +60,12 @@ class Equation(FEMObject):
 
     @geometries.setter
     def geometries(self, value):
-        self._geometries = value
+        self._geometries = GeometrySelection(value.geometryType, value, parent=self)
+
+    def saveAsDictionary(self):
+        return {"type": self.className, "objName": self.objName, "varName": self._varName, "dim": self._varDim, "geometries": self.geometries.saveAsDictionary()}
+
+    @classmethod
+    def loadFromDictionary(cls, d):
+        geometries = GeometrySelection.loadFromDictionary(d["geometries"])
+        return cls(d["varName"], varDim = d["dim"], geometries=geometries, objName=d["objName"])

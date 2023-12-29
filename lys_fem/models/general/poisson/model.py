@@ -5,7 +5,12 @@ class PoissonModel(FEMFixedModel):
     className = "Poisson"
 
     def __init__(self, *args, **kwargs):
-        super().__init__(1, [PoissonEquation("phi")], *args, **kwargs)
+        super().__init__(1, *args, **kwargs)
+
+    @classmethod
+    @property
+    def equationTypes(cls):
+        return [PoissonEquation]
 
     @classmethod
     @property
@@ -14,8 +19,9 @@ class PoissonModel(FEMFixedModel):
 
 
 class PoissonEquation(Equation):
-    def __init__(self, varName, domain="all", name="Poisson Equation"):
-        super().__init__(name, varName, geometries = domain)
+    className = "Poisson Equation"
+    def __init__(self, varName="phi", **kwargs):
+        super().__init__(varName, **kwargs)
 
 
 

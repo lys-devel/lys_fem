@@ -5,21 +5,33 @@ class LinearTestModel(FEMFixedModel):
     className = "Linear Test"
 
     def __init__(self, *args, **kwargs):
-        super().__init__(1, [LinearTestEquation("x")], *args, **kwargs)
+        super().__init__(1, *args, **kwargs)
+
+    @classmethod
+    @property
+    def equationTypes(cls):
+        return [LinearTestEquation]
 
 
 class LinearTestEquation(Equation):
-    def __init__(self, varName, domain="all", name="Linear Test Equation"):
-        super().__init__(name, varName, geometries = domain)
+    className = "Linear Test Equation"
+    def __init__(self, varName="x", domain="all"):
+        super().__init__(varName, geometries = domain)
 
 
 class NonlinearTestModel(FEMFixedModel):
     className = "Nonlinear Test"
 
     def __init__(self, *args, **kwargs):
-        super().__init__(1, [NonlinearTestEquation("x")], *args, **kwargs)
+        super().__init__(1, *args, **kwargs)
+
+    @classmethod
+    @property
+    def equationTypes(cls):
+        return [NonlinearTestEquation]
 
 
 class NonlinearTestEquation(Equation):
-    def __init__(self, varName, domain="all", name="Linear Test Equation"):
-        super().__init__(name, varName, geometries = domain)
+    className = "Linear Test Equation"
+    def __init__(self, varName="x", **kwargs):
+        super().__init__(varName, **kwargs)

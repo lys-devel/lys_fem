@@ -5,7 +5,7 @@ class HeatConductionModel(FEMFixedModel):
     className = "Heat Conduction"
 
     def __init__(self, *args, **kwargs):
-        super().__init__(1, [HeatConductionEquation("T")], *args, **kwargs)
+        super().__init__(1, *args, **kwargs)
 
     @classmethod
     @property
@@ -14,5 +14,6 @@ class HeatConductionModel(FEMFixedModel):
     
 
 class HeatConductionEquation(Equation):
-    def __init__(self, varName, domain="all", name="Heat Conduction Equation"):
-        super().__init__(name, varName, geometries = domain)
+    className = "Heat Conduction Equation"
+    def __init__(self, varName="T", **kwargs):
+        super().__init__(varName, **kwargs)
