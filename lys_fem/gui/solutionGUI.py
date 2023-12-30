@@ -44,8 +44,7 @@ class _FEMSolutionWidget(QtWidgets.QWidget):
         self.__initlayout()
 
     def __initlayout(self):
-        self._list = QtWidgets.QComboBox()
-        self._list.addItems(self._sol.variableList(solver=self._solver))
+        self._text = QtWidgets.QLineEdit()
         self._time = QtWidgets.QSpinBox()
         self._time.setRange(0, 10000000)
         self._time.valueChanged.connect(self.__show)
@@ -55,7 +54,7 @@ class _FEMSolutionWidget(QtWidgets.QWidget):
 
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self._list)
+        layout.addWidget(self._text)
         layout.addWidget(self._time)
         layout.addLayout(buttons)
         self.setLayout(layout)
@@ -69,5 +68,5 @@ class _FEMSolutionWidget(QtWidgets.QWidget):
                 o.showEdges(True)
 
     def __loadData(self):
-        var = self._list.currentText()
+        var = self._text.text()
         return self._sol.eval(var, data_number=self._time.value(), solver=self._solver)

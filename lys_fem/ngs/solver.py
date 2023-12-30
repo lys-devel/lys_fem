@@ -2,7 +2,6 @@ import os
 import shutil
 
 from . import mpi, mesh
-from .models import CompositeModel
 from ngsolve import sqrt
 
 

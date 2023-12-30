@@ -1,9 +1,10 @@
 from lys_fem.fem import InitialCondition
 from lys_fem import addMaterialParameter
 
-from .meshParams import InfiniteVolumeParams
+from .meshParams import InfiniteVolumeParams, InfinitePlaneParams
 from .domainConditions import Source
 from .boundaryConditions import NeumannBoundary, DirichletBoundary
 
 
 addMaterialParameter("Deformation", InfiniteVolumeParams)
+addMaterialParameter("Deformation", InfinitePlaneParams)

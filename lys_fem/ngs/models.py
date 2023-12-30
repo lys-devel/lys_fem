@@ -12,7 +12,7 @@ def addNGSModel(name, model):
 
 
 def generateModel(fem, mesh, mat):
-    return CompositeModel(mesh, [modelList[m.className](m, mesh, mat) for m in fem.models])
+    return CompositeModel(mesh, [modelList[m.className](m, mesh, mat) for m in fem.models], mat)
 
 
 class NGSModel:
@@ -93,9 +93,10 @@ class NGSModel:
 
 
 class CompositeModel:
-    def __init__(self, mesh, models):
+    def __init__(self, mesh, models, mats):
         self._mesh = mesh
         self._models = models
+        self._materials = mats
         self._fes = self.space
 
         self._bilinear = BilinearForm(self._fes)
@@ -189,8 +190,21 @@ class CompositeModel:
                 if len(sol.shape) == 0:
                     result[name] = sol.vec
                 else:
-                    for i, s in enumerate(sol.components):
-                        result[name+str(i+1)] = s.vec
+                    result[name] = [s.vec for s in sol.components]
+
+        def eval(c):
+            sp = H1(self._mesh, order=1)
+            gf = GridFunction(sp)
+            gf.Set(c)
+            return gf.vec
+        
+        for name, mat in self._materials.items():
+            if len(mat.shape) == 0:
+                result[name] = eval(mat)
+            elif len(mat.shape) == 1:
+                result[name] = [eval(mat[i]) for i in range(mat.shape[0])]
+            elif len(mat.shape) == 2:
+                result[name] = [[eval(mat[i,j]) for j in range(mat.shape[1])] for i in range(mat.shape[0])]
         return result
 
     @property

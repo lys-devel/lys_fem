@@ -16,7 +16,7 @@ class NGSPoissonModel(NGSModel):
         wf = 0
         if "J_T" in self._mat:
             J = self._mat["J_T"]
-            detJ = J[0,0]*J[1,1]*J[2,2] + J[0,1]*J[1,2]*J[2,0] + J[0,2]*J[1,0]*J[2,1] - J[0,2]*J[1,1]*J[2,0] - J[0,1]*J[1,0]*J[2,2] - J[0,0]*J[1,2]*J[2,1]
+            detJ = self._mat["detJ_T"]
         else:
             J = 1
             detJ = 1
@@ -28,7 +28,6 @@ class NGSPoissonModel(NGSModel):
     @property
     def linearform(self):
         wf = util.generateCoefficient(0) * dx
-        wf = 0
         for sp, eq in zip(self.spaces, self._model.equations):
             u,v =sp.TnT()
             if self._model.domainConditions.have(Source):

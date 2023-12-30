@@ -23,7 +23,7 @@ class FEMSolution:
         path = self._path + "/Solutions/" + solver + "/"
         meshes = np.load(path + "mesh.npz", allow_pickle=True)
         data = self._loadData(path, data_number)
-        array = data[varName]
+        array = eval(varName, {}, data)
 
         res = []
         coords = meshes["coords"]

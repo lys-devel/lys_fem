@@ -46,9 +46,28 @@ def generateMaterial(fem, mesh):
     result = {}
     for key, value in mats.items():
         if key == "CoordsTransform":
-            default = generateCoefficient([x,y,z])
-            XYZ = generateCoefficient(value, mesh, default=default)
-            result["J_T"] = generateCoefficient(np.array([[XYZ[i].Diff(x), XYZ[i].Diff(y), XYZ[i].Diff(z)] for i in range(3)]).T.tolist())
+            if mesh.dim == 3:
+                default = generateCoefficient([x,y,z])
+                XYZ = generateCoefficient(value, mesh, default=default)
+                result["x"] = x
+                result["y"] = y
+                result["z"] = z
+                result["X"] = XYZ[0]
+                result["Y"] = XYZ[1]
+                result["Z"] = XYZ[2]
+                J = generateCoefficient([[XYZ[i].Diff(x), XYZ[i].Diff(y), XYZ[i].Diff(z)] for i in range(3)])
+                result["J_T"] = J
+                result["detJ_T"] = J[0,0]*J[1,1]*J[2,2] + J[0,1]*J[1,2]*J[2,0] + J[0,2]*J[1,0]*J[2,1] - J[0,2]*J[1,1]*J[2,0] - J[0,1]*J[1,0]*J[2,2] - J[0,0]*J[1,2]*J[2,1]
+            elif mesh.dim == 2:
+                default = generateCoefficient([x,y])
+                XY = generateCoefficient(value, mesh, default=default)
+                result["x"] = x
+                result["y"] = y
+                result["X"] = XY[0]
+                result["Y"] = XY[1]
+                J = generateCoefficient([[XY[i].Diff(x), XY[i].Diff(y)] for i in range(2)])
+                result["J_T"] = J
+                result["detJ_T"] = J[0,0]*J[1,1]  - J[0,1]*J[1,0]
         else:
             result[key] = generateCoefficient(value, mesh)
     return result

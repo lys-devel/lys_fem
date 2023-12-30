@@ -36,7 +36,7 @@ class LLG_test(FEMTestCase):
 
         # solution
         sol = FEMSolution(".", p)
-        res = sol.eval("m1", data_number=1)
+        res = sol.eval("m[0]", data_number=1)
         for w in res:
             self.assert_array_almost_equal(w.data, np.zeros(w.data.shape), decimal=2)
 
@@ -67,15 +67,15 @@ class LLG_test(FEMTestCase):
 
         # solution
         sol = FEMSolution(".", p)
-        res = sol.eval("m1", data_number=25*factor)
+        res = sol.eval("m[0]", data_number=25*factor)
         for w in res:
             self.assert_array_almost_equal(w.data, np.zeros(w.data.shape), decimal=2)
-        res = sol.eval("m2", data_number=25*factor)
+        res = sol.eval("m[1]", data_number=25*factor)
         for w in res:
             self.assert_array_almost_equal(w.data, np.ones(w.data.shape), decimal=3)
-        res = sol.eval("m1", data_number=50*factor)
+        res = sol.eval("m[0]", data_number=50*factor)
         for w in res:
             self.assert_array_almost_equal(w.data, -np.ones(w.data.shape), decimal=3)
-        res = sol.eval("m2", data_number=50*factor)
+        res = sol.eval("m[1]", data_number=50*factor)
         for w in res:
             self.assert_array_almost_equal(w.data, np.zeros(w.data.shape), decimal=2)

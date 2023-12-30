@@ -27,6 +27,9 @@ class ScalarFunctionWidget(QtWidgets.QWidget):
     def __valueChanged(self):
         self.valueChanged.emit(self._value.text())
 
+    def value(self):
+        return eval(self._value.text())
+
 
 class VectorFunctionWidget(QtWidgets.QWidget):
     valueChanged = QtCore.pyqtSignal(object)
@@ -55,6 +58,8 @@ class VectorFunctionWidget(QtWidgets.QWidget):
     def __valueChanged(self):
         self.valueChanged.emit([v.text() for v in self._value])
 
+    def value(self):
+        return [eval(v.text()) for v in self._value]
 
 class MatrixFunctionWidget(QtWidgets.QWidget):
     valueChanged = QtCore.pyqtSignal(object)
@@ -133,4 +138,4 @@ class MatrixFunctionWidget(QtWidgets.QWidget):
         self.valueChanged.emit(self.value())
 
     def value(self):
-        return [[w.text() for w in ws] for ws in self._value]
+        return [[eval(w.text()) for w in ws] for ws in self._value]

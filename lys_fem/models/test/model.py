@@ -15,8 +15,8 @@ class LinearTestModel(FEMFixedModel):
 
 class LinearTestEquation(Equation):
     className = "Linear Test Equation"
-    def __init__(self, varName="x", domain="all"):
-        super().__init__(varName, geometries = domain)
+    def __init__(self, varName="x", **kwargs):
+        super().__init__(varName, **kwargs)
 
 
 class NonlinearTestModel(FEMFixedModel):
