@@ -30,7 +30,7 @@ class MeshEditor(QtWidgets.QWidget):
             obj = self._canvas.append(mesh)
             for o in obj:
                 o.setColor("#cccccc", type="color")
-                o.showEdges(True)
+                o.showMeshes(True)
 
     def setMesher(self, mesher):
         self._mesher = mesher

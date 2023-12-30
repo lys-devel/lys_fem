@@ -2,7 +2,7 @@
 import numpy as np
 
 from lys_fem import geometry
-from lys_fem.fem import FEMProject, FEMSolution, StationarySolver, TimeDependentSolver
+from lys_fem.fem import FEMProject, FEMSolution, Material, StationarySolver, TimeDependentSolver
 from lys_fem.models import general
 
 from ..base import FEMTestCase
@@ -118,16 +118,35 @@ class poisson_test(FEMTestCase):
         p = FEMProject(3)
 
         # geometry
-        p.geometries.add(geometry.Sphere(0, 0, 0, 1))
-        p.geometries.add(geometry.Box(-0.5, -0.5, -0.5))
+        p.geometries.add(geometry.Sphere(0, 0, 0, 0.95))
+        p.geometries.add(geometry.Box(-1, -1, -1, 2, 2, 2))
         p.geometries.add(geometry.InfiniteVolume(1, 1, 1, 2, 2, 2))
-        p.mesher.setRefinement(1)
+        p.mesher.setRefinement(2)
+
+        p_Dx = general.InfiniteVolumeParams([1,1,1], [2,2,2], domain="x+")
+        p_Dy = general.InfiniteVolumeParams([1,1,1], [2,2,2], domain="y+")
+        p_Dz = general.InfiniteVolumeParams([1,1,1], [2,2,2], domain="z+")
+        m_Dx = general.InfiniteVolumeParams([1,1,1], [2,2,2], domain="x-")
+        m_Dy = general.InfiniteVolumeParams([1,1,1], [2,2,2], domain="y-")
+        m_Dz = general.InfiniteVolumeParams([1,1,1], [2,2,2], domain="z-")
+        Dx1 = Material([p_Dx], geometries=[6])
+        Dx2 = Material([m_Dx], geometries=[7])
+        Dy1 = Material([p_Dy], geometries=[4])
+        Dy2 = Material([m_Dy], geometries=[5])
+        Dz1 = Material([p_Dz], geometries=[2])
+        Dz2 = Material([m_Dz], geometries=[3])
+        p.materials.append(Dx1)
+        p.materials.append(Dy1)
+        p.materials.append(Dz1)
+        p.materials.append(Dx2)
+        p.materials.append(Dy2)
+        p.materials.append(Dz2)
 
         # model: boundary and initial conditions
         model = general.PoissonModel()
+        model.initialConditions.append(general.InitialCondition(0, geometries="all"))
         model.domainConditions.append(general.Source(1, geometries=[1]))
-        model.domainConditions.append(general.InfiniteVolume("InfVol", []))
-        model.boundaryConditions.append(general.DirichletBoundary([True], geometries=[2]))
+        model.boundaryConditions.append(general.DirichletBoundary([True], geometries=[12,17,20,23,24,25]))
         p.models.append(model)
 
         # solver

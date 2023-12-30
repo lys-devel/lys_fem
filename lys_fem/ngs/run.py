@@ -1,3 +1,5 @@
+import numpy as np
+from ngsolve import x,y,z
 from .mesh import generateMesh
 from .util import generateCoefficient
 from .models import generateModel
@@ -14,8 +16,7 @@ def run(fem, run=True):
     print("\tBoundaries:", mesh.GetBoundaries())
     print()
 
-    mats = fem.materials.materialDict(mesh.dim)
-    mats = {key: generateCoefficient(value, mesh) for key, value in mats.items()}
+    mats = generateMaterial(fem, mesh)
     print("NGS Material generated:")
     print("\tParameters:", {key: value.shape if len(value.shape)>0 else "scalar" for key, value in mats.items()})
     print()
@@ -40,3 +41,14 @@ def run(fem, run=True):
     else:
         return mesh, mats, model, solvers
 
+def generateMaterial(fem, mesh):
+    mats = fem.materials.materialDict(mesh.dim)
+    result = {}
+    for key, value in mats.items():
+        if key == "CoordsTransform":
+            default = generateCoefficient([x,y,z])
+            XYZ = generateCoefficient(value, mesh, default=default)
+            result["J_T"] = generateCoefficient(np.array([[XYZ[i].Diff(x), XYZ[i].Diff(y), XYZ[i].Diff(z)] for i in range(3)]).T.tolist())
+        else:
+            result[key] = generateCoefficient(value, mesh)
+    return result

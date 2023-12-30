@@ -11,5 +11,5 @@ class ngs_poisson_test(poisson_test):
     def test_1d_dirichlet(self):
         self.dirichlet_1d(ngs)
 
-
-
+    def test_3d_infinite(self):
+        self.infinite_3d(ngs)

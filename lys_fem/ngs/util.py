@@ -44,13 +44,13 @@ def generateGeometryCoefficient(mesh, conditions):
     return generateCoefficient(coefs, mesh, type)
 
 
-def generateCoefficient(coef, mesh=None, geom="domain"):
+def generateCoefficient(coef, mesh=None, geom="domain", **kwargs):
     if isinstance(coef, dict):
         coefs = {geom+str(key): generateCoefficient(value) for key, value in coef.items()}
         if geom=="domain":
-            return mesh.MaterialCF(coefs)
+            return mesh.MaterialCF(coefs, **kwargs)
         else:
-            return mesh.BoundaryCF(coefs)
+            return mesh.BoundaryCF(coefs, **kwargs)
     elif isinstance(coef, (list, tuple, np.ndarray)):
         return CoefficientFunction(tuple([generateCoefficient(c) for c in coef]), dims=np.shape(coef))
     elif isinstance(coef, (int, float, sp.Integer, sp.Float)):
@@ -58,4 +58,8 @@ def generateCoefficient(coef, mesh=None, geom="domain"):
     elif isinstance(coef, CoefficientFunction):
         return coef
     else:
-        return sp.lambdify(sp.symbols("x,y,z"), coef, modules=ngsolve)(x,y,z)
+        return sp.lambdify(sp.symbols("x,y,z"), coef, modules=[{"abs": _absolute}, ngsolve])(x,y,z)
+
+
+def _absolute(x):
+    return x.Norm()

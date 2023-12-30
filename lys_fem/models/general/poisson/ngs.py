@@ -1,4 +1,4 @@
-from ngsolve import grad, dx, ds
+from ngsolve import grad, dx, ds, x, y, z
 
 from .. import Source
 from lys_fem.ngs import NGSModel, util
@@ -9,13 +9,20 @@ class NGSPoissonModel(NGSModel):
         super().__init__(model, mesh, addVariables=True)
         self._model = model
         self._mesh = mesh
+        self._mat = mat
 
     @property
     def bilinearform(self):
         wf = 0
+        if "J_T" in self._mat:
+            J = self._mat["J_T"]
+            detJ = J[0,0]*J[1,1]*J[2,2] + J[0,1]*J[1,2]*J[2,0] + J[0,2]*J[1,0]*J[2,1] - J[0,2]*J[1,1]*J[2,0] - J[0,1]*J[1,0]*J[2,2] - J[0,0]*J[1,2]*J[2,1]
+        else:
+            J = 1
+            detJ = 1
         for sp, eq in zip(self.spaces, self._model.equations):
             u,v = sp.TnT()
-            wf += (grad(u)*grad(v)) * dx
+            wf += ((J*grad(u))*(J*grad(v)))/detJ * dx
         return wf
     
     @property
