@@ -32,11 +32,7 @@ class InfiniteVolumeParams(FEMParameter):
         return "Infinite Volume (3D)"
 
     def getParameters(self, dim):
-        X, Y, Z = self._constructJ()
-        x,y,z = sp.symbols("x,y,z", real=True)
-        #J = [[X.diff(x), X.diff(y), X.diff(z)],[Y.diff(x), Y.diff(y), Y.diff(z)],[Z.diff(x), Z.diff(y), Z.diff(z)]]
-        J = [[X.diff(x), Y.diff(x), Z.diff(x)],[X.diff(y), Y.diff(y), Z.diff(y)],[X.diff(z), Y.diff(z), Z.diff(z)]]
-        return {"CoordsTransform": [X,Y,Z], "J": J}
+        return {"J": self._constructJ()}
 
     def _constructJ(self):
         a,b,c = self.abc
@@ -73,7 +69,8 @@ class InfiniteVolumeParams(FEMParameter):
             Z = -(Cb[2] + (c-Cb[2])/((C+z)/(C-c))**(1/alpha))
             X = x * (-Z -Cx[2]) / (-z-Cx[2])
             Y = y * (-Z -Cy[2]) / (-z-Cy[2])
-        return [X,Y,Z]
+        J = sp.Matrix([[X.diff(x), Y.diff(x), Z.diff(x)],[X.diff(y), Y.diff(y), Z.diff(y)],[X.diff(z), Y.diff(z), Z.diff(z)]]).inv()
+        return [[J[i,j] for j in range(3)] for i in range(3)]
 
     def widget(self):
         return _InfiniteVolumeWidget(self)

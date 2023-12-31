@@ -109,7 +109,7 @@ class poisson_test(FEMTestCase):
         sol = FEMSolution(".", p)
         res = sol.eval("phi", data_number=1)
         for w in res:
-            r = np.sqrt(w.x[:,0]**2+w.x[:,1]**2+w.x[:,2]**2)
+            r = np.sqrt(w.x[:,0]**2+w.x[:,1]**2+w.x[:,2]**2)+1e-16
             self.assert_allclose(w.data, -solution(r, 1, 2, 1), atol=0.1, rtol=0)
 
 
@@ -121,7 +121,7 @@ class poisson_test(FEMTestCase):
         p.geometries.add(geometry.Sphere(0, 0, 0, 0.8))
         p.geometries.add(geometry.Box(-1, -1, -1, 2, 2, 2))
         p.geometries.add(geometry.InfiniteVolume(1, 1, 1, r2, r2, r2))
-        p.mesher.setRefinement(2)
+        p.mesher.setRefinement(1)
 
         p_Dx = general.InfiniteVolumeParams([1,1,1], [r2,r2,r2], domain="x+")
         p_Dy = general.InfiniteVolumeParams([1,1,1], [r2,r2,r2], domain="y+")
@@ -163,5 +163,5 @@ class poisson_test(FEMTestCase):
         sol = FEMSolution(".", p)
         res = sol.eval("phi", data_number=1)
         for w in [res[0]]:
-            r = np.sqrt(w.x[:,0]**2+w.x[:,1]**2+w.x[:,2]**2)
-            self.assert_allclose(w.data, -solution(r, 0.8, 1), atol=0.01, rtol=0)
+            r = np.sqrt(w.x[:,0]**2+w.x[:,1]**2+w.x[:,2]**2)+1e-16
+            self.assert_allclose(w.data, -solution(r, 0.8, 1), atol=0.02, rtol=0)

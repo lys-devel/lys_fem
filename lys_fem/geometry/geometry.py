@@ -5,7 +5,7 @@ from .geometryGUI import BoxGUI, SphereGUI, RectGUI, LineGUI, DiskGUI, RectFrust
 
 class Box(FEMGeometry):
     def __init__(self, x=0, y=0, z=0, dx=1, dy=1, dz=1):
-        self.args = [x, y, z, dx, dy, dz]
+        super().__init__([x, y, z, dx, dy, dz])
 
     def execute(self, model):
         model.occ.addBox(*self.args)
@@ -21,7 +21,7 @@ class Box(FEMGeometry):
 
 class Sphere(FEMGeometry):
     def __init__(self, x=0, y=0, z=0, r=1):
-        self.args = [x, y, z, r]
+        super().__init__([x, y, z, r])
 
     def execute(self, model):
         model.occ.addSphere(*self.args, angle2=0, angle3=np.pi/2)
@@ -43,24 +43,8 @@ class Sphere(FEMGeometry):
     
 
 class RectFrustum(FEMGeometry):
-    def __init__(self, v1=None, v2=None, v3=None, v4=None, v5=None, v6=None, v7=None, v8=None):
-        if v1 is None:
-            v1 = [0,0,0]
-        if v2 is None:
-            v2 = [1,0,0]
-        if v3 is None:
-            v3 = [1,1,0]
-        if v4 is None:
-            v4 = [0,1,0]
-        if v5 is None:
-            v5 = [0,0,1]
-        if v6 is None:
-            v6 = [1,0,1]
-        if v7 is None:
-            v7 = [1,1,1]
-        if v8 is None:
-            v8 = [0,1,1]
-        self.args = [v1, v2, v3, v4, v5, v6, v7, v8]
+    def __init__(self, v1=(0,0,0), v2=(1,0,0), v3=(1,1,0), v4=(0,1,0), v5=(0,0,1), v6=(1,0,1), v7=(1,1,1), v8=(0,1,1)):
+        super().__init__([v1, v2, v3, v4, v5, v6, v7, v8])
 
     def execute(self, model):
         pts = [model.occ.addPoint(*v) for v in self.args]
@@ -89,7 +73,7 @@ class RectFrustum(FEMGeometry):
 
 class InfiniteVolume(FEMGeometry):
     def __init__(self, a=1, b=1, c=1, A=2, B=2, C=2):
-        self.args = [a,b,c,A,B,C]
+        super().__init__([a,b,c,A,B,C])
 
     def execute(self, model):
         a,b,c,A,B,C = self.args
@@ -111,7 +95,7 @@ class InfiniteVolume(FEMGeometry):
 
 class Rect(FEMGeometry):
     def __init__(self, x=0, y=0, z=0, dx=1, dy=1):
-        self.args = [x, y, z, dx, dy]
+        super().__init__([x, y, z, dx, dy])
 
     def execute(self, model):
         model.occ.addRectangle(*self.args)
@@ -127,7 +111,7 @@ class Rect(FEMGeometry):
 
 class Disk(FEMGeometry):
     def __init__(self, x=0, y=0, z=0, rx=1, ry=1):
-        self.args = [x, y, z, rx, ry]
+        super().__init__([x, y, z, rx, ry])
 
     def execute(self, model):
         model.occ.addDisk(*self.args)
@@ -143,7 +127,7 @@ class Disk(FEMGeometry):
 
 class Quad(FEMGeometry):
     def __init__(self, v1=(0,0,0), v2=(1,0,0), v3=(1,1,0), v4=(0,1,0)):
-        self.args = [v1, v2 ,v3, v4]
+        super().__init__([v1, v2 ,v3, v4])
 
     def execute(self, model):
         pts = [model.occ.addPoint(*v) for v in self.args]
@@ -161,7 +145,7 @@ class Quad(FEMGeometry):
 
 class InfinitePlane(FEMGeometry):
     def __init__(self, a=1, b=1, A=2, B=2):
-        self.args = [a,b,A,B]
+        super().__init__([a,b,A,B])
 
     def execute(self, model):
         a,b,A,B = self.args
@@ -181,7 +165,7 @@ class InfinitePlane(FEMGeometry):
 
 class Line(FEMGeometry):
     def __init__(self, x1=0, y1=0, z1=0, x2=1, y2=0, z2=0):
-        self.args = [x1, y1, z1, x2, y2, z2]
+        super().__init__([x1, y1, z1, x2, y2, z2])
 
     def execute(self, model):
         p1t = model.occ.addPoint(*self.args[:3])

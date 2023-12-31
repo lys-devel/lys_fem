@@ -1,4 +1,5 @@
 import gmsh
+import weakref
 from .base import FEMObject
 
 gmsh.initialize()
@@ -10,12 +11,26 @@ class GeometryGenerator:
         super().__init__()
         if order is None:
             order = []
-        self._order = order
+        self._order = []
+        for ord in order:
+            self.add(ord)
+        self._updated = True
 
     def add(self, command):
         self._order.append(command)
+        command.setParent(self)
+        self._updated=True
+
+    def remove(self, command):
+        self._order.remove(command)
+        self._updated=True
+
+    def _update(self):
+        self._updated=True
 
     def generateGeometry(self, n=None):
+        if n is None and self._updated is False:
+            return self._model
         model = gmsh.model()
         model.add("Default")
         model.setCurrent("Default")
@@ -49,7 +64,9 @@ class GeometryGenerator:
                 model.setPhysicalName(dim=0, tag=i+1, name="boundary" + str(i+1))
             else:
                 model.setPhysicalName(dim=0, tag=i+1, name="point" + str(i+1))
-        return model
+        self._model = model
+        self._updated=False
+        return self._model
 
     def geometryAttributes(self, dim):
         m = self.generateGeometry()
@@ -69,6 +86,23 @@ class GeometryGenerator:
 
 
 class FEMGeometry(object):
+    def __init__(self, args):
+        self._args = args
+        self._parent = None
+
+    @property
+    def args(self):
+        return self._args
+
+    @args.setter
+    def args(self, value):
+        self._args = value
+        if self._parent is not None:
+            self._parent()._update()
+
+    def setParent(self, parent):
+        self._parent = weakref.ref(parent)
+
     def saveAsDictionary(self):
         return {"type": self.type, "args": self.args}
 

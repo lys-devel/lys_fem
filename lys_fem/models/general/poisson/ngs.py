@@ -6,7 +6,7 @@ from lys_fem.ngs import NGSModel, util
 
 class NGSPoissonModel(NGSModel):
     def __init__(self, model, mesh, mat):
-        super().__init__(model, mesh, addVariables=True)
+        super().__init__(model, mesh, addVariables=True, order=2)
         self._model = model
         self._mesh = mesh
         self._mat = mat

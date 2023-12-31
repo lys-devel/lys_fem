@@ -34,6 +34,7 @@ class OccMesher(object):
         return self._periodicity
 
     def _generate(self, model):
+        model.mesh.clear()
         # Set periodicities
         if len(model.getPhysicalGroups(3)) != 0:
             sdim = 2

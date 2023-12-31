@@ -70,7 +70,7 @@ class GeometryTree(FEMTreeItem):
 
     def remove(self, item):
         i = super().remove(item)
-        self._geom.commands.remove(self._geom.commands[i])
+        self._geom.remove(self._geom.commands[i])
 
     @ property
     def menu(self):

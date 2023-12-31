@@ -16,7 +16,7 @@ def generateModel(fem, mesh, mat):
 
 
 class NGSModel:
-    def __init__(self, model, mesh, addVariables=False):
+    def __init__(self, model, mesh, addVariables=False, order=1):
         self._model = model
         self._mesh = mesh
 
@@ -26,9 +26,9 @@ class NGSModel:
 
         if addVariables:
             for eq in model.equations:
-                self.addVariable(eq.variableName, eq.variableDimension, "auto", "auto", eq.geometries)      
+                self.addVariable(eq.variableName, eq.variableDimension, "auto", "auto", eq.geometries, order=order)
 
-    def addVariable(self, name, vdim, dirichlet=None, initialValue=None, region=None, order=2):
+    def addVariable(self, name, vdim, dirichlet=None, initialValue=None, region=None, order=1):
         if initialValue is None:
             initialValue = util.generateCoefficient([0]*vdim)
         elif initialValue == "auto":
