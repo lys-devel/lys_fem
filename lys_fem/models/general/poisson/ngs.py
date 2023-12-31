@@ -14,9 +14,9 @@ class NGSPoissonModel(NGSModel):
     @property
     def bilinearform(self):
         wf = 0
-        if "J_T" in self._mat:
-            J = self._mat["J_T"]
-            detJ = self._mat["detJ_T"]
+        if "J" in self._mat:
+            J = self._mat["J"]
+            detJ = self._mat["detJ"]
         else:
             J = 1
             detJ = 1

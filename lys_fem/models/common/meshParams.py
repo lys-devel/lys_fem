@@ -6,6 +6,19 @@ from lys_fem import FEMParameter
 from lys_fem.widgets import VectorFunctionWidget
 
 
+class JacobianParams(FEMParameter):
+    def __init__(self, J = np.eye(3).tolist()):
+        self.J = J
+
+    @classmethod
+    @property
+    def name(cls):
+        return "Jacobian"
+
+    def getParameters(self, dim):
+        return {"J": self.J}
+    
+
 class InfiniteVolumeParams(FEMParameter):
     def __init__(self, abc=[1,1,1], ABC=[2,2,2], alpha=1, domain="x+"):
         self.abc = abc
@@ -21,7 +34,8 @@ class InfiniteVolumeParams(FEMParameter):
     def getParameters(self, dim):
         X, Y, Z = self._constructJ()
         x,y,z = sp.symbols("x,y,z", real=True)
-        J = [[X.diff(x), X.diff(y), X.diff(z)],[Y.diff(x), Y.diff(y), Y.diff(z)],[Z.diff(x), Z.diff(y), Z.diff(z)]]
+        #J = [[X.diff(x), X.diff(y), X.diff(z)],[Y.diff(x), Y.diff(y), Y.diff(z)],[Z.diff(x), Z.diff(y), Z.diff(z)]]
+        J = [[X.diff(x), Y.diff(x), Z.diff(x)],[X.diff(y), Y.diff(y), Z.diff(y)],[X.diff(z), Y.diff(z), Z.diff(z)]]
         return {"CoordsTransform": [X,Y,Z], "J": J}
 
     def _constructJ(self):
@@ -36,27 +50,27 @@ class InfiniteVolumeParams(FEMParameter):
 
         x,y,z = sp.symbols("x,y,z", real=True)
         if self.domain == "x+":
-            X = A-(A-a)*((a-Cb[0])/(x-Cb[0]))**alpha 
+            X = Cb[0] + (a-Cb[0])/((A-x)/(A-a))**(1/alpha)
             Y = y * (X-Cy[0]) / (x-Cy[0])
             Z = z * (X-Cz[0]) / (x-Cz[0])
         if self.domain == "x-":
-            X = -(A-(A-a)*((a-Cb[0])/(-x-Cb[0]))**alpha) 
+            X = -(Cb[0] + (a-Cb[0])/((A+x)/(A-a))**(1/alpha))
             Y = y * (-X-Cy[0]) / (-x-Cy[0])
             Z = z * (-X-Cz[0]) / (-x-Cz[0])
         elif self.domain == "y+":
-            Y = B-(B-b)*((b-Cb[1])/(y-Cb[1]))**alpha
+            Y = Cb[1] + (b-Cb[1])/((B-y)/(B-b))**(1/alpha)
             X = x * (Y-Cx[1]) / (y-Cx[1])
             Z = z * (Y-Cz[1]) / (y-Cz[1])
         elif self.domain == "y-":
-            Y = -(B-(B-b)*((b-Cb[1])/(-y-Cb[1]))**alpha)
+            Y = -(Cb[1] + (b-Cb[1])/((B+y)/(B-b))**(1/alpha))
             X = x * (-Y-Cx[1]) / (-y-Cx[1])
             Z = z * (-Y-Cz[1]) / (-y-Cz[1])
         elif self.domain == "z+":
-            Z = C-(C-c)*((c-Cb[2])/(z-Cb[2]))**alpha
+            Z = Cb[2] + (c-Cb[2])/((C-z)/(C-c))**(1/alpha)
             X = x * (Z -Cx[2]) / (z-Cx[2])
             Y = y * (Z -Cy[2]) / (z-Cy[2])
         elif self.domain == "z-":
-            Z = -(C-(C-c)*((c-Cb[2])/(-z-Cb[2]))**alpha)
+            Z = -(Cb[2] + (c-Cb[2])/((C+z)/(C-c))**(1/alpha))
             X = x * (-Z -Cx[2]) / (-z-Cx[2])
             Y = y * (-Z -Cy[2]) / (-z-Cy[2])
         return [X,Y,Z]

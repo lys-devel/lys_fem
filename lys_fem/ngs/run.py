@@ -68,6 +68,20 @@ def generateMaterial(fem, mesh):
                 J = generateCoefficient([[XY[i].Diff(x), XY[i].Diff(y)] for i in range(2)])
                 result["J_T"] = J
                 result["detJ_T"] = J[0,0]*J[1,1]  - J[0,1]*J[1,0]
+        elif key == "J":
+            J = generateCoefficient(value, mesh, default=generateCoefficient(np.eye(3).tolist()))
+            J = inv(J).Compile()
+            result["J"] = J
+            result["detJ"] = det(J).Compile()
         else:
             result[key] = generateCoefficient(value, mesh)
     return result
+
+def det(J):
+    return J[0,0]*J[1,1]*J[2,2] + J[0,1]*J[1,2]*J[2,0] + J[0,2]*J[1,0]*J[2,1] - J[0,2]*J[1,1]*J[2,0] - J[0,1]*J[1,0]*J[2,2] - J[0,0]*J[1,2]*J[2,1]
+
+def inv(J):
+    mat = [[J[1,1]*J[2,2]-J[1,2]*J[2,1], J[0,2]*J[2,1]-J[0,1]*J[2,2], J[0,1]*J[1,2]-J[0,2]*J[1,1]],
+           [J[1,2]*J[2,0]-J[1,0]*J[2,2], J[0,0]*J[2,2]-J[0,2]*J[2,0], J[0,2]*J[1,0]-J[0,0]*J[1,2]],
+           [J[1,0]*J[2,1]-J[1,1]*J[2,0], J[0,1]*J[2,0]-J[0,0]*J[2,1], J[0,0]*J[1,1]-J[0,1]*J[1,0]]]
+    return generateCoefficient(mat)/det(J)

@@ -88,13 +88,12 @@ class poisson_test(FEMTestCase):
         p.geometries.add(geometry.Sphere(0, 0, 0, 1))
         p.geometries.add(geometry.Sphere(0, 0, 0, 2))
         p.mesher.setRefinement(1)
-        p.mesher.setPartialRefinement(3, 1, 2)
 
         # model: boundary and initial conditions
         model = general.PoissonModel()
-        model.domainConditions.append(general.Source(1, geometries=[1]))
-        model.boundaryConditions.append(general.DirichletBoundary([True], geometries=[2]))
-        model.initialConditions.append(general.InitialCondition(0, geometries=[1,2]))
+        model.domainConditions.append(general.Source(1, geometries=[1,2,3,4,5,6,7,8]))
+        model.boundaryConditions.append(general.DirichletBoundary([True], geometries=[18,23,26,29,31,35,37,39]))
+        model.initialConditions.append(general.InitialCondition(0, geometries="all"))
         p.models.append(model)
 
         # solver
@@ -107,7 +106,6 @@ class poisson_test(FEMTestCase):
         def solution(r, a, r0, rho):
             return np.where(r<=a, rho*(-r**2/6+a**2/2-a**3/(3*r0)), rho*(-a**3/(3*r0)+a**3/(3*r)))
 
-
         sol = FEMSolution(".", p)
         res = sol.eval("phi", data_number=1)
         for w in res:
@@ -116,27 +114,27 @@ class poisson_test(FEMTestCase):
 
 
     def infinite_3d(self, lib):
-        return
+        r2 = 2
         p = FEMProject(3)
 
         # geometry
-        p.geometries.add(geometry.Sphere(0, 0, 0, 0.95))
+        p.geometries.add(geometry.Sphere(0, 0, 0, 0.8))
         p.geometries.add(geometry.Box(-1, -1, -1, 2, 2, 2))
-        p.geometries.add(geometry.InfiniteVolume(1, 1, 1, 2, 2, 2))
+        p.geometries.add(geometry.InfiniteVolume(1, 1, 1, r2, r2, r2))
         p.mesher.setRefinement(2)
 
-        p_Dx = general.InfiniteVolumeParams([1,1,1], [2,2,2], domain="x+")
-        p_Dy = general.InfiniteVolumeParams([1,1,1], [2,2,2], domain="y+")
-        p_Dz = general.InfiniteVolumeParams([1,1,1], [2,2,2], domain="z+")
-        m_Dx = general.InfiniteVolumeParams([1,1,1], [2,2,2], domain="x-")
-        m_Dy = general.InfiniteVolumeParams([1,1,1], [2,2,2], domain="y-")
-        m_Dz = general.InfiniteVolumeParams([1,1,1], [2,2,2], domain="z-")
-        Dx1 = Material([p_Dx], geometries=[6])
-        Dx2 = Material([m_Dx], geometries=[7])
-        Dy1 = Material([p_Dy], geometries=[4])
-        Dy2 = Material([m_Dy], geometries=[5])
-        Dz1 = Material([p_Dz], geometries=[2])
-        Dz2 = Material([m_Dz], geometries=[3])
+        p_Dx = general.InfiniteVolumeParams([1,1,1], [r2,r2,r2], domain="x+")
+        p_Dy = general.InfiniteVolumeParams([1,1,1], [r2,r2,r2], domain="y+")
+        p_Dz = general.InfiniteVolumeParams([1,1,1], [r2,r2,r2], domain="z+")
+        m_Dx = general.InfiniteVolumeParams([1,1,1], [r2,r2,r2], domain="x-")
+        m_Dy = general.InfiniteVolumeParams([1,1,1], [r2,r2,r2], domain="y-")
+        m_Dz = general.InfiniteVolumeParams([1,1,1], [r2,r2,r2], domain="z-")
+        Dx1 = Material([p_Dx], geometries=[7])
+        Dx2 = Material([m_Dx], geometries=[8])
+        Dy1 = Material([p_Dy], geometries=[5])
+        Dy2 = Material([m_Dy], geometries=[6])
+        Dz1 = Material([p_Dz], geometries=[3])
+        Dz2 = Material([m_Dz], geometries=[4])
         p.materials.append(Dx1)
         p.materials.append(Dy1)
         p.materials.append(Dz1)
@@ -147,8 +145,8 @@ class poisson_test(FEMTestCase):
         # model: boundary and initial conditions
         model = general.PoissonModel()
         model.initialConditions.append(general.InitialCondition(0, geometries="all"))
-        model.domainConditions.append(general.Source(1, geometries=[1]))
-        model.boundaryConditions.append(general.DirichletBoundary([True], geometries=[12,17,20,23,24,25]))
+        model.domainConditions.append(general.Source(1, geometries=[1,2,9,10,11,12,13,14]))
+        model.boundaryConditions.append(general.DirichletBoundary([True], geometries=[31,36,39,42,43,44]))
         p.models.append(model)
 
         # solver
@@ -166,4 +164,4 @@ class poisson_test(FEMTestCase):
         res = sol.eval("phi", data_number=1)
         for w in [res[0]]:
             r = np.sqrt(w.x[:,0]**2+w.x[:,1]**2+w.x[:,2]**2)
-            self.assert_allclose(w.data, -solution(r, 0.95, 1), atol=0.01, rtol=0)
+            self.assert_allclose(w.data, -solution(r, 0.8, 1), atol=0.01, rtol=0)

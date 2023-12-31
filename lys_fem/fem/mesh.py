@@ -68,6 +68,8 @@ class OccMesher(object):
         for _ in range(self._refine):
             model.mesh.refine()
 
+        model.mesh.optimize()
+
     def __getTransform(self, model, sdim, e1, e2):
         """
         Consider only parallel shift.

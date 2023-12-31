@@ -1,4 +1,4 @@
-
+import numpy as np
 from lys_fem import addGeometry, FEMGeometry
 from .geometryGUI import BoxGUI, SphereGUI, RectGUI, LineGUI, DiskGUI, RectFrustumGUI, InfiniteVolumeGUI, QuadGUI, InfinitePlaneGUI
 
@@ -24,7 +24,14 @@ class Sphere(FEMGeometry):
         self.args = [x, y, z, r]
 
     def execute(self, model):
-        model.occ.addSphere(*self.args)
+        model.occ.addSphere(*self.args, angle2=0, angle3=np.pi/2)
+        model.occ.addSphere(*self.args, angle2=0, angle3=np.pi)
+        model.occ.addSphere(*self.args, angle2=0, angle3=3*np.pi/2)
+        model.occ.addSphere(*self.args, angle2=0, angle3=2*np.pi)
+        model.occ.addSphere(*self.args, angle1=0, angle3=np.pi/2)
+        model.occ.addSphere(*self.args, angle1=0, angle3=np.pi)
+        model.occ.addSphere(*self.args, angle1=0, angle3=3*np.pi/2)
+        model.occ.addSphere(*self.args, angle1=0, angle3=2*np.pi)
 
     @classmethod
     @property

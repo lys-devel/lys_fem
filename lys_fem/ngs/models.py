@@ -28,7 +28,7 @@ class NGSModel:
             for eq in model.equations:
                 self.addVariable(eq.variableName, eq.variableDimension, "auto", "auto", eq.geometries)      
 
-    def addVariable(self, name, vdim, dirichlet=None, initialValue=None, region=None, order=1):
+    def addVariable(self, name, vdim, dirichlet=None, initialValue=None, region=None, order=2):
         if initialValue is None:
             initialValue = util.generateCoefficient([0]*vdim)
         elif initialValue == "auto":

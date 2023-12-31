@@ -8,4 +8,5 @@ class Source(DomainCondition):
         return Source([0]*model.variableDimension())
 
     def widget(self, fem, canvas):
-        pass
+        from .domainWidgets import SourceWidget
+        return SourceWidget(self, fem, canvas)
