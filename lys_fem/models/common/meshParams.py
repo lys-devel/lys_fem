@@ -89,8 +89,7 @@ class InfinitePlaneParams(FEMParameter):
         return "Infinite Plane (2D)"
 
     def getParameters(self, dim):
-        X, Y = self._constructJ()
-        return {"CoordsTransform": [X,Y]}
+        return {"J": self._constructJ()}
 
     def _constructJ(self):
         a,b = self.ab
@@ -103,18 +102,19 @@ class InfinitePlaneParams(FEMParameter):
 
         x,y = sp.symbols("x,y", real=True)
         if self.domain == "x+":
-            X = A-(A-a)*((a-Cb[0])/(x-Cb[0]))**alpha 
+            X = Cb[0] + (a-Cb[0])/((A-x)/(A-a))**(1/alpha)
             Y = y * (X-Cy[0]) / (x-Cy[0])
         if self.domain == "x-":
-            X = -(A-(A-a)*((a-Cb[0])/(-x-Cb[0]))**alpha) 
+            X = -(Cb[0] + (a-Cb[0])/((A+x)/(A-a))**(1/alpha))
             Y = y * (-X-Cy[0]) / (-x-Cy[0])
         elif self.domain == "y+":
-            Y = B-(B-b)*((b-Cb[1])/(y-Cb[1]))**alpha
+            Y = Cb[1] + (b-Cb[1])/((B-y)/(B-b))**(1/alpha)
             X = x * (Y-Cx[1]) / (y-Cx[1])
         elif self.domain == "y-":
-            Y = -(B-(B-b)*((b-Cb[1])/(-y-Cb[1]))**alpha)
+            Y = -(Cb[1] + (b-Cb[1])/((B+y)/(B-b))**(1/alpha))
             X = x * (-Y-Cx[1]) / (-y-Cx[1])
-        return [X,Y]
+        J = sp.Matrix([[X.diff(x), Y.diff(x)],[X.diff(y), Y.diff(y)]]).inv()
+        return [[J[i,j] for j in range(2)] for i in range(2)]
 
     def widget(self):
         return _InfinitePlaneWidget(self)
