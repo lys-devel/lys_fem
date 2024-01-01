@@ -38,7 +38,7 @@ class Demagnetization(DomainCondition):
     className = "Demagnetization"
 
     def __init__(self, phi="phi", *args, **kwargs):
-        super().__init__(*args, **kwargs):
+        super().__init__(*args, **kwargs)
         self_phi = phi
 
     @classmethod

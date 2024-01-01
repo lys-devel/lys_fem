@@ -1,4 +1,5 @@
 import numpy as np
+import sympy as sp
 from lys_fem import addGeometry, FEMGeometry
 from .geometryGUI import BoxGUI, SphereGUI, RectGUI, LineGUI, DiskGUI, RectFrustumGUI, InfiniteVolumeGUI, QuadGUI, InfinitePlaneGUI
 
@@ -92,6 +93,63 @@ class InfiniteVolume(FEMGeometry):
     def widget(self):
         return InfiniteVolumeGUI(self)
 
+    def generateParameters(self, model):
+        a,b,c,A,B,C = self.args
+        ids = [-1, -1, -1, -1, -1, -1]
+        for dim, grp in model.getPhysicalGroups(3):
+            for tag in model.getEntitiesForPhysicalGroup(dim, grp):
+                if model.isInside(dim, tag, [(a+A)/2, 0, 0]):
+                    ids[0] = grp
+                if model.isInside(dim, tag, [-(a+A)/2, 0, 0]):
+                    ids[1] = grp
+                if model.isInside(dim, tag, [0, (b+B)/2, 0]):
+                    ids[2] = grp
+                if model.isInside(dim, tag, [0, -(b+B)/2, 0]):
+                    ids[3] = grp
+                if model.isInside(dim, tag, [0, 0, (c+C)/2]):
+                    ids[4] = grp
+                if model.isInside(dim, tag, [0, 0, -(c+C)/2]):
+                    ids[5] = grp
+        J = {ids[i]: self._constructJ(i) for i in range(6)}
+        return {"J": J}
+
+    def _constructJ(self, domain):
+        a,b,c,A,B,C = self.args
+        alpha = 1
+
+        Cx = np.array([0, b-a*(B-b)/(A-a), c-a*(C-c)/(A-a)])
+        Cy = np.array([a-b*(A-a)/(B-b), 0, c-b*(C-c)/(B-b)])
+        Cz = np.array([a-c*(A-a)/(C-c), b-c*(B-b)/(C-c), 0])
+        Cb = (Cx + Cy + Cz)/3
+
+        x,y,z = sp.symbols("x,y,z", real=True)
+        if domain == 0:
+            X = Cb[0] + (a-Cb[0])/((A-x)/(A-a))**(1/alpha)
+            Y = y * (X-Cy[0]) / (x-Cy[0])
+            Z = z * (X-Cz[0]) / (x-Cz[0])
+        elif domain == 1:
+            X = -(Cb[0] + (a-Cb[0])/((A+x)/(A-a))**(1/alpha))
+            Y = y * (-X-Cy[0]) / (-x-Cy[0])
+            Z = z * (-X-Cz[0]) / (-x-Cz[0])
+        elif domain == 2:
+            Y = Cb[1] + (b-Cb[1])/((B-y)/(B-b))**(1/alpha)
+            X = x * (Y-Cx[1]) / (y-Cx[1])
+            Z = z * (Y-Cz[1]) / (y-Cz[1])
+        elif domain == 3:
+            Y = -(Cb[1] + (b-Cb[1])/((B+y)/(B-b))**(1/alpha))
+            X = x * (-Y-Cx[1]) / (-y-Cx[1])
+            Z = z * (-Y-Cz[1]) / (-y-Cz[1])
+        elif domain == 4:
+            Z = Cb[2] + (c-Cb[2])/((C-z)/(C-c))**(1/alpha)
+            X = x * (Z -Cx[2]) / (z-Cx[2])
+            Y = y * (Z -Cy[2]) / (z-Cy[2])
+        elif domain == 5:
+            Z = -(Cb[2] + (c-Cb[2])/((C+z)/(C-c))**(1/alpha))
+            X = x * (-Z -Cx[2]) / (-z-Cx[2])
+            Y = y * (-Z -Cy[2]) / (-z-Cy[2])
+        J = sp.Matrix([[X.diff(x), Y.diff(x), Z.diff(x)],[X.diff(y), Y.diff(y), Z.diff(y)],[X.diff(z), Y.diff(z), Z.diff(z)]]).inv()
+        return [[J[i,j] for j in range(3)] for i in range(3)]
+
 
 class Rect(FEMGeometry):
     def __init__(self, x=0, y=0, z=0, dx=1, dy=1):
@@ -153,6 +211,47 @@ class InfinitePlane(FEMGeometry):
         Quad((a,-b,0), (-a,-b,0), (-A,-B,0),(A,-B,0)).execute(model)
         Quad((a,b,0), (a,-b,0), (A,-B,0),(A,B,0)).execute(model)
         Quad((-a,b,0), (-a,-b,0), (-A,-B,0),(-A,B,0)).execute(model)
+
+    def generateParameters(self, model):
+        a,b,A,B = self.args
+        ids = [-1, -1, -1, -1]
+        for dim, grp in model.getPhysicalGroups(2):
+            for tag in model.getEntitiesForPhysicalGroup(dim, grp):
+                if model.isInside(dim, tag, [(a+A)/2, 0, 0]):
+                    ids[0] = grp
+                if model.isInside(dim, tag, [-(a+A)/2, 0, 0]):
+                    ids[1] = grp
+                if model.isInside(dim, tag, [0, (b+B)/2, 0]):
+                    ids[2] = grp
+                if model.isInside(dim, tag, [0, -(b+B)/2, 0]):
+                    ids[3] = grp
+        J = {ids[i]: self._constructJ(i) for i in range(4)}
+        return {"J": J}
+
+    def _constructJ(self, domain):
+        a,b = self.ab
+        A,B = self.AB
+        alpha = self.alpha
+
+        Cx = np.array([0, b-a*(B-b)/(A-a)])
+        Cy = np.array([a-b*(A-a)/(B-b), 0])
+        Cb = (Cx + Cy)/2
+
+        x,y = sp.symbols("x,y", real=True)
+        if domain == 0:
+            X = Cb[0] + (a-Cb[0])/((A-x)/(A-a))**(1/alpha)
+            Y = y * (X-Cy[0]) / (x-Cy[0])
+        if domain == 1:
+            X = -(Cb[0] + (a-Cb[0])/((A+x)/(A-a))**(1/alpha))
+            Y = y * (-X-Cy[0]) / (-x-Cy[0])
+        elif domain == 2:
+            Y = Cb[1] + (b-Cb[1])/((B-y)/(B-b))**(1/alpha)
+            X = x * (Y-Cx[1]) / (y-Cx[1])
+        elif domain == 3:
+            Y = -(Cb[1] + (b-Cb[1])/((B+y)/(B-b))**(1/alpha))
+            X = x * (-Y-Cx[1]) / (-y-Cx[1])
+        J = sp.Matrix([[X.diff(x), Y.diff(x)],[X.diff(y), Y.diff(y)]]).inv()
+        return [[J[i,j] for j in range(2)] for i in range(2)]
 
     @classmethod
     @property

@@ -68,6 +68,13 @@ class GeometryGenerator:
         self._updated=False
         return self._model
 
+    def geometryParameters(self):
+        m = self.generateGeometry()
+        result = {}
+        for c in self.commands:
+            result.update(c.generateParameters(m))
+        return result
+
     def geometryAttributes(self, dim):
         m = self.generateGeometry()
         return [tag for d, tag  in m.getPhysicalGroups(dim)]
@@ -111,6 +118,9 @@ class FEMGeometry(object):
         for t in sum(geometryCommands.values(), []):
             if t.type == d["type"]:
                 return t(*d["args"])
+
+    def generateParameters(self, model):
+        return {}
 
 
 class GeometrySelection(FEMObject):

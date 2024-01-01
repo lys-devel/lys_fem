@@ -47,6 +47,7 @@ def run(fem, run=True):
 
 def generateMaterial(fem, mesh):
     mats = fem.materials.materialDict(mesh.dim)
+    mats.update(fem.geometries.geometryParameters())
     result = {}
     for key, value in mats.items():
         if key == "J":
