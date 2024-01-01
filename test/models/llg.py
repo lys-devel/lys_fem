@@ -19,12 +19,13 @@ class LLG_test(FEMTestCase):
 
         # material
         param = llg.LLGParameters(0)
-        mat1 = Material([param], geometries=[1])
+        mat1 = Material([param], geometries="all")
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
         model = llg.LLGModel()
-        model.initialConditions.append(llg.InitialCondition([1/np.sqrt(2), 0, 1/np.sqrt(2)], geometries=[1]))
+        model.initialConditions.append(llg.InitialCondition([1/np.sqrt(2), 0, 1/np.sqrt(2)], geometries="all"))
+        model.domainConditions.append(llg.ExternalMagneticField([0,0,1], geometries="all"))
         p.models.append(model)
 
         # solver
@@ -56,6 +57,7 @@ class LLG_test(FEMTestCase):
         # model: boundary and initial conditions
         model = llg.LLGModel()
         model.initialConditions.append(llg.InitialCondition([1, 0, 0], geometries=[1]))
+        model.domainConditions.append(llg.ExternalMagneticField([0,0,1], geometries="all"))
         p.models.append(model)
 
         # solver

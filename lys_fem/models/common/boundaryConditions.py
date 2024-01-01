@@ -7,10 +7,6 @@ class NeumannBoundary(BoundaryCondition):
     def default(cls, model):
         return NeumannBoundary([0]*model.variableDimension())
 
-    def widget(self, fem, canvas):
-        from .boundaryWidgets import NeumannBoundaryWidget
-        return NeumannBoundaryWidget(self, fem, canvas)
-
 
 class DirichletBoundary(BoundaryCondition):
     className = "Dirichlet Boundary"

@@ -97,8 +97,9 @@ class ConditionBase(FEMObject):
     def default(self, model):
         raise NotImplementedError
 
-    def widget(self, fem, canvas):
-        raise NotImplementedError
+    def widget(self, fem, canvas, title="Value"):
+        from lys_fem.gui import ConditionWidget
+        return ConditionWidget(self, fem, canvas, title)
 
 
 class DomainCondition(ConditionBase):
@@ -119,7 +120,6 @@ class InitialCondition(ConditionBase):
     @classmethod
     def default(cls, model):
         return InitialCondition([0]*model.variableDimension())
-    
-    def widget(self, fem, canvas):
-        from lys_fem.gui import InitialConditionWidget
-        return InitialConditionWidget(self, fem, canvas)
+
+    def widget(self, fem, canvas, title="Initial Value"):
+        super().widget(fem, canvas, title)

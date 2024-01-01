@@ -6,7 +6,3 @@ class Source(DomainCondition):
     @classmethod
     def default(cls, model):
         return Source([0]*model.variableDimension())
-
-    def widget(self, fem, canvas):
-        from .domainWidgets import SourceWidget
-        return SourceWidget(self, fem, canvas)
