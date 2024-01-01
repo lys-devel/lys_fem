@@ -32,3 +32,19 @@ class ExternalMagneticField(DomainCondition):
 
     def widget(self, fem, canvas):
         return super().widget(fem, canvas, title="Magnetic Field (T)")
+
+
+class Demagnetization(DomainCondition):
+    className = "Demagnetization"
+
+    def __init__(self, phi="phi", *args, **kwargs):
+        super().__init__(*args, **kwargs):
+        self_phi = phi
+
+    @classmethod
+    def default(cls, model):
+        return Demagnetization()
+
+    def widget(self, fem, canvas):
+        from lys.Qt import QtWidgets
+        return QtWidgets.QWidget()

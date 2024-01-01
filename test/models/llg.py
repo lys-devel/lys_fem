@@ -2,7 +2,7 @@ import numpy as np
 
 from lys_fem import geometry
 from lys_fem.fem import FEMProject, TimeDependentSolver, StationarySolver, FEMSolution, Material
-from lys_fem.models import llg
+from lys_fem.models import llg, general
 
 from ..base import FEMTestCase
 
