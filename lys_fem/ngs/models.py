@@ -84,9 +84,6 @@ class NGSModel:
     def isNonlinear(self):
         return False
 
-    def TnT(self):
-        return util.prod(self.spaces).TnT()
-
     @property
     def name(self):
         return self._model.name
@@ -99,11 +96,17 @@ class CompositeModel:
         self._materials = mats
         self._fes = self.space
 
+        if len(self.variableNames) == 1:
+            tnt = {self.variableNames[0]: self._fes.TnT()}
+        else:
+            tnt = {name: (test, trial) for name, test, trial in zip(self.variableNames, *self._fes.TnT())}
+        sols = {name: sol for name, sol in zip(self.variableNames, self._sols)}
+
         self._bilinear = BilinearForm(self._fes)
-        self._bilinear += self.bilinearform
+        self._bilinear += sum([m.bilinearform(tnt, sols) for m in self._models])
 
         self._linear = LinearForm(self._fes)
-        self._linear += self.linearform
+        self._linear += sum([m.linearform(tnt, sols) for m in self._models])
 
         self._dti_prev = None
 
@@ -154,14 +157,6 @@ class CompositeModel:
         return self._bilinear.mat.Inverse(self._fes.FreeDofs(), "pardiso")
 
     @property
-    def bilinearform(self):
-        return sum(m.bilinearform for m in self._models)
-
-    @property
-    def linearform(self):
-        return sum(m.linearform for m in self._models)
-
-    @property
     def space(self):
         spaces = []
         for m in self._models:
@@ -181,6 +176,13 @@ class CompositeModel:
         for m in self._models:
             sols.extend(m.sol)
         return sols
+
+    @property
+    def variableNames(self):
+        result = []
+        for m in self._models:
+            result.extend(m.variableNames)
+        return result
 
     @property
     def solution(self):

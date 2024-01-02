@@ -11,8 +11,7 @@ class NGSPoissonModel(NGSModel):
         self._mesh = mesh
         self._mat = mat
 
-    @property
-    def bilinearform(self):
+    def bilinearform(self, tnt, sols):
         wf = 0
         if "J" in self._mat:
             J = self._mat["J"]
@@ -20,16 +19,15 @@ class NGSPoissonModel(NGSModel):
         else:
             J = 1
             detJ = 1
-        for sp, eq in zip(self.spaces, self._model.equations):
-            u,v = sp.TnT()
+        for eq in self._model.equations:
+            u,v = tnt[eq.variableName]
             wf += ((J*grad(u))*(J*grad(v)))/detJ * dx
         return wf
     
-    @property
-    def linearform(self):
+    def linearform(self, tnt, sols):
         wf = util.generateCoefficient(0) * dx
-        for sp, eq in zip(self.spaces, self._model.equations):
-            u,v =sp.TnT()
+        for eq in self._model.equations:
+            u,v = tnt[eq.variableName]
             if self._model.domainConditions.have(Source):
                 source = self._model.domainConditions.get(Source)
                 f = util.generateGeometryCoefficient(self._mesh, source)

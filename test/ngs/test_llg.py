@@ -8,4 +8,5 @@ class ngs_LLG_test(LLG_test):
     def test_stationary(self):
         self.stationary(ngs)
 
-
+    def test_demagnetization(self):
+        self.demagnetization(ngs)

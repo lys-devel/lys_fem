@@ -4,7 +4,7 @@ from lys_fem.ngs import addNGSModel
 from ..common import InitialCondition
 
 from .material import LLGParameters
-from .model import LLGModel, ExternalMagneticField, Demagnetization
+from .model import LLGModel, LLGEquation, ExternalMagneticField, Demagnetization
 from .mfem import MFEMLLGModel
 from .ngs import NGSLLGModel
 

@@ -10,23 +10,22 @@ class NGSHeatConductionModel(NGSModel):
         self._model = model
         self._mat = mat
 
-    @property
-    def bilinearform(self):
+    def bilinearform(self, tnt, sols):
         Cv, k = self._mat["C_v"], self._mat["k"]
         wf = 0
-        for sp, eq in zip(self.spaces, self._model.equations):
-            u,v =sp.TnT()
+        for eq in self._model.equations:
+            u,v = tnt[eq.variableName]
             gu, gv = grad(u), grad(v)
             wf += (Cv*u*v * dti + k * (gu*gv)) * dx(definedon=util.generateGeometry(eq.geometries))
 
         return wf
     
-    @property
-    def linearform(self):
+    def linearform(self, tnt, sols):
         Cv = self._mat["C_v"]
         wf = 0
-        for sp, u0, eq in zip(self.spaces, self.sol, self._model.equations):
-            u,v =sp.TnT()
+        for eq in self._model.equations:
+            u,v = tnt[eq.variableName]
+            u0 = sols[eq.variableName]
             wf += Cv * u0 * v * dti * dx(definedon=util.generateGeometry(eq.geometries))
         
             if self._model.boundaryConditions.have(NeumannBoundary):

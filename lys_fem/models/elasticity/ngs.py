@@ -15,13 +15,13 @@ class NGSElasticModel(NGSModel):
         self._vdim = self._model.variableDimension()
         self._C = self.__getC(mesh.dim, self._mat["C"])
 
-    @property
-    def bilinearform(self):
+    def bilinearform(self, tnt, sols):
         C, rho = self._C, self._mat["rho"]
 
         wf = 0
-        for sp, eq in zip(self.spaces, self._model.equations):
-            u,v =sp.TnT()
+        for eq in self._model.equations:
+            u,v = tnt[eq.variableName]
+            print(u,v)
             gu, gv = grad(u), grad(v)
             if self._vdim == 1:
                 wf += gu * C * gv * dx
@@ -29,11 +29,10 @@ class NGSElasticModel(NGSModel):
                 wf +=  Einsum("ij,ijkl,kl", gu, C, gv) * dx
         return wf
     
-    @property
-    def linearform(self):
+    def linearform(self, tnt, sols):
         wf = 0
-        for sp, u0, eq in zip(self.spaces, self.sol, self._model.equations):
-            u,v =sp.TnT()
+        for eq in self._model.equations:
+            u,v = tnt[eq.variableName]
             wf += util.generateCoefficient([0]*self._vdim) * v * dx
         return wf
 
