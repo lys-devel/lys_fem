@@ -23,6 +23,14 @@ class LLGEquation(Equation):
         super().__init__(varName, **kwargs)
 
 
+class GilbertDamping(DomainCondition):
+    className = "GilbertDamping"
+
+    @classmethod
+    def default(cls, model):
+        return cls()
+    
+
 class ExternalMagneticField(DomainCondition):
     className = "External Magnetic Field"
 
@@ -34,12 +42,19 @@ class ExternalMagneticField(DomainCondition):
         return super().widget(fem, canvas, title="Magnetic Field (T)")
 
 
+class UniaxialAnisotropy(DomainCondition):
+    className = "UniaxialAnisotropy"
+
+    @classmethod
+    def default(cls, model):
+        return cls()
+
+
 class Demagnetization(DomainCondition):
     className = "Demagnetization"
 
     def __init__(self, phi="phi", *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self_phi = phi
+        super().__init__(values=phi, *args, **kwargs)
 
     @classmethod
     def default(cls, model):

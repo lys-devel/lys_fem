@@ -4,10 +4,11 @@ from lys_fem.widgets import ScalarFunctionWidget
 
 
 class LLGParameters(FEMParameter):
-    def __init__(self, alpha=0, Ms=8e5, Aex=1e-11):
+    def __init__(self, alpha=0, Ms=8e5, Aex=1e-11, Ku=[0,0,1]):
         self.alpha = alpha
         self.Ms = Ms
         self.Aex = Aex
+        self.Ku = Ku
 
     @classmethod
     @property
@@ -15,7 +16,7 @@ class LLGParameters(FEMParameter):
         return "LLG"
 
     def getParameters(self, dim):
-        return {"alpha": self.alpha, "M_s": self.Ms, "A_ex":self.Aex}
+        return {"alpha": self.alpha, "M_s": self.Ms, "A_ex":self.Aex, "Ku": self.Ku}
 
     def widget(self):
         return _LLGParamsWidget(self)

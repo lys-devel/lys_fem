@@ -83,7 +83,7 @@ class _NewtonSolver:
     def __init__(self, max_iter=30):
         self._max_iter = max_iter
 
-    def solve(self, F, x, eps=1e-10):
+    def solve(self, F, x, eps=1e-5):
         if not F.isNonlinear:
             self._max_iter=1
         dx = x.vec.CreateVector()
@@ -91,7 +91,7 @@ class _NewtonSolver:
             Fx = F(x)
             dx.data = F.Jacobian(x) * Fx
             x.vec.data -= dx
-            R = sqrt(abs(Fx.InnerProduct(dx)))
+            R = sqrt(dx.InnerProduct(dx)/x.vec.InnerProduct(x.vec))
             if R < eps:
                 print("Newton", i)
                 return x
