@@ -12,6 +12,7 @@ class FEMProject:
 
     def saveAsDictionary(self):
         d = {"dimension": self._dim}
+        d["scaling"] = self._scaling._norms
         d["geometries"] = self._geom.saveAsDictionary()
         d["mesh"] = self._mesher.saveAsDictionary()
         d["materials"] = [m.saveAsDictionary() for m in self._materials]
@@ -22,6 +23,7 @@ class FEMProject:
 
     def reset(self, dim=3):
         self._dim = dim
+        self._scaling = Scaling()
         self._geom = GeometryGenerator()
         self._mesher = OccMesher()
         self._materials = Materials(self, [Material(objName="Material1")])
@@ -31,6 +33,8 @@ class FEMProject:
 
     def loadFromDictionary(self, d):
         self._dim = d.get("dimension", 3)
+        if "scaling" in d:
+            self._scaling = Scaling(*d["scaling"])
         if "geometries" in d:
             self._geom = GeometryGenerator.loadFromDictionary(d["geometries"])
         if "mesh" in d:
@@ -55,6 +59,10 @@ class FEMProject:
     @property
     def dimension(self):
         return self._dim
+    
+    @property
+    def scaling(self):
+        return self._scaling
 
     @property
     def geometries(self):
@@ -98,3 +106,27 @@ class FEMProject:
         return mesher.getMeshWave(self._geom.generateGeometry(), dim=dim)
 
 
+class Scaling:
+    def __init__(self, length=1, time=None, mass=None, current=None, temperature=None, amount=None, luminous=None):
+        self.set(length, time, mass, current, temperature, amount, luminous)
+
+    def set(self, length=1, time=None, mass=None, current=None, temperature=None, amount=None, luminous=None):
+        if time is None:
+            time = length
+        if mass is None:
+            mass = length**3
+        if current is None:
+            current = 1
+        if temperature is None:
+            temperature = 1
+        if amount is None:
+            amount = 1
+        if luminous is None:
+            luminous = 1
+        self._norms = [length, time, mass, current, temperature, amount, luminous]
+
+    def getScaling(self, m=0, s=0, kg=0, A=0, K=0, mol=0, cd=0):
+        result = 1
+        for unit, order in zip(self._norms, [m,s,kg,A,K,mol,cd]):
+            result *= unit**order
+        return result
