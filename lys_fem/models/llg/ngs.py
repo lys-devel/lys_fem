@@ -8,20 +8,26 @@ class NGSLLGModel(NGSModel):
         self._model = model
         self._mat = mat
         for eq in model.equations:
-            self.addVariable(eq.variableName, eq.variableDimension, "auto", "auto", eq.geometries)
-            self.addVariable(eq.variableName+"_lam", 1, region=eq.geometries)
+            self.addVariable(eq.variableName, eq.variableDimension, "auto", "auto", eq.geometries, order=2)
+            self.addVariable(eq.variableName+"_lam", 1, region=eq.geometries, order=2)
 
     def bilinearform(self, tnt, sols):
         g = util.generateCoefficient(1.760859770e11)
         Ms = self._mat["M_s"]
+        A = 2*self._mat["A_ex"] * g / Ms
 
         wf = 0
         for eq in self._model.equations:
             m, test_m = tnt[eq.variableName]
             lam, test_lam = tnt[eq.variableName+"_lam"]
             m0 = sols[eq.variableName]
+
             wf += m*test_m*dti*dx 
             wf += (2*lam*m * test_m + (m*m-1)*test_lam)*dx
+            # Exchange term
+            wf += -A * (m[1]*grad(m)[2] - m[2]*grad(m)[1]) * test_m[0] * dx
+            wf += -A * (m[2]*grad(m)[0] - m[0]*grad(m)[2]) * test_m[1] * dx
+            wf += -A * (m[0]*grad(m)[1] - m[1]*grad(m)[0]) * test_m[2] * dx
 
             if self._model.domainConditions.have(GilbertDamping):
                 alpha = self._mat["alpha"]
