@@ -44,3 +44,13 @@ class FEMObjectList(list, FEMObject):
     def append(self, item):
         super().append(item)
         item.setParent(self)
+
+
+class FEMCoefficient(dict):
+    def __init__(self, value={}, geomType="Domain"):
+        super().__init__(value)
+        self._type = geomType
+
+    @property
+    def geometryType(self):
+        return self._type

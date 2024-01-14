@@ -35,8 +35,9 @@ class NGSLLGModel(NGSModel):
                     region = self._mesh.Materials(util.generateGeometry(gil.geometries))
                     wf += -alpha * util.CrossProduct(m, m-m0)*dti*test_m*dx(definedon=region)
 
-            if self._model.domainConditions.have(ExternalMagneticField):
-                B = util.generateGeometryCoefficient(self._mesh, self._model.domainConditions.get(ExternalMagneticField))
+            c = self._model.domainConditions.coef(ExternalMagneticField)
+            if c is not None:
+                B = util.generateCoefficient(c, self._mesh)
                 wf += g*util.CrossProduct(m, B)*test_m*dx(definedon=util.generateGeometry(eq.geometries))
 
             if self._model.domainConditions.have(UniaxialAnisotropy):

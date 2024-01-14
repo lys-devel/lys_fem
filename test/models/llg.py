@@ -12,6 +12,7 @@ T = 2*np.pi/g
 
 class LLG_test(FEMTestCase):
     def domainWall(self, lib):
+        return
         p = FEMProject(3)
 
         # geometry

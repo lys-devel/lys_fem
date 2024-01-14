@@ -28,7 +28,8 @@ class NGSHeatConductionModel(NGSModel):
             u0 = sols[eq.variableName]
             wf += Cv * u0 * v * dti * dx(definedon=util.generateGeometry(eq.geometries))
         
-            if self._model.boundaryConditions.have(NeumannBoundary):
-                f = util.generateGeometryCoefficient(self.mesh, self._model.boundaryConditions.get(NeumannBoundary))
+            c = self._model.boundaryConditions.coef(NeumannBoundary)
+            if c is not None:
+                f = util.generateCoefficient(c, self.mesh)
                 wf += f * v * ds
         return wf

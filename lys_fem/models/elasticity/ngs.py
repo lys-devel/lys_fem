@@ -21,7 +21,6 @@ class NGSElasticModel(NGSModel):
         wf = 0
         for eq in self._model.equations:
             u,v = tnt[eq.variableName]
-            print(u,v)
             gu, gv = grad(u), grad(v)
             if self._vdim == 1:
                 wf += gu * C * gv * dx

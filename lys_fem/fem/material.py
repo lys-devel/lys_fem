@@ -1,5 +1,5 @@
 
-from .base import FEMObject, FEMObjectList
+from .base import FEMObject, FEMObjectList, FEMCoefficient
 from .geometry import GeometrySelection
 
 materialParameters = {}
@@ -53,7 +53,7 @@ class Materials(FEMObjectList):
 
     def __generateCoefForParameter(self, pname, group, dim):
         #coefs = {"default": self.defaultParameter(group, dim)[pname]}
-        coefs = {}
+        coefs = FEMCoefficient(geomType="Domain")
         for m in self:
             p = m[group]
             if p is not None:

@@ -32,7 +32,7 @@ class NGSModel:
         if initialValue is None:
             initialValue = util.generateCoefficient([0]*vdim)
         elif initialValue == "auto":
-            initialValue = util.generateGeometryCoefficient(self._mesh, self._model.initialConditions)
+            initialValue = util.generateCoefficient(self._model.initialConditions.coef(), self._mesh)
 
         kwargs = {}
         if dirichlet == "auto":

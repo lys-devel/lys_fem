@@ -28,8 +28,8 @@ class NGSPoissonModel(NGSModel):
         wf = util.generateCoefficient(0) * dx
         for eq in self._model.equations:
             u,v = tnt[eq.variableName]
-            if self._model.domainConditions.have(Source):
-                source = self._model.domainConditions.get(Source)
-                f = util.generateGeometryCoefficient(self._mesh, source)
+            c = self._model.domainConditions.coef(Source)
+            if c is not None:
+                f = util.generateCoefficient(c, self._mesh)
                 wf += -f*v*dx
         return wf

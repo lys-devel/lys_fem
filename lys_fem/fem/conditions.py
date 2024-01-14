@@ -1,8 +1,24 @@
-from .base import FEMObject, FEMObjectList
+from .base import FEMObject, FEMObjectList, FEMCoefficient
 from .geometry import GeometrySelection
 
 
 class ModelConditionBase(FEMObjectList):
+    def get(self, cls):
+        return [condition for condition in self if isinstance(condition, cls)]
+    
+    def have(self, cls):
+        return len(self.get(cls)) > 0
+
+    def coef(self, cls):
+        if not self.have(cls):
+            return None
+        coefs = {}
+        for c in self.get(cls):
+            for d in c.geometries:
+                coefs[d] = c.values
+            type = c.geometries.geometryType
+        return FEMCoefficient(coefs, type)
+
     def saveAsDictionary(self):
         return [item.saveAsDictionary() for item in self]
 
@@ -18,12 +34,6 @@ class ModelConditionBase(FEMObjectList):
 
 
 class DomainConditions(ModelConditionBase):
-    def get(self, cls):
-        return [condition for condition in self if isinstance(condition, cls)]
-    
-    def have(self, cls):
-        return len(self.get(cls)) > 0
-
     def append(self, condition):
         if condition.objName is None:
             names_used = [c.objName for c in self.parent.domainConditions]
@@ -35,12 +45,6 @@ class DomainConditions(ModelConditionBase):
 
 
 class BoundaryConditions(ModelConditionBase):
-    def get(self, cls):
-        return [condition for condition in self if isinstance(condition, cls)]
-
-    def have(self, cls):
-        return len(self.get(cls)) > 0
-
     def append(self, condition):
         if condition.objName is None:
             names_used = [c.objName for c in self.parent.boundaryConditions]
@@ -60,6 +64,9 @@ class InitialConditions(ModelConditionBase):
                 i += 1
             condition.objName = condition.className + str(i)
         super().append(condition)
+
+    def coef(self):
+        return super().coef(InitialCondition)
 
 
 class ConditionBase(FEMObject):

@@ -4,6 +4,8 @@ import numpy as np
 import ngsolve
 from ngsolve import x,y,z, CoefficientFunction
 from ngsolve.fem import Einsum
+
+from lys_fem.fem import FEMCoefficient
 from ..models.common import DirichletBoundary
 
 def prod(args):
@@ -35,16 +37,9 @@ def generateDirichletCondition(model):
     return list(bdr_dir.values())
 
 
-def generateGeometryCoefficient(mesh, conditions):
-    coefs = {}
-    for c in conditions:
-        for d in c.geometries:
-            coefs[d] = c.values
-        type = c.geometries.geometryType.lower()
-    return generateCoefficient(coefs, mesh, type)
-
-
 def generateCoefficient(coef, mesh=None, geom="domain", **kwargs):
+    if isinstance(coef, FEMCoefficient):
+        geom = coef.geometryType.lower()
     if isinstance(coef, dict):
         coefs = {geom+str(key): generateCoefficient(value) for key, value in coef.items()}
         if geom=="domain":
