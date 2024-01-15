@@ -24,13 +24,13 @@ def generateMesh(fem, file="mesh.msh"):
         from mpi4py import MPI
         if mpi.isRoot:
             mesh = NGSMesh(gmesh.Distribute(MPI.COMM_WORLD))
-            mesh._coords_global = coords
+            mesh._coords_global = coords * fem.scaling.getScaling("m")
         else:
             mesh = NGSMesh(Mesh.Receive(MPI.COMM_WORLD))
         _createMapping(mesh)
     else:
         mesh = NGSMesh(gmesh)
-        mesh._coords_global = coords
+        mesh._coords_global = coords * fem.scaling.getScaling("m")
     return mesh
 
 def _setBCNames(gmesh, file):

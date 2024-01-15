@@ -39,6 +39,7 @@ class elasticity_test(FEMTestCase):
 
     def dirichlet_2d(self, lib):
         p = FEMProject(2)
+        p.scaling.set(length=100, temperature=1e2, time=10)
 
         # geometry
         p.geometries.add(geometry.Rect(0, 0, 0, 1, 1))

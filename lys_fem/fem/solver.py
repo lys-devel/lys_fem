@@ -1,5 +1,8 @@
+import numpy as np
+from .base import FEMObject
 
-class FEMSolver:
+
+class FEMSolver(FEMObject):
     def saveAsDictionary(self):
         d = {"solver": self.name}
         return d
@@ -44,7 +47,7 @@ class TimeDependentSolver(FEMSolver):
         return TimeDependentSolverWidget(fem, self)
 
     def getStepList(self):
-        return [self._step] * int(self._stop / self._step)
+        return np.array([self._step]* int(self._stop / self._step))  / self.fem.scaling.getScaling("s")
 
     def saveAsDictionary(self, fem):
         d = super().saveAsDictionary(fem)

@@ -9,6 +9,7 @@ from ..base import FEMTestCase
 class heat_test(FEMTestCase):     
     def dirichlet_1d(self, lib):
         p = FEMProject(1)
+        p.scaling.set(length=100, temperature=1e3)
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
@@ -42,6 +43,7 @@ class heat_test(FEMTestCase):
 
     def neumann_1d(self, lib):
         p = FEMProject(1)
+        p.scaling.set(length=100, temperature=1e2, time=10)
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
@@ -77,6 +79,7 @@ class heat_test(FEMTestCase):
             return T_0 + DT * special.erfc(-x / np.sqrt(4 * kappa * t)) / 2
 
         p = FEMProject(1)
+        p.scaling.set(length=100, temperature=1e2, time=10)
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))

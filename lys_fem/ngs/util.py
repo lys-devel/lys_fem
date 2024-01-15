@@ -40,12 +40,11 @@ def generateDirichletCondition(model):
 def generateCoefficient(coef, mesh=None, geom="domain", **kwargs):
     if isinstance(coef, FEMCoefficient):
         geom = coef.geometryType.lower()
-    if isinstance(coef, dict):
         coefs = {geom+str(key): generateCoefficient(value) for key, value in coef.items()}
         if geom=="domain":
-            return mesh.MaterialCF(coefs, **kwargs)
+            return mesh.MaterialCF(coefs, **kwargs)/coef.scale
         else:
-            return mesh.BoundaryCF(coefs, **kwargs)
+            return mesh.BoundaryCF(coefs, **kwargs)/coef.scale
     elif isinstance(coef, (list, tuple, np.ndarray)):
         return CoefficientFunction(tuple([generateCoefficient(c) for c in coef]), dims=np.shape(coef))
     elif isinstance(coef, (int, float, sp.Integer, sp.Float)):

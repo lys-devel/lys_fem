@@ -6,7 +6,7 @@ gmsh.initialize()
 gmsh.option.setNumber("General.Terminal", 0)
 
 
-class GeometryGenerator:
+class GeometryGenerator(FEMObject):
     def __init__(self, order=None):
         super().__init__()
         if order is None:
@@ -34,8 +34,9 @@ class GeometryGenerator:
         model = gmsh.model()
         model.add("Default")
         model.setCurrent("Default")
+        scale = self.fem.scaling.getScaling("m")
         for order in self._order if n is None else self._order[0:n + 1]:
-            order.execute(model)
+            order.execute(model, scale)
         model.occ.removeAllDuplicates()
         model.occ.synchronize()
         for i in [1,2,3]:
@@ -72,7 +73,7 @@ class GeometryGenerator:
         m = self.generateGeometry()
         result = {}
         for c in self.commands:
-            result.update(c.generateParameters(m))
+            result.update(c.generateParameters(m, self.fem.scaling.getScaling("m")))
         return result
 
     def geometryAttributes(self, dim):
@@ -119,7 +120,7 @@ class FEMGeometry(object):
             if t.type == d["type"]:
                 return t(*d["args"])
 
-    def generateParameters(self, model):
+    def generateParameters(self, model, scale):
         return {}
 
 

@@ -15,6 +15,11 @@ class HeatConductionParameters(FEMParameter):
     def name(cls):
         return "Heat Conduction"
 
+    @classmethod
+    @property
+    def units(cls):
+        return {"C_v": "J/K m^3", "k": "W/m K"}
+
     def getParameters(self, dim):
         if dim == 1:
             return {"C_v": self.C_v, "k": self.k[0, 0]}
@@ -29,8 +34,8 @@ class _HeatConductionWidget(QtWidgets.QWidget):
     def __init__(self, param):
         super().__init__()
         self._param = param
-        self._C_v = ScalarFunctionWidget("Heat capacity C_v", self._param.C_v, valueChanged=self.__set)
-        self._k = MatrixFunctionWidget("Heat conduction k", self._param.k, valueChanged=self.__set)
+        self._C_v = ScalarFunctionWidget("Heat capacity C_v (J/K m^3)", self._param.C_v, valueChanged=self.__set)
+        self._k = MatrixFunctionWidget("Heat conduction k (W/mK)", self._param.k, valueChanged=self.__set)
 
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)

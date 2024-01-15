@@ -17,7 +17,7 @@ class ModelConditionBase(FEMObjectList):
             for d in c.geometries:
                 coefs[d] = c.values
             type = c.geometries.geometryType
-        return FEMCoefficient(coefs, type)
+        return FEMCoefficient(coefs, type, scale=self.fem.scaling.getScaling(cls.unit))
 
     def saveAsDictionary(self):
         return [item.saveAsDictionary() for item in self]
@@ -65,9 +65,6 @@ class InitialConditions(ModelConditionBase):
             condition.objName = condition.className + str(i)
         super().append(condition)
 
-    def coef(self):
-        return super().coef(InitialCondition)
-
 
 class ConditionBase(FEMObject):
     def __init__(self, geomType, values=None, objName=None, geometries=None):
@@ -107,6 +104,11 @@ class ConditionBase(FEMObject):
     def widget(self, fem, canvas, title="Value"):
         from lys_fem.gui import ConditionWidget
         return ConditionWidget(self, fem, canvas, title)
+
+    @classmethod
+    @property
+    def unit(self):
+        return "1"
 
 
 class DomainCondition(ConditionBase):

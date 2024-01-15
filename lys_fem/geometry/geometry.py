@@ -1,6 +1,7 @@
 import numpy as np
 import sympy as sp
 from lys_fem import addGeometry, FEMGeometry
+from lys_fem.fem import FEMCoefficient
 from .geometryGUI import BoxGUI, SphereGUI, RectGUI, LineGUI, DiskGUI, RectFrustumGUI, InfiniteVolumeGUI, QuadGUI, InfinitePlaneGUI
 
 
@@ -8,8 +9,9 @@ class Box(FEMGeometry):
     def __init__(self, x=0, y=0, z=0, dx=1, dy=1, dz=1):
         super().__init__([x, y, z, dx, dy, dz])
 
-    def execute(self, model):
-        model.occ.addBox(*self.args)
+    def execute(self, model, scale):
+        args = np.array(self.args)/scale
+        model.occ.addBox(*args)
 
     @classmethod
     @property
@@ -24,15 +26,16 @@ class Sphere(FEMGeometry):
     def __init__(self, x=0, y=0, z=0, r=1):
         super().__init__([x, y, z, r])
 
-    def execute(self, model):
-        model.occ.addSphere(*self.args, angle2=0, angle3=np.pi/2)
-        model.occ.addSphere(*self.args, angle2=0, angle3=np.pi)
-        model.occ.addSphere(*self.args, angle2=0, angle3=3*np.pi/2)
-        model.occ.addSphere(*self.args, angle2=0, angle3=2*np.pi)
-        model.occ.addSphere(*self.args, angle1=0, angle3=np.pi/2)
-        model.occ.addSphere(*self.args, angle1=0, angle3=np.pi)
-        model.occ.addSphere(*self.args, angle1=0, angle3=3*np.pi/2)
-        model.occ.addSphere(*self.args, angle1=0, angle3=2*np.pi)
+    def execute(self, model, scale):
+        args = np.array(self.args)/scale
+        model.occ.addSphere(*args, angle2=0, angle3=np.pi/2)
+        model.occ.addSphere(*args, angle2=0, angle3=np.pi)
+        model.occ.addSphere(*args, angle2=0, angle3=3*np.pi/2)
+        model.occ.addSphere(*args, angle2=0, angle3=2*np.pi)
+        model.occ.addSphere(*args, angle1=0, angle3=np.pi/2)
+        model.occ.addSphere(*args, angle1=0, angle3=np.pi)
+        model.occ.addSphere(*args, angle1=0, angle3=3*np.pi/2)
+        model.occ.addSphere(*args, angle1=0, angle3=2*np.pi)
 
     @classmethod
     @property
@@ -47,8 +50,8 @@ class RectFrustum(FEMGeometry):
     def __init__(self, v1=(0,0,0), v2=(1,0,0), v3=(1,1,0), v4=(0,1,0), v5=(0,0,1), v6=(1,0,1), v7=(1,1,1), v8=(0,1,1)):
         super().__init__([v1, v2, v3, v4, v5, v6, v7, v8])
 
-    def execute(self, model):
-        pts = [model.occ.addPoint(*v) for v in self.args]
+    def execute(self, model, scale):
+        pts = [model.occ.addPoint(*(np.array(v)/scale)) for v in self.args]
 
         lines = [model.occ.addLine(pts[0], pts[1]), model.occ.addLine(pts[1], pts[2]), model.occ.addLine(pts[2], pts[3]), model.occ.addLine(pts[3], pts[0])]
         lines.extend([model.occ.addLine(pts[4], pts[5]), model.occ.addLine(pts[5], pts[6]), model.occ.addLine(pts[6], pts[7]), model.occ.addLine(pts[7], pts[4])])      
@@ -76,14 +79,14 @@ class InfiniteVolume(FEMGeometry):
     def __init__(self, a=1, b=1, c=1, A=2, B=2, C=2):
         super().__init__([a,b,c,A,B,C])
 
-    def execute(self, model):
+    def execute(self, model, scale):
         a,b,c,A,B,C = self.args
-        RectFrustum((a,b,c), (-a,b,c), (-a,-b,c),(a,-b,c),(A,B,C), (-A,B,C), (-A,-B,C),(A,-B,C)).execute(model)
-        RectFrustum((a,b,-c), (-a,b,-c), (-a,-b,-c),(a,-b,-c),(A,B,-C), (-A,B,-C), (-A,-B,-C),(A,-B,-C)).execute(model)
-        RectFrustum((a,b,c), (-a,b,c), (-a,b,-c),(a,b,-c),(A,B,C), (-A,B,C), (-A,B,-C),(A,B,-C)).execute(model)
-        RectFrustum((a,-b,c), (-a,-b,c), (-a,-b,-c),(a,-b,-c),(A,-B,C), (-A,-B,C), (-A,-B,-C),(A,-B,-C)).execute(model)
-        RectFrustum((a,b,c), (a,-b,c), (a,-b,-c),(a,b,-c),(A,B,C), (A,-B,C), (A,-B,-C),(A,B,-C)).execute(model)
-        RectFrustum((-a,b,c), (-a,-b,c), (-a,-b,-c),(-a,b,-c),(-A,B,C), (-A,-B,C), (-A,-B,-C),(-A,B,-C)).execute(model)
+        RectFrustum((a,b,c), (-a,b,c), (-a,-b,c),(a,-b,c),(A,B,C), (-A,B,C), (-A,-B,C),(A,-B,C)).execute(model, scale)
+        RectFrustum((a,b,-c), (-a,b,-c), (-a,-b,-c),(a,-b,-c),(A,B,-C), (-A,B,-C), (-A,-B,-C),(A,-B,-C)).execute(model, scale)
+        RectFrustum((a,b,c), (-a,b,c), (-a,b,-c),(a,b,-c),(A,B,C), (-A,B,C), (-A,B,-C),(A,B,-C)).execute(model, scale)
+        RectFrustum((a,-b,c), (-a,-b,c), (-a,-b,-c),(a,-b,-c),(A,-B,C), (-A,-B,C), (-A,-B,-C),(A,-B,-C)).execute(model, scale)
+        RectFrustum((a,b,c), (a,-b,c), (a,-b,-c),(a,b,-c),(A,B,C), (A,-B,C), (A,-B,-C),(A,B,-C)).execute(model, scale)
+        RectFrustum((-a,b,c), (-a,-b,c), (-a,-b,-c),(-a,b,-c),(-A,B,C), (-A,-B,C), (-A,-B,-C),(-A,B,-C)).execute(model, scale)
 
     @classmethod
     @property
@@ -93,8 +96,8 @@ class InfiniteVolume(FEMGeometry):
     def widget(self):
         return InfiniteVolumeGUI(self)
 
-    def generateParameters(self, model):
-        a,b,c,A,B,C = self.args
+    def generateParameters(self, model, scale):
+        a,b,c,A,B,C = np.array(self.args)/scale
         ids = [-1, -1, -1, -1, -1, -1]
         for dim, grp in model.getPhysicalGroups(3):
             for tag in model.getEntitiesForPhysicalGroup(dim, grp):
@@ -110,11 +113,11 @@ class InfiniteVolume(FEMGeometry):
                     ids[4] = grp
                 if model.isInside(dim, tag, [0, 0, -(c+C)/2]):
                     ids[5] = grp
-        J = {ids[i]: self._constructJ(i) for i in range(6)}
-        return {"J": J}
+        J = {ids[i]: self._constructJ(i, scale) for i in range(6)}
+        return {"J": FEMCoefficient(J)}
 
-    def _constructJ(self, domain):
-        a,b,c,A,B,C = self.args
+    def _constructJ(self, domain, scale):
+        a,b,c,A,B,C = np.array(self.args)/scale
         alpha = 1
 
         Cx = np.array([0, b-a*(B-b)/(A-a), c-a*(C-c)/(A-a)])
@@ -155,8 +158,9 @@ class Rect(FEMGeometry):
     def __init__(self, x=0, y=0, z=0, dx=1, dy=1):
         super().__init__([x, y, z, dx, dy])
 
-    def execute(self, model):
-        model.occ.addRectangle(*self.args)
+    def execute(self, model, scale):
+        args = np.array(self.args)/scale
+        model.occ.addRectangle(*args)
 
     @classmethod
     @property
@@ -171,8 +175,9 @@ class Disk(FEMGeometry):
     def __init__(self, x=0, y=0, z=0, rx=1, ry=1):
         super().__init__([x, y, z, rx, ry])
 
-    def execute(self, model):
-        model.occ.addDisk(*self.args)
+    def execute(self, model, scale):
+        args = np.array(self.args)/scale
+        model.occ.addDisk(*args)
 
     @classmethod
     @property
@@ -187,8 +192,8 @@ class Quad(FEMGeometry):
     def __init__(self, v1=(0,0,0), v2=(1,0,0), v3=(1,1,0), v4=(0,1,0)):
         super().__init__([v1, v2 ,v3, v4])
 
-    def execute(self, model):
-        pts = [model.occ.addPoint(*v) for v in self.args]
+    def execute(self, model, scale):
+        pts = [model.occ.addPoint(*(np.array(v)/scale)) for v in self.args]
         lines = [model.occ.addLine(pts[0], pts[1]), model.occ.addLine(pts[1], pts[2]), model.occ.addLine(pts[2], pts[3]), model.occ.addLine(pts[3], pts[0])]
         model.occ.addSurfaceFilling(model.occ.addCurveLoop([lines[0], lines[1], lines[2], lines[3]]))
 
@@ -205,15 +210,15 @@ class InfinitePlane(FEMGeometry):
     def __init__(self, a=1, b=1, A=2, B=2):
         super().__init__([a,b,A,B])
 
-    def execute(self, model):
-        a,b,A,B = self.args
+    def execute(self, model, scale):
+        a,b,A,B = np.array(self.args)/scale
         Quad((a,b,0), (-a,b,0), (-A,B,0),(A,B,0)).execute(model)
         Quad((a,-b,0), (-a,-b,0), (-A,-B,0),(A,-B,0)).execute(model)
         Quad((a,b,0), (a,-b,0), (A,-B,0),(A,B,0)).execute(model)
         Quad((-a,b,0), (-a,-b,0), (-A,-B,0),(-A,B,0)).execute(model)
 
-    def generateParameters(self, model):
-        a,b,A,B = self.args
+    def generateParameters(self, model, scale):
+        a,b,A,B = np.array(self.args)/scale
         ids = [-1, -1, -1, -1]
         for dim, grp in model.getPhysicalGroups(2):
             for tag in model.getEntitiesForPhysicalGroup(dim, grp):
@@ -266,9 +271,11 @@ class Line(FEMGeometry):
     def __init__(self, x1=0, y1=0, z1=0, x2=1, y2=0, z2=0):
         super().__init__([x1, y1, z1, x2, y2, z2])
 
-    def execute(self, model):
-        p1t = model.occ.addPoint(*self.args[:3])
-        p2t = model.occ.addPoint(*self.args[3:])
+    def execute(self, model, scale):
+        arg1 = np.array(self.args[:3])/scale
+        arg2 = np.array(self.args[3:])/scale
+        p1t = model.occ.addPoint(*arg1)
+        p2t = model.occ.addPoint(*arg2)
         model.occ.addLine(p1t, p2t)
 
     @classmethod

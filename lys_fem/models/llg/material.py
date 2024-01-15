@@ -15,6 +15,11 @@ class LLGParameters(FEMParameter):
     def name(cls):
         return "LLG"
 
+    @classmethod
+    @property
+    def units(cls):
+        return {"alpha": 1, "M_s": "A/m", "A_ex": "J/m", "Ku": "J/m^3"}
+
     def getParameters(self, dim):
         return {"alpha": self.alpha, "M_s": self.Ms, "A_ex":self.Aex, "Ku": self.Ku}
 

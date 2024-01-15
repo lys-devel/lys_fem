@@ -1,7 +1,7 @@
 from ngsolve import grad, dx, ds
 
 from lys_fem.ngs import NGSModel, dti, util
-from ..common import NeumannBoundary
+from . import NeumannBoundary
 
 
 class NGSHeatConductionModel(NGSModel):

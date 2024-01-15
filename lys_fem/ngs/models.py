@@ -1,3 +1,4 @@
+import numpy as np
 from ngsolve import BilinearForm, LinearForm, GridFunction, H1, Parameter, VectorH1
 
 from . import util
@@ -23,6 +24,7 @@ class NGSModel:
         self._fes = []
         self._vnames = []
         self._sol = []
+        self._scale = []
 
         if addVariables:
             for eq in model.equations:
@@ -31,8 +33,11 @@ class NGSModel:
     def addVariable(self, name, vdim, dirichlet=None, initialValue=None, region=None, order=1):
         if initialValue is None:
             initialValue = util.generateCoefficient([0]*vdim)
+            scale = 1
         elif initialValue == "auto":
-            initialValue = util.generateCoefficient(self._model.initialConditions.coef(), self._mesh)
+            init = self._model.initialConditions.coef(self._model.initialConditionTypes[0])
+            scale = init.scale
+            initialValue = util.generateCoefficient(init, self._mesh)
 
         kwargs = {}
         if dirichlet == "auto":
@@ -63,6 +68,7 @@ class NGSModel:
         self._fes.append(fes)
         self._vnames.append(name)
         self._sol.append(sol)
+        self._scale.append(scale)
 
     @property
     def spaces(self):
@@ -79,6 +85,10 @@ class NGSModel:
     @property
     def sol(self):
         return self._sol
+    
+    @property
+    def scale(self):
+        return self._scale
 
     @property
     def isNonlinear(self):
@@ -188,11 +198,11 @@ class CompositeModel:
     def solution(self):
         result = {}
         for m in self._models:
-            for name, sol in zip(m.variableNames, m.sol):
+            for name, sol, scale in zip(m.variableNames, m.sol, m.scale):
                 if len(sol.shape) == 0:
-                    result[name] = sol.vec
+                    result[name] = np.array(sol.vec) * scale
                 else:
-                    result[name] = [s.vec for s in sol.components]
+                    result[name] = [np.array(s.vec) * scale for s in sol.components]
 
         def eval(c):
             sp = H1(self._mesh, order=1)

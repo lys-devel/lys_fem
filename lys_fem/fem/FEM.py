@@ -25,10 +25,11 @@ class FEMProject:
         self._dim = dim
         self._scaling = Scaling()
         self._geom = GeometryGenerator()
+        self._geom.setParent(self)
         self._mesher = OccMesher()
         self._materials = Materials(self, [Material(objName="Material1")])
         self._models = FEMObjectList(self)
-        self._solvers = []
+        self._solvers = FEMObjectList(self)
         self._submit = {}
 
     def loadFromDictionary(self, d):
@@ -37,6 +38,7 @@ class FEMProject:
             self._scaling = Scaling(*d["scaling"])
         if "geometries" in d:
             self._geom = GeometryGenerator.loadFromDictionary(d["geometries"])
+            self._geom.setParent(self)
         if "mesh" in d:
             self._mesher = OccMesher.loadFromDictionary(d["mesh"])
         if "materials" in d:
@@ -44,7 +46,7 @@ class FEMProject:
         if "models" in d:
             self._models = FEMObjectList(self, [loadModel(dic) for dic in d["models"]])
         if "solvers" in d:
-            self._solvers = [FEMSolver.loadFromDictionary(dic) for dic in d["solvers"]]
+            self._solvers = FEMObjectList(self, [FEMSolver.loadFromDictionary(dic) for dic in d["solvers"]])
         if "submit" in d:
             self._submit = d["submit"]
 
@@ -125,8 +127,32 @@ class Scaling:
             luminous = 1
         self._norms = [length, time, mass, current, temperature, amount, luminous]
 
-    def getScaling(self, m=0, s=0, kg=0, A=0, K=0, mol=0, cd=0):
+    def getScaling(self, unit=None):
+        if unit is not None:
+            m, s, kg, A, K, mol, cd = self.__parseScale(unit)
         result = 1
         for unit, order in zip(self._norms, [m,s,kg,A,K,mol,cd]):
             result *= unit**order
         return result
+
+    def __parseScale(self, unit):
+        from astropy import units
+        u = units.Unit(unit).decompose()
+        #scale = self._unit.scale
+        m, s, kg, A, K, mol, cd = 0, 0, 0, 0, 0, 0, 0
+        for base, power in zip(u.bases, u.powers):
+            if base == units.m:
+                m += power
+            elif base == units.s:
+                s += power
+            elif base == units.kg:
+                kg += power
+            elif base == units.A:
+                A += power
+            elif base == units.K:
+                K += power
+            elif base == units.mol:
+                mol += power
+            elif base == units.cd:
+                cd += power
+        return m, s, kg, A, K, mol, cd 
