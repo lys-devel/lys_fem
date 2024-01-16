@@ -2,9 +2,9 @@ from lys_fem import addMaterialParameter, addModel
 from lys_fem.mf import addMFEMModel
 from lys_fem.ngs import addNGSModel
 
-from ..common import DirichletBoundary, InitialCondition
+from ..common import DirichletBoundary
 from .material import ElasticParameters
-from .model import ElasticModel
+from .model import ElasticModel, InitialCondition
 from .mfem import MFEMElasticModel
 from .ngs import NGSElasticModel
 

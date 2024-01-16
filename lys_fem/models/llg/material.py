@@ -18,10 +18,10 @@ class LLGParameters(FEMParameter):
     @classmethod
     @property
     def units(cls):
-        return {"alpha": 1, "M_s": "A/m", "A_ex": "J/m", "Ku": "J/m^3"}
+        return {"alpha": 1, "M_s": "A/m", "A_ex": "J/m", "Ku": "J/m^3", "g_LL": "C/kg"}
 
     def getParameters(self, dim):
-        return {"alpha": self.alpha, "M_s": self.Ms, "A_ex":self.Aex, "Ku": self.Ku}
+        return {"alpha": self.alpha, "M_s": self.Ms, "A_ex":self.Aex, "Ku": self.Ku, "g_LL": 1.760859770e11}
 
     def widget(self):
         return _LLGParamsWidget(self)

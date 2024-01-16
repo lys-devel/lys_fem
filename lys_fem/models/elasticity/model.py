@@ -1,6 +1,6 @@
 from lys_fem import FEMModel, Equation
-from . import DirichletBoundary, InitialCondition
-
+from lys_fem import InitialCondition as InitialConditionOrig
+from . import DirichletBoundary
 
 class ElasticModel(FEMModel):
     className = "Elasticity"
@@ -28,3 +28,10 @@ class ChristffelEquation(Equation):
     className = "Christffel Equation"
     def __init__(self, varName="u", **kwargs):
         super().__init__(varName, **kwargs)
+
+
+class InitialCondition(InitialConditionOrig):
+    @classmethod
+    @property
+    def unit(cls):
+        return "m"

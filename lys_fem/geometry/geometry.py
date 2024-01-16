@@ -11,6 +11,7 @@ class Box(FEMGeometry):
 
     def execute(self, model, scale):
         args = np.array(self.args)/scale
+        print(args)
         model.occ.addBox(*args)
 
     @classmethod

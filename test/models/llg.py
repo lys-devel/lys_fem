@@ -12,22 +12,22 @@ T = 2*np.pi/g
 
 class LLG_test(FEMTestCase):
     def domainWall(self, lib):
-        return
         p = FEMProject(3)
+        p.scaling.set(length=1e-7, time=1e-9, mass=1e-21, current=1)
 
         # geometry
-        p.geometries.add(geometry.Box(0.0, 0.0, 0.0, 1, 0.1e-6, 0.1))
-        p.mesher.setRefinement(1)
+        p.geometries.add(geometry.Box(0.0, 0.0, 0.0, 1.0e-6, 0.1e-6, 0.1e-6))
+        p.mesher.setRefinement(0)
 
         # material
-        param = llg.LLGParameters(alpha=1, Ms=1e5, Ku=[0,0,1e3], Aex=1e-11)
+        param = llg.LLGParameters(alpha=1, Ms=1e6, Ku=[0,0,1e3], Aex=1e-11)
         mat1 = Material([param], geometries="all")
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
         x,y,z = sp.symbols("x,y,z")
         model = llg.LLGModel()
-        mz = -(x-0.5e-6)/0.5e-6
+        mz = -(x-5e-6)/5e-6
         my = 1 - mz**2
         model.initialConditions.append(llg.InitialCondition([0, my, mz], geometries="all"))
         model.domainConditions.append(llg.UniaxialAnisotropy(geometries="all"))
@@ -36,8 +36,9 @@ class LLG_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        solver = TimeDependentSolver(T/5000, T/100)
-        stationary = StationarySolver()
+        solver = TimeDependentSolver(T*2, T*200)
+        #solver = StationarySolver()
+
         p.solvers.append(solver)
 
         # solve
@@ -49,16 +50,19 @@ class LLG_test(FEMTestCase):
         # solution
         sol = FEMSolution(".", p)
 
-        for i in range(50):
+        for i in range(100):
+            m1 = sol.eval("m[0]", data_number=i)
             m2 = sol.eval("m[1]", data_number=i)
             m3 = sol.eval("m[2]", data_number=i)
-            print(i, np.max(m2[0].data**2+m3[0].data**2))
+            print(i, np.max(m1[0].data**2 + m2[0].data**2+m3[0].data**2), np.min(m1[0].data**2 + m2[0].data**2+m3[0].data**2))
 
-        res = sol.eval("m[2]", data_number=100)
+        return
+
+        res = sol.eval("m[2]", data_number=1000)
         for w in res:
-            for xx, d, s in zip(w.x[:,0], w.data, -np.sin(solution(w.x[:,0]-0.5e-6, 2, 2))):
+            for xx, d, s in zip(w.x[:,0], w.data, -np.sin(solution(w.x[:,0]-0.5e-6, 1e-11, 1e3))):
                 print(xx, d, s)
-            self.assert_array_almost_equal(w.data, -np.sin(solution(w.x[:,0]-0.5e-6, 2, 2)), decimal=2)
+            self.assert_array_almost_equal(w.data, -np.sin(solution(w.x[:,0]-0.5e-6, 1e-11, 1e3)), decimal=2)
 
     def anisU(self, lib):
         p = FEMProject(3)
@@ -179,19 +183,21 @@ class LLG_test(FEMTestCase):
     def precession(self, lib):
         factor = 1
         p = FEMProject(3)
+        p.scaling.set(length=1e-9, time=1e-12, mass=1e-27, current=1e-3)
+
 
         # geometry
-        p.geometries.add(geometry.Box(0, 0, 0, 1, 0.1, 0.1))
+        p.geometries.add(geometry.Box(0, 0, 0, 1e-9, 0.1e-9, 0.1e-9))
         p.mesher.setRefinement(0)
 
         # material
-        param = llg.LLGParameters(0)
+        param = llg.LLGParameters(alpha=0, Aex=0)
         mat1 = Material([param], geometries=[1, 2])
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
         model = llg.LLGModel()
-        model.initialConditions.append(llg.InitialCondition([1, 0, 0], geometries=[1]))
+        model.initialConditions.append(llg.InitialCondition([1, 0, 0], geometries="all"))
         model.domainConditions.append(llg.ExternalMagneticField([0,0,1], geometries="all"))
         p.models.append(model)
 

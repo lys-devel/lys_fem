@@ -47,10 +47,11 @@ class FEMObjectList(list, FEMObject):
 
 
 class FEMCoefficient(dict):
-    def __init__(self, value={}, geomType="Domain", scale=1):
+    def __init__(self, value={}, geomType="Domain", scale=1, xscale=1):
         super().__init__(value)
         self._type = geomType
         self._scale = scale
+        self._xscale = xscale
 
     @property
     def geometryType(self):
@@ -59,3 +60,7 @@ class FEMCoefficient(dict):
     @property
     def scale(self):
         return self._scale
+    
+    @property
+    def xscale(self):
+        return self._xscale
