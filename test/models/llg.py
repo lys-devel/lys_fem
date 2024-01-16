@@ -12,22 +12,74 @@ T = 2*np.pi/g
 
 class LLG_test(FEMTestCase):
     def domainWall(self, lib):
-        p = FEMProject(3)
+        p = FEMProject(1)
         p.scaling.set(length=1e-7, time=1e-9, mass=1e-21, current=1)
 
         # geometry
-        p.geometries.add(geometry.Box(0.0, 0.0, 0.0, 1.0e-6, 0.1e-6, 0.1e-6))
-        p.mesher.setRefinement(0)
+        p.geometries.add(geometry.Line(0, 0, 0, 0.5e-6, 0, 0))
+        p.geometries.add(geometry.Line(0.5e-6, 0, 0, 1e-6, 0, 0))
+        p.mesher.setRefinement(1)
 
         # material
-        param = llg.LLGParameters(alpha=1, Ms=1e6, Ku=[0,0,1e3], Aex=1e-11)
+        param = llg.LLGParameters(alpha=5, Ms=1e6, Ku=[0,0,1e3], Aex=1e-11)
         mat1 = Material([param], geometries="all")
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
         x,y,z = sp.symbols("x,y,z")
         model = llg.LLGModel()
-        mz = -(x-5e-6)/5e-6
+        mz = -(x-0.5e-6)/0.5e-6
+        my = 1 - mz**2
+        model.initialConditions.append(llg.InitialCondition([0, my, mz], geometries="all"))
+        model.domainConditions.append(llg.UniaxialAnisotropy(geometries="all"))
+        model.domainConditions.append(llg.GilbertDamping(geometries="all"))
+        model.boundaryConditions.append(llg.DirichletBoundary([True, True, True], geometries=[1,3]))
+        p.models.append(model)
+
+        # solver
+        solver = TimeDependentSolver(T*2, T*400)
+        #solver = StationarySolver()
+
+        p.solvers.append(solver)
+
+        # solve
+        lib.run(p)
+
+        def solution(x, A, K):
+            return 2*np.arctan(np.exp(np.sqrt(K/A)*x))-np.pi/2
+
+        # solution
+        sol = FEMSolution(".", p)
+        for i in range(200):
+            m1 = sol.eval("m[0]", data_number=i)
+            m2 = sol.eval("m[1]", data_number=i)
+            m3 = sol.eval("m[2]", data_number=i)
+            print(i, np.max(m1[0].data**2 + m2[0].data**2+m3[0].data**2), np.min(m1[0].data**2 + m2[0].data**2+m3[0].data**2))
+
+        res = sol.eval("m[2]", data_number=200)
+        for w in res:
+            for xx, d, s in zip(w.x[:,0], w.data, -np.sin(solution(w.x[:,0]-0.5e-6, 1e-11, 1e3))):
+                print(xx, d, s)
+            self.assert_array_almost_equal(w.data, -np.sin(solution(w.x[:,0]-0.5e-6, 1e-11, 1e3)), decimal=2)
+
+
+    def domainWall2(self, lib):
+        p = FEMProject(3)
+        p.scaling.set(length=1e-7, time=1e-9, mass=1e-21, current=1)
+
+        # geometry
+        p.geometries.add(geometry.Box(0.0, 0.0, 0.0, 1.0e-6, 0.1e-6, 0.1e-6))
+        p.mesher.setRefinement(1)
+
+        # material
+        param = llg.LLGParameters(alpha=5, Ms=1e6, Ku=[0,0,1e3], Aex=1e-11)
+        mat1 = Material([param], geometries="all")
+        p.materials.append(mat1)
+
+        # model: boundary and initial conditions
+        x,y,z = sp.symbols("x,y,z")
+        model = llg.LLGModel()
+        mz = -(x-0.5e-6)/0.5e-6
         my = 1 - mz**2
         model.initialConditions.append(llg.InitialCondition([0, my, mz], geometries="all"))
         model.domainConditions.append(llg.UniaxialAnisotropy(geometries="all"))
@@ -36,7 +88,7 @@ class LLG_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        solver = TimeDependentSolver(T*2, T*200)
+        solver = TimeDependentSolver(T*2, T*400)
         #solver = StationarySolver()
 
         p.solvers.append(solver)
@@ -50,15 +102,13 @@ class LLG_test(FEMTestCase):
         # solution
         sol = FEMSolution(".", p)
 
-        for i in range(100):
+        for i in range(200):
             m1 = sol.eval("m[0]", data_number=i)
             m2 = sol.eval("m[1]", data_number=i)
             m3 = sol.eval("m[2]", data_number=i)
             print(i, np.max(m1[0].data**2 + m2[0].data**2+m3[0].data**2), np.min(m1[0].data**2 + m2[0].data**2+m3[0].data**2))
 
-        return
-
-        res = sol.eval("m[2]", data_number=1000)
+        res = sol.eval("m[2]", data_number=200)
         for w in res:
             for xx, d, s in zip(w.x[:,0], w.data, -np.sin(solution(w.x[:,0]-0.5e-6, 1e-11, 1e3))):
                 print(xx, d, s)

@@ -92,7 +92,6 @@ class _NewtonSolver:
             dx.data = F.Jacobian(x) * Fx
             x.vec.data -= dx
             R = sqrt(dx.InnerProduct(dx)/x.vec.InnerProduct(x.vec))
-            print(R)
             if R < eps:
                 print("Newton", i)
                 return x
