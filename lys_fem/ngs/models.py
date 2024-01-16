@@ -70,6 +70,13 @@ class NGSModel:
         self._sol.append(sol)
         self._scale.append(scale)
 
+    def setSolution(self, x):
+        if len(self.sol) == 1:
+            self.sol[0].Set(x)
+        else:
+            for si, i in zip(self.sol, x):
+                si.Set(i)
+
     @property
     def spaces(self):
         return self._fes
@@ -147,12 +154,13 @@ class CompositeModel:
     
     def __setSolution(self, x):
         # Set respective grid functions
-        sols = self._sols
-        if len(sols) == 1:
-            sols[0].Set(x)
+        if len(self.variableNames) == 1:
+            self._models[0].setSolution(x)
         else:
-            for si, i in zip(sols, x.components):
-                si.Set(i)
+            index = 0
+            for m in self._models:
+                m.setSolution(x.components[index:index+len(m.sol)])
+                index += len(m.sol)
 
     def __call__(self, x):
         self._linear.Assemble()
