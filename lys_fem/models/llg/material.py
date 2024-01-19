@@ -1,14 +1,16 @@
+import numpy as np
 from lys.Qt import QtWidgets
 from lys_fem import FEMParameter
 from lys_fem.widgets import ScalarFunctionWidget
 
 
 class LLGParameters(FEMParameter):
-    def __init__(self, alpha=0, Ms=8e5, Aex=1e-11, Ku=[0,0,1]):
+    def __init__(self, alpha=0, Ms=1e6, Aex=1e-11, Ku=1e3, u_Ku=[0,0,1]):
         self.alpha = alpha
         self.Ms = Ms
         self.Aex = Aex
         self.Ku = Ku
+        self.u_Ku = u_Ku/np.linalg.norm(u_Ku)
 
     @classmethod
     @property
@@ -18,10 +20,10 @@ class LLGParameters(FEMParameter):
     @classmethod
     @property
     def units(cls):
-        return {"alpha": 1, "M_s": "A/m", "A_ex": "J/m", "Ku": "J/m^3", "g_LL": "C/kg"}
+        return {"alpha": 1, "M_s": "A/m", "A_ex": "J/m", "Ku": "J/m^3", "g_LL": "C/kg", "u_Ku": "1"}
 
     def getParameters(self, dim):
-        return {"alpha": self.alpha, "M_s": self.Ms, "A_ex":self.Aex, "Ku": self.Ku, "g_LL": 1.760859770e11}
+        return {"alpha": self.alpha, "M_s": self.Ms, "A_ex":self.Aex, "Ku": self.Ku, "g_LL": 1.760859770e11, "u_Ku": self.u_Ku}
 
     def widget(self):
         return _LLGParamsWidget(self)

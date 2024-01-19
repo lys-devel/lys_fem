@@ -30,7 +30,7 @@ class NGSModel:
             for eq in model.equations:
                 self.addVariable(eq.variableName, eq.variableDimension, "auto", "auto", eq.geometries, order=order)
 
-    def addVariable(self, name, vdim, dirichlet=None, initialValue=None, region=None, order=1):
+    def addVariable(self, name, vdim, dirichlet=None, initialValue=None, region=None, order=1, scale=1):
         if initialValue is None:
             initialValue = util.generateCoefficient([0]*vdim)
             scale = 1
@@ -165,6 +165,8 @@ class CompositeModel:
     def __call__(self, x):
         self._linear.Assemble()
         if self.isNonlinear:
+            self._bilinear.Assemble()
+            F = self._bilinear.Apply(x.vec) - self._linear.vec
             return self._bilinear.Apply(x.vec) - self._linear.vec 
         else:
             return self._bilinear.mat * x.vec - self._linear.vec

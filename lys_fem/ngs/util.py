@@ -15,6 +15,19 @@ def prod(args):
     return res
 
 
+def cross(u,v):
+    return [u[1]*v[2]-u[2]*v[1], u[2]*v[0]-u[0]*v[2], u[0]*v[1]-u[1]*v[0]]
+
+
+def dot(u,v):
+    res = u[0] * v[0]
+    if len(u) > 1:
+        res += u[1]*v[1]
+    if len(u) > 2:
+        res += u[2]*v[2]
+    return res
+        
+
 def CrossProduct(u, v):
     eijk = np.zeros((3, 3, 3))
     eijk[0, 1, 2] = eijk[1, 2, 0] = eijk[2, 0, 1] = 1
