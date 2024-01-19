@@ -1,12 +1,13 @@
 import os
 import shutil
+import numpy as np
 
 from . import mpi, mesh
 from ngsolve import sqrt
 
 
 def generateSolver(fem, mesh, model):
-    solvers = {"Stationary Solver": StationarySolver, "Time Dependent Solver": TimeDependentSolver}
+    solvers = {"Stationary Solver": StationarySolver, "Relaxation Solver": RelaxationSolver, "Time Dependent Solver": TimeDependentSolver}
     result = []
     for i, s in enumerate(fem.solvers):
         sol = solvers[s.name]
@@ -61,6 +62,31 @@ class StationarySolver(SolverBase):
         self.exportSolution(1, sol)
 
 
+class RelaxationSolver(SolverBase):
+    def __init__(self, obj, mesh, model, dirname):
+        super().__init__(obj, mesh, model, dirname)
+        self._tSolver = obj
+        self._mesh = mesh
+
+    def execute(self):
+        self.exportMesh(self._mesh)
+        self.exportSolution(0, self.model.solution)
+
+        t = 0
+        dt, dx = self._tSolver.dt0, self._tSolver.dx
+        for i in range(1,100):
+            sol = self.model.solve(self._solver, 1/dt)
+            print("Step", i, ", t = {:3e}".format(t), ", dt = {:3e}".format(dt), ", dx = {:3e}".format(self._solver.dx))
+            self.exportSolution(i, sol)
+            if dt == np.inf:
+                break
+            t = t + dt
+            dt *= dx/self._solver.dx
+            if dt > self._tSolver.dt0*1e5:
+                dt = np.inf
+
+
+
 class TimeDependentSolver(SolverBase):
     def __init__(self, obj, mesh, model, dirname):
         super().__init__(obj, mesh, model, dirname)
@@ -73,7 +99,7 @@ class TimeDependentSolver(SolverBase):
 
         t = 0
         for i, dt in enumerate(self._tSolver.getStepList()):
-            print("timestep", i, ", t =", t)
+            print("Timestep", i, ", t = {:3e}".format(t), ", dt = {:3e}".format(dt), ", dx = {:3e}".format(self._solver.dx))
             sol = self.model.solve(self._solver, 1/dt)
             self.exportSolution(i + 1, sol)
             t = t + dt
@@ -82,21 +108,32 @@ class TimeDependentSolver(SolverBase):
 class _NewtonSolver:
     def __init__(self, max_iter=30):
         self._max_iter = max_iter
+        self._dx = 0
 
     def solve(self, F, x, eps=1e-5):
         if not F.isNonlinear:
             self._max_iter=1
         dx = x.vec.CreateVector()
+        x0 = x.vec.CreateVector()
+        x0.data = x.vec
         for i in range(self._max_iter):
             Fx = F(x)
             dx.data = F.Jacobian(x) * Fx
             x.vec.data -= dx
             R = sqrt(dx.InnerProduct(dx)/x.vec.InnerProduct(x.vec))
             if R < eps:
-                print("Newton", i)
+                print("[Newton solver] Converged in", i, "steps.")
+                self._setDifference(x.vec, x0)
                 return x
         if self._max_iter !=1:
-            print("Newton solver does not converge.")
+            print("[Newton solver] NOT Converged in", i, "steps.")
+        self._setDifference(x.vec, x0)
         return x
 
+    def _setDifference(self, x, x0):
+        x0.data = x0.data - x.data
+        self._dx = x0.InnerProduct(x0)/x.InnerProduct(x)
 
+    @property
+    def dx(self):
+        return self._dx

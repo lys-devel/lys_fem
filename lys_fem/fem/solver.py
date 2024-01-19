@@ -31,6 +31,39 @@ class StationarySolver(FEMSolver):
         return StationarySolver()
 
 
+class RelaxationSolver(FEMSolver):
+    def __init__(self, dt0 = 1e-9, dx = 1e-1):
+        self._dt0 = dt0
+        self._dx = dx
+
+    @classmethod
+    @property
+    def name(cls):
+        return "Relaxation Solver"
+
+    @property
+    def dt0(self):
+        return self._dt0/self.fem.scaling.getScaling("s")
+
+    @property
+    def dx(self):
+        return self._dx
+
+    def widget(self, fem):
+        from ..gui import StationarySolverWidget
+        return StationarySolverWidget(fem, self)
+
+    def saveAsDictionary(self, fem):
+        d = super().saveAsDictionary(fem)
+        d["dt0"] = self._dt0
+        d["dx"] = self._dx
+        return d
+
+    @classmethod
+    def loadFromDictionary(cls, d):
+        return RelaxationSolver(d["dt0"], d["dx"])
+
+
 class TimeDependentSolver(FEMSolver):
     def __init__(self, step=1, stop=100):
         super().__init__()
@@ -60,5 +93,5 @@ class TimeDependentSolver(FEMSolver):
         return TimeDependentSolver(d["step"], d["stop"])
 
 
-solvers = {"Stationary": [StationarySolver], "Time dependent": [TimeDependentSolver]}
+solvers = {"Stationary": [StationarySolver, RelaxationSolver], "Time dependent": [TimeDependentSolver]}
 
