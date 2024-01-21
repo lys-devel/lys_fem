@@ -1,4 +1,5 @@
 from .base import FEMObjectList
+from .parameters import Scaling, Parameters
 from .geometry import GeometryGenerator
 from .mesh import OccMesher
 from .material import Material, Materials
@@ -10,6 +11,18 @@ class FEMProject:
     def __init__(self, dim):
         self.reset(dim)
 
+    def reset(self, dim=3):
+        self._dim = dim
+        self._scaling = Scaling()
+        self._params = Parameters()
+        self._geom = GeometryGenerator()
+        self._geom.setParent(self)
+        self._mesher = OccMesher()
+        self._materials = Materials(self, [Material(objName="Material1")])
+        self._models = FEMObjectList(self)
+        self._solvers = FEMObjectList(self)
+        self._submit = {}
+
     def saveAsDictionary(self):
         d = {"dimension": self._dim}
         d["scaling"] = self._scaling._norms
@@ -20,17 +33,6 @@ class FEMProject:
         d["solvers"] = [s.saveAsDictionary() for s in self._solvers]
         d["submit"] = self._submit
         return d
-
-    def reset(self, dim=3):
-        self._dim = dim
-        self._scaling = Scaling()
-        self._geom = GeometryGenerator()
-        self._geom.setParent(self)
-        self._mesher = OccMesher()
-        self._materials = Materials(self, [Material(objName="Material1")])
-        self._models = FEMObjectList(self)
-        self._solvers = FEMObjectList(self)
-        self._submit = {}
 
     def loadFromDictionary(self, d):
         self._dim = d.get("dimension", 3)
@@ -65,6 +67,10 @@ class FEMProject:
     @property
     def scaling(self):
         return self._scaling
+
+    @property
+    def parameters(self):
+        return self._params
 
     @property
     def geometries(self):
@@ -107,52 +113,3 @@ class FEMProject:
             mesher = self._mesher
         return mesher.getMeshWave(self._geom.generateGeometry(), dim=dim)
 
-
-class Scaling:
-    def __init__(self, length=1, time=None, mass=None, current=None, temperature=None, amount=None, luminous=None):
-        self.set(length, time, mass, current, temperature, amount, luminous)
-
-    def set(self, length=1, time=None, mass=None, current=None, temperature=None, amount=None, luminous=None):
-        if time is None:
-            time = length
-        if mass is None:
-            mass = length**3
-        if current is None:
-            current = 1
-        if temperature is None:
-            temperature = 1
-        if amount is None:
-            amount = 1
-        if luminous is None:
-            luminous = 1
-        self._norms = [length, time, mass, current, temperature, amount, luminous]
-
-    def getScaling(self, unit=None):
-        if unit is not None:
-            m, s, kg, A, K, mol, cd = self.__parseScale(unit)
-        result = 1
-        for unit, order in zip(self._norms, [m,s,kg,A,K,mol,cd]):
-            result *= unit**order
-        return result
-
-    def __parseScale(self, unit):
-        from astropy import units
-        u = units.Unit(unit).decompose()
-        #scale = self._unit.scale
-        m, s, kg, A, K, mol, cd = 0, 0, 0, 0, 0, 0, 0
-        for base, power in zip(u.bases, u.powers):
-            if base == units.m:
-                m += power
-            elif base == units.s:
-                s += power
-            elif base == units.kg:
-                kg += power
-            elif base == units.A:
-                A += power
-            elif base == units.K:
-                K += power
-            elif base == units.mol:
-                mol += power
-            elif base == units.cd:
-                cd += power
-        return m, s, kg, A, K, mol, cd 
