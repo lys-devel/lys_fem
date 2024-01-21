@@ -3,3 +3,4 @@ from .elastic import elasticity_test
 from .testProblems import testProblems_test
 from .llg import LLG_test
 from .general import poisson_test
+from .em import magnetostatistics_test

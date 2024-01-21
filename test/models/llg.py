@@ -3,7 +3,7 @@ import sympy as sp
 
 from lys_fem import geometry
 from lys_fem.fem import FEMProject, TimeDependentSolver, StationarySolver, RelaxationSolver, FEMSolution, Material
-from lys_fem.models import llg, general
+from lys_fem.models import llg, em
 
 from ..base import FEMTestCase
 
@@ -116,9 +116,9 @@ class LLG_test(FEMTestCase):
         p.materials.append(mat1)
 
         # poisson equation for infinite boundary
-        model = general.PoissonModel()
-        model.initialConditions.append(general.InitialCondition(0, geometries="all"))
-        model.boundaryConditions.append(general.DirichletBoundary([True], geometries=infBdr))
+        model = em.MagnetostatisticsModel()
+        model.initialConditions.append(em.InitialCondition(0, geometries="all"))
+        model.boundaryConditions.append(em.DirichletBoundary([True], geometries=infBdr))
         p.models.append(model)
 
         # llg

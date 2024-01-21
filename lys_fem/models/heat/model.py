@@ -1,5 +1,5 @@
 from lys_fem import FEMFixedModel, Equation, BoundaryCondition
-from lys_fem import InitialCondition as InitialConditionOrig
+from .. import common
 
 class HeatConductionModel(FEMFixedModel):
     className = "Heat Conduction"
@@ -29,20 +29,14 @@ class HeatConductionEquation(Equation):
         super().__init__(varName, **kwargs)
 
 
-class NeumannBoundary(BoundaryCondition):
-    className = "Neumann Boundary"
-
-    @classmethod
-    def default(cls, model):
-        return NeumannBoundary([0]*model.variableDimension())
-
+class NeumannBoundary(common.NeumannBoundary):
     @classmethod
     @property
     def unit(cls):
         return "W/m^2"
 
 
-class InitialCondition(InitialConditionOrig):
+class InitialCondition(common.InitialCondition):
     @classmethod
     @property
     def unit(cls):
