@@ -97,7 +97,7 @@ class InfiniteVolume(FEMGeometry):
         return InfiniteVolumeGUI(self)
 
     def generateParameters(self, model, scale):
-        a,b,c,A,B,C = np.array(self.args)/scale
+        a,b,c,A,B,C = np.array(self.args)
         ids = [-1, -1, -1, -1, -1, -1]
         for dim, grp in model.getPhysicalGroups(3):
             for tag in model.getEntitiesForPhysicalGroup(dim, grp):
@@ -114,10 +114,10 @@ class InfiniteVolume(FEMGeometry):
                 if model.isInside(dim, tag, [0, 0, -(c+C)/2]):
                     ids[5] = grp
         J = {ids[i]: self._constructJ(i, scale) for i in range(6)}
-        return {"J": FEMCoefficient(J)}
+        return {"J": FEMCoefficient(J, xscale=scale)}
 
     def _constructJ(self, domain, scale):
-        a,b,c,A,B,C = np.array(self.args)/scale
+        a,b,c,A,B,C = np.array(self.args)
         alpha = 1
 
         Cx = np.array([0, b-a*(B-b)/(A-a), c-a*(C-c)/(A-a)])
@@ -151,7 +151,16 @@ class InfiniteVolume(FEMGeometry):
             X = x * (-Z -Cx[2]) / (-z-Cx[2])
             Y = y * (-Z -Cy[2]) / (-z-Cy[2])
         J = sp.Matrix([[X.diff(x), Y.diff(x), Z.diff(x)],[X.diff(y), Y.diff(y), Z.diff(y)],[X.diff(z), Y.diff(z), Z.diff(z)]]).inv()
+        J = self.__subs(J,x,y,z)
         return [[J[i,j] for j in range(3)] for i in range(3)]
+    
+    def __subs(self,J,x,y,z):
+        # disable assumption that xyz is real
+        xs, ys, zs = sp.symbols("xs,ys,zs")
+        xx, yy, zz = sp.symbols("x,y,z")
+        return J.subs({x:xs, y:ys, z:zs}).subs({xs:xx, ys:yy, zs:zz})
+
+        
 
 
 class Rect(FEMGeometry):

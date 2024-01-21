@@ -1,4 +1,6 @@
 import weakref
+import numpy as np
+import sympy as sp
 
 class FEMObject:
     def __init__(self, objName=None):
@@ -47,11 +49,14 @@ class FEMObjectList(list, FEMObject):
 
 
 class FEMCoefficient(dict):
-    def __init__(self, value={}, geomType="Domain", scale=1, xscale=1):
-        super().__init__(value)
+    def __init__(self, value={}, geomType="Domain", scale=1, xscale=1, vars={}):
+        super().__init__()
         self._type = geomType
         self._scale = scale
         self._xscale = xscale
+        self._vars = vars
+        for key, val in value.items():
+            self[key] = val
 
     @property
     def geometryType(self):
@@ -64,3 +69,16 @@ class FEMCoefficient(dict):
     @property
     def xscale(self):
         return self._xscale
+
+    def __setitem__(self, key, value):
+        super().__setitem__(key, self.__parseItem(value))
+
+    def __parseItem(self, value):
+        if isinstance(value, (list, tuple, np.ndarray)):
+            return [self.__parseItem(v) for v in value]
+        elif isinstance(value, (int, float, sp.Integer, sp.Float)):
+            return value/self._scale
+        elif isinstance(value, sp.Basic):
+            xs, ys, zs = sp.symbols("x_scaled,y_scaled,z_scaled")
+            val = value.subs({"x":xs*self._xscale, "y":ys*self._xscale, "z":zs*self._xscale})/self._scale
+            return val.subs(self._vars)

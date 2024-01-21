@@ -4,7 +4,7 @@ import shutil
 import gmsh
 
 from lys_fem import mf
-from numpy.testing import assert_array_almost_equal, assert_allclose
+from numpy.testing import assert_array_equal, assert_array_almost_equal, assert_allclose
 
 
 class FEMTestCase(unittest.TestCase):
@@ -21,6 +21,9 @@ class FEMTestCase(unittest.TestCase):
         os.chdir(self._cwd)
         if mf.mfem.isRoot:
             shutil.rmtree(self.path)
+
+    def assert_array_equal(self, *args, **kwargs):
+        assert_array_equal(*args, **kwargs)
 
     def assert_array_almost_equal(self, *args, **kwargs):
         assert_array_almost_equal(*args, **kwargs)
