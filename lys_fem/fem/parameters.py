@@ -52,6 +52,8 @@ class Scaling:
 
 class Parameters(dict):
     def getSolved(self):
+        if len(self) == 0:
+            return {}
         eqs = [sp.Eq(key, item) for key, item in self.items()]
         sol = sp.solve(eqs, list(self.keys()))
         if isinstance(sol, dict):

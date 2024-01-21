@@ -18,7 +18,7 @@ class ModelConditionBase(FEMObjectList):
                 coefs[d] = c.values
             type = c.geometries.geometryType
             unit = c.unit
-        return FEMCoefficient(coefs, type, scale=self.fem.scaling.getScaling(unit), xscale=self.fem.scaling.getScaling("m"))
+        return FEMCoefficient(coefs, type, scale=self.fem.scaling.getScaling(unit), xscale=self.fem.scaling.getScaling("m"), vars=self.fem.parameters.getSolved())
 
     def saveAsDictionary(self):
         return [item.saveAsDictionary() for item in self]
