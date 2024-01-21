@@ -37,7 +37,7 @@ class LLG_test(FEMTestCase):
         model.boundaryConditions.append(llg.DirichletBoundary([True, True, True], geometries=[1,3]))
         p.models.append(model)
 
-        n = 8
+        n = 9
         # solver
         solver = RelaxationSolver(dt0=1e-9)
         
@@ -55,11 +55,11 @@ class LLG_test(FEMTestCase):
             m1 = sol.eval("mx", data_number=i)
             m2 = sol.eval("my", data_number=i)
             m3 = sol.eval("mz", data_number=i)
-            self.assert_array_almost_equal(m1[0].data**2 + m2[0].data**2+m3[0].data**2, 1, decimal=3)
+            self.assert_array_almost_equal(m1[0].data**2 + m2[0].data**2+m3[0].data**2, 1, decimal=4)
 
         res = sol.eval("mz", data_number=n)
         for w in res:
-            self.assert_array_almost_equal(w.data, -np.sin(solution(w.x[:,0]-1e-6, 1e-11, 1e3)), decimal=2)
+            self.assert_array_almost_equal(w.data, -np.sin(solution(w.x[:,0]-1e-6, 1e-11, 1e3)), decimal=4)
 
     def anisU(self, lib):
         p = FEMProject(1)

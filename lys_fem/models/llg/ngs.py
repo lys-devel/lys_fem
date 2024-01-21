@@ -3,7 +3,7 @@ from lys_fem.ngs import NGSModel, util, dti
 from . import ExternalMagneticField, Demagnetization, UniaxialAnisotropy, GilbertDamping
 
 class NGSLLGModel(NGSModel):
-    def __init__(self, model, mesh, mat):
+    def __init__(self, model, mesh, mat, order=2):
         super().__init__(model, mesh)
         self._model = model
         self._mat = mat
@@ -13,9 +13,9 @@ class NGSLLGModel(NGSModel):
         dirichlet = util.generateDirichletCondition(self._model)
 
         for eq in model.equations:
-            self.addVariable(eq.variableName+"x", 1, [dirichlet[0]], initialValue[0], eq.geometries, order=2)
-            self.addVariable(eq.variableName+"y", 1, [dirichlet[1]], initialValue[1], eq.geometries, order=2)
-            self.addVariable(eq.variableName+"z", 1, [dirichlet[2]], initialValue[2], eq.geometries, order=2)
+            self.addVariable(eq.variableName+"x", 1, [dirichlet[0]], initialValue[0], eq.geometries, order=order)
+            self.addVariable(eq.variableName+"y", 1, [dirichlet[1]], initialValue[1], eq.geometries, order=order)
+            self.addVariable(eq.variableName+"z", 1, [dirichlet[2]], initialValue[2], eq.geometries, order=order)
             self.addVariable(eq.variableName+"_lam", 1, region=eq.geometries, order=2)
 
     def bilinearform(self, tnt, sols):

@@ -76,15 +76,14 @@ class RelaxationSolver(SolverBase):
         dt, dx = self._tSolver.dt0, self._tSolver.dx
         for i in range(1,100):
             sol = self.model.solve(self._solver, 1/dt)
+            t = t + dt
             print("Step", i, ", t = {:3e}".format(t), ", dt = {:3e}".format(dt), ", dx = {:3e}".format(self._solver.dx))
             self.exportSolution(i, sol)
             if dt == np.inf:
                 break
-            t = t + dt
-            dt *= dx/self._solver.dx
+            dt *= np.sqrt(dx/self._solver.dx)
             if dt > self._tSolver.dt0*1e5:
                 dt = np.inf
-
 
 
 class TimeDependentSolver(SolverBase):
