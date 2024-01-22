@@ -10,7 +10,7 @@ def generateSolver(fem, mesh, model):
     solvers = {"Stationary Solver": StationarySolver, "Relaxation Solver": RelaxationSolver, "Time Dependent Solver": TimeDependentSolver}
     result = []
     for i, s in enumerate(fem.solvers):
-        sol = solvers[s.name]
+        sol = solvers[s.className]
         result.append(sol(s, mesh, model, "Solver" + str(i)))
     return result
 
@@ -46,7 +46,7 @@ class SolverBase:
 
     @property
     def name(self):
-        return self._obj.name
+        return self._obj.className
 
 
 class StationarySolver(SolverBase):
