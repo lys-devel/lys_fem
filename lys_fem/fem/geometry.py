@@ -1,5 +1,7 @@
-import gmsh
 import weakref
+import gmsh
+import numpy as np
+import sympy as sp
 from .base import FEMObject
 
 gmsh.initialize()
@@ -34,7 +36,7 @@ class GeometryGenerator(FEMObject):
         model = gmsh.model()
         model.add("Default")
         model.setCurrent("Default")
-        scale = self.fem.scaling.getScaling("m")
+        scale = TransGeom(self.fem)
         for order in self._order if n is None else self._order[0:n + 1]:
             order.execute(model, scale)
         model.occ.removeAllDuplicates()
@@ -91,6 +93,20 @@ class GeometryGenerator(FEMObject):
     def loadFromDictionary(d):
         order = [FEMGeometry.loadFromDictionary(dic) for dic in d.get("geometries", [])]
         return GeometryGenerator(order)
+
+
+class TransGeom:
+    def __init__(self, fem):
+        self._fem = fem
+
+    def __call__(self, value, unit="1"):
+        scale = self._fem.scaling.getScaling(unit)
+        if isinstance(value, (list, tuple, np.ndarray)):
+            return [self(v, unit) for v in value]
+        elif isinstance(value, (float, int, sp.Float, sp.Integer)):
+            return value/scale
+        else:
+            return value.subs(self._fem.parameters.getSolved())/scale
 
 
 class FEMGeometry(object):
