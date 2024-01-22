@@ -1,4 +1,6 @@
 import sympy as sp
+from sympy.parsing.sympy_parser import parse_expr
+from astropy import units
 
 class Scaling:
     def __init__(self, length=1, time=None, mass=None, current=None, temperature=None, amount=None, luminous=None):
@@ -28,7 +30,6 @@ class Scaling:
         return result
 
     def __parseScale(self, unit):
-        from astropy import units
         u = units.Unit(unit).decompose()
         #scale = self._unit.scale
         m, s, kg, A, K, mol, cd = 0, 0, 0, 0, 0, 0, 0
@@ -60,3 +61,13 @@ class Parameters(dict):
             return sol
         else:
             return {key: value for key, value in zip(self.keys(), sol[0])}
+
+    def saveAsDictionary(self):
+        return {str(key): str(item) for key, item in self.items()}
+
+    @staticmethod
+    def loadFromDictionary(d):
+        p = Parameters()
+        for key, item in d.items():
+            p[parse_expr(key)] = parse_expr(item)
+        return p

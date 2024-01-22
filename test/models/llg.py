@@ -15,7 +15,7 @@ class LLG_test(FEMTestCase):
         Aex = sp.symbols("Aex")
 
         p = FEMProject(1)
-        p.scaling.set(length=1e-7, time=1e-9, mass=1e-21, current=1)
+        p.scaling.set(length=1e-9, time=1e-9, mass=1e-21, current=1)
         p.parameters[Aex] = 1e-11
 
         # geometry

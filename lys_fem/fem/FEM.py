@@ -26,6 +26,7 @@ class FEMProject:
     def saveAsDictionary(self):
         d = {"dimension": self._dim}
         d["scaling"] = self._scaling._norms
+        d["parameters"] = self._params.saveAsDictionary()
         d["geometries"] = self._geom.saveAsDictionary()
         d["mesh"] = self._mesher.saveAsDictionary()
         d["materials"] = [m.saveAsDictionary() for m in self._materials]
@@ -38,6 +39,8 @@ class FEMProject:
         self._dim = d.get("dimension", 3)
         if "scaling" in d:
             self._scaling = Scaling(*d["scaling"])
+        if "parameters" in d:
+            self._params = Parameters.loadFromDictionary(d["parameters"])
         if "geometries" in d:
             self._geom = GeometryGenerator.loadFromDictionary(d["geometries"])
             self._geom.setParent(self)
