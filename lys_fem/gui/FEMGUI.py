@@ -6,6 +6,7 @@ from simtools import qsub
 from ..fem import FEMProject
 from ..widgets import TreeStyleEditor, FEMFileSystemView, FEMFileDialog
 
+from .parameterGUI import ParameterTab
 from .geometryGUI import GeometryEditor
 from .meshGUI import MeshEditor
 from .materialGUI import MaterialTree
@@ -53,6 +54,7 @@ class FEMGUI(LysSubWindow):
         vb.addWidget(self._canvas)
         vb.addLayout(buttons)
 
+        self._params = ParameterTab(self._obj)
         self._gedit = GeometryEditor(self._obj, self._canvas)
         self._medit = MeshEditor(self._obj, self._canvas)
         self._mat = TreeStyleEditor(MaterialTree(self._obj, self._canvas))
@@ -60,6 +62,7 @@ class FEMGUI(LysSubWindow):
         self._solver = TreeStyleEditor(SolverTree(self._obj, self._canvas))
 
         tab = QtWidgets.QTabWidget()
+        tab.addTab(self._params, "Params")
         tab.addTab(self._gedit, "Geometry")
         tab.addTab(self._medit, "Mesh")
         tab.addTab(self._mat, "Material")
@@ -89,6 +92,7 @@ class FEMGUI(LysSubWindow):
         return w
 
     def _refresh(self):
+        self._params.reset()
         self._gedit.setGeometry(self._obj.geometries)
         self._medit.setMesher(self._obj.mesher)
         self._mat.rootItem.setMaterials(self._obj.materials)
