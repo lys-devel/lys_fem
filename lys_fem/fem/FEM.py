@@ -17,7 +17,7 @@ class FEMProject:
         self._params = Parameters()
         self._geom = GeometryGenerator()
         self._geom.setParent(self)
-        self._mesher = OccMesher()
+        self._mesher = OccMesher(self)
         self._materials = Materials(self, [Material(objName="Material1")])
         self._models = FEMObjectList(self)
         self._solvers = FEMObjectList(self)
@@ -46,6 +46,7 @@ class FEMProject:
             self._geom.setParent(self)
         if "mesh" in d:
             self._mesher = OccMesher.loadFromDictionary(d["mesh"])
+            self._mesher.setParent(self)
         if "materials" in d:
             self._materials = Materials(self, [Material.loadFromDictionary(dic) for dic in d["materials"]])
         if "models" in d:
@@ -111,7 +112,7 @@ class FEMProject:
         if dim is None:
             dim = self._dim
         if nomesh:
-            mesher = OccMesher()
+            mesher = OccMesher(self)
         else:
             mesher = self._mesher
         return mesher.getMeshWave(self._geom.generateGeometry(), dim=dim)

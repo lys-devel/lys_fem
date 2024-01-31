@@ -3,18 +3,21 @@ import numpy as np
 
 import gmsh
 from lys import Wave
+from .base import FEMObject, FEMObjectList
 from .geometry import GeometrySelection
 
 
-class OccMesher(object):
+class OccMesher(FEMObject):
     _keys = {15: "point", 1: "line", 2: "triangle", 3: "quad", 4: "tetra", 5: "hexa", 6: "prism", 7: "pyramid"}
 
-    def __init__(self, refinement=0, partialRefine=None, periodicity=None):
+    def __init__(self, parent=None, refinement=0, partialRefine=None, periodicity=None):
         super().__init__()
+        if parent is not None:
+            self.setParent(parent)
         self._refine = refinement
         if partialRefine is None:
-            partialRefine = {}
-        self._partialRefine = partialRefine
+            partialRefine = []
+        self._partialRefine = FEMObjectList(self, partialRefine)
         if periodicity is None:
             periodicity = []
         self._periodicity = periodicity
@@ -24,10 +27,32 @@ class OccMesher(object):
 
     @property
     def refinement(self):
+        """
+        Get refinement factor.
+
+        Returns:
+            int: The refinement factor.
+        """
         return self._refine
 
     def setRefinement(self, n):
+        """
+        Set refinement factor.
+
+        Args:
+            n(int): The refinement factor.
+        """
         self._refine = n
+
+    @property
+    def partialRefinement(self):
+        return self._partialRefine
+
+    def addPartialRefinement(self, geomType="Volume", geometries=[], factor=1):
+        geom = GeometrySelection(geometryType=geomType, selection=geometries)
+        geom.factor = factor
+        self._partialRefine.append(geom)
+        return geom
 
     @property
     def periodicPairs(self):
@@ -46,22 +71,7 @@ class OccMesher(object):
                 t = self.__getTransform(model, sdim, ent[p1 - 1], ent[p2 - 1])
                 model.mesh.setPeriodic(sdim, [ent[p1 - 1]], [ent[p2 - 1]], t)
 
-        # prepare partial refinement
-        self._refineData = []
-        if len(self._partialRefine) != 0:
-            for (dim, tag), factor in self._partialRefine.items():
-                if dim == 1:
-                    tagSet = set([tag])
-                if dim == 2:
-                    _, edges = model.getAdjacencies(2, tag)
-                    tagSet = set(edges)
-                if dim == 3:
-                    _, surfs = model.getAdjacencies(3, tag)
-                    edges = itertools.chain.from_iterable([model.getAdjacencies(2, v)[1] for v in surfs])
-                    tagSet = set(edges)
-                self._refineData.append((tagSet, factor))
-            model.mesh.setSizeCallback(self.__callback)
-
+        self.__partialRefine(model)
         # generate and refine
         #model.mesh.setTransfiniteAutomatic()
         model.mesh.generate()
@@ -70,6 +80,33 @@ class OccMesher(object):
             model.mesh.refine()
 
         model.mesh.optimize()
+
+    def __partialRefine(self, model):
+        # prepare partial refinement
+        self._refineData = []
+        if len(self._partialRefine) != 0:
+            for geom in self._partialRefine:
+                dim = {"Volume": 3, "Surface": 2, "Edge": 1, "Point": 0}[geom.geometryType]
+                tagSet = set()
+                for tag in geom:
+                    if dim == 1:
+                        tagSet.add(tag)
+                    if dim == 2:
+                        _, edges = model.getAdjacencies(2, tag)
+                        tagSet |= set(edges)
+                    if dim == 3:
+                        _, surfs = model.getAdjacencies(3, tag)
+                        edges = itertools.chain.from_iterable([model.getAdjacencies(2, v)[1] for v in surfs])
+                        tagSet |= set(edges)
+                self._refineData.append((tagSet, geom.factor))
+            model.mesh.setSizeCallback(self.__callback)
+
+    def __callback(self, dim, tag, x, y, z, lc):
+        if dim == 1:
+            for edges, factor in self._refineData:
+                if tag in edges:
+                    lc = lc / (factor+1)
+        return lc
 
     def __getTransform(self, model, sdim, e1, e2):
         """
@@ -82,13 +119,6 @@ class OccMesher(object):
             dist = max([min(np.linalg.norm(c2 - (d - shift), axis=1)) for d in c1])
             if dist < 1e-3:
                 return [1, 0, 0, shift[0], 0, 1, 0, shift[1], 0, 0, 1, shift[2], 0, 0, 0, 1]
-
-    def __callback(self, dim, tag, x, y, z, lc):
-        if dim == 1:
-            for edges, factor in self._refineData:
-                if tag in edges:
-                    lc = lc / factor
-        return lc
 
     def getMeshWave(self, model, dim=3):
         self._generate(model)
@@ -134,4 +164,4 @@ class OccMesher(object):
     @classmethod
     def loadFromDictionary(cls, d):
         pairs = [(GeometrySelection.loadFromDictionary(p[0]), GeometrySelection.loadFromDictionary(p[1])) for p in d.get("periodicity", [])]
-        return OccMesher(d["refine"], d["partial"], pairs)
+        return OccMesher(refinement=d["refine"], partialRefine=d["partial"], periodicity=pairs)

@@ -62,6 +62,42 @@ class _RefineGUI(FEMTreeItem):
     def widget(self):
         return _RefineWidget(self.canvas(), self.fem(), self._mesher)
 
+    def _append(self, type):
+        geom = self._mesher.addPartialRefinement(type)
+        super().append(_PartialRefineGUI(geom, self))
+
+    def remove(self, init):
+        i = super().remove(init)
+        self._mesher.partialRefinement.remove(self._mesher.partialRefinement[i])
+
+    @ property
+    def menu(self):
+        self._menu = QtWidgets.QMenu()
+        self._menu.addAction(QtWidgets.QAction("Add Volume Refinement", self.treeWidget(), triggered=lambda: self._append("Volume")))
+        self._menu.addAction(QtWidgets.QAction("Add Surface Refinement", self.treeWidget(), triggered=lambda: self._append("Surface")))
+        self._menu.addAction(QtWidgets.QAction("Add Edge Refinement", self.treeWidget(), triggered=lambda: self._append("Edge")))
+        return self._menu
+
+
+class _PartialRefineGUI(FEMTreeItem):
+    def __init__(self, geom, parent):
+        super().__init__(parent)
+        self._geom = geom
+
+    @property
+    def name(self):
+        return self._geom.geometryType+" Refinement"
+
+    @property
+    def widget(self):
+        return _PartialRefineWidget(self.canvas(), self.fem(), self._geom)
+
+    @property
+    def menu(self):
+        self._menu = QtWidgets.QMenu()
+        self._menu.addAction(QtWidgets.QAction("Remove", self.treeWidget(), triggered=lambda: self.parent.remove(self)))
+        return self._menu
+
 
 class _RefineWidget(QtWidgets.QWidget):
     def __init__(self, canvas, fem, mesher):
@@ -80,6 +116,31 @@ class _RefineWidget(QtWidgets.QWidget):
         layout.addWidget(QtWidgets.QLabel("Refinement factor"))
         layout.addWidget(self._refine)
         self.setLayout(layout)
+
+
+class _PartialRefineWidget(QtWidgets.QWidget):
+    def __init__(self, canvas, fem, geom):
+        super().__init__()
+        self._geom = geom
+        self.__initlayout(canvas, fem, geom)
+
+    def __initlayout(self, canvas, fem, geom):
+        self._refine = QtWidgets.QSpinBox()
+        self._refine.setRange(1, 19)
+        self._refine.setValue(geom.factor)
+        self._refine.valueChanged.connect(self._setFactor)
+
+        self._sel = GeometrySelector(canvas, fem, geom)
+
+        layout = QtWidgets.QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(QtWidgets.QLabel("Refinement factor"))
+        layout.addWidget(self._refine)
+        layout.addWidget(self._sel)
+        self.setLayout(layout)
+
+    def _setFactor(self, v):
+        self._geom.factor=v
 
 
 class _PeriodicPairsGUI(FEMTreeItem):

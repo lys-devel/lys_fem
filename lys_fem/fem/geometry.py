@@ -187,9 +187,18 @@ class GeometrySelection(FEMObject):
     @property
     def geometryAttributes(self):
         if self._geom == "Domain":
-            return [attr for attr in self.fem.domainAttributes if self.check(attr)]
-        else:
-            return [attr for attr in self.fem.boundaryAttributes if self.check(attr)]
+            attrs = self.fem.domainAttributes
+        elif self._geom == "Boundary":
+            attrs = self.fem.boundaryAttributes
+        elif self._geom == "Volume":
+            attrs = self.fem.geometries.geometryAttributes(3)
+        elif self._geom == "Surface":
+            attrs = self.fem.geometries.geometryAttributes(2)
+        elif self._geom == "Edge":
+            attrs = self.fem.geometries.geometryAttributes(1)
+        elif self._geom == "Point":
+            attrs = self.fem.geometries.geometryAttributes(0)
+        return [attr for attr in attrs if self.check(attr)]
 
     @property
     def geometryType(self):
