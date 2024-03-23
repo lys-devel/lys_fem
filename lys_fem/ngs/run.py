@@ -28,7 +28,7 @@ def run(fem, run=True):
     model = generateModel(fem, mesh, mats)
     print("NGS Models generated in ", '{:.2f}'.format(time.time()-start), ":")
     for m in model.models:
-        print("\t"+m.name+":", [key for key in m.variableNames])
+        print("\t"+m.name+":", [v.name for v in m.variables])
     print()
 
     start = time.time()

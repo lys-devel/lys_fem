@@ -19,7 +19,6 @@ def generateMesh(fem, file="mesh.msh"):
             _createBoundaryFor1D(gmesh, file, points)
         _setBCNames(gmesh, file)
         coords = np.array(gmesh.Coordinates())
-        help(gmesh)
 
     if mpi.isParallel():
         from mpi4py import MPI

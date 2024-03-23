@@ -16,15 +16,36 @@ def generateModel(fem, mesh, mat):
     return CompositeModel(mesh, [modelList[m.className](m, mesh, mat) for m in fem.models], mat)
 
 
+class NGSVariable:
+    def __init__(self, name, fes, scale, initialValue):
+        self._name = name
+        self._fes = fes
+        self._scale = scale
+        self._sol = GridFunction(fes)
+        self._sol.Set(initialValue)
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def finiteElementSpace(self):
+        return self._fes
+    
+    @property
+    def scale(self):
+        return self._scale
+    
+    @property
+    def sol(self):
+        return self._sol
+
+
 class NGSModel:
     def __init__(self, model, mesh, addVariables=False, order=1):
         self._model = model
         self._mesh = mesh
-
-        self._fes = []
-        self._vnames = []
-        self._sol = []
-        self._scale = []
+        self._vars = []
 
         if addVariables:
             for eq in model.equations:
@@ -62,40 +83,15 @@ class NGSModel:
         elif vdim==3:
             fes = VectorH1(self._mesh, order=order, **kwargs)
 
-        sol = GridFunction(fes)
-        sol.Set(initialValue)
-
-        self._fes.append(fes)
-        self._vnames.append(name)
-        self._sol.append(sol)
-        self._scale.append(scale)
-
-    def setSolution(self, x):
-        if len(self.sol) == 1:
-            self.sol[0].Set(x)
-        else:
-            for si, i in zip(self.sol, x):
-                si.Set(i)
+        self._vars.append(NGSVariable(name, fes, scale, initialValue))
 
     @property
-    def spaces(self):
-        return self._fes
+    def variables(self):
+        return self._vars
 
     @property
     def mesh(self):
         return self._mesh
-
-    @property
-    def variableNames(self):
-        return self._vnames
-
-    @property
-    def sol(self):
-        return self._sol
-    
-    @property
-    def scale(self):
-        return self._scale
 
     @property
     def isNonlinear(self):
@@ -111,13 +107,14 @@ class CompositeModel:
         self._mesh = mesh
         self._models = models
         self._materials = mats
-        self._fes = self.space
+        self._fes = util.prod([v.finiteElementSpace for v in self.variables])
 
-        if len(self.variableNames) == 1:
-            tnt = {self.variableNames[0]: self._fes.TnT()}
+        vnames = [v.name for v in self.variables]
+        if len(vnames) == 1:
+            tnt = {vnames[0]: self._fes.TnT()}
         else:
-            tnt = {name: (test, trial) for name, test, trial in zip(self.variableNames, *self._fes.TnT())}
-        sols = {name: sol for name, sol in zip(self.variableNames, self._sols)}
+            tnt = {name: (test, trial) for name, test, trial in zip(vnames, *self._fes.TnT())}
+        sols = {name: sol for name, sol in zip(vnames, self._sols)}
 
         self._bilinear = BilinearForm(self._fes)
         self._bilinear += sum([m.bilinearform(tnt, sols) for m in self._models])
@@ -154,13 +151,11 @@ class CompositeModel:
     
     def __setSolution(self, x):
         # Set respective grid functions
-        if len(self.variableNames) == 1:
-            self._models[0].setSolution(x)
+        if len(self.variables) == 1:
+            self.variables[0].sol.Set(x)
         else:
-            index = 0
-            for m in self._models:
-                m.setSolution(x.components[index:index+len(m.sol)])
-                index += len(m.sol)
+            for i, v in enumerate(self.variables):
+                v.sol.Set(x.components[i])
 
     def __call__(self, x):
         self._linear.Assemble()
@@ -175,13 +170,6 @@ class CompositeModel:
         if self.isNonlinear:
             self._bilinear.AssembleLinearization(x.vec)
         return self._bilinear.mat.Inverse(self._fes.FreeDofs(), "pardiso")
-
-    @property
-    def space(self):
-        spaces = []
-        for m in self._models:
-            spaces.extend(m.spaces)
-        return util.prod(spaces)
     
     @property
     def isNonlinear(self):
@@ -192,27 +180,16 @@ class CompositeModel:
 
     @property
     def _sols(self):
-        sols = []
-        for m in self._models:
-            sols.extend(m.sol)
-        return sols
-
-    @property
-    def variableNames(self):
-        result = []
-        for m in self._models:
-            result.extend(m.variableNames)
-        return result
+        return [v.sol for v in self.variables]
 
     @property
     def solution(self):
         result = {}
-        for m in self._models:
-            for name, sol, scale in zip(m.variableNames, m.sol, m.scale):
-                if len(sol.shape) == 0:
-                    result[name] = np.array(sol.vec) * scale
-                else:
-                    result[name] = [np.array(s.vec) * scale for s in sol.components]
+        for v in self.variables:
+            if len(v.sol.shape) == 0:
+                result[v.name] = np.array(v.sol.vec) * v.scale
+            else:
+                result[v.name] = [np.array(s.vec) * v.scale for s in v.sol.components]
 
         def eval(c):
             sp = H1(self._mesh, order=1)
@@ -232,3 +209,7 @@ class CompositeModel:
     @property
     def models(self):
         return self._models
+    
+    @property
+    def variables(self):
+        return sum([m.variables for m in self._models], [])
