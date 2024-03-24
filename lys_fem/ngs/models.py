@@ -2,8 +2,6 @@ import numpy as np
 from ngsolve import BilinearForm, LinearForm, GridFunction, H1, VectorH1
 
 from . import util
-from .time import BackwardEuler
-
 
 modelList = {}
 

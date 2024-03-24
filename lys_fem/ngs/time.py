@@ -86,9 +86,10 @@ class NGSTimeIntegrator:
 
     def update(self, x):
         M,C,K,F = self.weakforms
-        M.update(x)
-        C.update(x)
-        K.update(x)
+        if self.isNonlinear:
+            M.update(x)
+            C.update(x)
+            K.update(x)
         F.Assemble()
 
     @property
