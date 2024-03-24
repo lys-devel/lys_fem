@@ -1,11 +1,11 @@
 import numpy as np
-from ngsolve import BilinearForm, LinearForm, GridFunction, H1, Parameter, VectorH1
+from ngsolve import BilinearForm, LinearForm, GridFunction, H1, VectorH1
 
 from . import util
+from .time import BackwardEuler
 
 
 modelList = {}
-dti = Parameter(0.0)
 
 def addNGSModel(name, model):
     model.name = name
@@ -109,38 +109,31 @@ class CompositeModel:
         self._materials = mats
         self._fes = util.prod([v.finiteElementSpace for v in self.variables])
 
+    @property
+    def weakforms(self):
+        # prepare test and trial functions
         vnames = [v.name for v in self.variables]
         if len(vnames) == 1:
             tnt = {vnames[0]: self._fes.TnT()}
         else:
             tnt = {name: (test, trial) for name, test, trial in zip(vnames, *self._fes.TnT())}
-        sols = {name: sol for name, sol in zip(vnames, self._sols)}
 
-        self._bilinear = BilinearForm(self._fes)
-        self._bilinear += sum([m.bilinearform(tnt, sols) for m in self._models])
-
-        self._linear = LinearForm(self._fes)
-        self._linear += sum([m.linearform(tnt, sols) for m in self._models])
-
-        self._dti_prev = None
-
-    def solve(self, solver, dt_inv=0):
-        dti.Set(dt_inv)
-        if not hasattr(self, "_x"):
-            self._x = self.__getSolution()
-
-        if (self._dti_prev != dt_inv) and (not self.isNonlinear):
-            self._bilinear.Assemble()
-            self._dti_prev = dt_inv
-
-        self._linear.Assemble()
-        solver.solve(self, self._x)
-        
-        self.__setSolution(self._x)
-        return self.solution
-    
-    def __getSolution(self):
-        sols = self._sols
+        # create weakforms
+        M, C, K, F = BilinearForm(self._fes),BilinearForm(self._fes),BilinearForm(self._fes),LinearForm(self._fes) 
+        for m in self._models:
+            m,c,k,f = m.weakform(tnt)
+            if m != 0:
+                M += m
+            if c != 0:
+                C += c
+            if k!=0:
+                K += k
+            if f!=0:
+                F += f       
+        return M,C,K,F
+  
+    def getSolution(self):
+        sols = [v.sol for v in self.variables]
         u = GridFunction(self._fes)
         if len(sols) == 1:
             u.Set(*sols)
@@ -149,38 +142,20 @@ class CompositeModel:
                 ui.Set(i)
         return u
     
-    def __setSolution(self, x):
+    def setSolution(self, x):
         # Set respective grid functions
         if len(self.variables) == 1:
             self.variables[0].sol.Set(x)
         else:
             for i, v in enumerate(self.variables):
                 v.sol.Set(x.components[i])
-
-    def __call__(self, x):
-        self._linear.Assemble()
-        if self.isNonlinear:
-            self._bilinear.Assemble()
-            F = self._bilinear.Apply(x.vec) - self._linear.vec
-            return self._bilinear.Apply(x.vec) - self._linear.vec 
-        else:
-            return self._bilinear.mat * x.vec - self._linear.vec
-
-    def Jacobian(self, x):
-        if self.isNonlinear:
-            self._bilinear.AssembleLinearization(x.vec)
-        return self._bilinear.mat.Inverse(self._fes.FreeDofs(), "pardiso")
-    
+ 
     @property
     def isNonlinear(self):
         for m in self._models:
             if m.isNonlinear:
                 return True
         return False
-
-    @property
-    def _sols(self):
-        return [v.sol for v in self.variables]
 
     @property
     def solution(self):
@@ -210,6 +185,10 @@ class CompositeModel:
     def models(self):
         return self._models
     
+    @property
+    def finiteElementSpace(self):
+        return self._fes
+
     @property
     def variables(self):
         return sum([m.variables for m in self._models], [])

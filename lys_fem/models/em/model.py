@@ -1,12 +1,5 @@
 from .. import common, general 
 
-class MagnetostatisticsModel(general.PoissonModel):
-    className = "Magnetostatistics"
-
-    @classmethod
-    @property
-    def initialConditionTypes(cls):
-        return [InitialCondition]
     
 
 class DirichletBoundary(common.DirichletBoundary):
@@ -14,14 +7,14 @@ class DirichletBoundary(common.DirichletBoundary):
 
 
 class InitialCondition(common.InitialCondition):
-    @classmethod
-    @property
-    def unit(cls):
-        return "A"
+    unit = "A"
 
 
 class Source(common.Source):
-    @classmethod
-    @property
-    def unit(cls):
-        return "A/m^2"
+    unit = "A/m^2"
+
+
+class MagnetostatisticsModel(general.PoissonModel):
+    className = "Magnetostatistics"
+    initialConditionTypes = [InitialCondition]
+

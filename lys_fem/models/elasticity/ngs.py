@@ -4,7 +4,7 @@ import numpy as np
 from ngsolve import grad, dx, ds
 from ngsolve.fem import Einsum
 
-from lys_fem.ngs import NGSModel, dti, util
+from lys_fem.ngs import NGSModel, util
 
 
 class NGSElasticModel(NGSModel):
@@ -14,26 +14,6 @@ class NGSElasticModel(NGSModel):
         self._mat = mat
         self._vdim = self._model.variableDimension()
         self._C = self.__getC(mesh.dim, self._mat["C"])
-
-    def bilinearform(self, tnt, sols):
-        C, rho = self._C, self._mat["rho"]
-
-        wf = 0
-        for eq in self._model.equations:
-            u,v = tnt[eq.variableName]
-            gu, gv = grad(u), grad(v)
-            if self._vdim == 1:
-                wf += gu * C * gv * dx
-            else:
-                wf +=  Einsum("ij,ijkl,kl", gu, C, gv) * dx
-        return wf
-    
-    def linearform(self, tnt, sols):
-        wf = 0
-        for eq in self._model.equations:
-            u,v = tnt[eq.variableName]
-            wf += util.generateCoefficient([0]*self._vdim) * v * dx
-        return wf
 
     def __getC(self, dim, C):
         res = np.zeros((dim,dim,dim,dim)).tolist()
@@ -50,3 +30,14 @@ class NGSElasticModel(NGSModel):
             return 4
         if (i == 0 and j == 2) or (i == 2 and j == 0):
             return 5
+
+    def weakform(self, tnt):
+        C, rho = self._C, self._mat["rho"]
+        M, K, F = 0, 0, 0
+        for eq in self._model.equations:
+            u,v = tnt[eq.variableName]
+            gu, gv = grad(u), grad(v)
+            
+            M += rho * u * v * dx
+            K += gu * C * gv * dx if self._vdim==1 else Einsum("ij,ijkl,kl", gu, C, gv) * dx
+        return M, 0, K, F

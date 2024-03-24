@@ -11,25 +11,24 @@ class NGSPoissonModel(NGSModel):
         self._mesh = mesh
         self._mat = mat
 
-    def bilinearform(self, tnt, sols):
-        wf = 0
+    def weakform(self, tnt):
+        J, detJ = self.__createJ()
+        K, F = 0, 0
+        for eq in self._model.equations:
+            u,v = tnt[eq.variableName]
+            K += (J*grad(u))*(J*grad(v))/detJ * dx
+
+            c = self._model.domainConditions.coef(Source)
+            if c is not None:
+                f = util.generateCoefficient(c, self._mesh)
+                F += -f*v*dx
+        return 0, 0, K, F
+    
+    def __createJ(self):
         if "J" in self._mat:
             J = self._mat["J"]
             detJ = self._mat["detJ"]
         else:
             J = 1
             detJ = 1
-        for eq in self._model.equations:
-            u,v = tnt[eq.variableName]
-            wf += ((J*grad(u))*(J*grad(v)))/detJ * dx
-        return wf
-    
-    def linearform(self, tnt, sols):
-        wf = util.generateCoefficient(0) * dx
-        for eq in self._model.equations:
-            u,v = tnt[eq.variableName]
-            c = self._model.domainConditions.coef(Source)
-            if c is not None:
-                f = util.generateCoefficient(c, self._mesh)
-                wf += -f*v*dx
-        return wf
+        return J, detJ

@@ -5,11 +5,5 @@ from .. import general
 
 
 class NGSMagnetostatisticsModel(general.NGSPoissonModel):
-    def __init__(self, model, mesh, mat):
-        super().__init__(model, mesh, mat)
+    pass
 
-    def bilinearform(self, tnt, sols):
-        return super().bilinearform(tnt, sols)
-    
-    def linearform(self, tnt, sols):
-        return super().linearform(tnt, sols)

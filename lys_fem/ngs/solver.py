@@ -2,7 +2,7 @@ import os
 import shutil
 import numpy as np
 
-from . import mpi, mesh
+from . import mpi, mesh, time
 from ngsolve import sqrt
 
 
@@ -20,6 +20,7 @@ class SolverBase:
         self._obj = obj
         self._mesh = mesh
         self._solver = _NewtonSolver()
+        self._integ = time.BackwardEuler(model)
         self._model = model
         self._prepareDirectory(dirname)
 
@@ -39,6 +40,10 @@ class SolverBase:
     @property
     def solver(self):
         return self._solver
+    
+    @property
+    def integrator(self):
+        return self._integ
 
     @property    
     def model(self):
@@ -58,8 +63,8 @@ class StationarySolver(SolverBase):
         self.exportMesh(self._mesh)
         self.exportSolution(0, self.model.solution)
 
-        sol = self.model.solve(self._solver)
-        self.exportSolution(1, sol)
+        self.integrator.solve(self._solver)
+        self.exportSolution(1, self.model.solution)
 
 
 class RelaxationSolver(SolverBase):
@@ -75,10 +80,10 @@ class RelaxationSolver(SolverBase):
         t = 0
         dt, dx = self._tSolver.dt0, self._tSolver.dx
         for i in range(1,100):
-            sol = self.model.solve(self._solver, 1/dt)
+            self.integrator.solve(self._solver, 1/dt)
             t = t + dt
             print("Step", i, ", t = {:3e}".format(t), ", dt = {:3e}".format(dt), ", dx = {:3e}".format(self._solver.dx))
-            self.exportSolution(i, sol)
+            self.exportSolution(i, self.model.solution)
             if dt == np.inf:
                 break
             dt *= np.sqrt(dx/self._solver.dx)
@@ -99,8 +104,8 @@ class TimeDependentSolver(SolverBase):
         t = 0
         for i, dt in enumerate(self._tSolver.getStepList()):
             print("Timestep", i, ", t = {:3e}".format(t), ", dt = {:3e}".format(dt), ", dx = {:3e}".format(self._solver.dx))
-            sol = self.model.solve(self._solver, 1/dt)
-            self.exportSolution(i + 1, sol)
+            self.integrator.solve(self._solver, 1/dt)
+            self.exportSolution(i + 1, self.model.solution)
             t = t + dt
 
 
@@ -116,8 +121,8 @@ class _NewtonSolver:
         x0 = x.vec.CreateVector()
         x0.data = x.vec
         for i in range(self._max_iter):
-            Fx = F(x)
-            dx.data = F.Jacobian(x) * Fx
+            Fx = F(x.vec)
+            dx.data = F.Jacobian(x.vec)*Fx
             x.vec.data -= dx
             R = sqrt(dx.InnerProduct(dx)/x.vec.InnerProduct(x.vec))
             if R < eps:

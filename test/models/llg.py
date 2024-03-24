@@ -40,7 +40,7 @@ class LLG_test(FEMTestCase):
         model.boundaryConditions.append(llg.DirichletBoundary([True, True, True], geometries=[1,3]))
         p.models.append(model)
 
-        n = 9
+        n = 13
         # solver
         solver = RelaxationSolver(dt0=1e-9)
         
