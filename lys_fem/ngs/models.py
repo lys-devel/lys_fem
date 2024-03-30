@@ -1,4 +1,3 @@
-import numpy as np
 from ngsolve import BilinearForm, LinearForm, GridFunction, H1, VectorH1
 
 from . import util
@@ -19,8 +18,7 @@ class NGSVariable:
         self._name = name
         self._fes = fes
         self._scale = scale
-        self._sol = GridFunction(fes)
-        self._sol.Set(initialValue)
+        self._init = initialValue
 
     @property
     def name(self):
@@ -35,8 +33,8 @@ class NGSVariable:
         return self._scale
     
     @property
-    def sol(self):
-        return self._sol
+    def initialValue(self):
+        return self._init
 
 
 class NGSModel:
@@ -130,40 +128,27 @@ class CompositeModel:
                 F += f       
         return M,C,K,F
   
-    def getSolution(self):
-        sols = [v.sol for v in self.variables]
+    @property
+    def initialValue(self):
         u = GridFunction(self._fes)
+        sols = [v.initialValue for v in self.variables]
         if len(sols) == 1:
             u.Set(*sols)
         else:
             for ui, i in zip(u.components, sols):
                 ui.Set(i)
         return u
-    
-    def setSolution(self, x):
-        # Set respective grid functions
-        if len(self.variables) == 1:
-            self.variables[0].sol.Set(x)
-        else:
-            for i, v in enumerate(self.variables):
-                v.sol.Set(x.components[i])
- 
+     
     @property
     def isNonlinear(self):
         for m in self._models:
             if m.isNonlinear:
                 return True
         return False
-
+    
     @property
-    def solution(self):
+    def materialSolution(self):
         result = {}
-        for v in self.variables:
-            if len(v.sol.shape) == 0:
-                result[v.name] = np.array(v.sol.vec) * v.scale
-            else:
-                result[v.name] = [np.array(s.vec) * v.scale for s in v.sol.components]
-
         def eval(c):
             sp = H1(self._mesh, order=1)
             gf = GridFunction(sp)

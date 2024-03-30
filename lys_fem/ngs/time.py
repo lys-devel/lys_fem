@@ -1,3 +1,4 @@
+import numpy as np
 from scipy import sparse
 from ngsolve.la import SparseMatrixd
 
@@ -66,6 +67,11 @@ class _Binary(_BLFBase):
         return m
 
 
+class Solutions:
+    def __init__(self, model):
+        self._model = model
+    
+
 class NGSTimeIntegrator:
     def __init__(self, model):
         self._model = model
@@ -76,13 +82,11 @@ class NGSTimeIntegrator:
         K = _BLF(K, self.isNonlinear)
 
         self._wfs = [M, C, K, F]
-        self._x = model.getSolution()
+        self._x = model.initialValue
 
     def solve(self, solver, dti=0):
         self._dti = dti
-        self._x1 = self._model.getSolution()
-        solver.solve(self, self._x)
-        self._model.setSolution(self._x)
+        self._x.vec.data = solver.solve(self, self._x.vec.CreateVector(copy=True))
 
     def update(self, x):
         M,C,K,F = self.weakforms
@@ -91,6 +95,18 @@ class NGSTimeIntegrator:
             C.update(x)
             K.update(x)
         F.Assemble()
+
+    @property
+    def solution(self):
+        result = self._model.materialSolution
+        vs = self._model.variables
+        comps = [self._x] if len(vs) == 1 else self._x.components
+        for v, xv in zip(vs, comps):
+            if len(self._x.shape) == 0:
+                result[v.name] = np.array(xv.vec) * v.scale 
+            else:
+                result[v.name] = [np.array(xi.vec) * v.scale for xi in xv.components]
+        return result
 
     @property
     def weakforms(self):
@@ -106,7 +122,7 @@ class BackwardEuler(NGSTimeIntegrator):
         self.update(x)
         M,C,K,F = self.weakforms
         dti = self._dti
-        x0 = self._x1.vec
+        x0 = self._x.vec
         return (C*dti).apply(x- x0) + K.apply(x) - F.vec 
 
     def Jacobian(self, x):

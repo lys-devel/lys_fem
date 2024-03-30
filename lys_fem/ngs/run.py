@@ -1,6 +1,5 @@
 import time
 import numpy as np
-from ngsolve import x,y,z
 from .mesh import generateMesh
 from .util import generateCoefficient
 from .models import generateModel

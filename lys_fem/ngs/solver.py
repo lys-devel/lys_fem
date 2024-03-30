@@ -61,10 +61,10 @@ class StationarySolver(SolverBase):
 
     def execute(self):
         self.exportMesh(self._mesh)
-        self.exportSolution(0, self.model.solution)
+        self.exportSolution(0, self.integrator.solution)
 
         self.integrator.solve(self._solver)
-        self.exportSolution(1, self.model.solution)
+        self.exportSolution(1, self.integrator.solution)
 
 
 class RelaxationSolver(SolverBase):
@@ -75,7 +75,7 @@ class RelaxationSolver(SolverBase):
 
     def execute(self):
         self.exportMesh(self._mesh)
-        self.exportSolution(0, self.model.solution)
+        self.exportSolution(0, self.integrator.solution)
 
         t = 0
         dt, dx = self._tSolver.dt0, self._tSolver.dx
@@ -83,7 +83,7 @@ class RelaxationSolver(SolverBase):
             self.integrator.solve(self._solver, 1/dt)
             t = t + dt
             print("Step", i, ", t = {:3e}".format(t), ", dt = {:3e}".format(dt), ", dx = {:3e}".format(self._solver.dx))
-            self.exportSolution(i, self.model.solution)
+            self.exportSolution(i, self.integrator.solution)
             if dt == np.inf:
                 break
             dt *= np.sqrt(dx/self._solver.dx)
@@ -99,13 +99,13 @@ class TimeDependentSolver(SolverBase):
 
     def execute(self):
         self.exportMesh(self._mesh)
-        self.exportSolution(0, self.model.solution)
+        self.exportSolution(0, self.integrator.solution)
 
         t = 0
         for i, dt in enumerate(self._tSolver.getStepList()):
             print("Timestep", i, ", t = {:3e}".format(t), ", dt = {:3e}".format(dt), ", dx = {:3e}".format(self._solver.dx))
             self.integrator.solve(self._solver, 1/dt)
-            self.exportSolution(i + 1, self.model.solution)
+            self.exportSolution(i + 1, self.integrator.solution)
             t = t + dt
 
 
@@ -117,21 +117,20 @@ class _NewtonSolver:
     def solve(self, F, x, eps=1e-5):
         if not F.isNonlinear:
             self._max_iter=1
-        dx = x.vec.CreateVector()
-        x0 = x.vec.CreateVector()
-        x0.data = x.vec
+        dx = x.CreateVector()
+        x0 = x.CreateVector(copy=True)
         for i in range(self._max_iter):
-            Fx = F(x.vec)
-            dx.data = F.Jacobian(x.vec)*Fx
-            x.vec.data -= dx
-            R = sqrt(dx.InnerProduct(dx)/x.vec.InnerProduct(x.vec))
+            Fx = F(x)
+            dx.data = F.Jacobian(x)*Fx
+            x.data -= dx
+            R = sqrt(dx.InnerProduct(dx)/x.InnerProduct(x))
             if R < eps:
                 print("[Newton solver] Converged in", i, "steps.")
-                self._setDifference(x.vec, x0)
+                self._setDifference(x, x0)
                 return x
         if self._max_iter !=1:
             print("[Newton solver] NOT Converged in", i, "steps.")
-        self._setDifference(x.vec, x0)
+        self._setDifference(x, x0)
         return x
 
     def _setDifference(self, x, x0):
