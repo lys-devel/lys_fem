@@ -67,26 +67,44 @@ class _Binary(_BLFBase):
         return m
 
 
-class Solutions:
-    def __init__(self, model):
-        self._model = model
-    
+class _Solution(list):
+    def __init__(self, item=None, nlog=2):
+        super().__init__(item)
+        self._nlog = nlog
+
+    def append(self, item):
+        super().append(item)
+        if len(self) > self._nlog:
+            self.pop(0)
+
 
 class NGSTimeIntegrator:
-    def __init__(self, model):
+    def __init__(self, model, calc_xtt=True):
         self._model = model
 
-        M,C,K,F = model.weakforms
+        M,C,K,F = model.weakforms()
         M = _BLF(M, self.isNonlinear)
         C = _BLF(C, self.isNonlinear)
         K = _BLF(K, self.isNonlinear)
-
         self._wfs = [M, C, K, F]
-        self._x = model.initialValue
 
+        x,v,a = model.initialValue, model.initialVelocity, None
+        if calc_xtt:
+            a = self.__calc_xtt(x,v)
+        self._sols = _Solution([(x.vec,v.vec,a)])
+        self._x = x
+
+    def __calc_xtt(self, x, v):
+        self.update(x.vec)
+        M, C, K, F = self.weakforms
+        rhs = F.vec - C.apply(v.vec) - K.apply(x.vec)
+        a = M.inverse(self._model.finiteElementSpace.FreeDofs()) * rhs
+        return a
+    
     def solve(self, solver, dti=0):
         self._dti = dti
         self._x.vec.data = solver.solve(self, self._x.vec.CreateVector(copy=True))
+        self._sols.append(self.update_xva(self._x.vec))
 
     def update(self, x):
         M,C,K,F = self.weakforms
@@ -100,6 +118,7 @@ class NGSTimeIntegrator:
     def solution(self):
         result = self._model.materialSolution
         vs = self._model.variables
+
         comps = [self._x] if len(vs) == 1 else self._x.components
         for v, xv in zip(vs, comps):
             if len(self._x.shape) == 0:
@@ -118,15 +137,21 @@ class NGSTimeIntegrator:
 
 
 class BackwardEuler(NGSTimeIntegrator):
+    def __init__(self, model):
+        super().__init__(model, calc_xtt=False)
+
     def __call__(self, x):
         self.update(x)
         M,C,K,F = self.weakforms
         dti = self._dti
-        x0 = self._x.vec
+        x0, v0, a0 = self._sols[-1]
         return (C*dti).apply(x- x0) + K.apply(x) - F.vec 
 
     def Jacobian(self, x):
+        self.update(x)
         M,C,K,F = self.weakforms
         dti = self._dti
         return (C*dti + K).inverse(self._model.finiteElementSpace.FreeDofs())
     
+    def update_xva(self, x):
+        return x, None, None

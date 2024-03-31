@@ -14,11 +14,12 @@ def generateModel(fem, mesh, mat):
 
 
 class NGSVariable:
-    def __init__(self, name, fes, scale, initialValue):
+    def __init__(self, name, fes, scale, initialValue, initialVelocity):
         self._name = name
         self._fes = fes
         self._scale = scale
         self._init = initialValue
+        self._vel = initialVelocity
 
     @property
     def name(self):
@@ -35,6 +36,10 @@ class NGSVariable:
     @property
     def initialValue(self):
         return self._init
+    
+    @property
+    def initialVelocity(self):
+        return self._vel
 
 
 class NGSModel:
@@ -45,9 +50,9 @@ class NGSModel:
 
         if addVariables:
             for eq in model.equations:
-                self.addVariable(eq.variableName, eq.variableDimension, "auto", "auto", eq.geometries, order=order)
+                self.addVariable(eq.variableName, eq.variableDimension, "auto", "auto", None, eq.geometries, order=order)
 
-    def addVariable(self, name, vdim, dirichlet=None, initialValue=None, region=None, order=1, scale=1):
+    def addVariable(self, name, vdim, dirichlet=None, initialValue=None, initialVelocity=None, region=None, order=1, scale=1):
         if initialValue is None:
             initialValue = util.generateCoefficient([0]*vdim)
             scale = 1
@@ -55,6 +60,8 @@ class NGSModel:
             init = self._model.initialConditions.coef(self._model.initialConditionTypes[0])
             scale = init.scale
             initialValue = util.generateCoefficient(init, self._mesh)
+        if initialVelocity is None:
+            initialVelocity = util.generateCoefficient([0]*vdim)
 
         kwargs = {}
         if dirichlet == "auto":
@@ -79,7 +86,7 @@ class NGSModel:
         elif vdim==3:
             fes = VectorH1(self._mesh, order=order, **kwargs)
 
-        self._vars.append(NGSVariable(name, fes, scale, initialValue))
+        self._vars.append(NGSVariable(name, fes, scale, initialValue, initialVelocity))
 
     @property
     def variables(self):
@@ -104,15 +111,23 @@ class CompositeModel:
         self._models = models
         self._materials = mats
         self._fes = util.prod([v.finiteElementSpace for v in self.variables])
+        self._x = self.__createGridFunction([v.initialValue for v in self.variables])
 
-    @property
-    def weakforms(self):
+    def weakforms(self, nonlinear=True):
         # prepare test and trial functions
         vnames = [v.name for v in self.variables]
         if len(vnames) == 1:
             tnt = {vnames[0]: self._fes.TnT()}
+            if nonlinear:
+                vars = {vnames[0]: self._fes.TnT()[0]}
+            else:
+                vars = {vnames[0]: self._x}
         else:
             tnt = {name: (test, trial) for name, test, trial in zip(vnames, *self._fes.TnT())}
+            if nonlinear:
+                vars = {name: test for name, test, trial in zip(vnames, *self._fes.TnT())}
+            else:
+                vars = {vnames[0]: c for name, c in zip(vnames, self._x.components)}
 
         # create weakforms
         M, C, K, F = BilinearForm(self._fes),BilinearForm(self._fes),BilinearForm(self._fes),LinearForm(self._fes) 
@@ -130,15 +145,21 @@ class CompositeModel:
   
     @property
     def initialValue(self):
+        return self.__createGridFunction([v.initialValue for v in self.variables])
+
+    @property
+    def initialVelocity(self):
+        return self.__createGridFunction([v.initialVelocity for v in self.variables])
+    
+    def __createGridFunction(self, sols):
         u = GridFunction(self._fes)
-        sols = [v.initialValue for v in self.variables]
         if len(sols) == 1:
             u.Set(*sols)
         else:
             for ui, i in zip(u.components, sols):
                 ui.Set(i)
         return u
-     
+         
     @property
     def isNonlinear(self):
         for m in self._models:

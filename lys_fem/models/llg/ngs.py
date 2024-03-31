@@ -13,9 +13,9 @@ class NGSLLGModel(NGSModel):
         dirichlet = util.generateDirichletCondition(self._model)
 
         for eq in model.equations:
-            self.addVariable(eq.variableName+"x", 1, [dirichlet[0]], initialValue[0], eq.geometries, order=order)
-            self.addVariable(eq.variableName+"y", 1, [dirichlet[1]], initialValue[1], eq.geometries, order=order)
-            self.addVariable(eq.variableName+"z", 1, [dirichlet[2]], initialValue[2], eq.geometries, order=order)
+            self.addVariable(eq.variableName+"x", 1, dirichlet = [dirichlet[0]], initialValue = initialValue[0], region = eq.geometries, order=order)
+            self.addVariable(eq.variableName+"y", 1, dirichlet = [dirichlet[1]], initialValue = initialValue[1], region = eq.geometries, order=order)
+            self.addVariable(eq.variableName+"z", 1, dirichlet = [dirichlet[2]], initialValue = initialValue[2], region = eq.geometries, order=order)
             self.addVariable(eq.variableName+"_lam", 1, region=eq.geometries, order=2)
 
     def weakform(self, tnt):
