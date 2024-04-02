@@ -18,31 +18,37 @@ class NGSLLGModel(NGSModel):
             self.addVariable(eq.variableName+"z", 1, dirichlet = [dirichlet[2]], initialValue = initialValue[2], region = eq.geometries, order=order)
             self.addVariable(eq.variableName+"_lam", 1, region=eq.geometries, order=2)
 
-    def weakform(self, tnt):
+    def weakform(self, tnt, vars):
         g, Ms = self._mat["g_LL"], self._mat["M_s"]
         A = 2*self._mat["A_ex"] * g / Ms
 
         M, K, F = 0, 0, 0
         for eq in self._model.equations:
-            mx, test_mx = tnt[eq.variableName+"x"]
-            my, test_my = tnt[eq.variableName+"y"]
-            mz, test_mz = tnt[eq.variableName+"z"]
+            mx, mx_t, mx_tt = vars[eq.variableName+"x"]
+            my, my_t, my_tt = vars[eq.variableName+"y"]
+            mz, mz_t, mz_tt = vars[eq.variableName+"z"]
             m = (mx, my, mz)
+            mt = (mx_t, my_t, mz_t)
+            mx0, test_mx = tnt[eq.variableName+"x"]
+            my0, test_my = tnt[eq.variableName+"y"]
+            mz0, test_mz = tnt[eq.variableName+"z"]
+            m0 = (mx0, my0, mz0)
             test_m = (test_mx, test_my, test_mz)
             lam, test_lam = tnt[eq.variableName+"_lam"]
 
-            M += util.dot(m, test_m)*dx 
-            K += (1e-5 * lam *test_lam + 2*lam*util.dot(m, test_m) + (util.dot(m,m)-1)*test_lam)*dx
+            M += util.dot(mt, test_m)*dx 
+            K += (1e-5 * lam *test_lam + 2*lam*util.dot(m0, test_m) + (util.dot(m0, m)-1)*test_lam)*dx
             # Exchange term
-            K += -A * (my*grad(mz) - mz*grad(my)) * grad(test_mx) * dx
-            K += -A * (mz*grad(mx) - mx*grad(mz)) * grad(test_my) * dx
-            K += -A * (mx*grad(my) - my*grad(mx)) * grad(test_mz) * dx
+
+            K += -A * (my*grad(mz0) - mz*grad(my0)) * grad(test_mx) * dx
+            K += -A * (mz*grad(mx0) - mx*grad(mz0)) * grad(test_my) * dx
+            K += -A * (mx*grad(my0) - my*grad(mx0)) * grad(test_mz) * dx
 
             if self._model.domainConditions.have(GilbertDamping):
                 alpha = self._mat["alpha"]
                 for gil in self._model.domainConditions.get(GilbertDamping):
                     region = self._mesh.Materials(util.generateGeometry(gil.geometries))
-                    M += -alpha * util.dot(util.cross(m, m), test_m)*dx(definedon=region)
+                    M += -alpha * util.dot(util.cross(m0, m), test_m)*dx(definedon=region)
 
             c = self._model.domainConditions.coef(ExternalMagneticField)
             if c is not None:

@@ -1,7 +1,7 @@
 import itertools
 import numpy as np
 
-from ngsolve import grad, dx, ds
+from ngsolve import dx, ds, grad
 from ngsolve.fem import Einsum
 
 from lys_fem.ngs import NGSModel, util
@@ -31,13 +31,14 @@ class NGSElasticModel(NGSModel):
         if (i == 0 and j == 2) or (i == 2 and j == 0):
             return 5
 
-    def weakform(self, tnt):
+    def weakform(self, tnt, vars):
         C, rho = self._C, self._mat["rho"]
         M, K, F = 0, 0, 0
         for eq in self._model.equations:
-            u,v = tnt[eq.variableName]
+            _,v = tnt[eq.variableName]
+            u,ut,utt = vars[eq.variableName]
             gu, gv = grad(u), grad(v)
             
-            M += rho * u * v * dx
+            M += rho * utt * v * dx
             K += gu * C * gv * dx if self._vdim==1 else Einsum("ij,ijkl,kl", gu, C, gv) * dx
         return M, 0, K, F

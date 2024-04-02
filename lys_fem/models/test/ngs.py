@@ -7,7 +7,7 @@ class NGSLinearTestModel(NGSModel):
         super().__init__(model, mesh, addVariables=True)
         self._model = model
 
-    def weakform(self, tnt):
+    def weakform(self, tnt, vars):
         K, F = 0, 0
         for eq in self._model.equations:
             u,v = tnt[eq.variableName]
@@ -21,12 +21,13 @@ class NGSNonlinearTestModel(NGSModel):
         super().__init__(model, mesh, addVariables=True)
         self._model = model
 
-    def weakform(self, tnt):
+    def weakform(self, tnt, vars):
         K, F = 0, 0
         for eq in self._model.equations:
-            u,v = tnt[eq.variableName]
-            gu, gv = grad(u), grad(v)
-            K += u * (gu*gv) * dx
+            u0,v = tnt[eq.variableName]
+            u, ut, utt = vars[eq.variableName]
+            gu, gv = grad(u0), grad(v)
+            K += u0 * (gu*gv) * dx
         return 0,0,K,F
 
     @property

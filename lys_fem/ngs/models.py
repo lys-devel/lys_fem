@@ -1,4 +1,4 @@
-from ngsolve import BilinearForm, LinearForm, GridFunction, H1, VectorH1
+from ngsolve import GridFunction, H1, VectorH1, dx
 
 from . import util
 
@@ -34,11 +34,11 @@ class NGSVariable:
         return self._scale
     
     @property
-    def initialValue(self):
+    def value(self):
         return self._init
     
     @property
-    def initialVelocity(self):
+    def velocity(self):
         return self._vel
 
 
@@ -111,28 +111,21 @@ class CompositeModel:
         self._models = models
         self._materials = mats
         self._fes = util.prod([v.finiteElementSpace for v in self.variables])
-        self._x = self.__createGridFunction([v.initialValue for v in self.variables])
 
-    def weakforms(self, nonlinear=True):
+    def weakforms(self, X, V, A):
+        vars = {var.name: (xi,vi,ai) for var, xi, vi, ai in zip(self.variables, X, V, A)}
+
         # prepare test and trial functions
         vnames = [v.name for v in self.variables]
         if len(vnames) == 1:
             tnt = {vnames[0]: self._fes.TnT()}
-            if nonlinear:
-                vars = {vnames[0]: self._fes.TnT()[0]}
-            else:
-                vars = {vnames[0]: self._x}
         else:
-            tnt = {name: (test, trial) for name, test, trial in zip(vnames, *self._fes.TnT())}
-            if nonlinear:
-                vars = {name: test for name, test, trial in zip(vnames, *self._fes.TnT())}
-            else:
-                vars = {vnames[0]: c for name, c in zip(vnames, self._x.components)}
+            tnt = {name: (trial, test) for name, trial, test in zip(vnames, *self._fes.TnT())}
 
         # create weakforms
-        M, C, K, F = BilinearForm(self._fes),BilinearForm(self._fes),BilinearForm(self._fes),LinearForm(self._fes) 
+        M, C, K, F = util.generateCoefficient(0)*dx, util.generateCoefficient(0)*dx, util.generateCoefficient(0)*dx, util.generateCoefficient(0)*dx
         for m in self._models:
-            m,c,k,f = m.weakform(tnt)
+            m,c,k,f = m.weakform(tnt, vars)
             if m != 0:
                 M += m
             if c != 0:
@@ -140,18 +133,18 @@ class CompositeModel:
             if k!=0:
                 K += k
             if f!=0:
-                F += f       
+                F += f
         return M,C,K,F
-  
+    
     @property
     def initialValue(self):
-        return self.__createGridFunction([v.initialValue for v in self.variables])
+        return self.__getGridFunction([v.value for v in self.variables])
 
     @property
     def initialVelocity(self):
-        return self.__createGridFunction([v.initialVelocity for v in self.variables])
-    
-    def __createGridFunction(self, sols):
+        return self.__getGridFunction([v.velocity for v in self.variables])
+
+    def __getGridFunction(self, sols):
         u = GridFunction(self._fes)
         if len(sols) == 1:
             u.Set(*sols)
@@ -159,13 +152,25 @@ class CompositeModel:
             for ui, i in zip(u.components, sols):
                 ui.Set(i)
         return u
-         
+        
     @property
     def isNonlinear(self):
         for m in self._models:
             if m.isNonlinear:
                 return True
         return False
+    
+    @property
+    def models(self):
+        return self._models
+    
+    @property
+    def finiteElementSpace(self):
+        return self._fes
+
+    @property
+    def variables(self):
+        return sum([m.variables for m in self._models], [])
     
     @property
     def materialSolution(self):
@@ -184,15 +189,3 @@ class CompositeModel:
             elif len(mat.shape) == 2:
                 result[name] = [[eval(mat[i,j]) for j in range(mat.shape[1])] for i in range(mat.shape[0])]
         return result
-
-    @property
-    def models(self):
-        return self._models
-    
-    @property
-    def finiteElementSpace(self):
-        return self._fes
-
-    @property
-    def variables(self):
-        return sum([m.variables for m in self._models], [])

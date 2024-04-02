@@ -10,14 +10,15 @@ class NGSHeatConductionModel(NGSModel):
         self._model = model
         self._mat = mat
 
-    def weakform(self, tnt):
+    def weakform(self, tnt, vars):
         Cv, k = self._mat["C_v"], self._mat["k"]
         M, K, F = 0, 0, 0
         for eq in self._model.equations:
-            u,v = tnt[eq.variableName]
+            _, v = tnt[eq.variableName]
+            u, ut, _ = vars[eq.variableName]
             gu, gv = grad(u), grad(v)
 
-            M += Cv * u * v * dx
+            M += Cv * ut * v * dx
             K += k * (gu * gv) * dx
 
             c = self._model.boundaryConditions.coef(NeumannBoundary)

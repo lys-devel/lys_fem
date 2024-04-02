@@ -1,4 +1,4 @@
-from ngsolve import grad, dx, ds, x, y, z
+from ngsolve import grad, dx, ds
 
 from .. import Source
 from lys_fem.ngs import NGSModel, util
@@ -11,11 +11,12 @@ class NGSPoissonModel(NGSModel):
         self._mesh = mesh
         self._mat = mat
 
-    def weakform(self, tnt):
+    def weakform(self, tnt, vars):
         J, detJ = self.__createJ()
         K, F = 0, 0
         for eq in self._model.equations:
-            u,v = tnt[eq.variableName]
+            _,v = tnt[eq.variableName]
+            u,ut,utt = vars[eq.variableName]
             K += (J*grad(u))*(J*grad(v))/detJ * dx
 
             c = self._model.domainConditions.coef(Source)
