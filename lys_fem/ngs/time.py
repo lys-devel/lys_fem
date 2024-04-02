@@ -86,7 +86,8 @@ class NGSTimeIntegrator:
         self._dti = Parameter(-1)
 
         self._sols = _Solution(model)
-        self._sols.update((model.initialValue, model.initialVelocity, None))
+        x,v = model.initialValue, model.initialVelocity
+        self._sols.update((x, v, self.initialAcceleration(model, x, v)))
         self._x = self._sols.copy()
 
         a,f = self.generateWeakforms(model, self._sols, self._dti)
@@ -124,6 +125,9 @@ class NGSTimeIntegrator:
 
 
 class BackwardEuler(NGSTimeIntegrator):
+    def initialAcceleration(self, model, x, v):
+        return None
+    
     def generateWeakforms(self, model, sols, dti):
         X, X0 = self.trials, sols.X()
         if model.isNonlinear:
@@ -137,9 +141,53 @@ class BackwardEuler(NGSTimeIntegrator):
     def updateSolutions(self, x, sols, dti):
         return (x, None, None)
     
-    def __calc_xtt(self, x, v):
-        self.update(x.vec)
-        M, C, K, F = self.weakforms
-        rhs = F.vec - C.apply(v.vec) - K.apply(x.vec)
-        a = M.inverse(self._model.finiteElementSpace.FreeDofs()) * rhs
+
+class GeneralizedAlpha(NGSTimeIntegrator):
+    def __init__(self, model, rho):
+        am = (2*rho-1)/(rho+1)
+        af = rho/(rho+1)
+        beta = 0.25*(1+af-am)**2
+        gamma = 0.5+af-am
+        self._params = [am, af, beta, gamma]
+        super().__init__(model)
+
+    def initialAcceleration(self, model, x, v):
+        fes = model.finiteElementSpace
+        X = model.finiteElementSpace.TrialFunction()
+        M, C, K, F = model.weakforms(X, X, X)
+        Feff = LinearForm(fes)
+        Feff += F
+        Keff = BilinearForm(fes)
+        Keff += K
+        Ceff = BilinearForm(fes)
+        Ceff += C
+        Meff = BilinearForm(fes)
+        Meff += M
+
+        rhs = Feff.vec - Ceff.Apply(v.vec) - Keff.Apply(x.vec)
+        Meff.AssembleLinearization(x.vec)
+
+        a = GridFunction(fes)
+        a.vec.data  = Meff.mat.Inverse(model.finiteElementSpace.FreeDofs(), "pardiso") * rhs
         return a
+        
+    def generateWeakforms(self, model, sols, dti):
+        X, (X0, V0, A0) = self.model.TrialFunction(), sols[0]
+        am, af, b, g = self._params
+        if model.isNonlinear:
+           M, C, K, F = model.weakforms(X, (X-X0)*dti, X)
+           return M + C + K, F
+        else:
+            M1, C1, K1, F1 = model.weakforms((1-af)*X, (1-af)*(b/g)*X*dti, (1-am)*(X/b)*dti**2)
+            v = (-X0*(g/b)*dti + (1-g/b)*V0 + (1-0.5*g/b)*A0/dti)*(1-af) + af*V0
+            a = -X0/b*dti**2 - V0*dti/b + (1-0.5/b)*A0
+            M2, C2, K2, F2 = model.weakforms(-af*X0, -v, -a)
+            return M1 + C1 + K1, F1 + M2 + C2 + K2
+        
+    def updateSolutions(self, x, sols, dti):
+        X0, V0, A0 = sols.X(), sols.V(), sols.A()
+        am, af, b, g = self._params
+        v = ((x-X0)*(g/b)*dti + (1-g/b)*V0 + (1-0.5*g/b)*A0/dti)*(1-af) + af*V0
+        a = (x-X0)/b*dti**2 - V0*dti/b + (1-0.5/b)*A0
+        return (x, v, a)
+    
