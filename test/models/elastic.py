@@ -1,5 +1,8 @@
+import sympy as sp
+import numpy as np
+
 from lys_fem import geometry
-from lys_fem.fem import FEMProject, Material, StationarySolver, FEMSolution
+from lys_fem.fem import FEMProject, Material, StationarySolver, TimeDependentSolver, FEMSolution
 from lys_fem.models import elasticity
 
 from ..base import FEMTestCase
@@ -101,3 +104,39 @@ class elasticity_test(FEMTestCase):
         res = sol.eval("u[0]", data_number=1)
         for w in res:
             self.assert_array_almost_equal(w.data, w.x[:, 0])
+
+    def tdep_1d(self, lib):
+        p = FEMProject(1)
+
+        # geometry
+        p.geometries.add(geometry.Line(0, 0, 0, 2, 0, 0))
+        p.mesher.setRefinement(5)
+        
+        # material
+        param = elasticity.ElasticParameters()
+        mat1 = Material([param], geometries="all")
+        p.materials.append(mat1)
+
+        x = sp.symbols("x")
+
+        # model: boundary and initial conditions
+        model = elasticity.ElasticModel(1)
+        model.initialConditions.append(elasticity.InitialCondition(sp.exp(-(x/0.1)**2), geometries=[1]))
+        p.models.append(model)
+
+        # solver
+        solver = TimeDependentSolver(0.02, 2)
+        p.solvers.append(solver)
+
+        # solve
+        lib.run(p)
+
+        # solution
+        sol = FEMSolution(".", p)
+
+        res = sol.eval("u", data_number=0)
+        for w in res:
+            self.assert_array_almost_equal(w.data, np.exp(-((w.x[:, 0])/0.1)**2), decimal=3)
+        res = sol.eval("u", data_number=50)
+        for w in res:
+            self.assert_array_almost_equal(w.data, np.exp(-((w.x[:, 0]-1)/0.1)**2), decimal=3)

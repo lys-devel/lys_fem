@@ -10,3 +10,6 @@ class ngs_elasticity_test(elasticity_test):
 
     def test_3d_dirichlet(self):
         self.dirichlet_3d(ngs)
+
+    def test_1d_tdep(self):
+        self.tdep_1d(ngs)
