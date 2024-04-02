@@ -130,12 +130,11 @@ class BackwardEuler(NGSTimeIntegrator):
     
     def generateWeakforms(self, model, sols, dti):
         X, X0 = self.trials, sols.X()
+        M1, C1, K1, F1 = model.weakforms(X, X*dti, X)
+        M2, C2, K2, F2 = model.weakforms(X, X0*dti, X)
         if model.isNonlinear:
-           M, C, K, F = model.weakforms(X, (X-X0)*dti, X)
-           return M+C+K, F
+           return C1 - C2 + K1, F1
         else:
-            M1, C1, K1, F1 = model.weakforms(X, X*dti, X)
-            M2, C2, K2, F2 = model.weakforms(X, X0*dti, X)
             return C1 + K1, F1 + C2
         
     def updateSolutions(self, x, sols, dti):
