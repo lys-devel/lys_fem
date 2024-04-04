@@ -107,6 +107,7 @@ class elasticity_test(FEMTestCase):
 
     def tdep_1d(self, lib):
         p = FEMProject(1)
+        p.scaling.set(time=1e-2)
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 2, 0, 0))
@@ -125,7 +126,7 @@ class elasticity_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        solver = TimeDependentSolver(0.02, 2)
+        solver = TimeDependentSolver(0.005, 1, method="NewmarkBeta")
         p.solvers.append(solver)
 
         # solve
@@ -137,6 +138,6 @@ class elasticity_test(FEMTestCase):
         res = sol.eval("u", data_number=0)
         for w in res:
             self.assert_array_almost_equal(w.data, np.exp(-((w.x[:, 0])/0.1)**2), decimal=3)
-        res = sol.eval("u", data_number=50)
+        res = sol.eval("u", data_number=100)
         for w in res:
-            self.assert_array_almost_equal(w.data, np.exp(-((w.x[:, 0]-1)/0.1)**2), decimal=3)
+            self.assert_array_almost_equal(w.data, np.exp(-((w.x[:, 0]-np.sqrt(3)/2)/0.1)**2)/2, decimal=2)

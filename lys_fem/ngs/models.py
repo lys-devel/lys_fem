@@ -124,8 +124,8 @@ class CompositeModel:
 
         # create weakforms
         M, C, K, F = util.generateCoefficient(0)*dx, util.generateCoefficient(0)*dx, util.generateCoefficient(0)*dx, util.generateCoefficient(0)*dx
-        for m in self._models:
-            m,c,k,f = m.weakform(tnt, vars)
+        for model in self._models:
+            m,c,k,f = model.weakform(tnt, vars)
             if m != 0:
                 M += m
             if c != 0:

@@ -52,11 +52,15 @@ class _Solution:
             if yi is not None:
                 self.__set(xi, yi)
 
-    def __set(self, x,y):
+    def __set(self,x,y):
         if self._isSingle:
+            if not isinstance(y, GridFunction):
+                y = y[0]
             x.Set(y)
         else:
-            for xi, yi in zip(x.components, y.components):
+            if isinstance(y, GridFunction):
+                y = y.components
+            for xi, yi in zip(x.components, y):
                 xi.Set(yi)
 
     def __getitem__(self, n):
@@ -73,11 +77,11 @@ class _Solution:
 
     def V(self, n=0):
         x = self[n][1]
-        return np.array([x] if self._isSingle == 1 else x.components)
+        return np.array([x] if self._isSingle else x.components)
 
     def A(self, n=0):
         x = self[n][2]
-        return np.array([x] if self._isSingle == 1 else x.components)
+        return np.array([x] if self._isSingle else x.components)
 
 
 class NGSTimeIntegrator:
@@ -107,17 +111,17 @@ class NGSTimeIntegrator:
             self._dti.Set(dti)
             self._op.update()
         self._x.vec.data = solver.solve(self._op, self._x.vec.CreateVector(copy=True))
-        self._sols.update(self.updateSolutions(self._x, self._sols, self._dti))
+        self._sols.update(self.updateSolutions(self._x, self._sols, self._dti.Get()))
    
     @property
     def solution(self):
         result = self._model.materialSolution
         vs = self._model.variables
-        x, v, a = self._sols[0]
+        X, V, A = self._sols[0]
 
-        comps = [x] if len(vs) == 1 else x.components
+        comps = [X] if len(vs) == 1 else X.components
         for v, xv in zip(vs, comps):
-            if len(x.shape) == 0:
+            if len(X.shape) == 0:
                 result[v.name] = np.array(xv.vec) * v.scale 
             else:
                 result[v.name] = [np.array(xi.vec) * v.scale for xi in xv.components]
@@ -129,30 +133,36 @@ class BackwardEuler(NGSTimeIntegrator):
         return None
     
     def generateWeakforms(self, model, sols, dti):
-        X, X0 = self.trials, sols.X()
-        M1, C1, K1, F1 = model.weakforms(X, X*dti, X)
-        M2, C2, K2, F2 = model.weakforms(X, X0*dti, X)
+        X, X0, V0 = self.trials, sols.X(), sols.V()
+        M1, C1, K1, F1 = model.weakforms(X, X*dti, X*dti**2)
+        M2, C2, K2, F2 = model.weakforms(X, X0*dti, X0*dti**2+V0*dti)
         if model.isNonlinear:
-           return C1 - C2 + K1, F1
+           return M1 - M2 + C1 - C2 + K1, F1
         else:
-            return C1 + K1, F1 + C2
+            return M1 + C1 + K1, F1 + C2 + M2
         
     def updateSolutions(self, x, sols, dti):
-        return (x, None, None)
+        X0 = sols[0][0]
+        v = GridFunction(self._model.finiteElementSpace)
+        v.vec.data = dti*(x.vec - X0.vec)
+        return (x, v, None)
     
 
 class GeneralizedAlpha(NGSTimeIntegrator):
-    def __init__(self, model, rho):
-        am = (2*rho-1)/(rho+1)
-        af = rho/(rho+1)
-        beta = 0.25*(1+af-am)**2
-        gamma = 0.5+af-am
-        self._params = [am, af, beta, gamma]
+    def __init__(self, model, rho="tapezoidal"):
+        if isinstance(rho, float):
+            am = (2*rho-1)/(rho+1)
+            af = rho/(rho+1)
+            beta = 0.25*(1+af-am)**2
+            gamma = 0.5+af-am
+            self._params = [am, af, beta, gamma]
+        elif rho=="tapezoidal":
+            self._params = [0, 0, 1/4, 1/2]
         super().__init__(model)
 
     def initialAcceleration(self, model, x, v):
         fes = model.finiteElementSpace
-        X = model.finiteElementSpace.TrialFunction()
+        X = self.trials
         M, C, K, F = model.weakforms(X, X, X)
         Feff = LinearForm(fes)
         Feff += F
@@ -167,26 +177,31 @@ class GeneralizedAlpha(NGSTimeIntegrator):
         Meff.AssembleLinearization(x.vec)
 
         a = GridFunction(fes)
-        a.vec.data  = Meff.mat.Inverse(model.finiteElementSpace.FreeDofs(), "pardiso") * rhs
+        a.vec.data  = (Meff.mat.Inverse(model.finiteElementSpace.FreeDofs(), "pardiso") * rhs)
         return a
         
     def generateWeakforms(self, model, sols, dti):
-        X, (X0, V0, A0) = self.model.TrialFunction(), sols[0]
+        X, X0, V0, A0 = self.trials, sols.X(), sols.V(), sols.A()
         am, af, b, g = self._params
         if model.isNonlinear:
            M, C, K, F = model.weakforms(X, (X-X0)*dti, X)
            return M + C + K, F
         else:
-            M1, C1, K1, F1 = model.weakforms((1-af)*X, (1-af)*(b/g)*X*dti, (1-am)*(X/b)*dti**2)
-            v = (-X0*(g/b)*dti + (1-g/b)*V0 + (1-0.5*g/b)*A0/dti)*(1-af) + af*V0
-            a = -X0/b*dti**2 - V0*dti/b + (1-0.5/b)*A0
-            M2, C2, K2, F2 = model.weakforms(-af*X0, -v, -a)
-            return M1 + C1 + K1, F1 + M2 + C2 + K2
+            M1, C1, K1, F1 = model.weakforms(X, X*dti, X*dti**2)
+            v = (X0*(g/b)*dti + (g/b-1)*V0 + (0.5*g/b-1)*A0/dti)*(1-af) + af*V0
+            a = (X0/b*dti**2 + V0*dti/b + (0.5/b-1)*A0)*(1-am) + am * A0
+            M2, C2, K2, F2 = model.weakforms(X0, v, a)
+            return (1-am)/b*M1 + (1-af)*(g/b)*C1 + (1-af)*K1, F1 + M2 + C2 - af*K2
         
     def updateSolutions(self, x, sols, dti):
-        X0, V0, A0 = sols.X(), sols.V(), sols.A()
+        X0, V0, A0 = sols[0]
+        X0, V0, A0 = X0.vec, V0.vec, A0.vec
+
         am, af, b, g = self._params
-        v = ((x-X0)*(g/b)*dti + (1-g/b)*V0 + (1-0.5*g/b)*A0/dti)*(1-af) + af*V0
-        a = (x-X0)/b*dti**2 - V0*dti/b + (1-0.5/b)*A0
+        a = GridFunction(self._model.finiteElementSpace)
+        v = GridFunction(self._model.finiteElementSpace)
+
+        a.vec.data = (1/b*dti**2)*(x.vec-X0) - (dti/b)*V0 + (1-0.5/b)*A0
+        v.vec.data = V0 + (1-g)/dti*A0 + g/dti*a.vec
         return (x, v, a)
     
