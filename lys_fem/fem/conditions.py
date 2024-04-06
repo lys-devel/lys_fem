@@ -132,4 +132,4 @@ class InitialCondition(ConditionBase):
         return InitialCondition([0]*model.variableDimension())
 
     def widget(self, fem, canvas, title="Initial Value"):
-        super().widget(fem, canvas, title)
+        return super().widget(fem, canvas, title)

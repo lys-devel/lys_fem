@@ -105,6 +105,9 @@ class MatrixFunctionWidget(QtWidgets.QWidget):
 
     @avoidCircularReference
     def __typeChanged(self, *args):
+        self.__changeType()
+
+    def __changeType(self):
         t = self._combo.currentText()
         for i, ws in enumerate(self._value):
             for j, w in enumerate(ws):
@@ -122,7 +125,7 @@ class MatrixFunctionWidget(QtWidgets.QWidget):
 
     def __checkType(self, value):
         if value[0, 1] == value[1, 0] and value[2, 0] == value[0, 2] and value[1, 2] == value[2, 1]:
-            if value[0, 1] == value[0, 2] and value[0, 1] == value[1, 2] and value[0, 1] in ["0", "0.0"]:
+            if value[0, 1] == value[0, 2] and value[0, 1] == value[1, 2] and value[0, 1] in ["0", "0.0", 0]:
                 if value[0, 0] == value[1, 1] and value[0, 0] == value[2, 2]:
                     return "Scalar"
                 else:
@@ -133,8 +136,8 @@ class MatrixFunctionWidget(QtWidgets.QWidget):
             return "Full"
 
     @avoidCircularReference
-    def __valueChanged(self):
-        self.__typeChanged()
+    def __valueChanged(self, *args):
+        self.__changeType()
         self.valueChanged.emit(self.value())
 
     def value(self):

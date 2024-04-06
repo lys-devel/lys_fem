@@ -1,4 +1,4 @@
-import sympy as sp
+import numpy as np
 
 from lys.Qt import QtWidgets
 from lys_fem import FEMParameter
@@ -6,7 +6,7 @@ from lys_fem.widgets import ScalarFunctionWidget, MatrixFunctionWidget
 
 
 class HeatConductionParameters(FEMParameter):
-    def __init__(self, C_v=1.0, k=sp.eye(3)):
+    def __init__(self, C_v=1.0, k=np.eye(3)):
         self.C_v = C_v
         self.k = k
 
@@ -24,7 +24,7 @@ class HeatConductionParameters(FEMParameter):
         if dim == 1:
             return {"C_v": self.C_v, "k": self.k[0, 0]}
         else:
-            return {"C_v": self.C_v, "k": self.k[:dim, :dim]}
+            return {"C_v": self.C_v, "k": self.k[:dim, :dim].tolist()}
 
     def widget(self):
         return _HeatConductionWidget(self)
