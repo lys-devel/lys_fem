@@ -25,7 +25,7 @@ class ScalarFunctionWidget(QtWidgets.QWidget):
         self.setLayout(layout)
 
     def __valueChanged(self):
-        self.valueChanged.emit(self._value.text())
+        self.valueChanged.emit(self.value())
 
     def value(self):
         return eval(self._value.text())
@@ -56,7 +56,7 @@ class VectorFunctionWidget(QtWidgets.QWidget):
         self.setLayout(layout)
 
     def __valueChanged(self):
-        self.valueChanged.emit([v.text() for v in self._value])
+        self.valueChanged.emit(self.value())
 
     def value(self):
         return [eval(v.text()) for v in self._value]

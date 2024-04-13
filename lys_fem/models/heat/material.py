@@ -6,7 +6,7 @@ from lys_fem.widgets import ScalarFunctionWidget, MatrixFunctionWidget
 
 
 class HeatConductionParameters(FEMParameter):
-    def __init__(self, C_v=1.0, k=np.eye(3)):
+    def __init__(self, C_v=1.0, k=np.eye(3).tolist()):
         self.C_v = C_v
         self.k = k
 
@@ -22,9 +22,9 @@ class HeatConductionParameters(FEMParameter):
 
     def getParameters(self, dim):
         if dim == 1:
-            return {"C_v": self.C_v, "k": self.k[0, 0]}
+            return {"C_v": self.C_v, "k": self.k[0][0]}
         else:
-            return {"C_v": self.C_v, "k": self.k[:dim, :dim].tolist()}
+            return {"C_v": self.C_v, "k": self.k[:dim, :dim]}
 
     def widget(self):
         return _HeatConductionWidget(self)

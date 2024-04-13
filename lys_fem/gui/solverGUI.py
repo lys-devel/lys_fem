@@ -1,4 +1,6 @@
 from lys.Qt import QtWidgets
+from lys.widgets import ScientificSpinBox
+
 from ..widgets import FEMTreeItem, ModelSelector
 from ..fem.solver import solvers
 
@@ -24,7 +26,7 @@ class SolverTree(FEMTreeItem):
         for group, sols in solvers.items():
             sub = self._menu.addMenu(group)
             for s in sols:
-                sub.addAction(QtWidgets.QAction("Add " + s.name, self.treeWidget(), triggered=lambda x, y=s: self.__add(y())))
+                sub.addAction(QtWidgets.QAction("Add " + s.className, self.treeWidget(), triggered=lambda x, y=s: self.__add(y())))
         return self._menu
 
     def __add(self, s):
@@ -43,7 +45,7 @@ class _SolverGUI(FEMTreeItem):
 
     @property
     def name(self):
-        return self._solver.name
+        return self._solver.className
 
     @property
     def widget(self):
@@ -70,14 +72,10 @@ class TimeDependentSolverWidget(QtWidgets.QWidget):
         self.__initlayout()
 
     def __initlayout(self):
-        self._step = QtWidgets.QDoubleSpinBox()
-        self._step.setRange(0, 100000000)
+        self._step = ScientificSpinBox()
         self._step.setValue(self._solver._step)
-        self._step.setDecimals(6)
         self._step.valueChanged.connect(self.__change)
-        self._stop = QtWidgets.QDoubleSpinBox()
-        self._stop.setRange(0, 1000000000)
-        self._stop.setDecimals(6)
+        self._stop = ScientificSpinBox()
         self._stop.setValue(self._solver._stop)
         self._stop.valueChanged.connect(self.__change)
 
