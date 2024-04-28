@@ -39,7 +39,7 @@ class poisson_test(FEMTestCase):
             return rho*np.where(r<=-1, -(r+3), np.where(r>=1, r-3, r**2/2-2.5))
 
 
-        sol = FEMSolution(".", p)
+        sol = FEMSolution()
         res = sol.eval("phi", data_number=1)
         for w in res:
             r = w.x[:,0]
@@ -75,7 +75,7 @@ class poisson_test(FEMTestCase):
             return rho/4*np.where(r<=1, r**2-1-2*np.log(r0), 2*np.log(r/r0))
 
 
-        sol = FEMSolution(".", p)
+        sol = FEMSolution()
         res = sol.eval("phi", data_number=1)
         for w in res:
             r = np.sqrt(w.x[:,0]**2+w.x[:,1]**2)
@@ -106,7 +106,7 @@ class poisson_test(FEMTestCase):
         def solution(r, a, r0, rho):
             return np.where(r<=a, rho*(-r**2/6+a**2/2-a**3/(3*r0)), rho*(-a**3/(3*r0)+a**3/(3*r)))
 
-        sol = FEMSolution(".", p)
+        sol = FEMSolution()
         res = sol.eval("phi", data_number=1)
         for w in res:
             r = np.sqrt(w.x[:,0]**2+w.x[:,1]**2+w.x[:,2]**2)+1e-16
@@ -141,7 +141,7 @@ class poisson_test(FEMTestCase):
             return rho*np.where(r<=a, -r**2/6+a**2/2, a**3/(3*r))
 
 
-        sol = FEMSolution(".", p)
+        sol = FEMSolution()
         res = sol.eval("phi", data_number=1)
         for w in [res[0]]:
             r = np.sqrt(w.x[:,0]**2+w.x[:,1]**2+w.x[:,2]**2)+1e-16

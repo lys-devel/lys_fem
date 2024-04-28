@@ -39,7 +39,7 @@ class magnetostatistics_test(FEMTestCase):
             return rho/4*np.where(r<=1, r**2-1-2*np.log(r0), 2*np.log(r/r0))
 
 
-        sol = FEMSolution(".", p)
+        sol = FEMSolution()
         res = sol.eval("phi", data_number=1)
         for w in res:
             r = np.sqrt(w.x[:,0]**2+w.x[:,1]**2)

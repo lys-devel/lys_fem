@@ -60,7 +60,19 @@ class OccMesher(FEMObject):
 
     def _generate(self, model):
         model.mesh.clear()
-        # Set periodicities
+        self.__setPeriodicity(model)
+        self.__partialRefine(model)
+
+        #model.mesh.setTransfiniteAutomatic()
+        model.mesh.generate()
+        for _ in range(self._refine):
+            model.mesh.refine()
+
+        model.mesh.optimize()
+
+    def __setPeriodicity(self, model):
+        if len(self._periodicity) == 0:
+            return
         if len(model.getPhysicalGroups(3)) != 0:
             sdim = 2
         else:
@@ -71,16 +83,18 @@ class OccMesher(FEMObject):
                 t = self.__getTransform(model, sdim, ent[p1 - 1], ent[p2 - 1])
                 model.mesh.setPeriodic(sdim, [ent[p1 - 1]], [ent[p2 - 1]], t)
 
-        self.__partialRefine(model)
-        # generate and refine
-        #model.mesh.setTransfiniteAutomatic()
-        model.mesh.generate()
-
-        for _ in range(self._refine):
-            model.mesh.refine()
-
-        model.mesh.optimize()
-
+    def __getTransform(self, model, sdim, e1, e2):
+        """
+        Consider only parallel shift.
+        """
+        c1 = np.array([model.getValue(*obj, []) for obj in model.getBoundary([(sdim, e1)], recursive=True)])
+        c2 = np.array([model.getValue(*obj, []) for obj in model.getBoundary([(sdim, e2)], recursive=True)])
+        for c in c2:
+            shift = c1[0] - c
+            dist = max([min(np.linalg.norm(c2 - (d - shift), axis=1)) for d in c1])
+            if dist < 1e-3:
+                return [1, 0, 0, shift[0], 0, 1, 0, shift[1], 0, 0, 1, shift[2], 0, 0, 0, 1]
+            
     def __partialRefine(self, model):
         # prepare partial refinement
         self._refineData = []
@@ -107,18 +121,6 @@ class OccMesher(FEMObject):
                 if tag in edges:
                     lc = lc / (factor+1)
         return lc
-
-    def __getTransform(self, model, sdim, e1, e2):
-        """
-        Consider only parallel shift.
-        """
-        c1 = np.array([model.getValue(*obj, []) for obj in model.getBoundary([(sdim, e1)], recursive=True)])
-        c2 = np.array([model.getValue(*obj, []) for obj in model.getBoundary([(sdim, e2)], recursive=True)])
-        for c in c2:
-            shift = c1[0] - c
-            dist = max([min(np.linalg.norm(c2 - (d - shift), axis=1)) for d in c1])
-            if dist < 1e-3:
-                return [1, 0, 0, shift[0], 0, 1, 0, shift[1], 0, 0, 1, shift[2], 0, 0, 0, 1]
 
     def getMeshWave(self, model, dim=3):
         self._generate(model)

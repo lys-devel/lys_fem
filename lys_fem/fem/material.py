@@ -1,5 +1,5 @@
 
-from .base import FEMObject, FEMObjectList, FEMCoefficient
+from .base import FEMObject, FEMObjectList, FEMCoefficient, exprToStr, strToExpr
 from .geometry import GeometrySelection
 
 materialParameters = {}
@@ -105,7 +105,9 @@ class FEMParameter:
         self._name = name
 
     def saveAsDictionary(self):
-        d = vars(self)
+        d = dict(vars(self))
+        for key, value in d.items():
+            d[key] = exprToStr(value)
         d["paramsName"] = self.name
         return d
 
@@ -120,4 +122,8 @@ class FEMParameter:
         d = dict(d)
         cls = cls_dict[d["paramsName"]]
         del d["paramsName"]
+        print(d)
+        for key, value in d.items():
+            d[key] = strToExpr(value)
+        print(d)
         return cls(**d)

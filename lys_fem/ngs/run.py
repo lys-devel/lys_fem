@@ -1,7 +1,6 @@
 import time
-import numpy as np
 from .mesh import generateMesh
-from .util import generateCoefficient
+from .material import generateMaterial
 from .models import generateModel
 from .solver import generateSolver
 
@@ -9,6 +8,10 @@ from .solver import generateSolver
 def run(fem, run=True):
     print("\n----------------------------NGS started ---------------------------")
     print()
+
+    d = fem.saveAsDictionary()
+    with open("input.dic", "w") as f:
+        f.write(str(d))
 
     start = time.time()
     mesh = generateMesh(fem)
@@ -44,18 +47,3 @@ def run(fem, run=True):
     else:
         return mesh, mats, model, solvers
 
-def generateMaterial(fem, mesh):
-    mats = fem.materials.materialDict(mesh.dim)
-    mats.update(fem.geometries.geometryParameters())
-    result = {}
-    for key, value in mats.items():
-        if key == "J":
-            J = generateCoefficient(value, mesh, default=generateCoefficient(np.eye(3).tolist()))
-            result["J"] = J.Compile()
-            result["detJ"] = det(J).Compile()
-        else:
-            result[key] = generateCoefficient(value, mesh)
-    return result
-
-def det(J):
-    return J[0,0]*J[1,1]*J[2,2] + J[0,1]*J[1,2]*J[2,0] + J[0,2]*J[1,0]*J[2,1] - J[0,2]*J[1,1]*J[2,0] - J[0,1]*J[1,0]*J[2,2] - J[0,0]*J[1,2]*J[2,1]

@@ -1,4 +1,5 @@
-from .base import FEMObject, FEMObjectList, FEMCoefficient
+import sympy as sp
+from .base import FEMObject, FEMObjectList, FEMCoefficient, strToExpr
 from .geometry import GeometrySelection
 
 
@@ -16,9 +17,9 @@ class ModelConditionBase(FEMObjectList):
         for c in self.get(cls):
             for d in c.geometries:
                 coefs[d] = c.values
-            type = c.geometries.geometryType
+            typ = c.geometries.geometryType
             unit = c.unit
-        return FEMCoefficient(coefs, type, scale=self.fem.scaling.getScaling(unit), xscale=self.fem.scaling.getScaling("m"), vars=self.fem.parameters.getSolved())
+        return FEMCoefficient(coefs, typ, scale=self.fem.scaling.getScaling(unit), xscale=self.fem.scaling.getScaling("m"), vars=self.fem.parameters.getSolved())
 
     def saveAsDictionary(self):
         return [item.saveAsDictionary() for item in self]
@@ -91,12 +92,13 @@ class ConditionBase(FEMObject):
         self._values = values
 
     def saveAsDictionary(self):
-        return {"type": self.className, "objName": self.objName, "values": self.values, "geometries": self.geometries.saveAsDictionary()}
+        return {"type": self.className, "objName": self.objName, "values": str(self.values), "geometries": self.geometries.saveAsDictionary()}
 
     @classmethod
     def loadFromDictionary(cls, d):
         geometries = GeometrySelection.loadFromDictionary(d["geometries"])
-        return cls(values = d["values"], geometries=geometries, objName=d["objName"])
+        values = strToExpr(d["values"])
+        return cls(values = values, geometries=geometries, objName=d["objName"])
 
     @classmethod
     def default(self, model):

@@ -35,7 +35,7 @@ class elasticity_test(FEMTestCase):
         lib.run(p)
 
         # solution
-        sol = FEMSolution(".", p)
+        sol = FEMSolution()
         res = sol.eval("u", data_number=1)
         for w in res:
             self.assert_array_almost_equal(w.data, w.x[:, 0])
@@ -68,7 +68,7 @@ class elasticity_test(FEMTestCase):
         lib.run(p)
 
         # solution
-        sol = FEMSolution(".", p)
+        sol = FEMSolution()
         res = sol.eval("u[0]", data_number=1)
         for w in res:
             self.assert_array_almost_equal(w.data, w.x[:, 0])
@@ -100,7 +100,7 @@ class elasticity_test(FEMTestCase):
         lib.run(p)
 
         # solution
-        sol = FEMSolution(".", p)
+        sol = FEMSolution()
         res = sol.eval("u[0]", data_number=1)
         for w in res:
             self.assert_array_almost_equal(w.data, w.x[:, 0])
@@ -133,7 +133,7 @@ class elasticity_test(FEMTestCase):
         lib.run(p)
 
         # solution
-        sol = FEMSolution(".", p)
+        sol = FEMSolution()
 
         res = sol.eval("u", data_number=0)
         for w in res:

@@ -1,5 +1,6 @@
 from lys_fem import FEMFixedModel, Equation
 from .. import common
+from . import DirichletBoundary
 
 
 class HeatConductionEquation(Equation):
@@ -19,7 +20,7 @@ class InitialCondition(common.InitialCondition):
 class HeatConductionModel(FEMFixedModel):
     className = "Heat Conduction"
     equationTypes = [HeatConductionEquation]
-    boundaryConditionTypes = [NeumannBoundary]
+    boundaryConditionTypes = [DirichletBoundary, NeumannBoundary]
     initialConditionTypes = [InitialCondition]
 
     def __init__(self, *args, **kwargs):

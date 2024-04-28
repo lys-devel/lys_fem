@@ -6,7 +6,9 @@ from ..common import DirichletBoundary, InitialCondition
 from .model import LinearTestModel, NonlinearTestModel
 from .mfem import MFEMLinearTestModel, MFEMNonlinearTestModel
 from .ngs import NGSLinearTestModel, NGSNonlinearTestModel 
-#addModel("Test", LinearTestModel)
+addModel("Linear Test", LinearTestModel)
+addModel("Nonlinear Test", NonlinearTestModel)
+
 addMFEMModel("Linear Test", MFEMLinearTestModel)
 addMFEMModel("Nonlinear Test", MFEMNonlinearTestModel)
 

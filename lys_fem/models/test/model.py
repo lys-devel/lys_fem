@@ -1,17 +1,5 @@
 from lys_fem import FEMFixedModel, Equation
-
-
-class LinearTestModel(FEMFixedModel):
-    className = "Linear Test"
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(1, *args, **kwargs)
-
-    @classmethod
-    @property
-    def equationTypes(cls):
-        return [LinearTestEquation]
-
+from . import DirichletBoundary, InitialCondition
 
 class LinearTestEquation(Equation):
     className = "Linear Test Equation"
@@ -19,19 +7,28 @@ class LinearTestEquation(Equation):
         super().__init__(varName, **kwargs)
 
 
-class NonlinearTestModel(FEMFixedModel):
-    className = "Nonlinear Test"
+class NonlinearTestEquation(Equation):
+    className = "Nonlinear Test Equation"
+    def __init__(self, varName="x", **kwargs):
+        super().__init__(varName, **kwargs)
+
+
+class LinearTestModel(FEMFixedModel):
+    className = "Linear Test"
+    equationTypes = [LinearTestEquation]
+    boundaryConditionTypes = [DirichletBoundary]
+    initialConditionTypes = [InitialCondition]
 
     def __init__(self, *args, **kwargs):
         super().__init__(1, *args, **kwargs)
 
-    @classmethod
-    @property
-    def equationTypes(cls):
-        return [NonlinearTestEquation]
+        
+class NonlinearTestModel(FEMFixedModel):
+    className = "Nonlinear Test"
+    equationTypes = [NonlinearTestEquation]
+    boundaryConditionTypes = [DirichletBoundary]
+    initialConditionTypes = [InitialCondition]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(1, *args, **kwargs)
 
-class NonlinearTestEquation(Equation):
-    className = "Linear Test Equation"
-    def __init__(self, varName="x", **kwargs):
-        super().__init__(varName, **kwargs)

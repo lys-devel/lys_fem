@@ -82,3 +82,21 @@ class FEMCoefficient(dict):
             xs, ys, zs = sp.symbols("x_scaled,y_scaled,z_scaled")
             val = value.subs({"x":xs*self._xscale, "y":ys*self._xscale, "z":zs*self._xscale})/self._scale
             return val.subs(self._vars)
+
+
+def strToExpr(x):
+    if x.startswith("[String]"):
+        return x.replace("[String]","")
+    try:
+        res = eval(x,{})
+    except:
+        res = sp.parsing.sympy_parser.parse_expr(x)
+    return res
+
+
+def exprToStr(x):
+    if isinstance(x, str):
+        return "[String]"+x
+    if isinstance(x, np.ndarray):
+        x = x.tolist()
+    return str(x)

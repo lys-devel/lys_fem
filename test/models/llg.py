@@ -53,7 +53,7 @@ class LLG_test(FEMTestCase):
             return 2*np.arctan(np.exp(np.sqrt(K/A)*x))-np.pi/2
 
         # solution
-        sol = FEMSolution(".", p)
+        sol = FEMSolution()
         for i in range(1,n+1):
             m1 = sol.eval("mx", data_number=i)
             m2 = sol.eval("my", data_number=i)
@@ -92,7 +92,7 @@ class LLG_test(FEMTestCase):
         lib.run(p)
 
         # solution
-        sol = FEMSolution(".", p)
+        sol = FEMSolution()
         res = sol.eval("mx", data_number=50)
         for w in res:
             self.assert_array_almost_equal(w.data, -np.ones(w.data.shape)/np.sqrt(2), decimal=2)
@@ -143,7 +143,7 @@ class LLG_test(FEMTestCase):
             return np.where(r<=a, Ms/3*z, np.nan)
 
 
-        sol = FEMSolution(".", p)
+        sol = FEMSolution()
         res = sol.eval("phi", data_number=1)
         for w in [res[0]]:
             self.assert_allclose(w.data, -solution(w.x[:,0],w.x[:,1],w.x[:,2], 0.8, 1), atol=0.02, rtol=0)
@@ -174,7 +174,7 @@ class LLG_test(FEMTestCase):
         lib.run(p)
 
         # solution
-        sol = FEMSolution(".", p)
+        sol = FEMSolution()
         res = sol.eval("mx", data_number=1)
         for w in res:
             self.assert_array_almost_equal(w.data, np.zeros(w.data.shape), decimal=2)
@@ -211,7 +211,7 @@ class LLG_test(FEMTestCase):
         lib.run(p)
 
         # solution
-        sol = FEMSolution(".", p)
+        sol = FEMSolution()
         res = sol.eval("mx", data_number=25*factor)
         for w in res:
             self.assert_array_almost_equal(w.data, np.zeros(w.data.shape), decimal=2)

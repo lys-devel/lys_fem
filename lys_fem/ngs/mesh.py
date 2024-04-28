@@ -67,7 +67,7 @@ def _createMapping(mesh):
     mesh._map_to_global = [kdtree.query(c)[1] for c in coords_local]
 
 
-def exportMesh(mesh, file):
+def exportMesh(mesh, file=None):
     gmesh = mesh.ngmesh
 
     def add(d, type, vertices):
@@ -104,6 +104,8 @@ def exportMesh(mesh, file):
 
     if mpi.isParallel():
         result = _gatherMesh(mesh, result)
+    if file is None:
+        return result, mesh._coords_global
     if mpi.isRoot:
         np.savez(file, mesh=result, coords=mesh._coords_global)
 
