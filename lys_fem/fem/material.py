@@ -122,8 +122,6 @@ class FEMParameter:
         d = dict(d)
         cls = cls_dict[d["paramsName"]]
         del d["paramsName"]
-        print(d)
         for key, value in d.items():
             d[key] = strToExpr(value)
-        print(d)
         return cls(**d)

@@ -3,7 +3,7 @@ import shutil
 import numpy as np
 
 from . import mpi, mesh, time
-from ngsolve import sqrt, GridFunction
+from ngsolve import sqrt
 
 
 def generateSolver(fem, mesh, model):

@@ -26,7 +26,7 @@ class NGSSolution:
         if len(vars) == 1:
             data[vars[0].name] = vars[0].scale * self._grid
         else:
-            for v, g in zip(vars, self._grid):
+            for v, g in zip(vars, self._grid.components):
                 data[v.name] = v.scale * g
 
         array = eval(expression, {}, data)
@@ -34,7 +34,8 @@ class NGSSolution:
 
     def __getDomainValues(self, array):
         domains, coords = self._meshInfo
-        data=np.array([array(self._mesh(*c)) for c in coords/self._fem.scaling.getScaling("m")])
+        mip = [self._mesh(*c) for c in coords/self._fem.scaling.getScaling("m")]
+        data=np.array([array(mi) for mi in mip])
         res = []
         if coords.shape[1] < 3:
             coords = np.hstack([coords, np.zeros((coords.shape[0], 3-coords.shape[1]))])
