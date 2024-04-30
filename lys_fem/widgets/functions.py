@@ -4,7 +4,7 @@ from lys.decorators import avoidCircularReference
 
 
 class ScalarFunctionWidget(QtWidgets.QWidget):
-    valueChanged = QtCore.pyqtSignal(str)
+    valueChanged = QtCore.pyqtSignal(object)
 
     def __init__(self, label, value, valueChanged=None):
         super().__init__()

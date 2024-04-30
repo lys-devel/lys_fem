@@ -10,7 +10,7 @@ def addNGSModel(name, model):
 
 
 def generateModel(fem, mesh, mat):
-    return CompositeModel(mesh, [modelList[m.className](m, mesh, mat) for m in fem.models], mat)
+    return CompositeModel(mesh, [modelList[m.className](m, mesh, mat) for m in fem.models])
 
 
 class NGSVariable:
@@ -106,10 +106,9 @@ class NGSModel:
 
 
 class CompositeModel:
-    def __init__(self, mesh, models, mats):
+    def __init__(self, mesh, models):
         self._mesh = mesh
         self._models = models
-        self._materials = mats
         self._fes = util.prod([v.finiteElementSpace for v in self.variables])
 
     def weakforms(self, X, V, A):
@@ -172,20 +171,3 @@ class CompositeModel:
     def variables(self):
         return sum([m.variables for m in self._models], [])
     
-    @property
-    def materialSolution(self):
-        result = {}
-        def eval(c):
-            sp = H1(self._mesh, order=1)
-            gf = GridFunction(sp)
-            gf.Set(c)
-            return gf.vec
-        
-        for name, mat in self._materials.items():
-            if len(mat.shape) == 0:
-                result[name] = eval(mat)
-            elif len(mat.shape) == 1:
-                result[name] = [eval(mat[i]) for i in range(mat.shape[0])]
-            elif len(mat.shape) == 2:
-                result[name] = [[eval(mat[i,j]) for j in range(mat.shape[1])] for i in range(mat.shape[0])]
-        return result

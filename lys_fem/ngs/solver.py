@@ -40,7 +40,6 @@ class SolverBase:
         mesh.exportMesh(m, self._dirname + "/mesh.npz")
 
     def exportSolution(self, index, solution):
-        #mesh.exportSolution(self._mesh, solution, self._dirname + "/data" + str(index))
         solution.Save(self._dirname + "/ngs" + str(index))
 
     @property

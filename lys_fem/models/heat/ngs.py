@@ -19,7 +19,7 @@ class NGSHeatConductionModel(NGSModel):
             gu, gv = grad(u), grad(v)
 
             M += Cv * ut * v * dx
-            K += k * (gu * gv) * dx
+            K += gu * (k * gv) * dx
 
             c = self._model.boundaryConditions.coef(NeumannBoundary)
             if c is not None:

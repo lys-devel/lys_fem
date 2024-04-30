@@ -116,18 +116,6 @@ class NGSTimeIntegrator:
     @property
     def solution(self):
         return self._sols.copy()
-        result = self._model.materialSolution
-        vs = self._model.variables
-        X = self._sols.copy()
-
-        comps = [X] if len(vs) == 1 else X.components
-        for v, xv in zip(vs, comps):
-            xv.vec.data *= v.scale
-            if len(X.shape) == 0:
-                result[v.name] = xv 
-            else:
-                result[v.name] = xv
-        return result
 
 
 class BackwardEuler(NGSTimeIntegrator):

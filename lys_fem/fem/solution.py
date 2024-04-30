@@ -11,16 +11,9 @@ class FEMSolution:
         from lys_fem.ngs import NGSSolution
         self._fem = FEMProject.fromFile(path + "/input.dic")
         self._path = path
-        self._sol = NGSSolution(self._fem, solver)
-
-    def variableList(self, data_number=0):
-        path = self._path + "/Solutions/" + solver + "/"
-        data = self._loadData(path, data_number)
-        return data.keys()
+        self._sol = NGSSolution(self._fem, path+"/Solutions/"+solver)
 
     def eval(self, varName, data_number=0, coords=None):
         return self._sol.eval(varName, data_number, coords)
 
-    def _loadData(self, path, data_number):
-        return np.load(path + "data" + str(data_number) + ".npz")
 
