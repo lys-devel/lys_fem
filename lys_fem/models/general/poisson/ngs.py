@@ -1,7 +1,6 @@
-from ngsolve import grad, dx, ds
-
+from lys_fem.ngs import NGSModel
+from lys_fem.ngs.util import NGSFunction, dx, grad
 from .. import Source
-from lys_fem.ngs import NGSModel, util
 
 
 class NGSPoissonModel(NGSModel):
@@ -11,25 +10,19 @@ class NGSPoissonModel(NGSModel):
         self._mesh = mesh
         self._mat = mat
 
-    def weakform(self, tnt, vars):
-        J, detJ = self.__createJ()
-        K, F = 0, 0
+    def weakform(self, vars):
+        wf = NGSFunction()
         for eq in self._model.equations:
-            _,v = tnt[eq.variableName]
-            u,ut,utt = vars[eq.variableName]
-            K += (J*grad(u))*(J*grad(v))/detJ * dx
+            var = vars[eq.variableName]
+            u, v = var.trial, var.test
 
-            c = self._model.domainConditions.coef(Source)
-            if c is not None:
-                f = util.generateCoefficient(c, self._mesh)
-                F += -f*v*dx
-        return 0, 0, K, F
+            if "J" in self._mat:
+                J, detJ = self._mat["J"], self._mat["detJ"]
+                wf += J.dot(grad(u)).dot(J.dot(grad(v)))/detJ * dx
+            else:
+                wf += grad(u).dot(grad(v)) * dx
+
+            f = self.coef(Source, "f")
+            wf -= f*v*dx
+        return wf
     
-    def __createJ(self):
-        if "J" in self._mat:
-            J = self._mat["J"]
-            detJ = self._mat["detJ"]
-        else:
-            J = 1
-            detJ = 1
-        return J, detJ

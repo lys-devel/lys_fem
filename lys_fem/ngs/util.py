@@ -81,6 +81,7 @@ class NGSFunction:
     def __init__(self, obj=None, name="Undefined"):
         if obj is None:
             self._obj = None
+            name = "Zero"
         else:
             self._obj = obj
         self._name = name
@@ -98,6 +99,12 @@ class NGSFunction:
         else:
             return NGSFunction()
 
+    def __truediv__(self, other):
+        if self.valid and other.valid:
+            return _Mul(self, other, "/")
+        else:
+            return NGSFunction()
+        
     def __add__(self, other):
         if not self.valid:
             return other
@@ -152,6 +159,8 @@ class NGSFunction:
         return self._obj is not None
         
     def eval(self):
+        if not self.valid:
+            return generateCoefficient(0)*ngsolve.dx
         res = _expand(self._obj)
         if isinstance(res, list):
             return np.array(res)
@@ -207,15 +216,25 @@ class _Add(_Oper):
 
 
 class _Mul(_Oper):
+    def __init__(self, obj1, obj2,type="*"):
+        super().__init__(obj1, obj2)
+        self._type = type
+
+    def __call__(self, x, y):
+        if self._type == "*":
+            return x * y
+        else:
+            return x / y
+
     @property
     def hasTrial(self):
         return self._obj[0].hasTrial or self._obj[1].hasTrial
 
     def eval(self):
-        return self._obj[0].eval() * self._obj[1].eval()
+        return self(self._obj[0].eval(), self._obj[1].eval())
 
     def __str__(self):
-        return "(" + str(self._obj[0]) + "*" + str(self._obj[1]) + ")"
+        return "(" + str(self._obj[0]) + self._type + str(self._obj[1]) + ")"
 
     @property
     def rhs(self):
@@ -223,17 +242,17 @@ class _Mul(_Oper):
             return self
         else:
             if self._obj[0].hasTrial:
-                return self._obj[0].rhs * self._obj[1]
+                return self(self._obj[0].rhs, self._obj[1])
             else:
-                return self._obj[0] * self._obj[1].rhs
+                return self(self._obj[0], self._obj[1].rhs)
 
     @property
     def lhs(self):
         if self.hasTrial:
             if self._obj[0].hasTrial:
-                return self._obj[0].lhs * self._obj[1]
+                return self(self._obj[0].lhs, self._obj[1])
             else:
-                return self._obj[0] * self._obj[1].lhs
+                return self(self._obj[0], self._obj[1].lhs)
         else:
             return NGSFunction()
     

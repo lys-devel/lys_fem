@@ -1,5 +1,5 @@
-from ngsolve import grad, dx, ds
-from lys_fem.ngs import NGSModel, util
+from lys_fem.ngs import NGSModel
+from lys_fem.ngs.util import grad, dx, NGSFunction
 
 
 class NGSLinearTestModel(NGSModel):
@@ -7,13 +7,13 @@ class NGSLinearTestModel(NGSModel):
         super().__init__(model, mesh, addVariables=True)
         self._model = model
 
-    def weakform(self, tnt, vars):
-        K, F = 0, 0
+    def weakform(self, vars):
+        wf = NGSFunction()
         for eq in self._model.equations:
-            u,v = tnt[eq.variableName]
-            gu, gv = grad(u), grad(v)
-            K += (gu*gv) * dx
-        return 0, 0, K, 0
+            var = vars[eq.variableName]
+            u,v = var.trial, var.test
+            wf += grad(u).dot(grad(v)) * dx
+        return wf
 
 
 class NGSNonlinearTestModel(NGSModel):
@@ -21,14 +21,13 @@ class NGSNonlinearTestModel(NGSModel):
         super().__init__(model, mesh, addVariables=True)
         self._model = model
 
-    def weakform(self, tnt, vars):
-        K, F = 0, 0
+    def weakform(self, vars):
+        wf = NGSFunction()
         for eq in self._model.equations:
-            u0,v = tnt[eq.variableName]
-            u, ut, utt = vars[eq.variableName]
-            gu, gv = grad(u0), grad(v)
-            K += u0 * (gu*gv) * dx
-        return 0,0,K,F
+            var = vars[eq.variableName]
+            u,v = var.trial, var.test
+            wf += u0 * grad(u).dot(grad(v)) * dx
+        return wf
 
     @property
     def isNonlinear(self):

@@ -3,6 +3,7 @@ from . import DirichletBoundary, InitialCondition
 
 class LinearTestEquation(Equation):
     className = "Linear Test Equation"
+    isScalar = True
     def __init__(self, varName="x", **kwargs):
         super().__init__(varName, **kwargs)
 
@@ -15,6 +16,7 @@ class NonlinearTestEquation(Equation):
 
 class LinearTestModel(FEMFixedModel):
     className = "Linear Test"
+    isScalar = True
     equationTypes = [LinearTestEquation]
     boundaryConditionTypes = [DirichletBoundary]
     initialConditionTypes = [InitialCondition]

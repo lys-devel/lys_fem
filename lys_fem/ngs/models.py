@@ -113,8 +113,10 @@ class NGSModel:
         c = self._model.boundaryConditions.coef(cls)
         if c is not None:
             return util.coef(c, self.mesh, name=name)
-        else:
-            return util.NGSFunction()
+        c = self._model.domainConditions.coef(cls)
+        if c is not None:
+            return util.coef(c, self.mesh, name=name)
+        return util.NGSFunction()
 
     @property
     def variables(self):

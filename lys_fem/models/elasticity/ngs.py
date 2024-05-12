@@ -23,11 +23,6 @@ class NGSElasticModel(NGSModel):
             wf += rho * u.tt.dot(v) * dx
             wf += gu.ddot(C.ddot(gv)) * dx
 
-            print(C.eval().shape, gv.eval().shape)
-            ex = rho*u.tt.dot(v)*dx
-            ex2 =  C.ddot(gv)
-            print(type(ex2.eval()))
-
             t0 = self._model.domainConditions.coef(ThermoelasticStress)
             if t0 is not None:
                 alpha = self._mat["alpha"]
