@@ -1,27 +1,10 @@
-from lys_fem import FEMModel, Equation
+from lys_fem import FEMModel, Equation, DomainCondition
 from .. import common
 from . import DirichletBoundary
 
-class ElasticModel(FEMModel):
-    className = "Elasticity"
-
-    def __init__(self, nvar=3, *args, **kwargs):
-        super().__init__(nvar, *args, **kwargs)
-
-    @classmethod
-    @property
-    def equationTypes(self):
-        return [ChristffelEquation]
-
-    @classmethod
-    @property
-    def boundaryConditionTypes(cls):
-        return [DirichletBoundary]
-    
-    @classmethod
-    @property
-    def initialConditionTypes(cls):
-        return [InitialCondition]
+import numpy as np
+from lys.Qt import QtWidgets
+from lys_fem.widgets import GeometrySelector, ScalarFunctionWidget
 
 
 class ChristffelEquation(Equation):
@@ -32,3 +15,58 @@ class ChristffelEquation(Equation):
 
 class InitialCondition(common.InitialCondition):
     unit = "m"
+
+
+class ThermoelasticStress(DomainCondition):
+    className = "ThermoelasticStress"
+    unit = "K"
+
+    def __init__(self, values=300, varName="T", *args, **kwargs):
+        super().__init__(values=values, *args, **kwargs)
+        self.varName = varName
+
+    @classmethod
+    def default(cls, model):
+        return ThermoelasticStress()
+
+    def widget(self, fem, canvas):
+        return ThermoelasticWidget(self, fem, canvas, "Ref. Temperature T0 (K)")
+
+
+class ThermoelasticWidget(QtWidgets.QWidget):
+    def __init__(self, cond, fem, canvas, title):
+        super().__init__()
+        self._cond = cond
+        self.__initlayout(fem, canvas, title)
+
+    def __initlayout(self, fem, canvas, title):
+        self._selector = GeometrySelector(canvas, fem, self._cond.geometries)
+        self._value = ScalarFunctionWidget(title, self._cond.values, valueChanged=self.__valueChanged)
+        self._varName = QtWidgets.QLineEdit()
+        self._varName.setText(self._cond.varName)
+        self._varName.textChanged.connect(self.__textChanged)
+
+        layout = QtWidgets.QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._selector)
+        layout.addWidget(self._value)
+        self.setLayout(layout)
+
+    def __valueChanged(self, vector):
+        self._cond.values = vector
+
+    def __textChanged(self, txt):
+        self._cond.varName = txt
+
+
+class ElasticModel(FEMModel):
+    className = "Elasticity"
+    equationTypes = [ChristffelEquation]
+    boundaryConditionTypes = [DirichletBoundary]
+    domainConditionTypes = [ThermoelasticStress]
+    initialConditionTypes = [InitialCondition]
+
+    def __init__(self, nvar=3, *args, **kwargs):
+        super().__init__(nvar, *args, **kwargs)
+
+

@@ -5,11 +5,12 @@ from ngsolve import dx, ds, grad
 from ngsolve.fem import Einsum
 
 from lys_fem.ngs import NGSModel, util
+from . import ThermoelasticStress
 
 
 class NGSElasticModel(NGSModel):
     def __init__(self, model, mesh, mat):
-        super().__init__(model, mesh, addVariables=True)
+        super().__init__(model, mesh, addVariables=True, order=2)
         self._model = model
         self._mat = mat
         self._vdim = self._model.variableDimension()
@@ -41,4 +42,18 @@ class NGSElasticModel(NGSModel):
             
             M += rho * utt * v * dx
             K += gu * C * gv * dx if self._vdim==1 else Einsum("ij,ijkl,kl", gu, C, gv) * dx
+
+            t0 = self._model.domainConditions.coef(ThermoelasticStress)
+            if t0 is not None:
+                alpha = self._mat["alpha"]
+                T0 = util.generateCoefficient(t0, self._mesh)
+                for te in self._model.domainConditions.get(ThermoelasticStress):
+                    T, test_T = tnt[te.varName]
+                    if self._vdim == 1:
+                        K += T*C*alpha*gv*dx
+                        F += T0*C*alpha*gv*dx
+                    else:
+                        beta = Einsum("ijkl,kl->ij", C, alpha)
+                        K += T*Einsum("ij,ij", beta, gv)*dx
+                        F += T0*Einsum("ij,ij", beta, gv)*dx
         return M, 0, K, F

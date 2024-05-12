@@ -1,6 +1,7 @@
 import numpy as np
 from lys.Qt import QtCore, QtWidgets, QtGui
 from lys.decorators import avoidCircularReference
+from ..fem.base import strToExpr
 
 
 class ScalarFunctionWidget(QtWidgets.QWidget):
@@ -8,6 +9,7 @@ class ScalarFunctionWidget(QtWidgets.QWidget):
 
     def __init__(self, label, value, valueChanged=None):
         super().__init__()
+        self._val = value
         self.__initLayout(label, value)
         if valueChanged is not None:
             self.valueChanged.connect(valueChanged)
@@ -28,7 +30,11 @@ class ScalarFunctionWidget(QtWidgets.QWidget):
         self.valueChanged.emit(self.value())
 
     def value(self):
-        return eval(self._value.text())
+        try:
+            self._val = strToExpr(self._value.text())
+        except:
+            pass
+        return self._val
 
 
 class VectorFunctionWidget(QtWidgets.QWidget):
@@ -36,6 +42,7 @@ class VectorFunctionWidget(QtWidgets.QWidget):
 
     def __init__(self, label, value, valueChanged=None):
         super().__init__()
+        self._val = np.array(value).tolist()
         self.__initLayout(label, value)
         if valueChanged is not None:
             self.valueChanged.connect(valueChanged)
@@ -59,13 +66,18 @@ class VectorFunctionWidget(QtWidgets.QWidget):
         self.valueChanged.emit(self.value())
 
     def value(self):
-        return [eval(v.text()) for v in self._value]
+        try:
+            self._val = [strToExpr(v.text()) for v in self._value]
+        except:
+            pass
+        return self._val
 
 class MatrixFunctionWidget(QtWidgets.QWidget):
     valueChanged = QtCore.pyqtSignal(object)
 
     def __init__(self, label, value, valueChanged=None):
         super().__init__()
+        self._val = np.array(value).tolist()
         self.__initLayout(label, np.array(value))
         self._combo.setCurrentText(self.__checkType(np.array(value)))
         self.__typeChanged()
@@ -141,4 +153,8 @@ class MatrixFunctionWidget(QtWidgets.QWidget):
         self.valueChanged.emit(self.value())
 
     def value(self):
-        return [[eval(w.text()) for w in ws] for ws in self._value]
+        try:
+            self._val = [[strToExpr(w.text()) for w in ws] for ws in self._value]
+        except:
+            pass
+        return self._val

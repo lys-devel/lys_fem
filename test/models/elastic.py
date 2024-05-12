@@ -3,7 +3,7 @@ import numpy as np
 
 from lys_fem import geometry
 from lys_fem.fem import FEMProject, Material, StationarySolver, TimeDependentSolver, FEMSolution
-from lys_fem.models import elasticity
+from lys_fem.models import elasticity, heat
 
 from ..base import FEMTestCase
 
@@ -141,3 +141,74 @@ class elasticity_test(FEMTestCase):
         res = sol.eval("u", data_number=100)
         for w in res:
             self.assert_array_almost_equal(w.data, np.exp(-((w.x[:, 0]-np.sqrt(3)/2)/0.1)**2)/2, decimal=2)
+
+
+    def thermoelasticity_1d(self, lib):
+        p = FEMProject(1)
+        p.scaling.set(length=1e-9, temperature=1e2, time=1e-12)
+
+        # geometry
+        p.geometries.add(geometry.Line(0, 0, 0, 0.1e-6, 0, 0))
+        p.mesher.setRefinement(4)
+
+        # material
+        param = elasticity.ElasticParameters(rho=1000, C=[100e9, 60e9], type="isotropic")
+        param2 = elasticity.ThermalExpansionParameters(alpha=np.eye(3)*2e-6)
+        param3 = heat.HeatConductionParameters()
+        mat1 = Material([param, param2, param3], geometries="all")
+        p.materials.append(mat1)
+
+        # model: boundary and initial conditions
+        model = elasticity.ElasticModel(1)
+        model.initialConditions.append(elasticity.InitialCondition(0, geometries="all"))
+        model.domainConditions.append(elasticity.ThermoelasticStress(0, varName="T", geometries="all"))
+        p.models.append(model)
+
+        model2 = heat.HeatConductionModel()
+        model2.initialConditions.append(heat.InitialCondition(100, geometries="all"))
+        p.models.append(model2)
+
+        # solver
+        solver = TimeDependentSolver(1e-13, 1e-13*500, method="NewmarkBeta")
+        p.solvers.append(solver)
+
+        # solve
+        lib.run(p)
+
+        # solution
+        sol = FEMSolution()
+        self.assertAlmostEqual(sol.eval("u", data_number=200, coords=0), 0)
+        self.assertAlmostEqual(sol.eval("u", data_number=400, coords=0), 0)
+
+
+    def thermoelasticity_2d(self, lib):
+        p = FEMProject(2)
+        p.scaling.set(length=1e-9, temperature=1e2, time=1e-12)
+
+        # geometry
+        p.geometries.add(geometry.Rect(0, 0, 0, 0.1e-6, 1e-6))
+        p.mesher.setRefinement(2)
+
+        # material
+        param = elasticity.ElasticParameters(rho=1000, C=[100e9, 60e9], type="isotropic")
+        param2 = elasticity.ThermalExpansionParameters(alpha=np.eye(3)*2e-6)
+        param3 = heat.HeatConductionParameters()
+        mat1 = Material([param, param2, param3], geometries="all")
+        p.materials.append(mat1)
+
+        # model: boundary and initial conditions
+        model = elasticity.ElasticModel(2)
+        model.initialConditions.append(elasticity.InitialCondition([0,0], geometries="all"))
+        model.domainConditions.append(elasticity.ThermoelasticStress(0, varName="T", geometries="all"))
+        p.models.append(model)
+
+        model2 = heat.HeatConductionModel()
+        model2.initialConditions.append(heat.InitialCondition(100, geometries="all"))
+        p.models.append(model2)
+
+        # solver
+        solver = TimeDependentSolver(1e-13, 1e-13*50, method="NewmarkBeta")
+        p.solvers.append(solver)
+
+        # solve
+        lib.run(p)
