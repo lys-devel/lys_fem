@@ -34,3 +34,15 @@ def gatherArray(arr, dtype=float, test=False):
     if result is None:
         return None
     return [r[:s] for r, s in zip(result, sizes)]
+
+def print_(*args, **kwargs):
+    if isRoot:
+        print(*args, **kwargs)
+
+def info():
+    if isParallel():
+        print_("MPI: ", MPI.COMM_WORLD.size, "processors")
+        print_()
+    else:
+        print_("MPI: No MPI. Run in serial mode.")
+        print_()

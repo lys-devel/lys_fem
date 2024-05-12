@@ -40,7 +40,7 @@ class SolverBase:
         mesh.exportMesh(m, self._dirname + "/mesh.npz")
 
     def exportSolution(self, index, solution):
-        solution.Save(self._dirname + "/ngs" + str(index))
+        solution.Save(self._dirname + "/ngs" + str(index), parallel=mpi.isParallel())
 
     @property
     def solver(self):
@@ -65,7 +65,7 @@ class StationarySolver(SolverBase):
         self._mesh = mesh
 
     def execute(self):
-        self.exportMesh(self._mesh)
+        #self.exportMesh(self._mesh)
         self.exportSolution(0, self.integrator.solution)
 
         self.integrator.solve(self._solver)
@@ -79,7 +79,7 @@ class RelaxationSolver(SolverBase):
         self._mesh = mesh
 
     def execute(self):
-        self.exportMesh(self._mesh)
+        #self.exportMesh(self._mesh)
         self.exportSolution(0, self.integrator.solution)
 
         t = 0
@@ -87,7 +87,7 @@ class RelaxationSolver(SolverBase):
         for i in range(1,100):
             self.integrator.solve(self._solver, 1/dt)
             t = t + dt
-            print("Step", i, ", t = {:3e}".format(t), ", dt = {:3e}".format(dt), ", dx = {:3e}".format(self._solver.dx))
+            mpi.print_("Step", i, ", t = {:3e}".format(t), ", dt = {:3e}".format(dt), ", dx = {:3e}".format(self._solver.dx))
             self.exportSolution(i, self.integrator.solution)
             if dt == np.inf:
                 break
@@ -103,12 +103,12 @@ class TimeDependentSolver(SolverBase):
         self._mesh = mesh
 
     def execute(self):
-        self.exportMesh(self._mesh)
+        #self.exportMesh(self._mesh)
         self.exportSolution(0, self.integrator.solution)
 
         t = 0
         for i, dt in enumerate(self._tSolver.getStepList()):
-            print("Timestep", i, ", t = {:3e}".format(t), ", dt = {:3e}".format(dt), ", dx = {:3e}".format(self._solver.dx))
+            mpi.print_("Timestep", i, ", t = {:3e}".format(t), ", dt = {:3e}".format(dt), ", dx = {:3e}".format(self._solver.dx))
             self.integrator.solve(self._solver, 1/dt)
             self.exportSolution(i + 1, self.integrator.solution)
             t = t + dt
@@ -128,20 +128,21 @@ class _NewtonSolver:
             Fx = F(x)
             dx.data = F.Jacobian(x)*Fx
             x.data -= dx
-            R = sqrt(dx.InnerProduct(dx)/x.InnerProduct(x))
+            R = sqrt(np.divide(dx.InnerProduct(dx), x.InnerProduct(x)))
             if R < eps:
-                print("[Newton solver] Converged in", i, "steps.")
+                if i!=0:
+                    mpi.print_("[Newton solver] Converged in", i, "steps.")
                 self._setDifference(x, x0)
                 return x
         if self._max_iter !=1:
-            print("[Newton solver] NOT Converged in", i, "steps.")
+            mpi.print_("[Newton solver] NOT Converged in", i, "steps.")
         self._setDifference(x, x0)
         return x
 
     def _setDifference(self, x, x0):
         x0.data = x0.data - x.data
-        self._dx = x0.InnerProduct(x0)/x.InnerProduct(x)
-
+        self._dx = np.divide(x0.InnerProduct(x0), x.InnerProduct(x))
+ 
     @property
     def dx(self):
         return self._dx

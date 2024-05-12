@@ -20,7 +20,7 @@ class NGSSolution:
         self._meshInfo = exportMesh(self._mesh)
 
     def eval(self, expression, index, coords=None):
-        self._grid.Load(self._dirname+"/ngs"+str(index))
+        self._grid.Load(self._dirname+"/ngs"+str(index), parallel=False)
 
         data = {}
         vars = self._model.variables
@@ -34,8 +34,12 @@ class NGSSolution:
         if coords is None:
             return self.__getDomainValues(f)
         else:
-            mip = self.__coordsToMIP(np.array(coords)/self._fem.scaling.getScaling("m"))
-            return np.array([f(mi) for mi in mip])
+            if not hasattr(coords, "__iter__"):
+                mip = self.__coordsToMIP(np.array([coords])/self._fem.scaling.getScaling("m"))
+                return np.array([f(mi) for mi in mip])[0]
+            else:
+                mip = self.__coordsToMIP(np.array(coords)/self._fem.scaling.getScaling("m"))
+                return np.array([f(mi) for mi in mip])
 
     def __getDomainValues(self, f):
         domains, coords = self._meshInfo

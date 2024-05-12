@@ -15,7 +15,7 @@ def run_ngs(file):
         d = eval(f.read())
     fem = FEMProject(2)
     fem.loadFromDictionary(d)
-    run(fem)
+    run(fem, save=False)
 
 
 run_ngs(args.input)
