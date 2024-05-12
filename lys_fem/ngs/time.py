@@ -83,6 +83,8 @@ class _Solution:
 
     def __toFunc(self, x):
         if self._isSingle:
+            if not self._model.variables[0].isScalar:
+                x = [x]
             return [util.NGSFunction(x, self._model.variables[0].name+"0")]
         else:
             res = []

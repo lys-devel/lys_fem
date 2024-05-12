@@ -152,7 +152,11 @@ class NGSFunction:
         return self._obj is not None
         
     def eval(self):
-        return np.array(_expand(self._obj))        
+        res = _expand(self._obj)
+        if isinstance(res, list):
+            return np.array(res)
+        else:
+            return res
 
 
 class _Oper(NGSFunction):
@@ -196,10 +200,7 @@ class _Add(_Oper):
         return self._obj[0].hasTrial or self._obj[1].hasTrial
 
     def eval(self):
-        res = self(self._obj[0].eval(), self._obj[1].eval())
-        if isinstance(res, ngsolve.comp.SumOfIntegrals):
-            return res
-        return np.array(res)
+        return self(self._obj[0].eval(), self._obj[1].eval())
     
     def __str__(self):
         return "(" + str(self._obj[0]) + self._type + str(self._obj[1]) + ")"
@@ -211,10 +212,7 @@ class _Mul(_Oper):
         return self._obj[0].hasTrial or self._obj[1].hasTrial
 
     def eval(self):
-        res = self._obj[0].eval() * self._obj[1].eval()
-        if isinstance(res, ngsolve.comp.SumOfIntegrals):
-            return res
-        return np.array(res)
+        return self._obj[0].eval() * self._obj[1].eval()
 
     def __str__(self):
         return "(" + str(self._obj[0]) + "*" + str(self._obj[1]) + ")"
@@ -256,7 +254,10 @@ class _TensorDot(_Oper):
         return self._obj[0].hasTrial or self._obj[1].hasTrial
 
     def eval(self):
-        return np.tensordot(self._obj[0].eval(), self._obj[1].eval(), axes=self._axes)
+        res = np.tensordot(self._obj[0].eval(), self._obj[1].eval(), axes=self._axes)
+        if len(res.shape) == 0:
+            return res.item()
+        return res
 
     def __str__(self):
         if self._axes == 1:
@@ -324,7 +325,11 @@ class TrialFunction(NGSFunction):
     
     def eval(self):
         if self._grad:
-            return np.array(_expand(_grad(self._obj)))
+            res = _expand(_grad(self._obj))
+            if isinstance(res, list):
+                return np.array(res)
+            else:
+                return res
         else:
             return super().eval()
 
@@ -341,9 +346,14 @@ class TestFunction(NGSFunction):
     
     def eval(self):
         if self._grad:
-            return np.array(_expand(_grad(self._obj)))
+            res = _expand(_grad(self._obj))
+            if isinstance(res, list):
+                return np.array(res)
+            else:
+                return res
         else:
             return super().eval()
+
 
 def _grad(x):
     if isinstance(x, CoefficientFunction):

@@ -21,10 +21,7 @@ class HeatConductionParameters(FEMParameter):
         return {"C_v": "J/K m^3", "k": "W/m K"}
 
     def getParameters(self, dim):
-        if dim == 1:
-            return {"C_v": self.C_v, "k": self.k[0][0]}
-        else:
-            return {"C_v": self.C_v, "k": np.array(self.k)[:dim,:dim].tolist()}
+        return {"C_v": self.C_v, "k": np.array(self.k)[:dim,:dim].tolist()}
 
     def widget(self):
         return _HeatConductionWidget(self)

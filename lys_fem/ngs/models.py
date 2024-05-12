@@ -1,4 +1,4 @@
-from ngsolve import GridFunction, H1, ProductSpace
+from ngsolve import GridFunction, H1, ProductSpace, CoefficientFunction
 
 from . import util
 
@@ -14,12 +14,13 @@ def generateModel(fem, mesh, mat):
 
 
 class NGSVariable:
-    def __init__(self, name, fes, scale, initialValue, initialVelocity):
+    def __init__(self, name, fes, scale, initialValue, initialVelocity, isScalar):
         self._name = name
         self._fes = fes
         self._scale = scale
         self._init = initialValue
         self._vel = initialVelocity
+        self._isScalar = isScalar
 
     @property
     def name(self):
@@ -28,6 +29,10 @@ class NGSVariable:
     @property
     def size(self):
         return len(self._fes)
+
+    @property
+    def isScalar(self):
+        return self._isScalar
 
     @property
     def finiteElementSpace(self):
@@ -52,6 +57,9 @@ class NGSVariable:
             return [self._vel[i] for i in range(self._vel.shape[0])]
 
     def setTnT(self, trial, test):
+        if isinstance(trial, CoefficientFunction) and not self._isScalar:
+            trial = [trial]
+            test = [test]
         self._trial = util.TrialFunction(self.name, trial)
         self._test = util.TestFunction(test, name=self.name)
 
@@ -72,9 +80,9 @@ class NGSModel:
 
         if addVariables:
             for eq in model.equations:
-                self.addVariable(eq.variableName, eq.variableDimension, "auto", "auto", None, eq.geometries, order=order)
+                self.addVariable(eq.variableName, eq.variableDimension, "auto", "auto", None, region=eq.geometries, order=order, isScalar=eq.isScalar)
 
-    def addVariable(self, name, vdim, dirichlet=None, initialValue=None, initialVelocity=None, region=None, order=1, scale=1):
+    def addVariable(self, name, vdim, dirichlet=None, initialValue=None, initialVelocity=None, region=None, order=1, scale=1, isScalar=False):
         if initialValue is None:
             initialValue = util.generateCoefficient([0]*vdim)
             scale = 1
@@ -99,7 +107,14 @@ class NGSModel:
                 kwargs["dirichlet"] = "|".join(["boundary" + str(item) for item in dirichlet[i]])
                 fess.append(H1(self._mesh, **kwargs))
 
-        self._vars.append(NGSVariable(name, fess, scale, initialValue, initialVelocity))
+        self._vars.append(NGSVariable(name, fess, scale, initialValue, initialVelocity, isScalar=isScalar))
+
+    def coef(self, cls, name="Undefined"):
+        c = self._model.boundaryConditions.coef(cls)
+        if c is not None:
+            return util.coef(c, self.mesh, name=name)
+        else:
+            return util.NGSFunction()
 
     @property
     def variables(self):

@@ -5,6 +5,7 @@ from . import DirichletBoundary
 
 class HeatConductionEquation(Equation):
     className = "Heat Conduction Equation"
+    isScalar = True
     def __init__(self, varName="T", **kwargs):
         super().__init__(varName, **kwargs)
 

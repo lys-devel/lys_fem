@@ -33,6 +33,7 @@ class Equations(FEMObjectList):
 
 
 class Equation(FEMObject):
+    isScalar = False
     def __init__(self, varName, varDim=None, geometries="all", geometryType="Domain", objName=None):
         super().__init__(objName)
         self._varName = varName
