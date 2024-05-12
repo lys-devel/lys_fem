@@ -51,7 +51,7 @@ class MeshTree(FEMTreeItem):
 
 class _RefineGUI(FEMTreeItem):
     def __init__(self, mesher, parent):
-        super().__init__(parent)
+        super().__init__(parent, children=[_PartialRefineGUI(p, self) for p in mesher.partialRefinement])
         self._mesher = mesher
 
     @property

@@ -63,7 +63,7 @@ class OccMesher(FEMObject):
         self.__setPeriodicity(model)
         self.__partialRefine(model)
 
-        #model.mesh.setTransfiniteAutomatic()
+        model.mesh.setTransfiniteAutomatic()
         model.mesh.generate()
         for _ in range(self._refine):
             model.mesh.refine()
@@ -161,9 +161,15 @@ class OccMesher(FEMObject):
 
     def saveAsDictionary(self):
         pairs = [(p[0].saveAsDictionary(), p[1].saveAsDictionary()) for p in self._periodicity]
-        return {"refine": self.refinement, "partial": self._partialRefine, "periodicity": pairs}
+        partial = [{"factor": p.factor, "geometries": p.saveAsDictionary()} for p in self._partialRefine]
+        return {"refine": self.refinement, "partial": partial, "periodicity": pairs}
 
     @classmethod
     def loadFromDictionary(cls, d):
         pairs = [(GeometrySelection.loadFromDictionary(p[0]), GeometrySelection.loadFromDictionary(p[1])) for p in d.get("periodicity", [])]
-        return OccMesher(refinement=d["refine"], partialRefine=d["partial"], periodicity=pairs)
+        partial = []
+        for p in d["partial"]:
+            g = GeometrySelection.loadFromDictionary(p["geometries"])
+            g.factor = p["factor"]
+            partial.append(g)
+        return OccMesher(refinement=d["refine"], partialRefine=partial, periodicity=pairs)

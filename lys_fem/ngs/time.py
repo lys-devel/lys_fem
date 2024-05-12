@@ -110,7 +110,8 @@ class NGSTimeIntegrator:
         if self._dti.Get() != dti:
             self._dti.Set(dti)
             self._op.update()
-        self._x.vec.data = solver.solve(self._op, self._x.vec.CreateVector(copy=True))
+        with np.errstate(divide='ignore', invalid="ignore"):
+            self._x.vec.data = solver.solve(self._op, self._x.vec.CreateVector(copy=True))
         self._sols.update(self.updateSolutions(self._x, self._sols, self._dti.Get()))
    
     @property
