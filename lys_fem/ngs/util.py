@@ -80,13 +80,10 @@ def grad(f):
 class NGSFunction:
     def __init__(self, obj=None, name="Undefined"):
         if obj is None:
-            self._obj = 0
-            self._name = "0"
-            self._valid = False
+            self._obj = None
         else:
             self._obj = obj
-            self._name = name
-            self._valid = True
+        self._name = name
 
     @property
     def shape(self):
@@ -96,16 +93,12 @@ class NGSFunction:
             return ()
     
     def __mul__(self, other):
-        if not isinstance(other, NGSFunction):
-            other = NGSFunction(other, name=str(other))
         if self.valid and other.valid:
             return _Mul(self, other)
         else:
             return NGSFunction()
 
     def __add__(self, other):
-        if not isinstance(other, NGSFunction):
-            other = NGSFunction(other, name=str(other))
         if not self.valid:
             return other
         elif not other.valid:
@@ -114,8 +107,6 @@ class NGSFunction:
             return _Add(self, other)
 
     def __sub__(self, other):
-        if not isinstance(other, NGSFunction):
-            other = NGSFunction(other, name=str(other))
         if not self.valid:
             return other
         elif not other.valid:
@@ -124,16 +115,16 @@ class NGSFunction:
             return _Add(self, other, type="-")
         
     def dot(self, other):
-        return self*other
-    
-    def ddot(self, other):
-        if not isinstance(other, NGSFunction):
-            other = NGSFunction(other, name=str(other))
         if self.valid and other.valid:
-            return _DoubleDot(self, other)
+            return _TensorDot(self, other)
         else:
             return NGSFunction()
-
+    
+    def ddot(self, other):
+        if self.valid and other.valid:
+            return _TensorDot(self, other, axes=2)
+        else:
+            return NGSFunction()
 
     def __str__(self):
         return self._name
@@ -158,137 +149,138 @@ class NGSFunction:
         
     @property
     def valid(self):
-        return self._valid
+        return self._obj is not None
         
     def eval(self):
-        return self._obj
-        
+        return np.array(_expand(self._obj))        
+
 
 class _Oper(NGSFunction):
     def __init__(self, obj1, obj2=None):
-        self._valid = True
         if not isinstance(obj1, NGSFunction):
-            obj1 = NGSFunction(obj1)
+            obj1 = NGSFunction(obj1, str(obj1))
         if not isinstance(obj2, NGSFunction) and obj2 is not None:
-            obj2 = NGSFunction(obj2)
-        self._obj1 = obj1
-        self._obj2 = obj2
+            obj2 = NGSFunction(obj2, str(obj2))
+        super().__init__([obj1, obj2])
 
     def replace(self, d):
-        if isinstance(self._obj1, _Oper):
-            self._obj1.replace(d)        
-        else:
-            if self._obj1 in d:
-                self._obj1 = d[self._obj1]
-        if isinstance(self._obj2, _Oper):
-            self._obj2.replace(d)        
-        else:
-            if self._obj2 in d:
-                self._obj2 = d[self._obj2]
-        
+        for i in range(2):
+            if isinstance(self._obj[i], _Oper):
+                self._obj[i].replace(d)        
+            else:
+                if self._obj[i] in d:
+                    self._obj[i] = d[self._obj[i]]       
+
 
 class _Add(_Oper):
     def __init__(self, obj1, obj2,type="+"):
         super().__init__(obj1, obj2)
         self._type = type
 
+    def __call__(self, v1, v2):
+        if self._type == "+":
+            return v1+v2
+        else:
+            return v1-v2
+
     @property
     def rhs(self):
-        if self._type == "+":
-            return self._obj1.rhs + self._obj2.rhs
-        else:
-            return self._obj1.rhs - self._obj2.rhs
+        return self(self._obj[0].rhs, self._obj[1].rhs)
 
     @property
     def lhs(self):
-        if self._type == "+":
-            return self._obj1.lhs + self._obj2.lhs
-        else:
-            return self._obj1.lhs + self._obj2.lhs
+        return self(self._obj[0].lhs, self._obj[1].lhs)
 
     @property
     def hasTrial(self):
-        return self._obj1.hasTrial or self._obj2.hasTrial
+        return self._obj[0].hasTrial or self._obj[1].hasTrial
 
     def eval(self):
-        if self._type == "+":
-            return self._obj1.eval() + self._obj2.eval()
-        else:
-            return self._obj1.eval() - self._obj2.eval()
+        res = self(self._obj[0].eval(), self._obj[1].eval())
+        if isinstance(res, ngsolve.comp.SumOfIntegrals):
+            return res
+        return np.array(res)
     
     def __str__(self):
-        return "(" + str(self._obj1) + self._type + str(self._obj2) + ")"
+        return "(" + str(self._obj[0]) + self._type + str(self._obj[1]) + ")"
 
 
 class _Mul(_Oper):
     @property
     def hasTrial(self):
-        return self._obj1.hasTrial or self._obj2.hasTrial
+        return self._obj[0].hasTrial or self._obj[1].hasTrial
 
     def eval(self):
-        return self._obj1.eval() * self._obj2.eval()
+        res = self._obj[0].eval() * self._obj[1].eval()
+        if isinstance(res, ngsolve.comp.SumOfIntegrals):
+            return res
+        return np.array(res)
 
     def __str__(self):
-        return "(" + str(self._obj1) + "*" + str(self._obj2) + ")"
+        return "(" + str(self._obj[0]) + "*" + str(self._obj[1]) + ")"
 
     @property
     def rhs(self):
         if not self.hasTrial:
             return self
         else:
-            if self._obj1.hasTrial:
-                return self._obj1.rhs * self._obj2
+            if self._obj[0].hasTrial:
+                return self._obj[0].rhs * self._obj[1]
             else:
-                return self._obj1 * self._obj2.rhs
+                return self._obj[0] * self._obj[1].rhs
 
     @property
     def lhs(self):
         if self.hasTrial:
-            if self._obj1.hasTrial:
-                return self._obj1.lhs * self._obj2
+            if self._obj[0].hasTrial:
+                return self._obj[0].lhs * self._obj[1]
             else:
-                return self._obj1 * self._obj2.lhs
+                return self._obj[0] * self._obj[1].lhs
         else:
             return NGSFunction()
     
 
-class _DoubleDot(_Oper):
+class _TensorDot(_Oper):
+    def __init__(self, obj1, obj2, axes=1):
+        super().__init__(obj1, obj2)
+        self._axes = axes
+
+    def __call__(self, a, b):
+        if self._axes == 1:
+            return a.dot(b)
+        else:
+            return a.ddot(b)
+
     @property
     def hasTrial(self):
-        return self._obj1.hasTrial or self._obj2.hasTrial
+        return self._obj[0].hasTrial or self._obj[1].hasTrial
 
     def eval(self):
-        o1 = self._obj1.eval()
-        o2 = self._obj2.eval()
-        print(o1.shape, o2.shape)
-        if len(o1.shape) == 4:
-            res = Einsum("ijkl,kl->ij", o1, o2)
-        elif len(o1.shape) == 2:
-            res = Einsum("ij,ij", o1, o2)
-        else:
-            res = o1 * o2
-        return res
+        return np.tensordot(self._obj[0].eval(), self._obj[1].eval(), axes=self._axes)
 
     def __str__(self):
-        return "(" + str(self._obj1) + ":" + str(self._obj2) + ")"
+        if self._axes == 1:
+            return "(" + str(self._obj[0]) + "." + str(self._obj[1]) + ")"
+        else:
+            return "(" + str(self._obj[0]) + ":" + str(self._obj[1]) + ")"
 
     @property
     def rhs(self):
         if not self.hasTrial:
             return self
         else:
-            if self._obj1.hasTrial:
-                return self._obj1.rhs.ddot(self._obj2)
+            if self._obj[0].hasTrial:
+                return self(self._obj[0].rhs, self._obj[1])
             else:
-                return self._obj1.ddot(self._obj2.rhs)
+                return self(self._obj[0], self._obj[1].rhs)
 
     @property
     def lhs(self):
         if self.hasTrial:
-            if self._obj1.hasTrial:
-                return self._obj1.lhs.ddot(self._obj2)
+            if self._obj[0].hasTrial:
+                return self(self._obj[0].lhs, self._obj[1])
             else:
-                return self._obj1.ddot(self._obj2.lhs)
+                return self(self._obj[0], self._obj[1].lhs)
         else:
             return NGSFunction()
 
@@ -332,7 +324,7 @@ class TrialFunction(NGSFunction):
     
     def eval(self):
         if self._grad:
-            return ngsolve.grad(self._obj)
+            return np.array(_expand(_grad(self._obj)))
         else:
             return super().eval()
 
@@ -349,9 +341,28 @@ class TestFunction(NGSFunction):
     
     def eval(self):
         if self._grad:
-            return ngsolve.grad(self._obj)
+            return np.array(_expand(_grad(self._obj)))
         else:
             return super().eval()
-    
+
+def _grad(x):
+    if isinstance(x, CoefficientFunction):
+        return ngsolve.grad(x)
+    else:
+        return [_grad(y) for y in x]   
+
+def _expand(x):
+    if isinstance(x, ngsolve.comp.DifferentialSymbol):
+        return x
+    elif isinstance(x, CoefficientFunction):
+        if len(x.shape) == 0:
+            return x
+        else:
+            res = np.array([x[i] for i in itertools.product(*[range(s) for s in x.shape])])
+            return res.reshape(*x.shape).tolist()
+    else:
+        return [_expand(y) for y in x]   
+
+
 dx = NGSFunction(ngsolve.dx, name="dx")
 ds = NGSFunction(ngsolve.ds, name="ds")

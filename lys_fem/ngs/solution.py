@@ -24,11 +24,13 @@ class NGSSolution:
 
         data = {}
         vars = self._model.variables
-        if len(vars) == 1:
+        if self._model.isSingle:
             data[vars[0].name] = vars[0].scale * self._grid
         else:
-            for v, g in zip(vars, self._grid.components):
-                data[v.name] = v.scale * g
+            n = 0
+            for v in vars:
+                data[v.name] = [v.scale * self._grid.components[i] for i in range(n,n+v.size)]
+                n += v.size
 
         f = eval(expression, {}, data)
         if coords is None:

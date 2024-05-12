@@ -1,5 +1,5 @@
 import numpy as np
-from ngsolve import Parameter, GridFunction, BilinearForm, LinearForm
+from ngsolve import Parameter, GridFunction, BilinearForm, LinearForm, ProductSpace
 from . import util
 
 
@@ -43,7 +43,7 @@ class _Solution:
         self._model = model
         fes = model.finiteElementSpace
         self._sols = [(GridFunction(fes), GridFunction(fes), GridFunction(fes)) for n in range(nlog)]
-        self._isSingle = len(model.variables) == 1
+        self._isSingle = model.isSingle
 
     def update(self, xva):
         for j in range(3):
@@ -53,7 +53,7 @@ class _Solution:
             if yi is not None:
                 self.__set(xi, yi)
 
-    def __set(self,x,y):
+    def __set(self, x, y):
         if self._isSingle:
             if not isinstance(y, GridFunction):
                 y = y[0]
@@ -73,16 +73,23 @@ class _Solution:
         return g
 
     def X(self, n=0):
-        x = self[n][0]
-        return np.array([x] if self._isSingle else x.components)
+        return self.__toFunc(self[n][0])
 
     def V(self, n=0):
-        x = self[n][1]
-        return np.array([x] if self._isSingle else x.components)
+        return self.__toFunc(self[n][1])
 
     def A(self, n=0):
-        x = self[n][2]
-        return np.array([x] if self._isSingle else x.components)
+        return self.__toFunc(self[n][2])
+
+    def __toFunc(self, x):
+        if self._isSingle:
+            return [util.NGSFunction(x, self._model.variables[0].name+"0")]
+        else:
+            res = []
+            n = 0
+            for v in self._model.variables:
+                res.append(util.NGSFunction(x.components[n:v.size], self._model.variables[0].name+"0"))                
+            return res
 
 
 class NGSTimeIntegrator:
@@ -127,8 +134,8 @@ class BackwardEuler(NGSTimeIntegrator):
         # Replace time derivative
         d = {}
         for v, x0, v0 in zip(model.variables, sols.X(), sols.V()):
-            d[v.trial.t] = (v.trial - util.NGSFunction(x0,v.name+"0"))*dti
-            d[v.trial.tt] = (v.trial - util.NGSFunction(x0,v.name+"0"))*dti*dti - util.NGSFunction(v0,v.name+"t0")*dti
+            d[v.trial.t] = (v.trial - x0)*dti
+            d[v.trial.tt] = (v.trial - x0)*dti*dti - v0*dti
         wf.replace(d)
         return wf.lhs.eval(), wf.rhs.eval() 
         

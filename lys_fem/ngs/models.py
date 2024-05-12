@@ -1,4 +1,4 @@
-from ngsolve import GridFunction, H1, VectorH1, dx
+from ngsolve import GridFunction, H1, ProductSpace
 
 from . import util
 
@@ -24,10 +24,14 @@ class NGSVariable:
     @property
     def name(self):
         return self._name
+    
+    @property
+    def size(self):
+        return len(self._fes)
 
     @property
     def finiteElementSpace(self):
-        return self._fes
+        return util.prod(self._fes)
     
     @property
     def scale(self):
@@ -35,11 +39,17 @@ class NGSVariable:
     
     @property
     def value(self):
-        return self._init
+        if self.size == 1:
+            return [self._init]
+        else:
+            return [self._init[i] for i in range(self._init.shape[0])]
     
     @property
     def velocity(self):
-        return self._vel
+        if self.size == 1:
+            return [self._vel]
+        else:
+            return [self._vel[i] for i in range(self._vel.shape[0])]
 
     def setTnT(self, trial, test):
         self._trial = util.TrialFunction(self.name, trial)
@@ -75,30 +85,21 @@ class NGSModel:
         if initialVelocity is None:
             initialVelocity = util.generateCoefficient([0]*vdim)
 
-        kwargs = {}
-        if dirichlet == "auto":
-            dirichlet = util.generateDirichletCondition(self._model)
-        if dirichlet is not None:
-            if vdim == 1:
-                kwargs["dirichlet"] = "|".join(["boundary" + str(item) for item in dirichlet[0]])
-            if vdim  > 1:
-                kwargs["dirichletx"] = "|".join(["boundary" + str(item) for item in dirichlet[0]])
-                kwargs["dirichlety"] = "|".join(["boundary" + str(item) for item in dirichlet[1]])
-            if vdim == 3:
-                kwargs["dirichletz"] = "|".join(["boundary" + str(item) for item in dirichlet[2]])
-
+        kwargs = {"order": order}
         if region is not None:
             if region.selectionType() == "Selected":
                 kwargs["definedon"] = "|".join([region.geometryType.lower() + str(r) for r in region])
 
-        if vdim == 1:
-            fes = H1(self._mesh, order=order, **kwargs)
-        elif vdim==2:
-            fes = VectorH1(self._mesh, order=order, **kwargs)
-        elif vdim==3:
-            fes = VectorH1(self._mesh, order=order, **kwargs)
+        if dirichlet == "auto":
+            dirichlet = util.generateDirichletCondition(self._model)
 
-        self._vars.append(NGSVariable(name, fes, scale, initialValue, initialVelocity))
+        fess = []
+        for i in range(vdim):
+            if dirichlet is not None:
+                kwargs["dirichlet"] = "|".join(["boundary" + str(item) for item in dirichlet[i]])
+                fess.append(H1(self._mesh, **kwargs))
+
+        self._vars.append(NGSVariable(name, fess, scale, initialValue, initialVelocity))
 
     @property
     def variables(self):
@@ -125,11 +126,14 @@ class CompositeModel:
 
     def weakforms(self):
         # prepare test and trial functions
-        if len(self.variables) == 1:
+        n = 0
+        if self.isSingle:
             self.variables[0].setTnT(*self._fes.TnT())
         else:
-            for var, trial, test in zip(self.variables, *self._fes.TnT()):
-                var.setTnT(trial, test)
+            tnt = self._fes.TnT()
+            for var in self.variables:
+                var.setTnT(*tnt[0:var.size])
+                n+=var.size
 
         # create weakforms
         wf = util.NGSFunction()
@@ -139,11 +143,11 @@ class CompositeModel:
     
     @property
     def initialValue(self):
-        return self.__getGridFunction([v.value for v in self.variables])
+        return self.__getGridFunction([c for v in self.variables for c in v.value])
 
     @property
     def initialVelocity(self):
-        return self.__getGridFunction([v.velocity for v in self.variables])
+        return self.__getGridFunction([c for v in self.variables for c in v.velocity])
 
     def __getGridFunction(self, sols):
         u = GridFunction(self._fes)
@@ -173,3 +177,6 @@ class CompositeModel:
     def variables(self):
         return sum([m.variables for m in self._models], [])
     
+    @property
+    def isSingle(self):
+        return not isinstance(self.finiteElementSpace, ProductSpace)

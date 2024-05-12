@@ -20,7 +20,7 @@ class NGSElasticModel(NGSModel):
             u,v = var.trial, var.test
             gu, gv = grad(u), grad(v)
             
-            wf += rho * u.tt * v * dx
+            wf += rho * u.tt.dot(v) * dx
             wf += gu.ddot(C.ddot(gv)) * dx
 
             t0 = self._model.domainConditions.coef(ThermoelasticStress)
