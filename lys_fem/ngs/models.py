@@ -41,6 +41,18 @@ class NGSVariable:
     def velocity(self):
         return self._vel
 
+    def setTnT(self, trial, test):
+        self._trial = util.TrialFunction(self.name, trial)
+        self._test = util.TestFunction(test, name=self.name)
+
+    @property
+    def trial(self):
+        return self._trial
+
+    @property
+    def test(self):
+        return self._test
+
 
 class NGSModel:
     def __init__(self, model, mesh, addVariables=False, order=1):
@@ -111,29 +123,19 @@ class CompositeModel:
         self._models = models
         self._fes = util.prod([v.finiteElementSpace for v in self.variables])
 
-    def weakforms(self, X, V, A):
-        vars = {var.name: (xi,vi,ai) for var, xi, vi, ai in zip(self.variables, X, V, A)}
-
+    def weakforms(self):
         # prepare test and trial functions
-        vnames = [v.name for v in self.variables]
-        if len(vnames) == 1:
-            tnt = {vnames[0]: self._fes.TnT()}
+        if len(self.variables) == 1:
+            self.variables[0].setTnT(*self._fes.TnT())
         else:
-            tnt = {name: (trial, test) for name, trial, test in zip(vnames, *self._fes.TnT())}
+            for var, trial, test in zip(self.variables, *self._fes.TnT()):
+                var.setTnT(trial, test)
 
         # create weakforms
-        M, C, K, F = util.generateCoefficient(0)*dx, util.generateCoefficient(0)*dx, util.generateCoefficient(0)*dx, util.generateCoefficient(0)*dx
+        wf = util.NGSFunction()
         for model in self._models:
-            m,c,k,f = model.weakform(tnt, vars)
-            if m != 0:
-                M += m
-            if c != 0:
-                C += c
-            if k!=0:
-                K += k
-            if f!=0:
-                F += f
-        return M,C,K,F
+            wf += model.weakform({v.name: v for v in self.variables})
+        return wf
     
     @property
     def initialValue(self):

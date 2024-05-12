@@ -1,5 +1,5 @@
 import numpy as np
-from .util import generateCoefficient
+from . import util
 
 
 def generateMaterial(fem, mesh):
@@ -8,11 +8,11 @@ def generateMaterial(fem, mesh):
     result = {}
     for key, value in mats.items():
         if key == "J":
-            J = generateCoefficient(value, mesh, default=generateCoefficient(np.eye(3).tolist()))
+            J = util.coef(value, mesh, default=util.generateCoefficient(np.eye(3).tolist()))
             result["J"] = J.Compile()
             result["detJ"] = det(J).Compile()
         else:
-            result[key] = generateCoefficient(value, mesh)
+            result[key] = util.coef(value, mesh, name=key)
     return result
 
 def det(J):

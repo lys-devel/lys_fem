@@ -1,3 +1,4 @@
+import itertools
 import numpy as np
 
 from lys.Qt import QtWidgets
@@ -22,7 +23,7 @@ class ElasticParameters(FEMParameter):
         return {"rho": "kg/m^3", "C": "Pa"}
 
     def getParameters(self, dim):
-        return {"rho": self.rho, "C": self._constructC()}
+        return {"rho": self.rho, "C": self.__getC(dim, self._constructC())}
 
     def _constructC(self):
         if self.type in ["lame", "young", "isotropic"]:
@@ -35,6 +36,22 @@ class ElasticParameters(FEMParameter):
                 C1, C2 = self.C
                 lam, mu = C2, (C1-C2)/2
             return [[self._lame(i, j, lam, mu) for j in range(6)] for i in range(6)]
+
+    def __getC(self, dim, C):
+        res = np.zeros((dim,dim,dim,dim)).tolist()
+        for i,j,k,l in itertools.product(range(dim),range(dim),range(dim),range(dim)):
+            res[i][j][k][l] = C[self.__map(i,j)][self.__map(k,l)]
+        return res
+    
+    def __map(self, i, j):
+        if i == j:
+            return i
+        if (i == 0 and j == 1) or (i == 1 and j == 0):
+            return 3
+        if (i == 1 and j == 2) or (i == 2 and j == 1):
+            return 4
+        if (i == 0 and j == 2) or (i == 2 and j == 0):
+            return 5
 
     def _lame(self, i, j, lam, mu):
         res = 0

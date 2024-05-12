@@ -63,7 +63,7 @@ class OccMesher(FEMObject):
         self.__setPeriodicity(model)
         self.__partialRefine(model)
 
-        model.mesh.setTransfiniteAutomatic()
+        #model.mesh.setTransfiniteAutomatic()
         model.mesh.generate()
         for _ in range(self._refine):
             model.mesh.refine()

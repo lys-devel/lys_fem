@@ -1,6 +1,5 @@
-from ngsolve import grad, dx, ds
-
 from lys_fem.ngs import NGSModel, util
+from lys_fem.ngs.util import grad, dx, ds
 from . import NeumannBoundary
 
 
@@ -10,7 +9,24 @@ class NGSHeatConductionModel(NGSModel):
         self._model = model
         self._mat = mat
 
-    def weakform(self, tnt, vars):
+    def weakform(self, vars):
+        Cv, k = self._mat["C_v"], self._mat["k"]
+        wf = util.NGSFunction()
+        for eq in self._model.equations:
+            var = vars[eq.variableName]
+            u, v = var.trial, var.test
+
+            wf += Cv * u.t * v * dx 
+            wf += grad(u) * (k * grad(v)) * dx
+
+            c = self._model.boundaryConditions.coef(NeumannBoundary)
+            if c is not None:
+                f = util.coef(c, self.mesh, name="f")
+                wf -= f * v * ds
+        return wf
+
+
+    def weakform2(self, vars):
         Cv, k = self._mat["C_v"], self._mat["k"]
         M, K, F = 0, 0, 0
         for eq in self._model.equations:

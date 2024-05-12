@@ -1,5 +1,6 @@
 import numpy as np
 from ngsolve import Parameter, GridFunction, BilinearForm, LinearForm
+from . import util
 
 
 class _Operator:
@@ -13,9 +14,9 @@ class _Operator:
     def __call__(self, x):
         self._lf.Assemble()
         if self._nl:
-            return self._blf.Apply(x) - self._lf.vec
+            return self._blf.Apply(x) + self._lf.vec
         else:
-            return self._blf.mat * x  - self._lf.vec
+            return self._blf.mat * x  + self._lf.vec
 
     def Jacobian(self, x):
         if self._nl:
@@ -94,12 +95,10 @@ class NGSTimeIntegrator:
         self._sols.update((x, v, self.initialAcceleration(model, x, v)))
         self._x = self._sols.copy()
 
-        a,f = self.generateWeakforms(model, self._sols, self._dti)
+        a,f = self.generateWeakforms(model, self._sols, util.NGSFunction(self._dti,"dti"))
         A,F = BilinearForm(self._model.finiteElementSpace), LinearForm(self._model.finiteElementSpace)
-        if a != 0:
-            A += a
-        if f != 0:
-            F += f
+        A += a
+        F += f
         self._op = _Operator(A, F, model.finiteElementSpace, model.isNonlinear)
 
     @property
@@ -124,13 +123,14 @@ class BackwardEuler(NGSTimeIntegrator):
         return None
     
     def generateWeakforms(self, model, sols, dti):
-        X, X0, V0 = self.trials, sols.X(), sols.V()
-        M1, C1, K1, F1 = model.weakforms(X, X*dti, X*dti**2)
-        M2, C2, K2, F2 = model.weakforms(X, X0*dti, X0*dti**2+V0*dti)
-        if model.isNonlinear:
-           return M1 - M2 + C1 - C2 + K1, F1
-        else:
-            return M1 + C1 + K1, F1 + C2 + M2
+        wf = model.weakforms()
+        # Replace time derivative
+        d = {}
+        for v, x0, v0 in zip(model.variables, sols.X(), sols.V()):
+            d[v.trial.t] = (v.trial - util.NGSFunction(x0,v.name+"0"))*dti
+            d[v.trial.tt] = (v.trial - util.NGSFunction(x0,v.name+"0"))*dti*dti - util.NGSFunction(v0,v.name+"t0")*dti
+        wf.replace(d)
+        return wf.lhs.eval(), wf.rhs.eval() 
         
     def updateSolutions(self, x, sols, dti):
         X0 = sols[0][0]
