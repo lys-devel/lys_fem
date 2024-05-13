@@ -138,6 +138,9 @@ class elasticity_test(FEMTestCase):
         res = sol.eval("u", data_number=0)
         for w in res:
             self.assert_array_almost_equal(w.data, np.exp(-((w.x[:, 0])/0.1)**2), decimal=3)
+        res = sol.eval("u", data_number=1)
+        for w in res:
+            self.assert_array_almost_equal(w.data, np.exp(-((w.x[:, 0]-np.sqrt(3)/200)/0.1)**2)/2, decimal=2)
         res = sol.eval("u", data_number=100)
         for w in res:
             self.assert_array_almost_equal(w.data, np.exp(-((w.x[:, 0]-np.sqrt(3)/2)/0.1)**2)/2, decimal=2)

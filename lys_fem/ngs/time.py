@@ -90,7 +90,8 @@ class _Solution:
             res = []
             n = 0
             for v in self._model.variables:
-                res.append(util.NGSFunction(x.components[n:v.size], self._model.variables[0].name+pre+"0"))                
+                res.append(util.NGSFunction(x.components[n:v.size], self._model.variables[0].name+pre+"0"))
+                n+=v.size           
             return res
 
 
@@ -104,10 +105,10 @@ class NGSTimeIntegrator:
         self._sols.update((x, v, self.initialAcceleration(model, x, v)))
         self._x = self._sols.copy()
 
-        a,f = self.generateWeakforms(model, self._sols, util.NGSFunction(self._dti,"dti"))
+        wf = self.generateWeakforms(model, self._sols, util.NGSFunction(self._dti,"dti"))
         A,F = BilinearForm(self._model.finiteElementSpace), LinearForm(self._model.finiteElementSpace)
-        A += a
-        F += f
+        A += wf.lhs.eval()
+        F += wf.rhs.eval()
         self._op = _Operator(A, F, model.finiteElementSpace, model.isNonlinear)
 
     @property
@@ -139,7 +140,7 @@ class BackwardEuler(NGSTimeIntegrator):
             d[v.trial.t] = (v.trial - x0)*dti
             d[v.trial.tt] = (v.trial - x0)*dti*dti - v0*dti
         wf.replace(d)
-        return wf.lhs.eval(), wf.rhs.eval() 
+        return wf
         
     def updateSolutions(self, x, sols, dti):
         X0 = sols[0][0]
@@ -165,10 +166,8 @@ class NewmarkBeta(NGSTimeIntegrator):
             d[v.trial.t] = v.trial
             d[v.trial.tt] = util.NGSFunction()
         wf.replace(d)
-        print(wf.lhs)
         K = BilinearForm(fes)
         K += wf.lhs.eval()
-
 
         wf = model.weakforms()
         d = {}
@@ -178,10 +177,8 @@ class NewmarkBeta(NGSTimeIntegrator):
             d[v.trial.t] = util.NGSFunction()
             d[v.trial.tt] = v.trial
         wf.replace(d)
-        print(wf.lhs)
         M = BilinearForm(fes)
         M += wf.lhs.eval()
-
 
         wf = model.weakforms()
         d = {}
@@ -189,17 +186,15 @@ class NewmarkBeta(NGSTimeIntegrator):
             d[v.trial.t] = v.trial
             d[v.trial.tt] = v.trial
         wf.replace(d)
-        print(wf.rhs)
         F = LinearForm(fes)
         F += wf.rhs.eval()
-
 
         rhs = - F.vec - K.Apply(x.vec)
         M.AssembleLinearization(x.vec)
 
         a = GridFunction(fes)
         a.vec.data  = M.mat.Inverse(model.finiteElementSpace.FreeDofs(), "pardiso") * rhs
-        print(a.vec)
+        print(np.linalg.norm(a.vec))
         return a
         
     def generateWeakforms(self, model, sols, dti):
@@ -207,11 +202,11 @@ class NewmarkBeta(NGSTimeIntegrator):
         wf = model.weakforms()
         d = {}
         for v, x0, v0, a0 in zip(model.variables, sols.X(), sols.V(), sols.A()):
-            d[v.trial.t] = (v.trial - x0)*util.coef(g/b)*dti + util.coef(1-g/b)*v0 + util.coef(1-0.5*g/b)*a0/dti
-            d[v.trial.tt] = (v.trial - x0)*util.coef(1/b)*dti*dti - util.coef(1/b)*v0*dti + util.coef(1-0.5/b)*a0
+            d[v.trial.t] = (v.trial - x0)*util.coef(g/b)*dti + v0*util.coef(1-g/b) + a0*util.coef(1-0.5*g/b)/dti
+            d[v.trial.tt] = (v.trial - x0)*util.coef(1/b)*dti*dti - v0*util.coef(1/b)*dti + a0*util.coef(1-0.5/b)
         wf.replace(d)
         print(wf.lhs, wf.rhs)
-        return wf.lhs.eval(), wf.rhs.eval() 
+        return wf
         
     def updateSolutions(self, x, sols, dti):
         X0, V0, A0 = sols[0]

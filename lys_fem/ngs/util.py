@@ -183,6 +183,7 @@ class _Oper(NGSFunction):
             else:
                 if self._obj[i] in d:
                     self._obj[i] = d[self._obj[i]]
+        return self
 
 
 class _Add(_Oper):
@@ -221,9 +222,9 @@ class _Mul(_Oper):
         self._type = type
 
     def __call__(self, x, y):
-        if isinstance(y, np.ndarray):
-            return self(y,x)
         if self._type == "*":
+            if isinstance(y, np.ndarray):
+                return y * x
             return x * y
         else:
             return x / y
@@ -236,6 +237,8 @@ class _Mul(_Oper):
         return self(self._obj[0].eval(), self._obj[1].eval())
 
     def __str__(self):
+        if isinstance(self._obj[0], _Mul) or isinstance(self._obj[1], _Mul):
+            return str(self._obj[0]) + self._type + str(self._obj[1])
         return "(" + str(self._obj[0]) + self._type + str(self._obj[1]) + ")"
 
     @property
