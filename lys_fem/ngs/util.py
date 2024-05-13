@@ -323,6 +323,10 @@ class TrialFunction(NGSFunction):
     @property    
     def grad(self):
         return TrialFunction(self._name, self._obj, self._dt, grad=True)
+    
+    @property
+    def value(self):
+        return TrialFunction(self._name, self._obj, -1)
        
     def __hash__(self):
         return hash(self._name + "__" + str(self._dt) + "__" + str(self._grad))
@@ -332,6 +336,8 @@ class TrialFunction(NGSFunction):
     
     def __str__(self):
         name = self._name
+        if self._dt == -1:
+            return name+"0"
         for i in range(self._dt):
             name += "t" 
         if self._grad:

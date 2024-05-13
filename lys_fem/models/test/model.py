@@ -10,13 +10,13 @@ class LinearTestEquation(Equation):
 
 class NonlinearTestEquation(Equation):
     className = "Nonlinear Test Equation"
+    isScalar = True
     def __init__(self, varName="x", **kwargs):
         super().__init__(varName, **kwargs)
 
 
 class LinearTestModel(FEMFixedModel):
     className = "Linear Test"
-    isScalar = True
     equationTypes = [LinearTestEquation]
     boundaryConditionTypes = [DirichletBoundary]
     initialConditionTypes = [InitialCondition]

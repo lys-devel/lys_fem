@@ -26,7 +26,7 @@ class NGSNonlinearTestModel(NGSModel):
         for eq in self._model.equations:
             var = vars[eq.variableName]
             u,v = var.trial, var.test
-            wf += u0 * grad(u).dot(grad(v)) * dx
+            wf += u.value * grad(u).dot(grad(v)) * dx
         return wf
 
     @property

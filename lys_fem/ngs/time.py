@@ -1,5 +1,5 @@
 import numpy as np
-from ngsolve import Parameter, GridFunction, BilinearForm, LinearForm, ProductSpace
+from ngsolve import Parameter, GridFunction, BilinearForm, LinearForm
 from . import util
 
 
@@ -139,7 +139,6 @@ class BackwardEuler(NGSTimeIntegrator):
             d[v.trial.t] = (v.trial - x0)*dti
             d[v.trial.tt] = (v.trial - x0)*dti*dti - v0*dti
         wf.replace(d)
-        print(wf.lhs, wf.rhs)
         return wf.lhs.eval(), wf.rhs.eval() 
         
     def updateSolutions(self, x, sols, dti):
