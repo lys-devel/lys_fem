@@ -115,7 +115,7 @@ class NGSFunction:
 
     def __sub__(self, other):
         if not self.valid:
-            return other
+            return coef(-1)*other
         elif not other.valid:
             return self
         else:

@@ -162,39 +162,49 @@ class NewmarkBeta(NGSTimeIntegrator):
 
         wf = model.weakforms()
         d = {}
-        for v in model.variables:
-            d[v.trial.t] = v.trial
-            d[v.trial.tt] = util.NGSFunction()
+        for var in model.variables:
+            d[var.trial.t] = util.NGSFunction()
+            d[var.trial.tt] = util.NGSFunction()
         wf.replace(d)
         K = BilinearForm(fes)
         K += wf.lhs.eval()
 
         wf = model.weakforms()
         d = {}
-        for v in model.variables:
-            d[util.grad(v.trial)] = util.NGSFunction()
-            d[v.trial] = util.NGSFunction()
-            d[v.trial.t] = util.NGSFunction()
-            d[v.trial.tt] = v.trial
+        for var in model.variables:
+            d[util.grad(var.trial)] = util.NGSFunction()
+            d[var.trial] = util.NGSFunction()
+            d[var.trial.t] = var.trial
+            d[var.trial.tt] = util.NGSFunction()
+        wf.replace(d)
+        C = BilinearForm(fes)
+        C += wf.lhs.eval()
+
+        wf = model.weakforms()
+        d = {}
+        for var in model.variables:
+            d[util.grad(var.trial)] = util.NGSFunction()
+            d[var.trial] = util.NGSFunction()
+            d[var.trial.t] = util.NGSFunction()
+            d[var.trial.tt] = var.trial
         wf.replace(d)
         M = BilinearForm(fes)
         M += wf.lhs.eval()
 
         wf = model.weakforms()
         d = {}
-        for v in model.variables:
-            d[v.trial.t] = v.trial
-            d[v.trial.tt] = v.trial
+        for var in model.variables:
+            d[var.trial.t] = var.trial
+            d[var.trial.tt] = var.trial
         wf.replace(d)
         F = LinearForm(fes)
         F += wf.rhs.eval()
 
-        rhs = - F.vec - K.Apply(x.vec)
+        rhs = - F.vec - K.Apply(x.vec) - C.Apply(v.vec)
         M.AssembleLinearization(x.vec)
 
         a = GridFunction(fes)
         a.vec.data  = M.mat.Inverse(model.finiteElementSpace.FreeDofs(), "pardiso") * rhs
-        print(np.linalg.norm(a.vec))
         return a
         
     def generateWeakforms(self, model, sols, dti):
@@ -205,6 +215,7 @@ class NewmarkBeta(NGSTimeIntegrator):
             d[v.trial.t] = (v.trial - x0)*util.coef(g/b)*dti + v0*util.coef(1-g/b) + a0*util.coef(1-0.5*g/b)/dti
             d[v.trial.tt] = (v.trial - x0)*util.coef(1/b)*dti*dti - v0*util.coef(1/b)*dti + a0*util.coef(1-0.5/b)
         wf.replace(d)
+        print(wf)
         print(wf.lhs, wf.rhs)
         return wf
         
