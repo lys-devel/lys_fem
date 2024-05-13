@@ -26,14 +26,8 @@ class NGSElasticModel(NGSModel):
             t0 = self._model.domainConditions.coef(ThermoelasticStress)
             if t0 is not None:
                 alpha = self._mat["alpha"]
-                T0 = util.generateCoefficient(t0, self._mesh)
+                T0 = util.coef(t0, self._mesh, name="T0")
                 for te in self._model.domainConditions.get(ThermoelasticStress):
-                    T, test_T = tnt[te.varName]
-                    if self._vdim == 1:
-                        K += T*C*alpha*gv*dx
-                        F += T0*C*alpha*gv*dx
-                    else:
-                        beta = Einsum("ijkl,kl->ij", C, alpha)
-                        K += T*Einsum("ij,ij", beta, gv)*dx
-                        F += T0*Einsum("ij,ij", beta, gv)*dx
+                    T = vars[te.varName].trial
+                    wf += (T-T0)*C.ddot(alpha).ddot(gv)*dx
         return wf

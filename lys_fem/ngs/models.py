@@ -57,9 +57,14 @@ class NGSVariable:
             return [self._vel[i] for i in range(self._vel.shape[0])]
 
     def setTnT(self, trial, test):
-        if isinstance(trial, CoefficientFunction) and not self._isScalar:
-            trial = [trial]
-            test = [test]
+        if self.size==1:
+            if self._isScalar and not isinstance(trial, CoefficientFunction):
+                trial = trial[0]
+                test = test[0]
+            if not self._isScalar and isinstance(trial, CoefficientFunction):
+                trial = [trial]
+                test = [test]
+        
         self._trial = util.TrialFunction(self.name, trial)
         self._test = util.TestFunction(test, name=self.name)
 
@@ -143,13 +148,13 @@ class CompositeModel:
 
     def weakforms(self):
         # prepare test and trial functions
-        n = 0
         if self.isSingle:
             self.variables[0].setTnT(*self._fes.TnT())
         else:
-            tnt = self._fes.TnT()
+            n = 0
+            trial, test = self._fes.TnT()
             for var in self.variables:
-                var.setTnT(*tnt[0:var.size])
+                var.setTnT(trial[n:n+var.size], test[n:n+var.size])
                 n+=var.size
 
         # create weakforms

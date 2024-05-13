@@ -23,6 +23,6 @@ class NGSPoissonModel(NGSModel):
                 wf += grad(u).dot(grad(v)) * dx
 
             f = self.coef(Source, "f")
-            wf -= f*v*dx
+            wf += f*v*dx
         return wf
     

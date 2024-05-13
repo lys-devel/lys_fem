@@ -147,10 +147,7 @@ class ThermalExpansionParameters(FEMParameter):
         return {"alpha": "1"}
 
     def getParameters(self, dim):
-        if dim == 1:
-            return {"alpha": self.alpha[0][0]}
-        else:
-            return {"alpha": np.array(self.alpha)[:dim,:dim].tolist()}
+        return {"alpha": np.array(self.alpha)[:dim,:dim].tolist()}
 
     def widget(self):
         return _ThermalExpansionWidget(self)

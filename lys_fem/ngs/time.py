@@ -90,7 +90,10 @@ class _Solution:
             res = []
             n = 0
             for v in self._model.variables:
-                res.append(util.NGSFunction(x.components[n:v.size], self._model.variables[0].name+pre+"0"))
+                if v.size == 1 and v.isScalar:
+                    res.append(util.NGSFunction(x.components[n], v.name+pre+"0"))
+                else:
+                    res.append(util.NGSFunction(x.components[n:n+v.size], v.name+pre+"0"))
                 n+=v.size           
             return res
 
@@ -106,6 +109,7 @@ class NGSTimeIntegrator:
         self._x = self._sols.copy()
 
         wf = self.generateWeakforms(model, self._sols, util.NGSFunction(self._dti,"dti"))
+        print(wf.rhs)
         A,F = BilinearForm(self._model.finiteElementSpace), LinearForm(self._model.finiteElementSpace)
         A += wf.lhs.eval()
         F += wf.rhs.eval()
@@ -215,8 +219,6 @@ class NewmarkBeta(NGSTimeIntegrator):
             d[v.trial.t] = (v.trial - x0)*util.coef(g/b)*dti + v0*util.coef(1-g/b) + a0*util.coef(1-0.5*g/b)/dti
             d[v.trial.tt] = (v.trial - x0)*util.coef(1/b)*dti*dti - v0*util.coef(1/b)*dti + a0*util.coef(1-0.5/b)
         wf.replace(d)
-        print(wf)
-        print(wf.lhs, wf.rhs)
         return wf
         
     def updateSolutions(self, x, sols, dti):

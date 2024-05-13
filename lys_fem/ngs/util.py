@@ -95,6 +95,17 @@ class NGSFunction:
     
     def __mul__(self, other):
         if self.valid and other.valid:
+            # DifferentialSymbol is always on top level.
+            if isinstance(self, _Mul):
+                if isinstance(self._obj[0], DifferentialSymbol):
+                    return (self._obj[1] * other) * self._obj[0]
+                elif isinstance(self._obj[1], DifferentialSymbol):
+                    return (self._obj[0] * other) * self._obj[1]
+            if isinstance(other, _Mul):
+                if isinstance(other._obj[0], DifferentialSymbol):
+                    return (other._obj[1] * self) * other._obj[0]
+                elif isinstance(other._obj[1], DifferentialSymbol):
+                    return (other._obj[0] * self) * other._obj[1]
             return _Mul(self, other)
         else:
             return NGSFunction()
@@ -404,5 +415,8 @@ def _expand(x):
         return [_expand(y) for y in x]   
 
 
-dx = NGSFunction(ngsolve.dx, name="dx")
-ds = NGSFunction(ngsolve.ds, name="ds")
+class DifferentialSymbol(NGSFunction):
+    pass
+
+dx = DifferentialSymbol(ngsolve.dx, name="dx")
+ds = DifferentialSymbol(ngsolve.ds, name="ds")

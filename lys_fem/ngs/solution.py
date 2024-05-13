@@ -30,6 +30,8 @@ class NGSSolution:
             n = 0
             for v in vars:
                 data[v.name] = [v.scale * self._grid.components[i] for i in range(n,n+v.size)]
+                if v.size == 1:
+                    data[v.name] = data[v.name][0]
                 n += v.size
 
         f = eval(expression, {}, data)
