@@ -23,7 +23,7 @@ class SolverBase:
         if obj.method == "BackwardEuler":
             self._integ = time.BackwardEuler(model)
         elif obj.method == "NewmarkBeta":
-            self._integ = time.GeneralizedAlpha(model)
+            self._integ = time.NewmarkBeta(model)
         else:
             self._integ = time.GeneralizedAlpha(model, obj.method)
         self._model = model

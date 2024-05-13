@@ -182,7 +182,7 @@ class _Oper(NGSFunction):
                 self._obj[i].replace(d)        
             else:
                 if self._obj[i] in d:
-                    self._obj[i] = d[self._obj[i]]       
+                    self._obj[i] = d[self._obj[i]]
 
 
 class _Add(_Oper):
@@ -221,6 +221,8 @@ class _Mul(_Oper):
         self._type = type
 
     def __call__(self, x, y):
+        if isinstance(y, np.ndarray):
+            return self(y,x)
         if self._type == "*":
             return x * y
         else:
@@ -326,7 +328,7 @@ class TrialFunction(NGSFunction):
     
     @property
     def value(self):
-        return TrialFunction(self._name, self._obj, -1)
+        return NGSFunction(self._obj, self._name)
        
     def __hash__(self):
         return hash(self._name + "__" + str(self._dt) + "__" + str(self._grad))

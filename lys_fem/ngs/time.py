@@ -76,21 +76,21 @@ class _Solution:
         return self.__toFunc(self[n][0])
 
     def V(self, n=0):
-        return self.__toFunc(self[n][1])
+        return self.__toFunc(self[n][1], "t")
 
     def A(self, n=0):
-        return self.__toFunc(self[n][2])
+        return self.__toFunc(self[n][2], "tt")
 
-    def __toFunc(self, x):
+    def __toFunc(self, x, pre=""):
         if self._isSingle:
             if not self._model.variables[0].isScalar:
                 x = [x]
-            return [util.NGSFunction(x, self._model.variables[0].name+"0")]
+            return [util.NGSFunction(x, self._model.variables[0].name+pre+"0")]
         else:
             res = []
             n = 0
             for v in self._model.variables:
-                res.append(util.NGSFunction(x.components[n:v.size], self._model.variables[0].name+"0"))                
+                res.append(util.NGSFunction(x.components[n:v.size], self._model.variables[0].name+pre+"0"))                
             return res
 
 
@@ -146,6 +146,84 @@ class BackwardEuler(NGSTimeIntegrator):
         v = GridFunction(self._model.finiteElementSpace)
         v.vec.data = dti*(x.vec - X0.vec)
         return (x, v, None)
+    
+
+class NewmarkBeta(NGSTimeIntegrator):
+    def __init__(self, model, params="tapezoidal"):
+        if params == "tapezoidal":
+            self._params = [1/4, 1/2]
+        else:
+            self._params = params
+        super().__init__(model)
+
+    def initialAcceleration(self, model, x, v):
+        fes = model.finiteElementSpace
+
+        wf = model.weakforms()
+        d = {}
+        for v in model.variables:
+            d[v.trial.t] = v.trial
+            d[v.trial.tt] = util.NGSFunction()
+        wf.replace(d)
+        print(wf.lhs)
+        K = BilinearForm(fes)
+        K += wf.lhs.eval()
+
+
+        wf = model.weakforms()
+        d = {}
+        for v in model.variables:
+            d[util.grad(v.trial)] = util.NGSFunction()
+            d[v.trial] = util.NGSFunction()
+            d[v.trial.t] = util.NGSFunction()
+            d[v.trial.tt] = v.trial
+        wf.replace(d)
+        print(wf.lhs)
+        M = BilinearForm(fes)
+        M += wf.lhs.eval()
+
+
+        wf = model.weakforms()
+        d = {}
+        for v in model.variables:
+            d[v.trial.t] = v.trial
+            d[v.trial.tt] = v.trial
+        wf.replace(d)
+        print(wf.rhs)
+        F = LinearForm(fes)
+        F += wf.rhs.eval()
+
+
+        rhs = - F.vec - K.Apply(x.vec)
+        M.AssembleLinearization(x.vec)
+
+        a = GridFunction(fes)
+        a.vec.data  = M.mat.Inverse(model.finiteElementSpace.FreeDofs(), "pardiso") * rhs
+        print(a.vec)
+        return a
+        
+    def generateWeakforms(self, model, sols, dti):
+        b, g = self._params
+        wf = model.weakforms()
+        d = {}
+        for v, x0, v0, a0 in zip(model.variables, sols.X(), sols.V(), sols.A()):
+            d[v.trial.t] = (v.trial - x0)*util.coef(g/b)*dti + util.coef(1-g/b)*v0 + util.coef(1-0.5*g/b)*a0/dti
+            d[v.trial.tt] = (v.trial - x0)*util.coef(1/b)*dti*dti - util.coef(1/b)*v0*dti + util.coef(1-0.5/b)*a0
+        wf.replace(d)
+        print(wf.lhs, wf.rhs)
+        return wf.lhs.eval(), wf.rhs.eval() 
+        
+    def updateSolutions(self, x, sols, dti):
+        X0, V0, A0 = sols[0]
+        X0, V0, A0 = X0.vec, V0.vec, A0.vec
+
+        b, g = self._params
+        a = GridFunction(self._model.finiteElementSpace)
+        v = GridFunction(self._model.finiteElementSpace)
+
+        a.vec.data = (1/b*dti**2)*(x.vec-X0) - (dti/b)*V0 + (1-0.5/b)*A0
+        v.vec.data = V0 + (1-g)/dti*A0 + g/dti*a.vec
+        return (x, v, a)
     
 
 class GeneralizedAlpha(NGSTimeIntegrator):
