@@ -10,7 +10,7 @@ def addNGSModel(name, model):
 
 
 def generateModel(fem, mesh, mat):
-    return CompositeModel(mesh, [modelList[m.className](m, mesh, mat) for m in fem.models])
+    return CompositeModel(mesh, [modelList[m.className](m, mesh) for m in fem.models], mat)
 
 
 class NGSVariable:
@@ -67,6 +67,7 @@ class NGSVariable:
         
         self._trial = util.TrialFunction(self.name, trial)
         self._test = util.TestFunction(test, name=self.name)
+        return self._trial, self._test
 
     @property
     def trial(self):
@@ -141,26 +142,28 @@ class NGSModel:
 
 
 class CompositeModel:
-    def __init__(self, mesh, models):
+    def __init__(self, mesh, models, mat):
         self._mesh = mesh
         self._models = models
+        self._mat = mat
         self._fes = util.prod([v.finiteElementSpace for v in self.variables])
 
     def weakforms(self):
         # prepare test and trial functions
+        tnt = {}
         if self.isSingle:
-            self.variables[0].setTnT(*self._fes.TnT())
+            trial, test = [[t] for t in self._fes.TnT()]
         else:
-            n = 0
             trial, test = self._fes.TnT()
-            for var in self.variables:
-                var.setTnT(trial[n:n+var.size], test[n:n+var.size])
-                n+=var.size
+        n = 0
+        for var in self.variables:
+            tnt[var.name] = var.setTnT(trial[n:n+var.size], test[n:n+var.size])
+            n+=var.size
 
         # create weakforms
         wf = util.NGSFunction()
         for model in self._models:
-            wf += model.weakform({v.name: v for v in self.variables})
+            wf += model.weakform(tnt, self._mat)
         return wf
     
     @property

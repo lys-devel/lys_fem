@@ -46,30 +46,21 @@ class _Solution:
         self._isSingle = model.isSingle
 
     def update(self, xva):
+        # Store old data
         for j in range(3):
             for n in range(1, len(self._sols)):
-                self.__set(self._sols[-n][j], self._sols[-n+1][j])
+                self._sols[-n][j].vec.data = self._sols[-n+1][j].vec
+        # Set new one
         for xi, yi in zip(self._sols[0], xva):
             if yi is not None:
-                self.__set(xi, yi)
-
-    def __set(self, x, y):
-        if self._isSingle:
-            if not isinstance(y, GridFunction):
-                y = y[0]
-            x.Set(y)
-        else:
-            if isinstance(y, GridFunction):
-                y = y.components
-            for xi, yi in zip(x.components, y):
-                xi.Set(yi)
+                xi.vec.data = yi.vec
 
     def __getitem__(self, n):
         return self._sols[n]
 
     def copy(self):
         g = GridFunction(self._model.finiteElementSpace)
-        self.__set(g, self._sols[0][0])
+        g.vec.data = self._sols[0][0].vec
         return g
 
     def X(self, n=0):
@@ -229,38 +220,15 @@ class NewmarkBeta(NGSTimeIntegrator):
         return (x, v, a)
     
 
-class GeneralizedAlpha(NGSTimeIntegrator):
+class GeneralizedAlpha(NewmarkBeta):
     def __init__(self, model, rho="tapezoidal"):
-        if isinstance(rho, float):
-            am = (2*rho-1)/(rho+1)
-            af = rho/(rho+1)
-            beta = 0.25*(1+af-am)**2
-            gamma = 0.5+af-am
-            self._params = [am, af, beta, gamma]
-        elif rho=="tapezoidal":
-            self._params = [0, 0, 1/4, 1/2]
+        am = (2*rho-1)/(rho+1)
+        af = rho/(rho+1)
+        beta = 0.25*(1+af-am)**2
+        gamma = 0.5+af-am
+        self._params = [am, af, beta, gamma]
         super().__init__(model)
-
-    def initialAcceleration(self, model, x, v):
-        fes = model.finiteElementSpace
-        X = self.trials
-        M, C, K, F = model.weakforms(X, X, X)
-        Feff = LinearForm(fes)
-        Feff += F
-        Keff = BilinearForm(fes)
-        Keff += K
-        Ceff = BilinearForm(fes)
-        Ceff += C
-        Meff = BilinearForm(fes)
-        Meff += M
-
-        rhs = Feff.vec - Ceff.Apply(v.vec) - Keff.Apply(x.vec)
-        Meff.AssembleLinearization(x.vec)
-
-        a = GridFunction(fes)
-        a.vec.data  = (Meff.mat.Inverse(model.finiteElementSpace.FreeDofs(), "pardiso") * rhs)
-        return a
-        
+      
     def generateWeakforms(self, model, sols, dti):
         X, X0, V0, A0 = self.trials, sols.X(), sols.V(), sols.A()
         am, af, b, g = self._params
@@ -273,16 +241,4 @@ class GeneralizedAlpha(NGSTimeIntegrator):
             a = (X0/b*dti**2 + V0*dti/b + (0.5/b-1)*A0)*(1-am) + am * A0
             M2, C2, K2, F2 = model.weakforms(X0, v, a)
             return (1-am)/b*M1 + (1-af)*(g/b)*C1 + (1-af)*K1, F1 + M2 + C2 - af*K2
-        
-    def updateSolutions(self, x, sols, dti):
-        X0, V0, A0 = sols[0]
-        X0, V0, A0 = X0.vec, V0.vec, A0.vec
 
-        am, af, b, g = self._params
-        a = GridFunction(self._model.finiteElementSpace)
-        v = GridFunction(self._model.finiteElementSpace)
-
-        a.vec.data = (1/b*dti**2)*(x.vec-X0) - (dti/b)*V0 + (1-0.5/b)*A0
-        v.vec.data = V0 + (1-g)/dti*A0 + g/dti*a.vec
-        return (x, v, a)
-    

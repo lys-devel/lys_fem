@@ -16,19 +16,6 @@ def prod(args):
     return res
 
 
-def cross(u,v):
-    return [u[1]*v[2]-u[2]*v[1], u[2]*v[0]-u[0]*v[2], u[0]*v[1]-u[1]*v[0]]
-
-
-def dot(u,v):
-    res = u[0] * v[0]
-    if len(u) > 1:
-        res += u[1]*v[1]
-    if len(u) > 2:
-        res += u[2]*v[2]
-    return res
-
-
 def generateGeometry(region):
     return  "|".join([region.geometryType.lower() + str(r) for r in region])
 
@@ -66,10 +53,14 @@ def _absolute(x):
     return x.Norm()
 
 
-def coef(coef, mesh=None, geom="domain", name=None, **kwargs):
+def coef(coef, mesh=None, geom="domain", name=None, default=None, **kwargs):
+    if coef == 0:
+        return NGSFunction()
     if name is None:
         name = str(coef)
-    obj = generateCoefficient(coef, mesh, geom, **kwargs)
+    if default is not None and not isinstance(default, CoefficientFunction):
+        default = generateCoefficient(default)
+    obj = generateCoefficient(coef, mesh, geom, default=default, **kwargs)
     return NGSFunction(obj, name=name)
 
 
@@ -81,10 +72,10 @@ class NGSFunction:
     def __init__(self, obj=None, name="Undefined"):
         if obj is None:
             self._obj = None
-            name = "Zero"
+            self._name = "Zero"
         else:
             self._obj = obj
-        self._name = name
+            self._name = name
 
     @property
     def shape(self):
@@ -94,18 +85,24 @@ class NGSFunction:
             return ()
     
     def __mul__(self, other):
+        if isinstance(other, (int, float, complex)):
+            other = coef(other)
         if self.valid and other.valid:
             return _Mul(self, other)
         else:
             return NGSFunction()
 
     def __truediv__(self, other):
+        if isinstance(other, (int, float, complex)):
+            other = coef(other)
         if self.valid and other.valid:
             return _Mul(self, other, "/")
         else:
             return NGSFunction()
         
     def __add__(self, other):
+        if isinstance(other, (int, float, complex)):
+            other = coef(other)
         if not self.valid:
             return other
         elif not other.valid:
@@ -114,6 +111,8 @@ class NGSFunction:
             return _Add(self, other)
 
     def __sub__(self, other):
+        if isinstance(other, (int, float, complex)):
+            other = coef(other)
         if not self.valid:
             return coef(-1)*other
         elif not other.valid:
@@ -121,6 +120,21 @@ class NGSFunction:
         else:
             return _Add(self, other, type="-")
         
+    def __neg__(self):
+        if not self.valid:
+            return NGSFunction()
+        else:
+            return self*(-1)
+
+    def __rmul__(self, other):
+        return self * other
+    
+    def __radd__(self, other):
+        return self + other
+    
+    def __rsub__(self, other):
+        return (-self) + other 
+
     def dot(self, other):
         if self.valid and other.valid:
             return _TensorDot(self, other)
@@ -138,6 +152,15 @@ class NGSFunction:
             return _Cross(self, other)
         else:
             return NGSFunction()
+        
+    def det(self):
+        J = self.eval()
+        if J.shape[0] == 3:
+            return NGSFunction(J[0,0]*J[1,1]*J[2,2] + J[0,1]*J[1,2]*J[2,0] + J[0,2]*J[1,0]*J[2,1] - J[0,2]*J[1,1]*J[2,0] - J[0,1]*J[1,0]*J[2,2] - J[0,0]*J[1,2]*J[2,1], "|"+self._name+"|")
+        elif J.shape[0] == 2:
+            return NGSFunction(J[0,0]*J[1,1] - J[0,1]*J[1,0]*J[2,2], "|"+self._name+"|")
+        elif J.shape[0] == 1:
+            return NGSFunction(J[0,0], "|"+self._name+"|")
 
     def __str__(self):
         return self._name
@@ -263,7 +286,7 @@ class _Mul(_Oper):
                 return self(self._obj[0], self._obj[1].lhs)
         else:
             return NGSFunction()
-    
+        
 
 class _TensorDot(_Oper):
     def __init__(self, obj1, obj2, axes=1):

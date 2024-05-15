@@ -8,12 +8,9 @@ def generateMaterial(fem, mesh):
     result = {}
     for key, value in mats.items():
         if key == "J":
-            J = util.generateCoefficient(value, mesh, default=util.generateCoefficient(np.eye(3).tolist()))
-            result["J"] = util.NGSFunction(J.Compile(), name="J")
-            result["detJ"] = util.NGSFunction(det(J).Compile(), name="detJ")
+            J = util.coef(value, mesh, default=np.eye(3), name="J")
+            result["J"] = J
+            result["detJ"] = J.det()
         else:
             result[key] = util.coef(value, mesh, name=key)
     return result
-
-def det(J):
-    return J[0,0]*J[1,1]*J[2,2] + J[0,1]*J[1,2]*J[2,0] + J[0,2]*J[1,0]*J[2,1] - J[0,2]*J[1,1]*J[2,0] - J[0,1]*J[1,0]*J[2,2] - J[0,0]*J[1,2]*J[2,1]
