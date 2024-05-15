@@ -1,12 +1,12 @@
 import numpy as np
 
-from ngsolve import GridFunction, H1
+from ngsolve import H1
 from lys import Wave
 
 from .mesh import generateMesh, exportMesh
 from .material import generateMaterial
 from .models import generateModel
-
+from .util import GridFunction
 
 class NGSSolution:
     def __init__(self, fem, dirname):
@@ -23,16 +23,12 @@ class NGSSolution:
         self._grid.Load(self._dirname+"/ngs"+str(index), parallel=False)
 
         data = {}
-        vars = self._model.variables
-        if self._model.isSingle:
-            data[vars[0].name] = vars[0].scale * self._grid
-        else:
-            n = 0
-            for v in vars:
-                data[v.name] = [v.scale * self._grid.components[i] for i in range(n,n+v.size)]
-                if v.size == 1:
-                    data[v.name] = data[v.name][0]
-                n += v.size
+        n = 0
+        for v in self._model.variables:
+            data[v.name] = [v.scale * self._grid.components[i] for i in range(n,n+v.size)]
+            if v.size == 1:
+                data[v.name] = data[v.name][0]
+            n += v.size
 
         f = eval(expression, {}, data)
         if coords is None:

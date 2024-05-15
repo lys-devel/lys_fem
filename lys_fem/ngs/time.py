@@ -1,6 +1,7 @@
 import numpy as np
-from ngsolve import Parameter, GridFunction, BilinearForm, LinearForm, CoefficientFunction
+from ngsolve import Parameter, BilinearForm, LinearForm, CoefficientFunction
 from . import util
+from . util import GridFunction
 
 
 class _Operator:
@@ -43,7 +44,6 @@ class _Solution:
         self._model = model
         fes = model.finiteElementSpace
         self._sols = [(GridFunction(fes), GridFunction(fes), GridFunction(fes)) for n in range(nlog)]
-        self._isSingle = model.isSingle
 
     def update(self, xva):
         # Store old data
@@ -73,20 +73,15 @@ class _Solution:
         return self.__toFunc(self[n][2], "tt")
 
     def __toFunc(self, x, pre=""):
-        if self._isSingle:
-            if not self._model.variables[0].isScalar:
-                x = CoefficientFunction((x,))
-            return [util.NGSFunction(x, self._model.variables[0].name+pre+"0")]
-        else:
-            res = []
-            n = 0
-            for v in self._model.variables:
-                if v.size == 1 and v.isScalar:
-                    res.append(util.NGSFunction(x.components[n], v.name+pre+"0"))
-                else:
-                    res.append(util.NGSFunction(CoefficientFunction(tuple(x.components[n:n+v.size])), v.name+pre+"0"))
-                n+=v.size           
-            return res
+        res = []
+        n = 0
+        for v in self._model.variables:
+            if v.size == 1 and v.isScalar:
+                res.append(util.NGSFunction(x.components[n], v.name+pre+"0"))
+            else:
+                res.append(util.NGSFunction(CoefficientFunction(tuple(x.components[n:n+v.size])), v.name+pre+"0"))
+            n+=v.size           
+        return res
 
 
 class NGSTimeIntegrator:

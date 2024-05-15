@@ -1,4 +1,4 @@
-from ngsolve import GridFunction, H1, ProductSpace, CoefficientFunction
+from ngsolve import H1, ProductSpace
 
 from . import util
 
@@ -57,14 +57,8 @@ class NGSVariable:
             return [self._vel[i] for i in range(self._vel.shape[0])]
 
     def setTnT(self, trial, test):
-        if self.size==1:
-            if self._isScalar and not isinstance(trial, CoefficientFunction):
-                trial = trial[0]
-                test = test[0]
-            if not self._isScalar and isinstance(trial, CoefficientFunction):
-                trial = [trial]
-                test = [test]
-        
+        if self.size==1 and self._isScalar:
+            trial, test = trial[0], test[0]        
         self._trial = util.TrialFunction(self.name, trial)
         self._test = util.TestFunction(test, name=self.name)
         return self._trial, self._test
@@ -151,7 +145,7 @@ class CompositeModel:
     def weakforms(self):
         # prepare test and trial functions
         tnt = {}
-        if self.isSingle:
+        if not isinstance(self.finiteElementSpace, ProductSpace):
             trial, test = [[t] for t in self._fes.TnT()]
         else:
             trial, test = self._fes.TnT()
@@ -168,20 +162,11 @@ class CompositeModel:
     
     @property
     def initialValue(self):
-        return self.__getGridFunction([c for v in self.variables for c in v.value])
+        return util.GridFunction(self._fes, [c for v in self.variables for c in v.value])
 
     @property
     def initialVelocity(self):
-        return self.__getGridFunction([c for v in self.variables for c in v.velocity])
-
-    def __getGridFunction(self, sols):
-        u = GridFunction(self._fes)
-        if len(sols) == 1:
-            u.Set(*sols)
-        else:
-            for ui, i in zip(u.components, sols):
-                ui.Set(i)
-        return u
+        return util.GridFunction(self._fes, [c for v in self.variables for c in v.velocity])
         
     @property
     def isNonlinear(self):
@@ -202,6 +187,3 @@ class CompositeModel:
     def variables(self):
         return sum([m.variables for m in self._models], [])
     
-    @property
-    def isSingle(self):
-        return not isinstance(self.finiteElementSpace, ProductSpace)

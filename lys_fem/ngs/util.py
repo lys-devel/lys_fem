@@ -1,10 +1,8 @@
-import itertools
 import sympy as sp
 import numpy as np
 
 import ngsolve
 from ngsolve import x,y,z, CoefficientFunction
-from ngsolve.fem import Einsum
 
 from lys_fem.fem import FEMCoefficient
 from ..models.common import DirichletBoundary
@@ -45,12 +43,10 @@ def generateCoefficient(coef, mesh=None, geom="domain", **kwargs):
     elif isinstance(coef, CoefficientFunction):
         return coef
     else:
+        def _absolute(x):
+            return x.Norm()
         res = sp.lambdify(sp.symbols("x_scaled,y_scaled,z_scaled"), coef, modules=[{"abs": _absolute}, ngsolve])(x,y,z)
         return res
-
-
-def _absolute(x):
-    return x.Norm()
 
 
 def coef(coef, mesh=None, geom="domain", name=None, default=None, **kwargs):
@@ -66,6 +62,31 @@ def coef(coef, mesh=None, geom="domain", name=None, default=None, **kwargs):
 
 def grad(f):
     return f.grad
+
+
+class GridFunction(ngsolve.GridFunction):
+    def __init__(self, fes, value=None):
+        super().__init__(fes)
+        if value is not None:
+            self.set(value)
+
+    def set(self, value):
+        if self.isSingle:
+            self.Set(*value)
+        else:
+            for ui, i in zip(self.components, value):
+                ui.Set(i)
+
+    @property
+    def components(self):
+        if self.isSingle:
+            return [self]
+        else:
+            return super().components
+
+    @property
+    def isSingle(self):
+        return not isinstance(self.space, ngsolve.ProductSpace)
 
 
 class NGSFunction:
@@ -459,27 +480,9 @@ class TestFunction(NGSFunction):
             return super().eval()
 
 
-def _grad(x):
-    if isinstance(x, CoefficientFunction):
-        return ngsolve.grad(x)
-    else:
-        return [_grad(y) for y in x]   
-
-def _expand(x):
-    if isinstance(x, ngsolve.comp.DifferentialSymbol):
-        return x
-    elif isinstance(x, CoefficientFunction):
-        if len(x.shape) == 0:
-            return x
-        else:
-            res = np.array([x[i] for i in itertools.product(*[range(s) for s in x.shape])])
-            return res.reshape(*x.shape).tolist()
-    else:
-        return [_expand(y) for y in x]   
-
-
 class DifferentialSymbol(NGSFunction):
     pass
+
 
 dx = DifferentialSymbol(ngsolve.dx, name="dx")
 ds = DifferentialSymbol(ngsolve.ds, name="ds")
