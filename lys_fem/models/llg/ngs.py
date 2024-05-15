@@ -8,10 +8,6 @@ class NGSLLGModel(NGSModel):
         self._model = model
         self._mat = mat
 
-        init = self._model.initialConditions.coef(self._model.initialConditionTypes[0])
-        initialValue = util.generateCoefficient(init, self._mesh)
-        dirichlet = util.generateDirichletCondition(self._model)
-
         for eq in model.equations:
             self.addVariable(eq.variableName, 3, "auto", "auto", region = eq.geometries, order=order)
             self.addVariable(eq.variableName+"_lam", 1, region=eq.geometries, order=2, isScalar=True)

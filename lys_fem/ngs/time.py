@@ -1,5 +1,5 @@
 import numpy as np
-from ngsolve import Parameter, GridFunction, BilinearForm, LinearForm
+from ngsolve import Parameter, GridFunction, BilinearForm, LinearForm, CoefficientFunction
 from . import util
 
 
@@ -84,7 +84,7 @@ class _Solution:
     def __toFunc(self, x, pre=""):
         if self._isSingle:
             if not self._model.variables[0].isScalar:
-                x = [x]
+                x = CoefficientFunction((x,))
             return [util.NGSFunction(x, self._model.variables[0].name+pre+"0")]
         else:
             res = []
@@ -93,7 +93,7 @@ class _Solution:
                 if v.size == 1 and v.isScalar:
                     res.append(util.NGSFunction(x.components[n], v.name+pre+"0"))
                 else:
-                    res.append(util.NGSFunction(x.components[n:n+v.size], v.name+pre+"0"))
+                    res.append(util.NGSFunction(CoefficientFunction(tuple(x.components[n:n+v.size])), v.name+pre+"0"))
                 n+=v.size           
             return res
 

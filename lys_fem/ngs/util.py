@@ -95,17 +95,6 @@ class NGSFunction:
     
     def __mul__(self, other):
         if self.valid and other.valid:
-            # DifferentialSymbol is always on top level.
-            if isinstance(self, _Mul):
-                if isinstance(self._obj[0], DifferentialSymbol):
-                    return (self._obj[1] * other) * self._obj[0]
-                elif isinstance(self._obj[1], DifferentialSymbol):
-                    return (self._obj[0] * other) * self._obj[1]
-            if isinstance(other, _Mul):
-                if isinstance(other._obj[0], DifferentialSymbol):
-                    return (other._obj[1] * self) * other._obj[0]
-                elif isinstance(other._obj[1], DifferentialSymbol):
-                    return (other._obj[0] * self) * other._obj[1]
             return _Mul(self, other)
         else:
             return NGSFunction()
@@ -176,13 +165,10 @@ class NGSFunction:
         return self._obj is not None
         
     def eval(self):
-        if not self.valid:
-            return generateCoefficient(0)*ngsolve.dx
-        res = _expand(self._obj)
-        if isinstance(res, list):
-            return np.array(res)
+        if self.valid:
+            return self._obj
         else:
-            return res
+            return generateCoefficient(0)*ngsolve.dx
 
 
 class _Oper(NGSFunction):
@@ -295,10 +281,13 @@ class _TensorDot(_Oper):
         return self._obj[0].hasTrial or self._obj[1].hasTrial
 
     def eval(self):
-        res = np.tensordot(self._obj[0].eval(), self._obj[1].eval(), axes=self._axes)
-        if len(res.shape) == 0:
-            return res.item()
-        return res
+        if self._axes == 1:
+            return self._obj[0].eval() * self._obj[1].eval()
+        else:
+            v1, v2 = self._obj[0].eval(), self._obj[1].eval()
+            sym1, sym2 = "abcdef"[0:len(v1.shape)-2]+"ij", "ij"+"mnopqr"[0:len(v2.shape)-2]
+            expr = sym1+","+sym2+"->"+sym1[0:-2]+sym2[2:]
+            return ngsolve.fem.Einsum(expr, v1, v2)
 
     def __str__(self):
         if self._axes == 1:
@@ -338,6 +327,7 @@ class _Cross(_Oper):
         eijk = np.zeros((3, 3, 3))
         eijk[0, 1, 2] = eijk[1, 2, 0] = eijk[2, 0, 1] = 1
         eijk[0, 2, 1] = eijk[2, 1, 0] = eijk[1, 0, 2] = -1
+        eijk = generateCoefficient(eijk.tolist())
 
         v1, v2 = self._obj[0].eval(), self._obj[1].eval()
         # Create expression
@@ -345,10 +335,7 @@ class _Cross(_Oper):
         expr = "i"+sym1[-1]+sym2[0]+","+sym1+","+sym2+"->"+sym1[:-1]+"i"+sym2[1:]
 
         # Calculate by einsum
-        res = np.einsum(expr, eijk, v1, v2)
-        if len(res.shape) == 0:
-            return res.item()
-        return res
+        return ngsolve.fem.Einsum(expr, eijk, v1, v2)
 
     def __str__(self):
         return "(" + str(self._obj[0]) + " x " + str(self._obj[1]) + ")"
@@ -395,7 +382,7 @@ class TrialFunction(NGSFunction):
     
     @property
     def value(self):
-        return NGSFunction(self._obj, self._name)
+        return NGSFunction(self.eval(), self._name)
        
     def __hash__(self):
         return hash(self._name + "__" + str(self._dt) + "__" + str(self._grad))
@@ -419,13 +406,13 @@ class TrialFunction(NGSFunction):
     
     def eval(self):
         if self._grad:
-            res = _expand(_grad(self._obj))
-            if isinstance(res, list):
-                return np.array(res)
-            else:
-                return res
+            if isinstance(self._obj, list):
+                return ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._obj]), dims=(ngsolve.grad(self._obj[0]).shape[0], len(self._obj))).TensorTranspose((1,0))
+            return ngsolve.grad(self._obj)
         else:
-            return super().eval()
+            if isinstance(self._obj, list):
+                return ngsolve.CoefficientFunction(tuple([t for t in self._obj]))
+            return self._obj
 
 
 class TestFunction(NGSFunction):
@@ -440,12 +427,12 @@ class TestFunction(NGSFunction):
     
     def eval(self):
         if self._grad:
-            res = _expand(_grad(self._obj))
-            if isinstance(res, list):
-                return np.array(res)
-            else:
-                return res
+            if isinstance(self._obj, list):
+                return ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._obj]), dims=(ngsolve.grad(self._obj[0]).shape[0], len(self._obj))).TensorTranspose((1,0))
+            return ngsolve.grad(self._obj)
         else:
+            if isinstance(self._obj, list):
+                return ngsolve.CoefficientFunction(tuple([t for t in self._obj]))
             return super().eval()
 
 
