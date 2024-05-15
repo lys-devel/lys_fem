@@ -33,7 +33,7 @@ def run(fem, run=True, save=True):
     model = generateModel(fem, mesh, mats)
     print_("NGS Models generated in ", '{:.2f}'.format(time.time()-start), ":")
     for m in model.models:
-        print_("\t"+m.name+":", [v.name for v in m.variables])
+        print_("\t"+m.name+":", {v.name: v.size for v in m.variables})
     print_()
 
     start = time.time()

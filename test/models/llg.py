@@ -55,12 +55,10 @@ class LLG_test(FEMTestCase):
         # solution
         sol = FEMSolution()
         for i in range(1,n+1):
-            m1 = sol.eval("mx", data_number=i)
-            m2 = sol.eval("my", data_number=i)
-            m3 = sol.eval("mz", data_number=i)
-            self.assert_array_almost_equal(m1[0].data**2 + m2[0].data**2+m3[0].data**2, 1, decimal=4)
+            m = sol.eval("m[0]**2+m[1]**2+m[2]**2", data_number=i)
+            self.assert_array_almost_equal(m, 1, decimal=4)
 
-        res = sol.eval("mz", data_number=n)
+        res = sol.eval("m[2]", data_number=n)
         for w in res:
             self.assert_array_almost_equal(w.data, -np.sin(solution(w.x[:,0]-1e-6, 1e-11, 1e3)), decimal=4)
 
@@ -93,10 +91,10 @@ class LLG_test(FEMTestCase):
 
         # solution
         sol = FEMSolution()
-        res = sol.eval("mx", data_number=50)
+        res = sol.eval("m[0]", data_number=50)
         for w in res:
             self.assert_array_almost_equal(w.data, -np.ones(w.data.shape)/np.sqrt(2), decimal=2)
-        res = sol.eval("mz", data_number=50)
+        res = sol.eval("m[2]", data_number=50)
         for w in res:
             self.assert_array_almost_equal(w.data, -np.ones(w.data.shape)/np.sqrt(2), decimal=2)
 
@@ -175,10 +173,10 @@ class LLG_test(FEMTestCase):
 
         # solution
         sol = FEMSolution()
-        res = sol.eval("mx", data_number=1)
+        res = sol.eval("m[0]", data_number=1)
         for w in res:
             self.assert_array_almost_equal(w.data, np.zeros(w.data.shape), decimal=2)
-        res = sol.eval("mz", data_number=1)
+        res = sol.eval("m[2]", data_number=1)
         for w in res:
             self.assert_array_almost_equal(w.data, np.ones(w.data.shape), decimal=2)
 
@@ -212,15 +210,15 @@ class LLG_test(FEMTestCase):
 
         # solution
         sol = FEMSolution()
-        res = sol.eval("mx", data_number=25*factor)
+        res = sol.eval("m[0]", data_number=25*factor)
         for w in res:
             self.assert_array_almost_equal(w.data, np.zeros(w.data.shape), decimal=2)
-        res = sol.eval("my", data_number=25*factor)
+        res = sol.eval("m[1]", data_number=25*factor)
         for w in res:
             self.assert_array_almost_equal(w.data, np.ones(w.data.shape), decimal=3)
-        res = sol.eval("mx", data_number=50*factor)
+        res = sol.eval("m[0]", data_number=50*factor)
         for w in res:
             self.assert_array_almost_equal(w.data, -np.ones(w.data.shape), decimal=3)
-        res = sol.eval("my", data_number=50*factor)
+        res = sol.eval("m[1]", data_number=50*factor)
         for w in res:
             self.assert_array_almost_equal(w.data, np.zeros(w.data.shape), decimal=2)

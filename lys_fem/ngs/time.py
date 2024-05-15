@@ -109,16 +109,11 @@ class NGSTimeIntegrator:
         self._x = self._sols.copy()
 
         wf = self.generateWeakforms(model, self._sols, util.NGSFunction(self._dti,"dti"))
-        print(wf.rhs)
         A,F = BilinearForm(self._model.finiteElementSpace), LinearForm(self._model.finiteElementSpace)
         A += wf.lhs.eval()
         F += wf.rhs.eval()
         self._op = _Operator(A, F, model.finiteElementSpace, model.isNonlinear)
 
-    @property
-    def trials(self):
-        return np.array([self._model.finiteElementSpace.TnT()[0]] if len(self._model.variables) == 1 else self._model.finiteElementSpace.TnT()[0])
-    
     def solve(self, solver, dti=0):
         if self._dti.Get() != dti:
             self._dti.Set(dti)

@@ -110,7 +110,7 @@ class NGSModel:
         for i in range(vdim):
             if dirichlet is not None:
                 kwargs["dirichlet"] = "|".join(["boundary" + str(item) for item in dirichlet[i]])
-                fess.append(H1(self._mesh, **kwargs))
+            fess.append(H1(self._mesh, **kwargs))
 
         self._vars.append(NGSVariable(name, fess, scale, initialValue, initialVelocity, isScalar=isScalar))
 

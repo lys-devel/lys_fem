@@ -144,6 +144,12 @@ class NGSFunction:
         else:
             return NGSFunction()
 
+    def cross(self, other):
+        if self.valid and other.valid:
+            return _Cross(self, other)
+        else:
+            return NGSFunction()
+
     def __str__(self):
         return self._name
     
@@ -317,6 +323,53 @@ class _TensorDot(_Oper):
                 return self(self._obj[0].lhs, self._obj[1])
             else:
                 return self(self._obj[0], self._obj[1].lhs)
+        else:
+            return NGSFunction()
+
+
+
+class _Cross(_Oper):
+    @property
+    def hasTrial(self):
+        return self._obj[0].hasTrial or self._obj[1].hasTrial
+
+    def eval(self):
+        # Levi Civita symbol
+        eijk = np.zeros((3, 3, 3))
+        eijk[0, 1, 2] = eijk[1, 2, 0] = eijk[2, 0, 1] = 1
+        eijk[0, 2, 1] = eijk[2, 1, 0] = eijk[1, 0, 2] = -1
+
+        v1, v2 = self._obj[0].eval(), self._obj[1].eval()
+        # Create expression
+        sym1, sym2 = "abcdefgh"[:len(v1.shape)], "nmpqrs"[:len(v2.shape)]
+        expr = "i"+sym1[-1]+sym2[0]+","+sym1+","+sym2+"->"+sym1[:-1]+"i"+sym2[1:]
+
+        # Calculate by einsum
+        res = np.einsum(expr, eijk, v1, v2)
+        if len(res.shape) == 0:
+            return res.item()
+        return res
+
+    def __str__(self):
+        return "(" + str(self._obj[0]) + " x " + str(self._obj[1]) + ")"
+
+    @property
+    def rhs(self):
+        if not self.hasTrial:
+            return self
+        else:
+            if self._obj[0].hasTrial:
+                return self._obj[0].rhs.cross(self._obj[1])
+            else:
+                return self._obj[0].cross(self._obj[1].rhs)
+
+    @property
+    def lhs(self):
+        if self.hasTrial:
+            if self._obj[0].hasTrial:
+                return self._obj[0].lhs.cross(self._obj[1])
+            else:
+                return self._obj[0].cross(self._obj[1].lhs)
         else:
             return NGSFunction()
 
