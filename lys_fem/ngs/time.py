@@ -1,7 +1,7 @@
 import numpy as np
 from ngsolve import Parameter, BilinearForm, LinearForm, CoefficientFunction
+
 from . import util
-from . util import GridFunction
 
 
 class _Operator:
@@ -43,7 +43,7 @@ class _Solution:
     def __init__(self, model, nlog=2):
         self._model = model
         fes = model.finiteElementSpace
-        self._sols = [(GridFunction(fes), GridFunction(fes), GridFunction(fes)) for n in range(nlog)]
+        self._sols = [(util.GridFunction(fes), util.GridFunction(fes), util.GridFunction(fes)) for n in range(nlog)]
 
     def update(self, xva):
         # Store old data
@@ -59,7 +59,7 @@ class _Solution:
         return self._sols[n]
 
     def copy(self):
-        g = GridFunction(self._model.finiteElementSpace)
+        g = util.GridFunction(self._model.finiteElementSpace)
         g.vec.data = self._sols[0][0].vec
         return g
 
@@ -129,7 +129,7 @@ class BackwardEuler(NGSTimeIntegrator):
         
     def updateSolutions(self, x, sols, dti):
         X0 = sols[0][0]
-        v = GridFunction(self._model.finiteElementSpace)
+        v = util.GridFunction(self._model.finiteElementSpace)
         v.vec.data = dti*(x.vec - X0.vec)
         return (x, v, None)
     
@@ -188,7 +188,7 @@ class NewmarkBeta(NGSTimeIntegrator):
         rhs = - F.vec - K.Apply(x.vec) - C.Apply(v.vec)
         M.AssembleLinearization(x.vec)
 
-        a = GridFunction(fes)
+        a = util.GridFunction(fes)
         a.vec.data  = M.mat.Inverse(model.finiteElementSpace.FreeDofs(), "pardiso") * rhs
         return a
         
@@ -207,8 +207,8 @@ class NewmarkBeta(NGSTimeIntegrator):
         X0, V0, A0 = X0.vec, V0.vec, A0.vec
 
         b, g = self._params
-        a = GridFunction(self._model.finiteElementSpace)
-        v = GridFunction(self._model.finiteElementSpace)
+        a = util.GridFunction(self._model.finiteElementSpace)
+        v = util.GridFunction(self._model.finiteElementSpace)
 
         a.vec.data = (1/b*dti**2)*(x.vec-X0) - (dti/b)*V0 + (1-0.5/b)*A0
         v.vec.data = V0 + (1-g)/dti*A0 + g/dti*a.vec

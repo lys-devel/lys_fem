@@ -1,5 +1,4 @@
-from ngsolve import H1, ProductSpace
-
+import ngsolve
 from . import util
 
 modelList = {}
@@ -105,7 +104,7 @@ class NGSModel:
         for i in range(vdim):
             if dirichlet is not None:
                 kwargs["dirichlet"] = "|".join(["boundary" + str(item) for item in dirichlet[i]])
-            fess.append(H1(self._mesh, **kwargs))
+            fess.append(ngsolve.H1(self._mesh, **kwargs))
 
         self._vars.append(NGSVariable(name, fess, scale, initialValue, initialVelocity, isScalar=isScalar))
 
@@ -145,7 +144,7 @@ class CompositeModel:
     def weakforms(self):
         # prepare test and trial functions
         tnt = {}
-        if not isinstance(self.finiteElementSpace, ProductSpace):
+        if not isinstance(self.finiteElementSpace, ngsolve.ProductSpace):
             trial, test = [[t] for t in self._fes.TnT()]
         else:
             trial, test = self._fes.TnT()

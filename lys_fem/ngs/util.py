@@ -2,7 +2,6 @@ import sympy as sp
 import numpy as np
 
 import ngsolve
-from ngsolve import x,y,z, CoefficientFunction
 
 from lys_fem.fem import FEMCoefficient
 from ..models.common import DirichletBoundary
@@ -37,15 +36,15 @@ def generateCoefficient(coef, mesh=None, geom="domain", **kwargs):
         else:
             return mesh.BoundaryCF(coefs, **kwargs)
     elif isinstance(coef, (list, tuple, np.ndarray)):
-        return CoefficientFunction(tuple([generateCoefficient(c) for c in coef]), dims=np.shape(coef))
+        return ngsolve.CoefficientFunction(tuple([generateCoefficient(c) for c in coef]), dims=np.shape(coef))
     elif isinstance(coef, (int, float, sp.Integer, sp.Float)):
-        return CoefficientFunction(coef)
-    elif isinstance(coef, CoefficientFunction):
+        return ngsolve.CoefficientFunction(coef)
+    elif isinstance(coef, ngsolve.CoefficientFunction):
         return coef
     else:
         def _absolute(x):
             return x.Norm()
-        res = sp.lambdify(sp.symbols("x_scaled,y_scaled,z_scaled"), coef, modules=[{"abs": _absolute}, ngsolve])(x,y,z)
+        res = sp.lambdify(sp.symbols("x_scaled,y_scaled,z_scaled"), coef, modules=[{"abs": _absolute}, ngsolve])(ngsolve.x,ngsolve.y,ngsolve.z)
         return res
 
 
@@ -54,7 +53,7 @@ def coef(coef, mesh=None, geom="domain", name=None, default=None, **kwargs):
         return NGSFunction()
     if name is None:
         name = str(coef)
-    if default is not None and not isinstance(default, CoefficientFunction):
+    if default is not None and not isinstance(default, ngsolve.CoefficientFunction):
         default = generateCoefficient(default)
     obj = generateCoefficient(coef, mesh, geom, default=default, **kwargs)
     return NGSFunction(obj, name=name)

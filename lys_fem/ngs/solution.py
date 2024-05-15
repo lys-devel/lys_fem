@@ -1,6 +1,5 @@
 import numpy as np
 
-from ngsolve import H1
 from lys import Wave
 
 from .mesh import generateMesh, exportMesh
@@ -63,21 +62,3 @@ class NGSSolution:
                 return self._mesh(coords)
             else:
                 return self._mesh(*coords)
-    
-    @property
-    def materialSolution(self):
-        result = {}
-        def eval(c):
-            sp = H1(self._mesh, order=1)
-            gf = GridFunction(sp)
-            gf.Set(c)
-            return gf.vec
-        
-        for name, mat in self._mats.items():
-            if len(mat.shape) == 0:
-                result[name] = eval(mat)
-            elif len(mat.shape) == 1:
-                result[name] = [eval(mat[i]) for i in range(mat.shape[0])]
-            elif len(mat.shape) == 2:
-                result[name] = [[eval(mat[i,j]) for j in range(mat.shape[1])] for i in range(mat.shape[0])]
-        return result

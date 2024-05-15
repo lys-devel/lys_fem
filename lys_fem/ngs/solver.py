@@ -3,7 +3,6 @@ import shutil
 import numpy as np
 
 from . import mpi, mesh, time
-from ngsolve import sqrt
 
 
 def generateSolver(fem, mesh, model):
@@ -128,7 +127,7 @@ class _NewtonSolver:
             Fx = F(x)
             dx.data = F.Jacobian(x)*Fx
             x.data -= dx
-            R = sqrt(np.divide(dx.InnerProduct(dx), x.InnerProduct(x)))
+            R = np.sqrt(np.divide(dx.InnerProduct(dx), x.InnerProduct(x)))
             if R < eps:
                 if i!=0:
                     mpi.print_("[Newton solver] Converged in", i, "steps.")
