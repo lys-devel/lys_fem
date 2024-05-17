@@ -1,20 +1,27 @@
 from .. import common, general 
 
-    
 
-class DirichletBoundary(common.DirichletBoundary):
-    pass
-
-
-class InitialCondition(common.InitialCondition):
+class MagnetostaticInitialCondition(common.InitialCondition):
     unit = "A"
 
 
-class Source(common.Source):
+class MagnetostaticSource(common.Source):
     unit = "A/m^2"
 
 
-class MagnetostatisticsModel(general.PoissonModel):
-    className = "Magnetostatistics"
-    initialConditionTypes = [InitialCondition]
+class MagnetostaticsModel(general.PoissonModel):
+    className = "Magnetostatics"
+    initialConditionTypes = [MagnetostaticInitialCondition]
 
+
+class ElectrostaticInitialCondition(common.InitialCondition):
+    unit = "V"
+
+
+class ElectrostaticSource(common.Source):
+    unit = "C/m^3"
+
+
+class ElectrostaticsModel(general.PoissonModel):
+    className = "Electrostatics"
+    initialConditionTypes = [ElectrostaticInitialCondition]

@@ -23,7 +23,7 @@ def generateDirichletCondition(model):
     for b in conditions:
         for axis, check in enumerate(b.values):
             if check:
-                bdr_dir[axis].extend(b.geometries.getSelection())
+                bdr_dir[axis].extend(b.geometries)
     return list(bdr_dir.values())
 
 
@@ -269,8 +269,9 @@ class _Mul(_Oper):
 
     def __call__(self, x, y):
         if self._type == "*":
-            if isinstance(y, np.ndarray):
-                return y * x
+            if isinstance(x, ngsolve.CoefficientFunction) and isinstance(y, ngsolve.CoefficientFunction):
+                if len(x.shape)!=0 and len(x.shape) == len(y.shape):
+                    return ngsolve.CoefficientFunction(tuple([xi*yi for xi, yi in zip(x,y)]), dims=x.shape)
             return x * y
         else:
             return x / y

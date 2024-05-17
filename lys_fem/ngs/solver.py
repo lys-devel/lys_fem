@@ -83,7 +83,7 @@ class RelaxationSolver(SolverBase):
 
         t = 0
         dt, dx = self._tSolver.dt0, self._tSolver.dx
-        for i in range(1,100):
+        for i in range(1,1000):
             self.integrator.solve(self._solver, 1/dt)
             t = t + dt
             mpi.print_("Step", i, ", t = {:3e}".format(t), ", dt = {:3e}".format(dt), ", dx = {:3e}".format(self._solver.dx))

@@ -1,7 +1,12 @@
 from lys_fem import addModel
 from lys_fem.ngs import addNGSModel
-from .model import MagnetostatisticsModel, Source, DirichletBoundary, InitialCondition
-from .ngs import NGSMagnetostatisticsModel
+from ..common import DirichletBoundary
 
-addModel("Electromagnetism", MagnetostatisticsModel)
-addNGSModel("Magnetostatistics", NGSMagnetostatisticsModel)
+from .model import MagnetostaticsModel, MagnetostaticInitialCondition, MagnetostaticSource
+from .model import ElectrostaticsModel, ElectrostaticInitialCondition, ElectrostaticSource
+from .ngs import NGSMagnetostaticsModel, NGSElectrostaticsModel
+
+addModel("Electromagnetism", MagnetostaticsModel)
+addModel("Electromagnetism", ElectrostaticsModel)
+addNGSModel("Magnetostatics", NGSMagnetostaticsModel)
+addNGSModel("Electrostatics", NGSElectrostaticsModel)

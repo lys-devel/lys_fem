@@ -21,11 +21,11 @@ class magnetostatistics_test(FEMTestCase):
         p.mesher.setRefinement(4)
 
         # model: boundary and initial conditions
-        model = em.MagnetostatisticsModel()
-        model.domainConditions.append(em.Source(rho, geometries=[1]))
+        model = em.MagnetostaticsModel()
+        model.domainConditions.append(em.MagnetostaticSource(rho, geometries=[1]))
         model.boundaryConditions.append(em.DirichletBoundary([True], geometries=[1]))
-        model.initialConditions.append(em.InitialCondition(0, geometries=[2]))
-        model.initialConditions.append(em.InitialCondition(1, geometries=[1]))
+        model.initialConditions.append(em.MagnetostaticInitialCondition(0, geometries=[2]))
+        model.initialConditions.append(em.MagnetostaticInitialCondition(1, geometries=[1]))
         p.models.append(model)
 
         # solver
