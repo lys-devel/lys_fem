@@ -19,14 +19,16 @@ class SolverBase:
         self._obj = obj
         self._mesh = mesh
         self._solver = _NewtonSolver()
-        if obj.method == "BackwardEuler":
-            self._integ = time.BackwardEuler(model)
-        elif obj.method == "NewmarkBeta":
-            self._integ = time.NewmarkBeta(model)
-        else:
-            self._integ = time.GeneralizedAlpha(model, obj.method)
-        self._model = model
+        self._integ = self._prepareIntegrator(obj, model)
         self._prepareDirectory(dirname)
+
+    def _prepareIntegrator(self, obj, model):
+        if obj.method == "BackwardEuler":
+            return time.BackwardEuler(model)
+        elif obj.method == "NewmarkBeta":
+            return time.NewmarkBeta(model)
+        else:
+            return time.GeneralizedAlpha(model, obj.method)
 
     def _prepareDirectory(self, dirname):
         self._dirname = "Solutions/" + dirname
@@ -48,10 +50,6 @@ class SolverBase:
     @property
     def integrator(self):
         return self._integ
-
-    @property    
-    def model(self):
-        return self._model
 
     @property
     def name(self):

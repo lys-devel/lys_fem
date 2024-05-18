@@ -5,9 +5,10 @@ from . import util
 
 
 class _Operator:
-    def __init__(self, blf, lf, fes, nonlinear):
-        self._blf = blf
-        self._lf = lf
+    def __init__(self, wf, fes, nonlinear):
+        self._blf, self._lf = BilinearForm(fes), LinearForm(fes)
+        self._blf += wf.lhs.eval()
+        self._lf += wf.rhs.eval()
         self._fes = fes
         self._nl = nonlinear
         self._init  = False
@@ -40,10 +41,11 @@ class _Operator:
 
 
 class _Solution:
-    def __init__(self, model, nlog=2):
+    def __init__(self, model, use_a, nlog=2):
         self._model = model
         fes = model.finiteElementSpace
         self._sols = [(util.GridFunction(fes), util.GridFunction(fes), util.GridFunction(fes)) for n in range(nlog)]
+        self.update(model.initialValue(use_a))
 
     def update(self, xva):
         # Store old data
@@ -89,16 +91,12 @@ class NGSTimeIntegrator:
         self._model = model
         self._dti = Parameter(-1)
 
-        self._sols = _Solution(model)
-        x,v = model.initialValue, model.initialVelocity
-        self._sols.update((x, v, self.initialAcceleration(model, x, v)))
+        self._sols = _Solution(model, self.use_a)
         self._x = self._sols.copy()
 
-        wf = self.generateWeakforms(model, self._sols, util.NGSFunction(self._dti,"dti"))
-        A,F = BilinearForm(self._model.finiteElementSpace), LinearForm(self._model.finiteElementSpace)
-        A += wf.lhs.eval()
-        F += wf.rhs.eval()
-        self._op = _Operator(A, F, model.finiteElementSpace, model.isNonlinear)
+        wf = model.weakforms()
+        wf = self.generateWeakforms(wf, model, self._sols, util.NGSFunction(self._dti,"dti"))
+        self._op = _Operator(wf, model.finiteElementSpace, model.isNonlinear)
 
     def solve(self, solver, dti=0):
         if self._dti.Get() != dti:
@@ -111,14 +109,14 @@ class NGSTimeIntegrator:
     @property
     def solution(self):
         return self._sols.copy()
-
-
-class BackwardEuler(NGSTimeIntegrator):
-    def initialAcceleration(self, model, x, v):
-        return None
     
-    def generateWeakforms(self, model, sols, dti):
-        wf = model.weakforms()
+    @property
+    def use_a(self):
+        return True
+
+
+class BackwardEuler(NGSTimeIntegrator): 
+    def generateWeakforms(self, wf, model, sols, dti):
         # Replace time derivative
         d = {}
         for v, x0, v0 in zip(model.variables, sols.X(), sols.V()):
@@ -132,7 +130,10 @@ class BackwardEuler(NGSTimeIntegrator):
         v = util.GridFunction(self._model.finiteElementSpace)
         v.vec.data = dti*(x.vec - X0.vec)
         return (x, v, None)
-    
+
+    @property
+    def use_a(self):
+        return False
 
 class NewmarkBeta(NGSTimeIntegrator):
     def __init__(self, model, params="tapezoidal"):
@@ -141,60 +142,9 @@ class NewmarkBeta(NGSTimeIntegrator):
         else:
             self._params = params
         super().__init__(model)
-
-    def initialAcceleration(self, model, x, v):
-        fes = model.finiteElementSpace
-
-        wf = model.weakforms()
-        d = {}
-        for var in model.variables:
-            d[var.trial.t] = util.NGSFunction()
-            d[var.trial.tt] = util.NGSFunction()
-        wf.replace(d)
-        K = BilinearForm(fes)
-        K += wf.lhs.eval()
-
-        wf = model.weakforms()
-        d = {}
-        for var in model.variables:
-            d[util.grad(var.trial)] = util.NGSFunction()
-            d[var.trial] = util.NGSFunction()
-            d[var.trial.t] = var.trial
-            d[var.trial.tt] = util.NGSFunction()
-        wf.replace(d)
-        C = BilinearForm(fes)
-        C += wf.lhs.eval()
-
-        wf = model.weakforms()
-        d = {}
-        for var in model.variables:
-            d[util.grad(var.trial)] = util.NGSFunction()
-            d[var.trial] = util.NGSFunction()
-            d[var.trial.t] = util.NGSFunction()
-            d[var.trial.tt] = var.trial
-        wf.replace(d)
-        M = BilinearForm(fes)
-        M += wf.lhs.eval()
-
-        wf = model.weakforms()
-        d = {}
-        for var in model.variables:
-            d[var.trial.t] = var.trial
-            d[var.trial.tt] = var.trial
-        wf.replace(d)
-        F = LinearForm(fes)
-        F += wf.rhs.eval()
-
-        rhs = - F.vec - K.Apply(x.vec) - C.Apply(v.vec)
-        M.AssembleLinearization(x.vec)
-
-        a = util.GridFunction(fes)
-        a.vec.data  = M.mat.Inverse(model.finiteElementSpace.FreeDofs(), "pardiso") * rhs
-        return a
-        
-    def generateWeakforms(self, model, sols, dti):
+       
+    def generateWeakforms(self, wf, model, sols, dti):
         b, g = self._params
-        wf = model.weakforms()
         d = {}
         for v, x0, v0, a0 in zip(model.variables, sols.X(), sols.V(), sols.A()):
             d[v.trial.t] = (v.trial - x0)*util.coef(g/b)*dti + v0*util.coef(1-g/b) + a0*util.coef(1-0.5*g/b)/dti

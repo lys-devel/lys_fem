@@ -158,14 +158,60 @@ class CompositeModel:
         for model in self._models:
             wf += model.weakform(tnt, self._mat)
         return wf
-    
-    @property
-    def initialValue(self):
-        return util.GridFunction(self._fes, [c for v in self.variables for c in v.value])
 
-    @property
-    def initialVelocity(self):
-        return util.GridFunction(self._fes, [c for v in self.variables for c in v.velocity])
+    def initialValue(self, use_a=True):
+        x =  util.GridFunction(self._fes, [c for v in self.variables for c in v.value])
+        v = util.GridFunction(self._fes, [c for v in self.variables for c in v.velocity])
+        a = None
+        if use_a:
+            fes = self.finiteElementSpace
+
+            wf = self.weakforms()
+            d = {}
+            for var in self.variables:
+                d[var.trial.t] = util.NGSFunction()
+                d[var.trial.tt] = util.NGSFunction()
+            wf.replace(d)
+            K = ngsolve.BilinearForm(fes)
+            K += wf.lhs.eval()
+
+            wf = self.weakforms()
+            d = {}
+            for var in self.variables:
+                d[util.grad(var.trial)] = util.NGSFunction()
+                d[var.trial] = util.NGSFunction()
+                d[var.trial.t] = var.trial
+                d[var.trial.tt] = util.NGSFunction()
+            wf.replace(d)
+            C = ngsolve.BilinearForm(fes)
+            C += wf.lhs.eval()
+
+            wf = self.weakforms()
+            d = {}
+            for var in self.variables:
+                d[util.grad(var.trial)] = util.NGSFunction()
+                d[var.trial] = util.NGSFunction()
+                d[var.trial.t] = util.NGSFunction()
+                d[var.trial.tt] = var.trial
+            wf.replace(d)
+            M = ngsolve.BilinearForm(fes)
+            M += wf.lhs.eval()
+
+            wf = self.weakforms()
+            d = {}
+            for var in self.variables:
+                d[var.trial.t] = var.trial
+                d[var.trial.tt] = var.trial
+            wf.replace(d)
+            F = ngsolve.LinearForm(fes)
+            F += wf.rhs.eval()
+
+            rhs = - F.vec - K.Apply(x.vec) - C.Apply(v.vec)
+            M.AssembleLinearization(x.vec)
+
+            a = util.GridFunction(fes)
+            a.vec.data  = M.mat.Inverse(fes.FreeDofs(), "pardiso") * rhs
+        return x, v, a
         
     @property
     def isNonlinear(self):
