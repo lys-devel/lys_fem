@@ -1,131 +1,6 @@
-import numpy as np
-from ngsolve import Parameter, BilinearForm, LinearForm, CoefficientFunction
-
 from . import util
 
-
-class _Operator:
-    def __init__(self, model, integ, sols):
-        wf = self.__prepareWeakform(model, integ, sols)
-        self._fes = model.finiteElementSpace
-        self._blf, self._lf = BilinearForm(self._fes), LinearForm(self._fes)
-        self._blf += wf.lhs.eval()
-        self._lf += wf.rhs.eval()
-        self._nl = model.isNonlinear
-        self._init  = False
-
-    def __prepareWeakform(self, model, integ, sols):
-        self._dti = Parameter(-1)
-        wf = model.weakforms()
-        wf = integ.generateWeakforms(wf, model, sols, util.NGSFunction(self._dti,"dti"))
-        return wf
-
-    def __call__(self, x):
-        self._lf.Assemble()
-        if self._nl:
-            return self._blf.Apply(x) + self._lf.vec
-        else:
-            return self._blf.mat * x  + self._lf.vec
-
-    def Jacobian(self, x):
-        if self._nl:
-            self._blf.AssembleLinearization(x)
-            return self._blf.mat.Inverse(self._fes.FreeDofs(), "pardiso")
-        else:
-            return self._inv
-        
-    def update(self, dti):
-        if self._dti.Get() != dti:
-            self._dti.Set(dti)
-        else:
-            return
-        if self._nl:
-            return
-        if not self._init:
-            self._blf.Assemble()
-            self._inv = self._blf.mat.Inverse(self._fes.FreeDofs(), "pardiso")
-            self._init = True
-    
-    @property
-    def isNonlinear(self):
-        return self._nl
-    
-    @property
-    def dti(self):
-        return self._dti.Get()
-
-
-class _Solution:
-    def __init__(self, model, use_a, nlog=2):
-        self._model = model
-        fes = model.finiteElementSpace
-        self._sols = [(util.GridFunction(fes), util.GridFunction(fes), util.GridFunction(fes)) for n in range(nlog)]
-        self.update(model.initialValue(use_a))
-
-    def update(self, xva):
-        # Store old data
-        for j in range(3):
-            for n in range(1, len(self._sols)):
-                self._sols[-n][j].vec.data = self._sols[-n+1][j].vec
-        # Set new one
-        for xi, yi in zip(self._sols[0], xva):
-            if yi is not None:
-                xi.vec.data = yi.vec
-
-    def __getitem__(self, n):
-        return self._sols[n]
-
-    def copy(self):
-        g = util.GridFunction(self._model.finiteElementSpace)
-        g.vec.data = self._sols[0][0].vec
-        return g
-
-    def X(self, n=0):
-        return self.__toFunc(self[n][0])
-
-    def V(self, n=0):
-        return self.__toFunc(self[n][1], "t")
-
-    def A(self, n=0):
-        return self.__toFunc(self[n][2], "tt")
-
-    def __toFunc(self, x, pre=""):
-        res = []
-        n = 0
-        for v in self._model.variables:
-            if v.size == 1 and v.isScalar:
-                res.append(util.NGSFunction(x.components[n], v.name+pre+"0"))
-            else:
-                res.append(util.NGSFunction(CoefficientFunction(tuple(x.components[n:n+v.size])), v.name+pre+"0"))
-            n+=v.size           
-        return res
-
-    @property
-    def finiteElementSpace(self):
-        return self._model.finiteElementSpace
-
-class NGSTimeIntegrator:
-    def __init__(self, model):
-        self._sols = _Solution(model, self.use_a)
-        self._op = _Operator(model, self, self._sols)
-        self._x = self._sols.copy()
-
-    def solve(self, solver, dti=0):
-        self._op.update(dti)
-        with np.errstate(divide='ignore', invalid="ignore"):
-            self._x.vec.data = solver.solve(self._op, self._x.vec.CreateVector(copy=True))
-        self._sols.update(self.updateSolutions(self._x, self._sols, self._op.dti))
-   
-    @property
-    def solution(self):
-        return self._sols.copy()
-    
-    @property
-    def use_a(self):
-        return True
-
-
-class BackwardEuler(NGSTimeIntegrator): 
+class BackwardEuler: 
     def generateWeakforms(self, wf, model, sols, dti):
         # Replace time derivative
         d = {}
@@ -145,13 +20,13 @@ class BackwardEuler(NGSTimeIntegrator):
     def use_a(self):
         return False
 
-class NewmarkBeta(NGSTimeIntegrator):
-    def __init__(self, model, params="tapezoidal"):
+
+class NewmarkBeta:
+    def __init__(self, params="tapezoidal"):
         if params == "tapezoidal":
             self._params = [1/4, 1/2]
         else:
             self._params = params
-        super().__init__(model)
        
     def generateWeakforms(self, wf, model, sols, dti):
         b, g = self._params
@@ -174,15 +49,19 @@ class NewmarkBeta(NGSTimeIntegrator):
         v.vec.data = V0 + (1-g)/dti*A0 + g/dti*a.vec
         return (x, v, a)
     
+    @property
+    def use_a(self):
+        return True
+    
 
 class GeneralizedAlpha(NewmarkBeta):
-    def __init__(self, model, rho="tapezoidal"):
+    def __init__(self, rho="tapezoidal"):
         am = (2*rho-1)/(rho+1)
         af = rho/(rho+1)
         beta = 0.25*(1+af-am)**2
         gamma = 0.5+af-am
         self._params = [am, af, beta, gamma]
-        super().__init__(model)
+        super().__init__()
       
     def generateWeakforms(self, model, sols, dti):
         X, X0, V0, A0 = self.trials, sols.X(), sols.V(), sols.A()
