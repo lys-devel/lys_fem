@@ -160,7 +160,7 @@ class CompositeModel:
         return wf
 
     def initialValue(self, use_a=True):
-        x =  util.GridFunction(self._fes, [c for v in self.variables for c in v.value])
+        x = util.GridFunction(self._fes, [c for v in self.variables for c in v.value])
         v = util.GridFunction(self._fes, [c for v in self.variables for c in v.velocity])
         a = None
         if use_a:

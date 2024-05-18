@@ -5,13 +5,20 @@ from . import util
 
 
 class _Operator:
-    def __init__(self, wf, fes, nonlinear):
-        self._blf, self._lf = BilinearForm(fes), LinearForm(fes)
+    def __init__(self, model, integ, sols):
+        wf = self.__prepareWeakform(model, integ, sols)
+        self._fes = model.finiteElementSpace
+        self._blf, self._lf = BilinearForm(self._fes), LinearForm(self._fes)
         self._blf += wf.lhs.eval()
         self._lf += wf.rhs.eval()
-        self._fes = fes
-        self._nl = nonlinear
+        self._nl = model.isNonlinear
         self._init  = False
+
+    def __prepareWeakform(self, model, integ, sols):
+        self._dti = Parameter(-1)
+        wf = model.weakforms()
+        wf = integ.generateWeakforms(wf, model, sols, util.NGSFunction(self._dti,"dti"))
+        return wf
 
     def __call__(self, x):
         self._lf.Assemble()
@@ -27,7 +34,11 @@ class _Operator:
         else:
             return self._inv
         
-    def update(self):
+    def update(self, dti):
+        if self._dti.Get() != dti:
+            self._dti.Set(dti)
+        else:
+            return
         if self._nl:
             return
         if not self._init:
@@ -38,6 +49,10 @@ class _Operator:
     @property
     def isNonlinear(self):
         return self._nl
+    
+    @property
+    def dti(self):
+        return self._dti.Get()
 
 
 class _Solution:
@@ -85,26 +100,21 @@ class _Solution:
             n+=v.size           
         return res
 
+    @property
+    def finiteElementSpace(self):
+        return self._model.finiteElementSpace
 
 class NGSTimeIntegrator:
     def __init__(self, model):
-        self._model = model
-        self._dti = Parameter(-1)
-
         self._sols = _Solution(model, self.use_a)
+        self._op = _Operator(model, self, self._sols)
         self._x = self._sols.copy()
 
-        wf = model.weakforms()
-        wf = self.generateWeakforms(wf, model, self._sols, util.NGSFunction(self._dti,"dti"))
-        self._op = _Operator(wf, model.finiteElementSpace, model.isNonlinear)
-
     def solve(self, solver, dti=0):
-        if self._dti.Get() != dti:
-            self._dti.Set(dti)
-            self._op.update()
+        self._op.update(dti)
         with np.errstate(divide='ignore', invalid="ignore"):
             self._x.vec.data = solver.solve(self._op, self._x.vec.CreateVector(copy=True))
-        self._sols.update(self.updateSolutions(self._x, self._sols, self._dti.Get()))
+        self._sols.update(self.updateSolutions(self._x, self._sols, self._op.dti))
    
     @property
     def solution(self):
@@ -127,7 +137,7 @@ class BackwardEuler(NGSTimeIntegrator):
         
     def updateSolutions(self, x, sols, dti):
         X0 = sols[0][0]
-        v = util.GridFunction(self._model.finiteElementSpace)
+        v = util.GridFunction(sols.finiteElementSpace)
         v.vec.data = dti*(x.vec - X0.vec)
         return (x, v, None)
 
@@ -157,8 +167,8 @@ class NewmarkBeta(NGSTimeIntegrator):
         X0, V0, A0 = X0.vec, V0.vec, A0.vec
 
         b, g = self._params
-        a = util.GridFunction(self._model.finiteElementSpace)
-        v = util.GridFunction(self._model.finiteElementSpace)
+        a = util.GridFunction(sols.finiteElementSpace)
+        v = util.GridFunction(sols.finiteElementSpace)
 
         a.vec.data = (1/b*dti**2)*(x.vec-X0) - (dti/b)*V0 + (1-0.5/b)*A0
         v.vec.data = V0 + (1-g)/dti*A0 + g/dti*a.vec
