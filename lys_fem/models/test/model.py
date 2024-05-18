@@ -15,6 +15,12 @@ class NonlinearTestEquation(Equation):
         super().__init__(varName, **kwargs)
 
 
+class TwoVariableTestEquation(Equation):
+    className = "Two Variable Test"
+    def __init__(self, varName="x", **kwargs):
+        super().__init__(varName, **kwargs)
+
+
 class LinearTestModel(FEMFixedModel):
     className = "Linear Test"
     equationTypes = [LinearTestEquation]
@@ -33,4 +39,14 @@ class NonlinearTestModel(FEMFixedModel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(1, *args, **kwargs)
+
+
+class TwoVariableTestModel(FEMFixedModel):
+    className = "Two Variable Test"
+    equationTypes = [TwoVariableTestEquation]
+    boundaryConditionTypes = [DirichletBoundary]
+    initialConditionTypes = [InitialCondition]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(2, *args, **kwargs)
 

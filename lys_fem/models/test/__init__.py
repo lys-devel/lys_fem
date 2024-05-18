@@ -3,14 +3,12 @@ from lys_fem.mf import addMFEMModel
 from lys_fem.ngs import addNGSModel
 from ..common import DirichletBoundary, InitialCondition
 
-from .model import LinearTestModel, NonlinearTestModel
-from .mfem import MFEMLinearTestModel, MFEMNonlinearTestModel
-from .ngs import NGSLinearTestModel, NGSNonlinearTestModel 
+from .model import LinearTestModel, NonlinearTestModel, TwoVariableTestModel
+from .ngs import NGSLinearTestModel, NGSNonlinearTestModel, NGSTwoVariableTestModel
 addModel("Linear Test", LinearTestModel)
 addModel("Nonlinear Test", NonlinearTestModel)
-
-addMFEMModel("Linear Test", MFEMLinearTestModel)
-addMFEMModel("Nonlinear Test", MFEMNonlinearTestModel)
+addModel("TwoVariable Test", TwoVariableTestModel)
 
 addNGSModel("Linear Test", NGSLinearTestModel)
 addNGSModel("Nonlinear Test", NGSNonlinearTestModel)
+addNGSModel("Two Variable Test", NGSTwoVariableTestModel)

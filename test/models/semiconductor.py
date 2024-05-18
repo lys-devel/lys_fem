@@ -1,7 +1,7 @@
 import numpy as np
 
 from lys_fem import geometry
-from lys_fem.fem import FEMProject, TimeDependentSolver, StationarySolver, FEMSolution, Material
+from lys_fem.fem import FEMProject, StationarySolver, FEMSolution, Material
 from lys_fem.models import semiconductor as sc
 from lys_fem.models import em
 

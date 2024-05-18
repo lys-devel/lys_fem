@@ -7,3 +7,6 @@ class ngs_testProblems(testProblems_test):
 
     def test_nonlinear(self):
         self.nonlinear(ngs)
+
+    def test_twoval(self):
+        self.twoVars1(ngs)

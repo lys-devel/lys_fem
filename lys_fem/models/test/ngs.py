@@ -1,4 +1,4 @@
-from lys_fem.ngs import NGSModel, grad, dx
+from lys_fem.ngs import NGSModel, grad, dx, util
 
 
 class NGSLinearTestModel(NGSModel):
@@ -29,3 +29,26 @@ class NGSNonlinearTestModel(NGSModel):
     @property
     def isNonlinear(self):
         return True
+    
+
+class NGSTwoVariableTestModel(NGSModel):
+    def __init__(self, model, mesh):
+        super().__init__(model, mesh)
+        self._model = model
+
+        init = self._model.initialConditions.coef(self._model.initialConditionTypes[0])
+        initialValue = util.generateCoefficient(init, mesh)
+        dirichlet = util.generateDirichletCondition(self._model)
+
+        for eq in model.equations:
+            self.addVariable("x", 1, [dirichlet[0]], initialValue[0], region = eq.geometries, order=1, scale=init.scale)
+            self.addVariable("y", 1, [dirichlet[1]], initialValue[1], region = eq.geometries, order=1, scale=init.scale)
+
+    def weakform(self, vars, mat):
+        wf = 0
+        for eq in self._model.equations:
+            x,test_x = vars["x"]
+            y,test_y = vars["y"]
+            wf += (x.t*test_x + y.t*test_y) * dx
+            wf += (x-y)*test_x *dx + (y-x)*test_y*dx
+        return wf
