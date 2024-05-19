@@ -70,8 +70,8 @@ class _Solution:
 
 
 class _Operator:
-    def __init__(self, model, integ, sols):
-        wf = self.__prepareWeakform(model, integ, sols)
+    def __init__(self, model, integ, sols, symbols):
+        wf = self.__prepareWeakform(model, integ, sols, symbols)
         self._fes = model.finiteElementSpace
         self._blf, self._lf = BilinearForm(self._fes), LinearForm(self._fes)
         self._blf += wf.lhs.eval()
@@ -79,10 +79,24 @@ class _Operator:
         self._nl = model.isNonlinear
         self._init  = False
 
-    def __prepareWeakform(self, model, integ, sols):
+    def __prepareWeakform(self, model, integ, sols, symbols):
         self._dti = Parameter(-1)
         wf = model.weakforms()
+        print(symbols, wf)
+        d = {}
+        for v in model.variables:
+            if symbols is None:
+                continue
+            elif v.name not in symbols:
+                d[v.trial] = v.trial.value
+                d[v.trial.t] = util.NGSFunction()
+                d[v.trial.tt] = util.NGSFunction()
+                d[v.test] = util.NGSFunction()
+                d[util.grad(v.trial)] = util.NGSFunction()
+                d[util.grad(v.test)] = util.NGSFunction()
+        print("------------------")
         wf = integ.generateWeakforms(wf, model, sols, util.NGSFunction(self._dti,"dti"))
+        print("result", wf)
         return wf
 
     def __call__(self, x):
@@ -129,14 +143,15 @@ class SolverBase:
         self._solver = _NewtonSolver()
         self._integ = self.__prepareIntegrator(obj)
         self._sols = _Solution(model, self._integ.use_a)
-        self._op = _Operator(model, self._integ, self._sols)
+        self._ops = [_Operator(model, self._integ, self._sols, step.variables) for step in obj.steps]
         self._x = self._sols.copy()
 
     @np.errstate(divide='ignore', invalid="ignore")
     def solve(self, dti=0):
-        self._op.update(dti)
-        self._x.vec.data = self._solver.solve(self._op, self._x.vec.CreateVector(copy=True))
-        self._sols.update(self._integ.updateSolutions(self._x, self._sols, self._op.dti))
+        for op in self._ops:
+            op.update(dti)
+            self._x.vec.data = self._solver.solve(op, self._x.vec.CreateVector(copy=True))
+            self._sols.update(self._integ.updateSolutions(self._x, self._sols, op.dti))
 
     def __prepareIntegrator(self, obj):
         if obj.method == "BackwardEuler":

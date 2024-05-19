@@ -4,7 +4,7 @@ import sympy as sp
 from numpy.testing import assert_array_almost_equal
 
 from lys_fem import geometry
-from lys_fem.fem import FEMProject, StationarySolver, TimeDependentSolver, FEMSolution
+from lys_fem.fem import FEMProject, StationarySolver, TimeDependentSolver, FEMSolution, SolverStep
 from lys_fem.models import test
 
 from ..base import FEMTestCase
@@ -84,6 +84,33 @@ class testProblems_test(FEMTestCase):
 
         # solver
         stationary = TimeDependentSolver(0.001, 0.1)
+        p.solvers.append(stationary)
+
+        # solve
+        lib.run(p)
+
+        # solution
+        sol = FEMSolution()
+        t = np.linspace(0,0.1,101)
+        x = [sol.eval("x", coords=0, data_number=i) for i in range(101)]
+        y = [sol.eval("y", coords=0, data_number=i) for i in range(101)]
+        self.assert_array_almost_equal(x, (np.exp(-2*t)+1)/2, decimal=4)
+        self.assert_array_almost_equal(y, (1-np.exp(-2*t))/2, decimal=4)
+
+    def twoVars_step(self, lib):
+        p = FEMProject(1)
+
+        # geometry
+        p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
+
+        # model: boundary and initial conditions
+        model = test.TwoVariableTestModel()
+        model.initialConditions.append(test.InitialCondition([1,0], geometries="all"))
+        p.models.append(model)
+
+        # solver
+        steps = [SolverStep(["x"]), SolverStep(["y"])]
+        stationary = TimeDependentSolver(0.001, 0.1, steps=steps)
         p.solvers.append(stationary)
 
         # solve

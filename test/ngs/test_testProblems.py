@@ -10,3 +10,6 @@ class ngs_testProblems(testProblems_test):
 
     def test_twoval(self):
         self.twoVars1(ngs)
+
+    def test_twoval_step(self):
+        self.twoVars_step(ngs)

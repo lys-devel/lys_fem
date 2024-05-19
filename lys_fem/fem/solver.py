@@ -2,17 +2,40 @@ import numpy as np
 from .base import FEMObject
 
 
+class SolverStep:
+    def __init__(self, vars=None):
+        self._vars = vars
+
+    @property
+    def variables(self):
+        return self._vars
+    
+    def saveAsDictionary(self):
+        return {"vars": self._vars}
+    
+    @classmethod
+    def loadFromDictionary(cls, d):
+        return SolverStep(**d)
+
+
 class FEMSolver(FEMObject):
-    def __init__(self, method="BackwardEuler"):
+    def __init__(self, steps=None, method="BackwardEuler"):
+        if steps is None:
+            steps = [SolverStep()]
+        self._steps = steps
         self._method = method
 
     def saveAsDictionary(self):
-        d = {"solver": self.className, "method": self._method}
+        d = {"solver": self.className, "method": self._method, "steps": [s.saveAsDictionary() for s in self._steps]}
         return d
     
     @property
     def method(self):
         return self._method
+    
+    @property
+    def steps(self):
+        return self._steps
 
     @staticmethod
     def loadFromDictionary(d):
@@ -20,7 +43,9 @@ class FEMSolver(FEMObject):
         cls_dict = {m.className: m for m in cls_list}
         solver = cls_dict[d["solver"]]
         del d["solver"]
-        return solver.loadFromDictionary(d)
+
+        d["steps"] = [SolverStep.loadFromDictionary(s) for s in d["steps"]]
+        return solver(**d)
 
 
 class StationarySolver(FEMSolver):
@@ -30,16 +55,12 @@ class StationarySolver(FEMSolver):
         from ..gui import StationarySolverWidget
         return StationarySolverWidget(fem, self)
 
-    @classmethod
-    def loadFromDictionary(cls, d):
-        return StationarySolver()
-
 
 class RelaxationSolver(FEMSolver):
     className = "Relaxation Solver"
 
-    def __init__(self, dt0 = 1e-9, dx = 1e-1, method="BackwardEuler"):
-        super().__init__(method)
+    def __init__(self, dt0 = 1e-9, dx = 1e-1, **kwargs):
+        super().__init__(**kwargs)
         self._dt0 = dt0
         self._dx = dx
 
@@ -61,16 +82,12 @@ class RelaxationSolver(FEMSolver):
         d["dx"] = self._dx
         return d
 
-    @classmethod
-    def loadFromDictionary(cls, d):
-        return RelaxationSolver(d["dt0"], d["dx"], method=d.get("method", "BackwardEuler"))
-
 
 class TimeDependentSolver(FEMSolver):
     className = "Time Dependent Solver"
 
-    def __init__(self, step=1, stop=100, method="BackwardEuler"):
-        super().__init__(method)
+    def __init__(self, step=1, stop=100, **kwargs):
+        super().__init__(**kwargs)
         self._step = step
         self._stop = stop
 
@@ -86,10 +103,6 @@ class TimeDependentSolver(FEMSolver):
         d["step"] = self._step
         d["stop"] = self._stop
         return d
-
-    @classmethod
-    def loadFromDictionary(cls, d):
-        return TimeDependentSolver(d["step"], d["stop"], method=d.get("method", "BackwardEuler"))
 
 
 solvers = {"Stationary": [StationarySolver, RelaxationSolver], "Time dependent": [TimeDependentSolver]}

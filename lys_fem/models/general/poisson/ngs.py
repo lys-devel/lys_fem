@@ -13,8 +13,8 @@ class NGSPoissonModel(NGSModel):
             u, v = vars[eq.variableName]
 
             if "J" in mat:
-                J, detJ = mat["J"], mat["detJ"]
-                wf += J.dot(grad(u)).dot(J.dot(grad(v)))/detJ * dx
+                J = mat["J"]
+                wf += J.dot(grad(u)).dot(J.dot(grad(v)))/J.det() * dx
             else:
                 wf += grad(u).dot(grad(v)) * dx
 

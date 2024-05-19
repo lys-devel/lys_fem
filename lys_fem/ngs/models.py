@@ -165,46 +165,43 @@ class CompositeModel:
         a = None
         if use_a:
             fes = self.finiteElementSpace
-
             wf = self.weakforms()
+
             d = {}
             for var in self.variables:
                 d[var.trial.t] = util.NGSFunction()
                 d[var.trial.tt] = util.NGSFunction()
-            wf.replace(d)
+            wf_K = wf.replace(d)
             K = ngsolve.BilinearForm(fes)
-            K += wf.lhs.eval()
+            K += wf_K.lhs.eval()
 
-            wf = self.weakforms()
             d = {}
             for var in self.variables:
                 d[util.grad(var.trial)] = util.NGSFunction()
                 d[var.trial] = util.NGSFunction()
                 d[var.trial.t] = var.trial
                 d[var.trial.tt] = util.NGSFunction()
-            wf.replace(d)
+            wf_C = wf.replace(d)
             C = ngsolve.BilinearForm(fes)
-            C += wf.lhs.eval()
+            C += wf_C.lhs.eval()
 
-            wf = self.weakforms()
             d = {}
             for var in self.variables:
                 d[util.grad(var.trial)] = util.NGSFunction()
                 d[var.trial] = util.NGSFunction()
                 d[var.trial.t] = util.NGSFunction()
                 d[var.trial.tt] = var.trial
-            wf.replace(d)
+            wf_M = wf.replace(d)
             M = ngsolve.BilinearForm(fes)
-            M += wf.lhs.eval()
+            M += wf_M.lhs.eval()
 
-            wf = self.weakforms()
             d = {}
             for var in self.variables:
                 d[var.trial.t] = var.trial
                 d[var.trial.tt] = var.trial
-            wf.replace(d)
+            wf_F = wf.replace(d)
             F = ngsolve.LinearForm(fes)
-            F += wf.rhs.eval()
+            F += wf_F.rhs.eval()
 
             rhs = - F.vec - K.Apply(x.vec) - C.Apply(v.vec)
             M.AssembleLinearization(x.vec)

@@ -223,13 +223,14 @@ class _Oper(NGSFunction):
         super().__init__([obj1, obj2])
 
     def replace(self, d):
+        objs = []
         for i in range(2):
-            if isinstance(self._obj[i], _Oper):
-                self._obj[i].replace(d)        
+            obj = self._obj[i]
+            if isinstance(obj, _Oper):
+                objs.append(obj.replace(d))
             else:
-                if self._obj[i] in d:
-                    self._obj[i] = d[self._obj[i]]
-        return self
+                objs.append(d.get(obj, obj))
+        return self(*objs)
 
 
 class _Add(_Oper):
@@ -360,8 +361,10 @@ class _TensorDot(_Oper):
             return NGSFunction()
 
 
-
 class _Cross(_Oper):
+    def __call__(self, v1, v2):
+        return v1.cross(v2)
+
     @property
     def hasTrial(self):
         return self._obj[0].hasTrial or self._obj[1].hasTrial
@@ -478,7 +481,12 @@ class TestFunction(NGSFunction):
             if isinstance(self._obj, list):
                 return ngsolve.CoefficientFunction(tuple([t for t in self._obj]))
             return super().eval()
-
+        
+    def __hash__(self):
+        return hash(self._name + "__" + str(self._grad))
+    
+    def __eq__(self, other):
+        return hash(self) == hash(other)
 
 class DifferentialSymbol(NGSFunction):
     pass
