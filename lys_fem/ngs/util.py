@@ -89,13 +89,14 @@ class GridFunction(ngsolve.GridFunction):
 
 
 class NGSFunction:
-    def __init__(self, obj=None, name="Undefined"):
+    def __init__(self, obj=None, name="Undefined", grad=False):
         if obj is None:
             self._obj = None
             self._name = "Zero"
         else:
             self._obj = obj
             self._name = name
+        self._grad = grad
 
     @property
     def shape(self):
@@ -181,6 +182,10 @@ class NGSFunction:
             return NGSFunction(J[0,0]*J[1,1] - J[0,1]*J[1,0]*J[2,2], "|"+self._name+"|")
         elif J.shape[0] == 1:
             return NGSFunction(J[0,0], "|"+self._name+"|")
+        
+    @property
+    def grad(self):
+        return NGSFunction(self._obj, "grad("+self._name+")", grad=True)
 
     def __str__(self):
         return self._name
@@ -209,7 +214,10 @@ class NGSFunction:
         
     def eval(self):
         if self.valid:
-            return self._obj
+            if self._grad:
+                raise RuntimeError("grad for general NGSFUnction is not implemented.")
+            else:
+                return self._obj
         else:
             return generateCoefficient(0)*ngsolve.dx
 
@@ -429,7 +437,7 @@ class TrialFunction(NGSFunction):
     
     @property
     def value(self):
-        return NGSFunction(self.eval(), self._name)
+        return NGSFunction(self.eval(), self._name+"0")
        
     def __hash__(self):
         return hash(self._name + "__" + str(self._dt) + "__" + str(self._grad))
@@ -480,7 +488,7 @@ class TestFunction(NGSFunction):
         else:
             if isinstance(self._obj, list):
                 return ngsolve.CoefficientFunction(tuple([t for t in self._obj]))
-            return super().eval()
+            return self._obj
         
     def __hash__(self):
         return hash(self._name + "__" + str(self._grad))

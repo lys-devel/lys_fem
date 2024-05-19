@@ -82,21 +82,19 @@ class _Operator:
     def __prepareWeakform(self, model, integ, sols, symbols):
         self._dti = Parameter(-1)
         wf = model.weakforms()
-        print(symbols, wf)
-        d = {}
-        for v in model.variables:
-            if symbols is None:
-                continue
-            elif v.name not in symbols:
-                d[v.trial] = v.trial.value
-                d[v.trial.t] = util.NGSFunction()
-                d[v.trial.tt] = util.NGSFunction()
-                d[v.test] = util.NGSFunction()
-                d[util.grad(v.trial)] = util.NGSFunction()
-                d[util.grad(v.test)] = util.NGSFunction()
-        print("------------------")
+        if symbols is not None:
+            values = {v.name: x0 for v, x0 in zip(model.variables, sols.X())}
+            d = {}
+            for v in model.variables:
+                if v.name not in symbols:
+                    d[v.trial] = values[v.name]
+                    d[v.trial.t] = util.NGSFunction()
+                    d[v.trial.tt] = util.NGSFunction()
+                    d[v.test] = util.NGSFunction()
+                    d[util.grad(v.trial)] = util.grad(values[v.name])
+                    d[util.grad(v.test)] = util.NGSFunction()
+            wf = wf.replace(d)
         wf = integ.generateWeakforms(wf, model, sols, util.NGSFunction(self._dti,"dti"))
-        print("result", wf)
         return wf
 
     def __call__(self, x):
