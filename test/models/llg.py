@@ -2,8 +2,8 @@ import numpy as np
 import sympy as sp
 
 from lys_fem import geometry
-from lys_fem.fem import FEMProject, TimeDependentSolver, StationarySolver, RelaxationSolver, FEMSolution, Material
-from lys_fem.models import llg, em
+from lys_fem.fem import FEMProject, TimeDependentSolver, StationarySolver, RelaxationSolver, FEMSolution, Material, SolverStep
+from lys_fem.models import llg, em, elasticity
 
 from ..base import FEMTestCase
 
@@ -145,6 +145,66 @@ class LLG_test(FEMTestCase):
         res = sol.eval("phi", data_number=1)
         for w in [res[0]]:
             self.assert_allclose(w.data, -solution(w.x[:,0],w.x[:,1],w.x[:,2], 0.8, 1), atol=0.02, rtol=0)
+
+    def deformation(self, lib):
+        p = FEMProject(3)
+
+        # geometry
+        p.geometries.add(geometry.Sphere(0, 0, 0, 0.8))
+        p.geometries.add(geometry.Box(-1, -1, -1, 2, 2, 2))
+        p.geometries.add(geometry.InfiniteVolume(1, 1, 1, 2, 2, 2))
+        p.mesher.setRefinement(2)
+
+        domain = [1,2,9,10,11,12,13,14]
+        infBdr =[31,36,39,42,43,44]
+        mBdr = [1,5,8,11,14,16,24,25]
+
+        param_llg = llg.LLGParameters(Ms=1)
+        param_ela = elasticity.ElasticParameters()
+
+        mat1 = Material([param_llg, param_ela], geometries=domain)
+        p.materials.append(mat1)
+
+        # poisson equation for infinite boundary
+        model = em.MagnetostaticsModel()
+        model.initialConditions.append(em.MagnetostaticInitialCondition(0, geometries="all"))
+        model.boundaryConditions.append(em.DirichletBoundary([True], geometries=infBdr))
+        p.models.append(model)
+
+        # llg
+        model2 = llg.LLGModel(equations=[llg.LLGEquation(geometries=domain)])
+        model2.initialConditions.append(llg.InitialCondition([1/np.sqrt(3)]*3, geometries=domain))
+        model2.domainConditions.append(llg.Demagnetization(geometries=mBdr))
+        p.models.append(model2)
+
+        # elasticity
+        x,y = sp.symbols("x,y")
+        model3 = elasticity.ElasticModel(3, equations=[elasticity.ChristffelEquation(geometries=domain)])
+        model3.initialConditions.append(elasticity.InitialCondition([x*0.01, -y*0.01, 0], geometries=domain))
+        p.models.append(model3)
+
+        # solver
+        step = SolverStep(["phi"], deformation="u")
+        stationary = StationarySolver(steps=[step])
+        p.solvers.append(stationary)
+
+        # solve
+        lib.run(p)
+
+        def solution(x, y, z, a, Ms):
+            r = np.sqrt(x**2+y**2+z**2)-1e-16
+            return np.where(r<=a, Ms*(x+y+z)/3/np.sqrt(3), np.nan)
+        
+        def solution2(x, y, z, a, Ms):
+            r = np.sqrt(x**2+y**2+z**2)-1e-16
+            return np.where(r<=a, Ms*(x*0.32934+y*0.33734+z*0.33330)/np.sqrt(3), np.nan)
+
+
+        sol = FEMSolution()
+        res = sol.eval("phi", data_number=1)
+        for w in [res[0]]:
+            #self.assert_allclose(-solution2(w.x[:,0],w.x[:,1],w.x[:,2], 0.8, 1), -solution(w.x[:,0],w.x[:,1],w.x[:,2], 0.8, 1), atol=0.002, rtol=0)
+            self.assert_allclose(w.data, -solution(w.x[:,0],w.x[:,1],w.x[:,2], 0.8, 1), atol=0.002, rtol=0)
 
     def stationary(self, lib):
         p = FEMProject(3)

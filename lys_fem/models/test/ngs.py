@@ -25,10 +25,6 @@ class NGSNonlinearTestModel(NGSModel):
             u,v = vars[eq.variableName]
             wf += u.value * grad(u).dot(grad(v)) * dx
         return wf
-
-    @property
-    def isNonlinear(self):
-        return True
     
 
 class NGSTwoVariableTestModel(NGSModel):

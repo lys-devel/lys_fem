@@ -220,6 +220,10 @@ class NGSFunction:
                 return self._obj
         else:
             return generateCoefficient(0)*ngsolve.dx
+        
+    @property
+    def isNonlinear(self):
+        return False
 
 
 class _Oper(NGSFunction):
@@ -239,6 +243,10 @@ class _Oper(NGSFunction):
             else:
                 objs.append(d.get(obj, obj))
         return self(*objs)
+    
+    @property
+    def isNonlinear(self):
+        return self._obj[0].isNonlinear or self._obj[1].isNonlinear
 
 
 class _Add(_Oper):
@@ -437,7 +445,7 @@ class TrialFunction(NGSFunction):
     
     @property
     def value(self):
-        return NGSFunction(self.eval(), self._name+"0")
+        return TrialFunctionValue(self.eval(), self._name)
        
     def __hash__(self):
         return hash(self._name + "__" + str(self._dt) + "__" + str(self._grad))
@@ -495,6 +503,19 @@ class TestFunction(NGSFunction):
     
     def __eq__(self, other):
         return hash(self) == hash(other)
+    
+
+class TrialFunctionValue(NGSFunction):
+    def __hash__(self):
+        return hash("Value__" + self._name)
+    
+    def __eq__(self, other):
+        return hash(self) == hash(other)
+
+    @property
+    def isNonlinear(self):
+        return True
+
 
 class DifferentialSymbol(NGSFunction):
     pass

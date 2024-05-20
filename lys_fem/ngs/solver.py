@@ -2,7 +2,7 @@ import os
 import shutil
 import numpy as np
 
-from ngsolve import Parameter, BilinearForm, LinearForm, CoefficientFunction
+from ngsolve import Parameter, BilinearForm, LinearForm, CoefficientFunction, VectorH1, x, y
 
 from . import mpi, mesh, time, util
 
@@ -76,7 +76,7 @@ class _Operator:
         self._blf, self._lf = BilinearForm(self._fes), LinearForm(self._fes)
         self._blf += wf.lhs.eval()
         self._lf += wf.rhs.eval()
-        self._nl = model.isNonlinear
+        self._nl = wf.isNonlinear
         self._init  = False
 
     def __prepareWeakform(self, model, integ, sols, symbols):
@@ -88,6 +88,7 @@ class _Operator:
             for v in model.variables:
                 if v.name not in symbols:
                     d[v.trial] = values[v.name]
+                    d[v.trial.value] = values[v.name]
                     d[v.trial.t] = util.NGSFunction()
                     d[v.trial.tt] = util.NGSFunction()
                     d[v.test] = util.NGSFunction()
@@ -136,6 +137,7 @@ class SolverBase:
     def __init__(self, obj, mesh, model, dirname):
         self._obj = obj
         self._mesh = mesh
+        self._model = model
         self.__prepareDirectory(dirname)
 
         self._solver = _NewtonSolver()
@@ -146,7 +148,13 @@ class SolverBase:
 
     @np.errstate(divide='ignore', invalid="ignore")
     def solve(self, dti=0):
-        for op in self._ops:
+        for op, step in zip(self._ops, self._obj.steps):
+            if step.deformation is not None:
+                deform = {v.name: x0 for v, x0 in zip(self._model.variables, self._sols.X())}[step.deformation]
+                space = VectorH1(self._mesh, definedon = "domain1|domain2|domain9|domain10|domain11|domain12|domain13|domain14")
+                gf = util.GridFunction(space, CoefficientFunction((x*0.01, -y*0.01, 0)))
+                self._mesh.SetDeformation(gf)
+                print("deformation set") # I want to automatically check the nonlineality to reduce time for test.
             op.update(dti)
             self._x.vec.data = self._solver.solve(op, self._x.vec.CreateVector(copy=True))
             self._sols.update(self._integ.updateSolutions(self._x, self._sols, op.dti))

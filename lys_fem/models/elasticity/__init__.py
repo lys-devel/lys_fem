@@ -4,7 +4,7 @@ from lys_fem.ngs import addNGSModel
 
 from ..common import DirichletBoundary
 from .material import ElasticParameters, ThermalExpansionParameters
-from .model import ElasticModel, InitialCondition, ThermoelasticStress
+from .model import ElasticModel, ChristffelEquation, InitialCondition, ThermoelasticStress
 from .mfem import MFEMElasticModel
 from .ngs import NGSElasticModel
 

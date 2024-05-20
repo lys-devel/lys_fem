@@ -126,10 +126,6 @@ class NGSModel:
         return self._mesh
 
     @property
-    def isNonlinear(self):
-        return False
-
-    @property
     def name(self):
         return self._model.name
 
@@ -209,13 +205,6 @@ class CompositeModel:
             a = util.GridFunction(fes)
             a.vec.data  = M.mat.Inverse(fes.FreeDofs(), "pardiso") * rhs
         return x, v, a
-        
-    @property
-    def isNonlinear(self):
-        for m in self._models:
-            if m.isNonlinear:
-                return True
-        return False
     
     @property
     def models(self):

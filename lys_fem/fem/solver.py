@@ -3,15 +3,20 @@ from .base import FEMObject
 
 
 class SolverStep:
-    def __init__(self, vars=None):
+    def __init__(self, vars=None, deformation=None):
         self._vars = vars
+        self._deform = deformation
 
     @property
     def variables(self):
         return self._vars
+
+    @property
+    def deformation(self):
+        return self._deform
     
     def saveAsDictionary(self):
-        return {"vars": self._vars}
+        return {"vars": self._vars, "deformation": self._deform}
     
     @classmethod
     def loadFromDictionary(cls, d):

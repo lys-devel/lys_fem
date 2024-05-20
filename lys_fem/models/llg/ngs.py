@@ -48,7 +48,3 @@ class NGSLLGModel(NGSModel):
                     wf += Ms*m.dot(grad(test_phi))*dx
 
         return wf   
-
-    @property
-    def isNonlinear(self):
-        return True 

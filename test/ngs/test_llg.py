@@ -16,3 +16,6 @@ class ngs_LLG_test(LLG_test):
 
     def test_DW(self):
         self.domainWall(ngs)
+
+    #def test_deform(self):
+    #    self.deformation(ngs)
