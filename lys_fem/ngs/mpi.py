@@ -46,3 +46,9 @@ def info():
     else:
         print_("MPI: No MPI. Run in serial mode.")
         print_()
+
+def wait():
+    if not isParallel():
+        return
+    return MPI.COMM_WORLD.gather(0, root=0)
+

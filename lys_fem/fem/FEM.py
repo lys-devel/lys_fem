@@ -23,8 +23,8 @@ class FEMProject:
         self._solvers = FEMObjectList(self)
         self._submit = {}
 
-    def saveAsDictionary(self):
-        d = {"dimension": self._dim}
+    def saveAsDictionary(self, parallel=False):
+        d = {"dimension": self._dim, "parallel": parallel}
         d["scaling"] = self._scaling._norms
         d["parameters"] = self._params.saveAsDictionary()
         d["geometries"] = self._geom.saveAsDictionary()

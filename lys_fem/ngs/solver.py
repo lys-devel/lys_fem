@@ -2,10 +2,11 @@ import os
 import shutil
 import numpy as np
 
-from ngsolve import Parameter, BilinearForm, LinearForm, CoefficientFunction, VectorH1, x, y
+from ngsolve import Parameter, BilinearForm, LinearForm, CoefficientFunction, VectorH1, TaskManager, SetNumThreads
 
 from . import mpi, mesh, time, util
 
+SetNumThreads(16)
 
 def generateSolver(fem, mesh, model):
     solvers = {"Stationary Solver": StationarySolver, "Relaxation Solver": RelaxationSolver, "Time Dependent Solver": TimeDependentSolver}
@@ -99,16 +100,18 @@ class _Operator:
         return wf
 
     def __call__(self, x):
-        self._lf.Assemble()
-        if self._nl:
-            return self._blf.Apply(x) + self._lf.vec
-        else:
-            return self._blf.mat * x  + self._lf.vec
+        with TaskManager():
+            self._lf.Assemble()
+            if self._nl:
+                return self._blf.Apply(x) + self._lf.vec
+            else:
+                return self._blf.mat * x  + self._lf.vec
 
     def Jacobian(self, x):
         if self._nl:
-            self._blf.AssembleLinearization(x)
-            return self._blf.mat.Inverse(self._fes.FreeDofs(), "pardiso")
+            with TaskManager():
+                self._blf.AssembleLinearization(x)
+                return self._blf.mat.Inverse(self._fes.FreeDofs(), "pardiso")
         else:
             return self._inv
         
@@ -120,8 +123,9 @@ class _Operator:
         if self._nl:
             return
         if not self._init:
-            self._blf.Assemble()
-            self._inv = self._blf.mat.Inverse(self._fes.FreeDofs(), "pardiso")
+            with TaskManager():
+                self._blf.Assemble()
+                self._inv = self._blf.mat.Inverse(self._fes.FreeDofs(), "pardiso")
             self._init = True
     
     @property
@@ -151,10 +155,10 @@ class SolverBase:
         for op, step in zip(self._ops, self._obj.steps):
             if step.deformation is not None:
                 deform = {v.name: x0 for v, x0 in zip(self._model.variables, self._sols.X())}[step.deformation]
-                space = VectorH1(self._mesh, definedon = "domain1|domain2|domain9|domain10|domain11|domain12|domain13|domain14")
-                gf = util.GridFunction(space, CoefficientFunction((x*0.01, -y*0.01, 0)))
+                space = VectorH1(self._mesh)
+                gf = util.GridFunction(space, deform.eval())
                 self._mesh.SetDeformation(gf)
-                print("deformation set") # I want to automatically check the nonlineality to reduce time for test.
+                print("deformation set")
             op.update(dti)
             self._x.vec.data = self._solver.solve(op, self._x.vec.CreateVector(copy=True))
             self._sols.update(self._integ.updateSolutions(self._x, self._sols, op.dti))

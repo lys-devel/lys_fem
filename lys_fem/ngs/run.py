@@ -1,5 +1,5 @@
 import time
-from .mpi import print_, info
+from .mpi import print_, info, isParallel, wait
 from .mesh import generateMesh
 from .material import generateMaterial
 from .models import generateModel
@@ -12,7 +12,7 @@ def run(fem, run=True, save=True):
     info()
 
     if save:
-        d = fem.saveAsDictionary()
+        d = fem.saveAsDictionary(parallel=isParallel())
         with open("input.dic", "w") as f:
             f.write(str(d))
 
@@ -50,4 +50,4 @@ def run(fem, run=True, save=True):
             print_("Total calculation time: ", time.time()-start, " seconds")
     else:
         return mesh, mats, model, solvers
-
+    wait()

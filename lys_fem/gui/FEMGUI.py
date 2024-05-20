@@ -99,8 +99,8 @@ class FEMGUI(LysSubWindow):
         self._model.rootItem.setModels(self._obj.models)
         self._solver.rootItem.setSolvers(self._obj.solvers)
 
-    def __save(self, path=None):
-        d = self._obj.saveAsDictionary()
+    def __save(self, path=None, parallel=False):
+        d = self._obj.saveAsDictionary(parallel=parallel)
         if path is None:
             path = self._tmpPath
         with open(path, "w") as f:
@@ -124,7 +124,7 @@ class FEMGUI(LysSubWindow):
             self._obj.submitSetting.update(sub)
             path = d.getPath()
             os.makedirs(path, exist_ok=True)
-            self.__save(path=path + "/input.dic")
+            self.__save(path=path + "/input.dic", parallel=sub["type"] != "Serial")
             ncore = 1 if sub["type"] == "Serial" else sub["ncore"]
             if sub["type"] in ["Serial", "Parallel"]:
                 qsub.execute("python -m lys_fem.ngs", path, ncore=ncore)

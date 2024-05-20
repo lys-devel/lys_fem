@@ -193,17 +193,17 @@ class LLG_test(FEMTestCase):
 
         def solution(x, y, z, a, Ms):
             r = np.sqrt(x**2+y**2+z**2)-1e-16
-            return np.where(r<=a, Ms*(x+y+z)/3/np.sqrt(3), np.nan)
+            return np.where(r<=a, Ms*(x*1.01+y*0.99+z)/3/np.sqrt(3), np.nan)
         
         def solution2(x, y, z, a, Ms):
             r = np.sqrt(x**2+y**2+z**2)-1e-16
-            return np.where(r<=a, Ms*(x*0.32934+y*0.33734+z*0.33330)/np.sqrt(3), np.nan)
+            return np.where(r<=a, Ms*(x*0.32934*1.01+y*0.33734*0.99+z*0.33330)/np.sqrt(3), np.nan)
 
 
         sol = FEMSolution()
         res = sol.eval("phi", data_number=1)
         for w in [res[0]]:
-            #self.assert_allclose(-solution2(w.x[:,0],w.x[:,1],w.x[:,2], 0.8, 1), -solution(w.x[:,0],w.x[:,1],w.x[:,2], 0.8, 1), atol=0.002, rtol=0)
+            self.assert_allclose(w.data, -solution2(w.x[:,0],w.x[:,1],w.x[:,2], 0.8, 1), atol=0.002, rtol=0)
             self.assert_allclose(w.data, -solution(w.x[:,0],w.x[:,1],w.x[:,2], 0.8, 1), atol=0.002, rtol=0)
 
     def stationary(self, lib):
