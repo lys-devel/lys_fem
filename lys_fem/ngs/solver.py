@@ -6,7 +6,7 @@ from ngsolve import Parameter, BilinearForm, LinearForm, CoefficientFunction, Ve
 
 from . import mpi, mesh, time, util
 
-SetNumThreads(16)
+SetNumThreads(1)
 
 def generateSolver(fem, mesh, model):
     solvers = {"Stationary Solver": StationarySolver, "Relaxation Solver": RelaxationSolver, "Time Dependent Solver": TimeDependentSolver}
@@ -152,6 +152,7 @@ class SolverBase:
 
     @np.errstate(divide='ignore', invalid="ignore")
     def solve(self, dti=0):
+        x0 = self._x.vec.CreateVector(copy=True)
         for op, step in zip(self._ops, self._obj.steps):
             if step.deformation is not None:
                 deform = {v.name: x0 for v, x0 in zip(self._model.variables, self._sols.X())}[step.deformation]
@@ -162,7 +163,12 @@ class SolverBase:
             op.update(dti)
             self._x.vec.data = self._solver.solve(op, self._x.vec.CreateVector(copy=True))
             self._sols.update(self._integ.updateSolutions(self._x, self._sols, op.dti))
+        return self.__calcDifference(self._x.vec, x0)
 
+    def __calcDifference(self, x, x0):
+        x0.data = x0.data - x.data
+        return np.divide(x0.InnerProduct(x0), x.InnerProduct(x))
+            
     def __prepareIntegrator(self, obj):
         if obj.method == "BackwardEuler":
             return time.BackwardEuler()
@@ -208,15 +214,15 @@ class RelaxationSolver(SolverBase):
         self.exportSolution(0)
 
         t = 0
-        dt, dx = self._tSolver.dt0, self._tSolver.dx
+        dt, dx_ref = self._tSolver.dt0, self._tSolver.dx
         for i in range(1,1000):
-            self.solve(1/dt)
+            dx = self.solve(1/dt)
             t = t + dt
-            mpi.print_("Step", i, ", t = {:3e}".format(t), ", dt = {:3e}".format(dt), ", dx = {:3e}".format(self._solver.dx))
+            mpi.print_("Step", i, ", t = {:3e}".format(t), ", dt = {:3e}".format(dt), ", dx = {:3e}".format(dx))
             self.exportSolution(i)
             if dt == np.inf:
                 break
-            dt *= np.sqrt(dx/self._solver.dx)
+            dt *= np.sqrt(dx_ref/dx)
             if dt > self._tSolver.dt0*1e5:
                 dt = np.inf
 
@@ -232,8 +238,8 @@ class TimeDependentSolver(SolverBase):
 
         t = 0
         for i, dt in enumerate(self._tSolver.getStepList()):
-            mpi.print_("Timestep", i, ", t = {:3e}".format(t), ", dt = {:3e}".format(dt), ", dx = {:3e}".format(self._solver.dx))
-            self.solve(1/dt)
+            dx = self.solve(1/dt)
+            mpi.print_("Timestep", i, ", t = {:3e}".format(t), ", dx = {:3e}".format(dx))
             self.exportSolution(i + 1)
             t = t + dt
 
@@ -241,32 +247,19 @@ class TimeDependentSolver(SolverBase):
 class _NewtonSolver:
     def __init__(self, max_iter=30):
         self._max_iter = max_iter
-        self._dx = 0
 
     def solve(self, F, x, eps=1e-5):
         if not F.isNonlinear:
             self._max_iter=1
         dx = x.CreateVector()
-        x0 = x.CreateVector(copy=True)
         for i in range(self._max_iter):
-            Fx = F(x)
-            dx.data = F.Jacobian(x)*Fx
-            x.data -= dx
+            dx.data = F.Jacobian(x)*F(x)
+            x -= dx
             R = np.sqrt(np.divide(dx.InnerProduct(dx), x.InnerProduct(x)))
             if R < eps:
                 if i!=0:
                     mpi.print_("[Newton solver] Converged in", i, "steps.")
-                self._setDifference(x, x0)
                 return x
         if self._max_iter !=1:
             mpi.print_("[Newton solver] NOT Converged in", i, "steps.")
-        self._setDifference(x, x0)
         return x
-
-    def _setDifference(self, x, x0):
-        x0.data = x0.data - x.data
-        self._dx = np.divide(x0.InnerProduct(x0), x.InnerProduct(x))
- 
-    @property
-    def dx(self):
-        return self._dx
