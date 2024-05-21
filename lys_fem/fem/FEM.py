@@ -13,6 +13,7 @@ class FEMProject:
 
     def reset(self, dim=3):
         self._dim = dim
+        self._parallel = False
         self._scaling = Scaling()
         self._params = Parameters()
         self._geom = GeometryGenerator()
@@ -37,6 +38,7 @@ class FEMProject:
 
     def loadFromDictionary(self, d):
         self._dim = d.get("dimension", 3)
+        self._parallel = d.get("parallel", False)
         if "scaling" in d:
             self._scaling = Scaling(*d["scaling"])
         if "parameters" in d:
@@ -67,6 +69,10 @@ class FEMProject:
     @property
     def dimension(self):
         return self._dim
+
+    @property
+    def parallel(self):
+        return self._parallel
     
     @property
     def scaling(self):

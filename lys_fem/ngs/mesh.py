@@ -10,6 +10,15 @@ from . import mpi
 class NGSMesh(ngsolve.Mesh):
     pass
 
+
+def loadMesh(fem, file):
+    ngmesh = Mesh(dim=fem.dimension)
+    ngmesh.Load(file)
+    mesh = NGSMesh(ngmesh)
+    mesh._coords_global = np.array(ngmesh.Coordinates()) * fem.scaling.getScaling("m")
+    return mesh
+
+
 def generateMesh(fem, file="mesh.msh"):
     if mpi.isRoot:
         geom = fem.geometries.generateGeometry()

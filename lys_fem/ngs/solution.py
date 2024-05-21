@@ -1,8 +1,7 @@
 import numpy as np
 
 from lys import Wave
-
-from .mesh import generateMesh, exportMesh
+from .mesh import generateMesh, exportMesh, loadMesh
 from .material import generateMaterial
 from .models import generateModel
 from .util import GridFunction
@@ -12,6 +11,7 @@ class NGSSolution:
         self._fem = fem
         self._dirname = dirname
         self._mesh = generateMesh(fem)
+        #self._mesh = loadMesh(fem, self._dirname+"/mesh0.vol")
         self._mats = generateMaterial(fem, self._mesh)
         self._model = generateModel(fem, self._mesh, self._mats)
 
@@ -19,7 +19,7 @@ class NGSSolution:
         self._meshInfo = exportMesh(self._mesh)
 
     def eval(self, expression, index, coords=None):
-        self._grid.Load(self._dirname+"/ngs"+str(index), parallel=False)
+        self._grid.Load(self._dirname+"/ngs"+str(index), parallel=self._fem.parallel)
 
         data = {}
         n = 0

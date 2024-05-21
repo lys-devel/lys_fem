@@ -179,7 +179,7 @@ class SolverBase:
         os.makedirs(self._dirname, exist_ok=True)
 
     def exportMesh(self, m):
-        mesh.exportMesh(m, self._dirname + "/mesh.npz")
+        m.ngmesh.Save(self._dirname + "/mesh0.vol")
 
     def exportSolution(self, index):
         self._sols.save(self._dirname + "/ngs" + str(index))
