@@ -1,6 +1,3 @@
-import numpy as np
-
-from lys import Wave
 from .FEM import FEMProject
 
 
@@ -16,4 +13,6 @@ class FEMSolution:
     def eval(self, varName, data_number=0, coords=None):
         return self._sol.eval(varName, data_number, coords)
 
-
+    @property
+    def obj(self):
+        return self._sol

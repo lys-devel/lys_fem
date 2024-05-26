@@ -1,5 +1,4 @@
-import sympy as sp
-from .base import FEMObject, FEMObjectList, FEMCoefficient, strToExpr
+from .base import FEMObject, FEMObjectList, FEMCoefficient, strToExpr, exprToStr
 from .geometry import GeometrySelection
 
 
@@ -69,6 +68,15 @@ class InitialConditions(ModelConditionBase):
 
 
 class ConditionBase(FEMObject):
+    """
+    Base class for conditions in FEM.
+
+    The condition (Domain, Boundary, and Initial conditions) in FEM is defined as values defined on geometries.
+
+    As values, general sympy expression or sequence of expression is acceptable.
+    Even if the single condition requires several parameters (such as temperature and electric field), it is recommended to put all these values into single vector.
+    In addition, values are loaded from calculation result if values is instance of CalculatedResult.
+    """
     def __init__(self, geomType, values=None, objName=None, geometries=None):
         super().__init__(objName)
         self._geomType = geomType
@@ -92,7 +100,7 @@ class ConditionBase(FEMObject):
         self._values = values
 
     def saveAsDictionary(self):
-        return {"type": self.className, "objName": self.objName, "values": str(self.values), "geometries": self.geometries.saveAsDictionary()}
+        return {"type": self.className, "objName": self.objName, "values": exprToStr(self.values), "geometries": self.geometries.saveAsDictionary()}
 
     @classmethod
     def loadFromDictionary(cls, d):
@@ -135,3 +143,30 @@ class InitialCondition(ConditionBase):
 
     def widget(self, fem, canvas, title="Initial Value"):
         return super().widget(fem, canvas, title)
+
+
+class CalculatedResult:
+    def __init__(self, path, expression, index=-1):
+        self._path = path
+        self._expression = expression
+        self._index = index
+
+    @property
+    def solution(self):
+        from .solution import FEMSolution
+        return FEMSolution(self._path)
+    
+    @property
+    def expression(self):
+        return self._expression
+    
+    @property
+    def index(self):
+        return self._index
+    
+    def saveAsDictionary(self):
+        return {"path": self._path, "expression": self._expression, "index": self._index}
+    
+    @classmethod
+    def loadFromDictionary(cls, d):
+        return CalculatedResult(**d)

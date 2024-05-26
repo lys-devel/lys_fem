@@ -1,3 +1,4 @@
+import glob
 import numpy as np
 
 from lys import Wave
@@ -18,7 +19,13 @@ class NGSSolution:
         self._grid = GridFunction(self._model.finiteElementSpace)
         self._meshInfo = exportMesh(self._mesh)
 
-    def eval(self, expression, index, coords=None):
+    @property
+    def maxIndex(self):
+        return len(glob.glob(self._dirname+"/ngs*"))-1
+
+    def coef(self, expression, index=-1):
+        if index < 0:
+            index = self.maxIndex + index + 1
         self._grid.Load(self._dirname+"/ngs"+str(index), parallel=self._fem.parallel)
 
         data = {}
@@ -29,7 +36,10 @@ class NGSSolution:
                 data[v.name] = data[v.name][0]
             n += v.size
 
-        f = eval(expression, {}, data)
+        return eval(expression, {}, data)
+
+    def eval(self, expression, index, coords=None):
+        f = self.coef(expression, index)
         if coords is None:
             return self.__getDomainValues(f)
         else:

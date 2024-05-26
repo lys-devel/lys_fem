@@ -3,7 +3,7 @@ import numpy as np
 
 import ngsolve
 
-from lys_fem.fem import FEMCoefficient
+from lys_fem.fem import FEMCoefficient, CalculatedResult
 from ..models.common import DirichletBoundary
 
 def prod(args):
@@ -41,6 +41,8 @@ def generateCoefficient(coef, mesh=None, geom="domain", **kwargs):
         return ngsolve.CoefficientFunction(coef)
     elif isinstance(coef, ngsolve.CoefficientFunction):
         return coef
+    elif isinstance(coef, CalculatedResult):
+        return coef.solution.obj.coef(coef.expression, coef.index)
     else:
         def _absolute(x):
             return x.Norm()

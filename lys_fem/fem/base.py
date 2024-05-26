@@ -82,11 +82,17 @@ class FEMCoefficient(dict):
             xs, ys, zs = sp.symbols("x_scaled,y_scaled,z_scaled")
             val = value.subs({"x":xs*self._xscale, "y":ys*self._xscale, "z":zs*self._xscale})/self._scale
             return val.subs(self._vars)
+        else:
+            return value
 
 
 def strToExpr(x):
+    from .conditions import CalculatedResult
     if x.startswith("[String]"):
         return x.replace("[String]","")
+    if x.startswith("[CalculatedResult]"):
+        x = x.replace("[CalculatedResult]", "")
+        return CalculatedResult.loadFromDictionary(eval(x))
     try:
         res = eval(x,{})
     except:
@@ -95,8 +101,11 @@ def strToExpr(x):
 
 
 def exprToStr(x):
+    from .conditions import CalculatedResult
     if isinstance(x, str):
         return "[String]"+x
     if isinstance(x, np.ndarray):
         x = x.tolist()
+    if isinstance(x, CalculatedResult):
+        x = "[CalculatedResult]" + str(x.saveAsDictionary())
     return str(x)
