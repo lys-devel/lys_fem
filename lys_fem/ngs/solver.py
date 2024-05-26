@@ -191,6 +191,10 @@ class SolverBase:
         self._sols.save(self._dirname + "/ngs" + str(index))
 
     @property
+    def solution(self):
+        return self._sols
+
+    @property
     def name(self):
         return self._obj.className
 

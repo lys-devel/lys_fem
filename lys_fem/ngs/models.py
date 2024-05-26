@@ -79,16 +79,10 @@ class NGSModel:
 
         if addVariables:
             for eq in model.equations:
-                self.addVariable(eq.variableName, eq.variableDimension, "auto", "auto", None, region=eq.geometries, order=order, isScalar=eq.isScalar)
+                self.addVariable(eq.variableName, eq.variableDimension, region=eq.geometries, order=order, isScalar=eq.isScalar)
 
-    def addVariable(self, name, vdim, dirichlet=None, initialValue=None, initialVelocity=None, region=None, order=1, scale=1, isScalar=False):
-        if initialValue is None:
-            initialValue = util.generateCoefficient([0]*vdim)
-            scale = 1
-        elif initialValue == "auto":
-            init = self._model.initialConditions.coef(self._model.initialConditionTypes[0])
-            scale = init.scale
-            initialValue = util.generateCoefficient(init, self._mesh)
+    def addVariable(self, name, vdim, dirichlet="auto", initialValue="auto", initialVelocity=None, region=None, order=1, scale=1, isScalar=False):
+        initialValue, scale = self.__initialValue(vdim, initialValue, scale)
         if initialVelocity is None:
             initialVelocity = util.generateCoefficient([0]*vdim)
 
@@ -107,6 +101,21 @@ class NGSModel:
             fess.append(ngsolve.H1(self._mesh, **kwargs))
 
         self._vars.append(NGSVariable(name, fess, scale, initialValue, initialVelocity, isScalar=isScalar))
+
+    def __initialValue(self, vdim, initialValue, scale):
+        if initialValue is None:
+            return util.generateCoefficient([0]*vdim), 1
+        if initialValue != "auto":
+            return initialValue, scale
+        init = None
+        for type in self._model.initialConditionTypes:
+            c = self._model.initialConditions.coef(type)
+            if init is None:
+                init = c
+            else:
+                init.update(c)
+        initialValue = util.generateCoefficient(init, self._mesh)
+        return initialValue, init.scale
 
     def coef(self, cls, name="Undefined"):
         c = self._model.boundaryConditions.coef(cls)

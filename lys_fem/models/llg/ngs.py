@@ -7,8 +7,8 @@ class NGSLLGModel(NGSModel):
         self._model = model
 
         for eq in model.equations:
-            self.addVariable(eq.variableName, 3, "auto", "auto", region = eq.geometries, order=order)
-            self.addVariable(eq.variableName+"_lam", 1, region=eq.geometries, order=2, isScalar=True)
+            self.addVariable(eq.variableName, 3, region = eq.geometries, order=order)
+            self.addVariable(eq.variableName+"_lam", 1, initialValue=None, dirichlet=None, region=eq.geometries, order=2, isScalar=True)
 
     def weakform(self, vars, mat):
         g, Ms = mat["g_LL"], mat["M_s"]

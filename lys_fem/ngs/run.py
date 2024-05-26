@@ -45,9 +45,12 @@ def run(fem, run=True, save=True):
         for i, s in enumerate(solvers):
             print_("------------Solver " + str(i) + ": " + s.name + " started --------------------")
             start = time.time()
+            if i > 0:
+                s.solution.update(solvers[i].solution[0])
             s.execute()
             print_()
             print_("Total calculation time: ", time.time()-start, " seconds")
+            print_()
     else:
         return mesh, mats, model, solvers
     wait()
