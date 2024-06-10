@@ -33,6 +33,21 @@ class ThermoelasticStress(DomainCondition):
         return ThermoelasticWidget(self, fem, canvas, "Ref. Temperature T0 (K)")
 
 
+class DeformationPotential(DomainCondition):
+    className = "DeformationPotential"
+
+    def __init__(self, varNames=["n", "p"], *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.varNames = varNames
+
+    @classmethod
+    def default(cls, model):
+        return DeformationPotential()
+
+    def widget(self, fem, canvas):
+        return DeformationPotentialWidget(self, fem, canvas)
+
+
 class ThermoelasticWidget(QtWidgets.QWidget):
     def __init__(self, cond, fem, canvas, title):
         super().__init__()
@@ -59,11 +74,42 @@ class ThermoelasticWidget(QtWidgets.QWidget):
         self._cond.varName = txt
 
 
+class DeformationPotentialWidget(QtWidgets.QWidget):
+    def __init__(self, cond, fem, canvas):
+        super().__init__()
+        self._cond = cond
+        self.__initlayout(fem, canvas)
+
+    def __initlayout(self, fem, canvas):
+        self._selector = GeometrySelector(canvas, fem, self._cond.geometries)
+        self._varName1 = QtWidgets.QLineEdit()
+        self._varName1.setText(self._cond.varNames[0])
+        self._varName1.textChanged.connect(self.__textChanged)
+        self._varName2 = QtWidgets.QLineEdit()
+        self._varName2.setText(self._cond.varNames[1])
+        self._varName2.textChanged.connect(self.__textChanged)
+
+        h1 = QtWidgets.QGridLayout()
+        h1.addWidget(QtWidgets.QLabel("Electron Name"), 0, 0)
+        h1.addWidget(QtWidgets.QLabel("Hole Name"), 1, 0)
+        h1.addWidget(self._varName1, 0, 1)
+        h1.addWidget(self._varName2, 1, 1)
+
+        layout = QtWidgets.QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._selector)
+        layout.addLayout(h1)
+        self.setLayout(layout)
+
+    def __textChanged(self, txt):
+        self._cond.varNames = [self._varName1.text(), self._varName2.text()]
+
+
 class ElasticModel(FEMModel):
     className = "Elasticity"
     equationTypes = [ChristffelEquation]
     boundaryConditionTypes = [DirichletBoundary]
-    domainConditionTypes = [ThermoelasticStress]
+    domainConditionTypes = [ThermoelasticStress, DeformationPotential]
     initialConditionTypes = [InitialCondition]
 
     def __init__(self, nvar=3, *args, **kwargs):

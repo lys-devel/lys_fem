@@ -3,8 +3,8 @@ from lys_fem import FEMFixedModel, Equation, DomainCondition
 from .. import common
 from . import DirichletBoundary
 
-class SemiconductorBoltzmannEquation(Equation):
-    className = "Semiconductor Boltzmann Equation"
+class SemiconductorDriftDiffusionEquation(Equation):
+    className = "Semiconductor Drift Diffusion Equation"
     def __init__(self, varName="n", potential="phi", temperature=None, **kwargs):
         super().__init__(varName, **kwargs)
         self._potName=potential
@@ -40,7 +40,7 @@ class InitialCondition(common.InitialCondition):
 
 class SemiconductorModel(FEMFixedModel):
     className = "Semiconductor"
-    equationTypes = [SemiconductorBoltzmannEquation]
+    equationTypes = [SemiconductorDriftDiffusionEquation]
     initialConditionTypes = [InitialCondition]
     boundaryConditionTypes = [DirichletBoundary]
 

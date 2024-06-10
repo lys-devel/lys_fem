@@ -160,6 +160,9 @@ class GeometrySelection(FEMObject):
             return True
         else:
             return item in self._selection
+        
+    def __getitem__(self, index):
+        return self._selection[index]
 
     def getSelection(self, geom=None):
         if geom is None:
@@ -174,6 +177,9 @@ class GeometrySelection(FEMObject):
 
     def remove(self, value):
         self._selection.remove(value)
+
+    def clear(self):
+        self._selection.clear()
 
     def selectionType(self):
         if self._selection == "all":

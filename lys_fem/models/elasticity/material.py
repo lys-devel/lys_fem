@@ -133,18 +133,10 @@ class _ElasticParamsWidget(QtWidgets.QWidget):
 
 
 class ThermalExpansionParameters(FEMParameter):
+    name = "Thermal Expansion"
+    units = {"alpha": "1"}
     def __init__(self, alpha=np.eye(3).tolist()):
         self.alpha = alpha
-
-    @classmethod
-    @property
-    def name(cls):
-        return "Thermal Expansion"
-
-    @classmethod
-    @property
-    def units(cls):
-        return {"alpha": "1"}
 
     def getParameters(self, dim):
         return {"alpha": np.array(self.alpha)[:dim,:dim].tolist()}
@@ -166,3 +158,36 @@ class _ThermalExpansionWidget(QtWidgets.QWidget):
 
     def __set(self):
         self._param.alpha = self._alpha.value()
+
+
+
+class DeformationPotentialParameters(FEMParameter):
+    name = "Deformation potential"
+    units = {"d_e": "J", "d_h": "J"}
+    def __init__(self, d_e=-10, d_h=-10):
+        self.d_e = d_e
+        self.d_h = d_h
+
+    def getParameters(self, dim):
+        return {"d_e": np.eye(3) * self.d_e*1.60218e-19, "d_h": np.eye(3) * self.d_h*1.60218e-19}
+
+    def widget(self):
+        return _DeformationPotentialWidget(self)
+
+
+class _DeformationPotentialWidget(QtWidgets.QWidget):
+    def __init__(self, param):
+        super().__init__()
+        self._param = param
+        self._d_e = ScalarFunctionWidget("DP coef. for electron (eV)", self._param.d_e, valueChanged=self.__set)
+        self._d_h = ScalarFunctionWidget("DP coef. for hole (eV)", self._param.d_h, valueChanged=self.__set)
+
+        layout = QtWidgets.QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._d_e)
+        layout.addWidget(self._d_h)
+        self.setLayout(layout)
+
+    def __set(self):
+        self._param.d_e = self._d_e.value()
+        self._param.d_h = self._d_h.value()

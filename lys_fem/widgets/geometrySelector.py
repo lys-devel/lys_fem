@@ -31,6 +31,8 @@ class GeometrySelector(QtWidgets.QWidget):
         self._model = _SelectionModel(selected, title)
         self._tree = QtWidgets.QTreeView()
         self._tree.setModel(self._model)
+        self._tree.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self._tree.customContextMenuRequested.connect(self._buildContextMenu)
 
         self._selectBtn = QtWidgets.QPushButton("Start Selection", clicked=self.__start)
         self._selectBtn.setCheckable(True)
@@ -42,6 +44,23 @@ class GeometrySelector(QtWidgets.QWidget):
         layout.addWidget(self._selectBtn)
         self.setLayout(layout)
         self.__setEnabled()
+
+    def _buildContextMenu(self):
+        menu = QtWidgets.QMenu()
+        menu.addAction(QtWidgets.QAction("Remove", self, triggered=self.__remove))
+        menu.addAction(QtWidgets.QAction("Clear", self, triggered=self.__clear))
+        menu.exec_(QtGui.QCursor.pos())
+
+    def __remove(self):
+        item = self._selected[self._tree.currentIndex().row()]
+        self._selected.remove(item)
+        self.__showGeometry()
+        self._model.layoutChanged.emit()
+
+    def __clear(self):
+        self._selected.clear()
+        self.__showGeometry()
+        self._model.layoutChanged.emit()
 
     def __typeChanged(self, text):
         if text == "All":

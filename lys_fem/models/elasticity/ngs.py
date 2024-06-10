@@ -1,5 +1,5 @@
 from lys_fem.ngs import NGSModel, grad, dx
-from . import ThermoelasticStress
+from . import ThermoelasticStress, DeformationPotential
 
 
 class NGSElasticModel(NGSModel):
@@ -23,4 +23,10 @@ class NGSElasticModel(NGSModel):
                 for te in self._model.domainConditions.get(ThermoelasticStress):
                     T, _ = vars[te.varName]
                     wf += (T-T0)*C.ddot(alpha).ddot(gv)*dx
+            if self._model.domainConditions.have(DeformationPotential):
+                for df in self._model.domainConditions.get(DeformationPotential):
+                    d_n, d_p = mat["d_n"], mat["d_p"]
+                    n, _ = vars[df.varNames[0]]
+                    p, _ = vars[df.varNames[1]]
+                    wf += (d_n*n - d_p*p).ddot(gv)*dx
         return wf
