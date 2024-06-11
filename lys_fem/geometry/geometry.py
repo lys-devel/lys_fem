@@ -76,6 +76,7 @@ class RectFrustum(FEMGeometry):
     
 
 class InfiniteVolume(FEMGeometry):
+    type = "infinite volume"
     def __init__(self, a=1, b=1, c=1, A=2, B=2, C=2):
         super().__init__([a,b,c,A,B,C])
 
@@ -87,11 +88,6 @@ class InfiniteVolume(FEMGeometry):
         RectFrustum((a,-b,c), (-a,-b,c), (-a,-b,-c),(a,-b,-c),(A,-B,C), (-A,-B,C), (-A,-B,-C),(A,-B,-C)).execute(model, trans)
         RectFrustum((a,b,c), (a,-b,c), (a,-b,-c),(a,b,-c),(A,B,C), (A,-B,C), (A,-B,-C),(A,B,-C)).execute(model, trans)
         RectFrustum((-a,b,c), (-a,-b,c), (-a,-b,-c),(-a,b,-c),(-A,B,C), (-A,-B,C), (-A,-B,-C),(-A,B,-C)).execute(model, trans)
-
-    @classmethod
-    @property
-    def type(cls):
-        return "infinite volume"
 
     def widget(self):
         return InfiniteVolumeGUI(self)
@@ -214,6 +210,7 @@ class Quad(FEMGeometry):
 
 
 class InfinitePlane(FEMGeometry):
+    type = "infinite plane"
     def __init__(self, a=1, b=1, A=2, B=2):
         super().__init__([a,b,A,B])
 
@@ -241,9 +238,8 @@ class InfinitePlane(FEMGeometry):
         return {"J": FEMCoefficient(J, xscale=scale)}
 
     def _constructJ(self, domain):
-        a,b = self.ab
-        A,B = self.AB
-        alpha = self.alpha
+        a,b,A,B = self.args
+        alpha = 1
 
         Cx = np.array([0, b-a*(B-b)/(A-a)])
         Cy = np.array([a-b*(A-a)/(B-b), 0])
@@ -263,12 +259,14 @@ class InfinitePlane(FEMGeometry):
             Y = -(Cb[1] + (b-Cb[1])/((B+y)/(B-b))**(1/alpha))
             X = x * (-Y-Cx[1]) / (-y-Cx[1])
         J = sp.Matrix([[X.diff(x), Y.diff(x)],[X.diff(y), Y.diff(y)]]).inv()
+        J = self.__subs(J, x, y)
         return [[J[i,j] for j in range(2)] for i in range(2)]
 
-    @classmethod
-    @property
-    def type(cls):
-        return "infinite plane"
+    def __subs(self,J,x,y):
+        # disable assumption that xyz is real
+        xs, ys = sp.symbols("xs,ys")
+        xx, yy = sp.symbols("x,y")
+        return J.subs({x:xs, y:ys}).subs({xs:xx, ys:yy})
 
     def widget(self):
         return InfinitePlaneGUI(self)

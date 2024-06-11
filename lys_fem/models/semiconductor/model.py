@@ -32,7 +32,7 @@ class InitialCondition(common.InitialCondition):
 
     @classmethod
     def default(cls, model):
-        return InitialCondition(1e16)
+        return InitialCondition([1e16,1e16])
 
     def widget(self, fem, canvas, title="Initial Value"):
         return super().widget(fem, canvas, title)

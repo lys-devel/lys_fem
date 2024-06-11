@@ -25,7 +25,7 @@ class NGSElasticModel(NGSModel):
                     wf += (T-T0)*C.ddot(alpha).ddot(gv)*dx
             if self._model.domainConditions.have(DeformationPotential):
                 for df in self._model.domainConditions.get(DeformationPotential):
-                    d_n, d_p = mat["d_n"], mat["d_p"]
+                    d_n, d_p = mat["d_e"], mat["d_h"]
                     n, _ = vars[df.varNames[0]]
                     p, _ = vars[df.varNames[1]]
                     wf += (d_n*n - d_p*p).ddot(gv)*dx

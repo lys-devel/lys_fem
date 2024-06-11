@@ -14,7 +14,7 @@ class SemiconductorParameters(FEMParameter):
         self.T = T
 
     def getParameters(self, dim):
-        res = {"mu_e": self.mu_n, "mu_h": self.mu_p, "N_d": self.N_d, "N_a": self.N_a, "q": 1.602176634e-19, "k_B": 1.3806488e-23}
+        res = {"mu_e": self.mu_n, "mu_h": self.mu_p, "N_d": self.N_d, "N_a": self.N_a, "q": 1.602176634e-19, "k_B": 1.3806488e-23, "T": 300}
         if self.T is not None:
             res["T"] = self.T
         return res

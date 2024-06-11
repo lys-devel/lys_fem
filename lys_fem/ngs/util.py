@@ -181,7 +181,7 @@ class NGSFunction:
         if J.shape[0] == 3:
             return NGSFunction(J[0,0]*J[1,1]*J[2,2] + J[0,1]*J[1,2]*J[2,0] + J[0,2]*J[1,0]*J[2,1] - J[0,2]*J[1,1]*J[2,0] - J[0,1]*J[1,0]*J[2,2] - J[0,0]*J[1,2]*J[2,1], "|"+self._name+"|")
         elif J.shape[0] == 2:
-            return NGSFunction(J[0,0]*J[1,1] - J[0,1]*J[1,0]*J[2,2], "|"+self._name+"|")
+            return NGSFunction(J[0,0]*J[1,1] - J[0,1]*J[1,0], "|"+self._name+"|")
         elif J.shape[0] == 1:
             return NGSFunction(J[0,0], "|"+self._name+"|")
         
@@ -226,6 +226,16 @@ class NGSFunction:
     @property
     def isNonlinear(self):
         return False
+
+
+def printError(f):
+    def wrapper(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except:
+            print("Error while evaluating", args[0])
+            return None
+    return wrapper
 
 
 class _Oper(NGSFunction):
@@ -343,6 +353,7 @@ class _TensorDot(_Oper):
     def hasTrial(self):
         return self._obj[0].hasTrial or self._obj[1].hasTrial
 
+    @printError
     def eval(self):
         if self._axes == 1:
             return self._obj[0].eval() * self._obj[1].eval()

@@ -2,7 +2,7 @@ import numpy as np
 
 from lys.Qt import QtWidgets
 from lys_fem import FEMParameter
-from lys_fem.widgets import ScalarFunctionWidget
+from lys_fem.widgets import MatrixFunctionWidget
 
 
 class ElectrostaticParameters(FEMParameter):
@@ -16,8 +16,8 @@ class ElectrostaticParameters(FEMParameter):
         return res
 
     def widget(self):
-        self._eps = ScalarFunctionWidget("Relative permittivity", self._param.eps_r, valueChanged=self.__set)
+        self._eps = MatrixFunctionWidget("Relative permittivity", self.eps_r, valueChanged=self.__set)
         return self._eps
 
     def __set(self):
-        self._param.eps_r = self._eps.value()
+        self.eps_r = self._eps.value()

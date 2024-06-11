@@ -8,7 +8,7 @@ def generateMaterial(fem, mesh):
     result = {}
     for key, value in mats.items():
         if key == "J":
-            result["J"] = util.coef(value, mesh, default=np.eye(3), name="J")
+            result["J"] = util.coef(value, mesh, default=np.eye(mesh.dim), name="J")
         else:
             result[key] = util.coef(value, mesh, name=key)
     return result

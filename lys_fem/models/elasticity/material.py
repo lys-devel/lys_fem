@@ -169,7 +169,7 @@ class DeformationPotentialParameters(FEMParameter):
         self.d_h = d_h
 
     def getParameters(self, dim):
-        return {"d_e": np.eye(3) * self.d_e*1.60218e-19, "d_h": np.eye(3) * self.d_h*1.60218e-19}
+        return {"d_e": np.eye(dim) * self.d_e*1.60218e-19, "d_h": np.eye(dim) * self.d_h*1.60218e-19}
 
     def widget(self):
         return _DeformationPotentialWidget(self)

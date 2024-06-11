@@ -64,6 +64,41 @@ class StationarySolverWidget(QtWidgets.QWidget):
         pass
 
 
+class RelaxationSolverWidget(QtWidgets.QWidget):
+    def __init__(self, fem, solver):
+        super().__init__()
+        self._fem = fem
+        self._solver = solver
+        self.__initlayout()
+
+    def __initlayout(self):
+        self._dt0 = ScientificSpinBox()
+        self._dt0.setValue(self._solver._dt0)
+        self._dt0.valueChanged.connect(self.__change)
+        self._dx = ScientificSpinBox()
+        self._dx.setValue(self._solver._dx)
+        self._dx.valueChanged.connect(self.__change)
+        self._factor = QtWidgets.QSpinBox()
+        self._factor.setRange(1,1000)
+        self._factor.setValue(self._solver._factor)
+        self._factor.valueChanged.connect(self.__change)
+
+        grid = QtWidgets.QGridLayout()
+        grid.addWidget(QtWidgets.QLabel("Initial step (s)"), 0, 0)
+        grid.addWidget(self._dt0, 0, 1)
+        grid.addWidget(QtWidgets.QLabel("Target"), 1, 0)
+        grid.addWidget(self._dx, 1, 1)
+        grid.addWidget(QtWidgets.QLabel("Factor"), 2, 0)
+        grid.addWidget(self._factor, 2, 1)
+
+        self.setLayout(grid)
+
+    def __change(self):
+        self._solver._dt0 = self._dt0.value()
+        self._solver._dx = self._dx.value()
+        self._solver._factor = self._factor.value()
+
+
 class TimeDependentSolverWidget(QtWidgets.QWidget):
     def __init__(self, fem, solver):
         super().__init__()

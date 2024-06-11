@@ -36,7 +36,7 @@ class ThermoelasticStress(DomainCondition):
 class DeformationPotential(DomainCondition):
     className = "DeformationPotential"
 
-    def __init__(self, varNames=["n", "p"], *args, **kwargs):
+    def __init__(self, varNames=["n_e", "n_h"], *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.varNames = varNames
 

@@ -6,7 +6,7 @@ from ngsolve import Parameter, BilinearForm, LinearForm, CoefficientFunction, Ve
 
 from . import mpi, mesh, time, util
 
-SetNumThreads(1)
+SetNumThreads(16)
 
 def generateSolver(fem, mesh, model):
     solvers = {"Stationary Solver": StationarySolver, "Relaxation Solver": RelaxationSolver, "Time Dependent Solver": TimeDependentSolver}
@@ -116,17 +116,19 @@ class _Operator:
             return self._inv
         
     def update(self, dti):
+        if self._nl:
+            return self._dti.Set(dti)
         if self._dti.Get() != dti:
             self._dti.Set(dti)
-        else:
-            return
-        if self._nl:
-            return
-        if not self._init:
-            with TaskManager():
-                self._blf.Assemble()
-                self._inv = self._blf.mat.Inverse(self._fes.FreeDofs(), "pardiso")
+            self._assemble()
+        elif not self._init:
+            self._assemble()
             self._init = True
+
+    def _assemble(self):
+        with TaskManager():
+            self._blf.Assemble()
+            self._inv = self._blf.mat.Inverse(self._fes.FreeDofs(), "pardiso")
     
     @property
     def isNonlinear(self):
@@ -219,7 +221,7 @@ class RelaxationSolver(SolverBase):
 
         t = 0
         dt, dx_ref = self._tSolver.dt0, self._tSolver.dx
-        for i in range(1,1000):
+        for i in range(1,100):
             dx = self.solve(1/dt)
             t = t + dt
             mpi.print_("Step", i, ", t = {:3e}".format(t), ", dt = {:3e}".format(dt), ", dx = {:3e}".format(dx))
@@ -260,6 +262,7 @@ class _NewtonSolver:
             dx.data = F.Jacobian(x)*F(x)
             x -= dx
             R = np.sqrt(np.divide(dx.InnerProduct(dx), x.InnerProduct(x)))
+            print(R)
             if R < eps:
                 if i!=0:
                     mpi.print_("[Newton solver] Converged in", i, "steps.")

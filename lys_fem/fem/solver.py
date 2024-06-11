@@ -64,27 +64,33 @@ class StationarySolver(FEMSolver):
 class RelaxationSolver(FEMSolver):
     className = "Relaxation Solver"
 
-    def __init__(self, dt0 = 1e-9, dx = 1e-1, **kwargs):
+    def __init__(self, dt0 = 1e-9, dx = 1e-1, factor=5, **kwargs):
         super().__init__(**kwargs)
         self._dt0 = dt0
         self._dx = dx
+        self._factor = factor
 
     @property
     def dt0(self):
         return self._dt0/self.fem.scaling.getScaling("s")
-
+    
     @property
     def dx(self):
         return self._dx
+    
+    @property
+    def factor(self):
+        return self._factor
 
     def widget(self, fem):
-        from ..gui import StationarySolverWidget
-        return StationarySolverWidget(fem, self)
+        from ..gui import RelaxationSolverWidget
+        return RelaxationSolverWidget(fem, self)
 
     def saveAsDictionary(self):
         d = super().saveAsDictionary()
         d["dt0"] = self._dt0
         d["dx"] = self._dx
+        d["factor"] = self._factor
         return d
 
 
