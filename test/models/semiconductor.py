@@ -25,10 +25,11 @@ class semiconductor_test(FEMTestCase):
         p.mesher.setRefinement(8)
 
         # material
-        param1 = sc.SemiconductorParameters(eps_r = 11.8, mu_n=0.15, mu_p=0.05, T=T, N_a=Na)
-        param2 = sc.SemiconductorParameters(eps_r = 11.8, mu_n=0.15, mu_p=0.05, T=T, N_d=Nd)
-        p.materials.append(Material([param1], geometries=[1]))
-        p.materials.append(Material([param2], geometries=[2]))
+        param_e = em.ElectrostaticParameters(eps_r=np.eye(3)*11.8)
+        param1 = sc.SemiconductorParameters(mu_n=0.15, mu_p=0.05, T=T, N_a=Na)
+        param2 = sc.SemiconductorParameters(mu_n=0.15, mu_p=0.05, T=T, N_d=Nd)
+        p.materials.append(Material([param_e, param1], geometries=[1]))
+        p.materials.append(Material([param_e, param2], geometries=[2]))
 
         # model: boundary and initial conditions
         model = sc.SemiconductorModel()

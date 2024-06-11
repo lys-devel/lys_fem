@@ -5,17 +5,16 @@ from lys_fem.widgets import ScalarFunctionWidget
 
 class SemiconductorParameters(FEMParameter):
     name = "Semiconductor Drift Diffusion"
-    units = {"mu_e": "m^2/V s", "mu_h": "m^2/V s", "N_d": "1/m^3", "N_a": "1/m^3", "q": "C", "k_B": "J/K", "T": "K", "eps": "F/m"}
-    def __init__(self, eps_r, mu_n, mu_p, N_d=0.0, N_a=0.0, T=None):
+    units = {"mu_e": "m^2/V s", "mu_h": "m^2/V s", "N_d": "1/m^3", "N_a": "1/m^3", "q": "C", "k_B": "J/K", "T": "K"}
+    def __init__(self, mu_n, mu_p, N_d=0.0, N_a=0.0, T=None):
         self.mu_n = mu_n
         self.mu_p = mu_p
         self.N_d = N_d
         self.N_a = N_a
         self.T = T
-        self.eps_r = eps_r
 
     def getParameters(self, dim):
-        res = {"mu_e": self.mu_n, "mu_h": self.mu_p, "N_d": self.N_d, "N_a": self.N_a, "q": 1.602176634e-19, "k_B": 1.3806488e-23, "eps": self.eps_r*8.8541878128e-12}
+        res = {"mu_e": self.mu_n, "mu_h": self.mu_p, "N_d": self.N_d, "N_a": self.N_a, "q": 1.602176634e-19, "k_B": 1.3806488e-23}
         if self.T is not None:
             res["T"] = self.T
         return res
