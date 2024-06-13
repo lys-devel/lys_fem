@@ -173,6 +173,7 @@ class SolverBase:
             
     def __prepareIntegrator(self, obj):
         if obj.method == "BackwardEuler":
+            return time.NewmarkBeta()
             return time.BackwardEuler()
         elif obj.method == "NewmarkBeta":
             return time.NewmarkBeta()
@@ -228,7 +229,7 @@ class RelaxationSolver(SolverBase):
             self.exportSolution(i)
             if dt == np.inf:
                 break
-            dt *= np.sqrt(dx_ref/dx)
+            dt *= min(np.sqrt(dx_ref/dx), 3)
             if dt > self._tSolver.dt0*1e5:
                 dt = np.inf
 

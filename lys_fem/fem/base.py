@@ -26,6 +26,14 @@ class FEMObject:
         while not isinstance(obj, FEMProject):
             obj = obj.parent
         return obj
+    
+    @property
+    def model(self):
+        from .model import FEMModel
+        obj = self
+        while not isinstance(obj, FEMModel):
+            obj = obj.parent
+        return obj
 
     @property
     def parent(self):

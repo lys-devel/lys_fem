@@ -112,7 +112,7 @@ class FEMParameter:
         return d
 
     def getParameters(self):
-        return {key: value for key, value in vars(self).items() if key[0]!="_"}
+        return {key: value for key, value in vars(self).items() if key[0] != "_"}
 
     @staticmethod
     def loadFromDictionary(d):

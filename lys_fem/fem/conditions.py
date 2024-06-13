@@ -77,6 +77,8 @@ class ConditionBase(FEMObject):
     Even if the single condition requires several parameters (such as temperature and electric field), it is recommended to put all these values into single vector.
     In addition, values are loaded from calculation result if values is instance of CalculatedResult.
     """
+    unit = "1"
+
     def __init__(self, geomType, values=None, objName=None, geometries=None):
         super().__init__(objName)
         self._geomType = geomType
@@ -109,17 +111,12 @@ class ConditionBase(FEMObject):
         return cls(values = values, geometries=geometries, objName=d["objName"])
 
     @classmethod
-    def default(self, model):
+    def default(cls, model):
         raise NotImplementedError
 
-    def widget(self, fem, canvas, title="Value"):
+    def widget(self, fem, canvas, title="Value", computed=False, shape=None):
         from lys_fem.gui import ConditionWidget
-        return ConditionWidget(self, fem, canvas, title)
-
-    @classmethod
-    @property
-    def unit(self):
-        return "1"
+        return ConditionWidget(self, fem, canvas, title=title, computed=computed, shape=shape)
 
 
 class DomainCondition(ConditionBase):
@@ -142,11 +139,11 @@ class InitialCondition(ConditionBase):
         return InitialCondition([0]*model.variableDimension())
 
     def widget(self, fem, canvas, title="Initial Value"):
-        return super().widget(fem, canvas, title)
+        return super().widget(fem, canvas, title, computed=True, shape=(self.model.variableDimension(),))
 
 
 class CalculatedResult:
-    def __init__(self, path, expression, index=-1):
+    def __init__(self, path="", expression="", index=-1):
         self._path = path
         self._expression = expression
         self._index = index
@@ -155,6 +152,10 @@ class CalculatedResult:
     def solution(self):
         from .solution import FEMSolution
         return FEMSolution(self._path)
+    
+    @property
+    def path(self):
+        return self._path
     
     @property
     def expression(self):

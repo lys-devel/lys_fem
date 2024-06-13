@@ -1,6 +1,8 @@
 import numpy as np
 from lys.Qt import QtCore, QtWidgets, QtGui
 from lys.decorators import avoidCircularReference
+from .dataView import FEMFileDialog
+from ..fem import CalculatedResult
 from ..fem.base import strToExpr
 
 
@@ -158,3 +160,42 @@ class MatrixFunctionWidget(QtWidgets.QWidget):
         except:
             pass
         return self._val
+
+
+class CalculatedResultWidget(QtWidgets.QWidget):
+    valueChanged = QtCore.pyqtSignal(CalculatedResult)
+    def __init__(self, value=None, valueChanged=None):
+        super().__init__()
+        self.__initLayout()
+        if value is not None:
+            self._path.setText(value.path)
+            self._expr.setText(value.expression)
+        if valueChanged is not None:
+            self.valueChanged.connect(valueChanged)
+
+    def __initLayout(self):
+        self._sel = QtWidgets.QPushButton("...", clicked=self.__clicked)
+        self._path = QtWidgets.QLineEdit(textChanged=self.__changed)
+        self._expr = QtWidgets.QLineEdit(textChanged=self.__changed)
+
+        self._grid = QtWidgets.QGridLayout()
+        self._grid.addWidget(QtWidgets.QLabel("Path"), 0, 0)
+        self._grid.addWidget(QtWidgets.QLabel("Expression"), 1, 0)
+        self._grid.addWidget(self._path, 0, 1, 1, 2)
+        self._grid.addWidget(self._expr, 1, 1, 1, 2)
+        self._grid.addWidget(self._sel, 0, 3)
+        self.setLayout(self._grid)
+
+    def __changed(self):
+        self.valueChanged.emit(self.value)
+
+    def __clicked(self):
+        d = FEMFileDialog(self)
+        ok = d.exec_()
+        if ok:
+            self._path.setText("../"+d.result)
+
+    @property
+    def value(self):
+        return CalculatedResult(self._path.text(), self._expr.text())
+    

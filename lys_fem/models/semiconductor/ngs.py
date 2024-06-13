@@ -30,7 +30,7 @@ class NGSSemiconductorModel(NGSModel):
 
             # lhs, drift current, diffusion current terms
             wf += (n.t.dot(test_n) + p.t.dot(test_p))*dx
-            wf += (-n.value*mu_n*grad(test_n) + p.value*mu_p*grad(test_p)).dot(grad(phi))*dx
+            wf += grad(phi).dot(-n.value*mu_n*grad(test_n) + p.value*mu_p*grad(test_p))*dx
             wf += D_n*grad(n).dot(grad(test_n))*dx + D_p*grad(p).dot(grad(test_p))*dx
 
             wf -= q*(p-n+Nd-Na)*test_phi * dx 
