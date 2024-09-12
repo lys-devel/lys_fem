@@ -173,7 +173,6 @@ class SolverBase:
             
     def __prepareIntegrator(self, obj):
         if obj.method == "BackwardEuler":
-            return time.NewmarkBeta()
             return time.BackwardEuler()
         elif obj.method == "NewmarkBeta":
             return time.NewmarkBeta()

@@ -5,7 +5,7 @@ from . import DirichletBoundary
 
 class SemiconductorDriftDiffusionEquation(Equation):
     className = "Semiconductor Drift Diffusion Equation"
-    def __init__(self, varName="n", potential="phi", temperature="T", **kwargs):
+    def __init__(self, varName="n", potential="phi", temperature=None, **kwargs):
         super().__init__(varName, **kwargs)
         self._potName=potential
         self._temp = temperature
