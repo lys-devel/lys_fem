@@ -72,6 +72,7 @@ class RelaxationSolverWidget(QtWidgets.QWidget):
         self.__initlayout()
 
     def __initlayout(self):
+        self._method = _MethodComboBox(self._solver)
         self._dt0 = ScientificSpinBox()
         self._dt0.setValue(self._solver._dt0)
         self._dt0.valueChanged.connect(self.__change)
@@ -84,12 +85,14 @@ class RelaxationSolverWidget(QtWidgets.QWidget):
         self._factor.valueChanged.connect(self.__change)
 
         grid = QtWidgets.QGridLayout()
-        grid.addWidget(QtWidgets.QLabel("Initial step (s)"), 0, 0)
-        grid.addWidget(self._dt0, 0, 1)
-        grid.addWidget(QtWidgets.QLabel("Target"), 1, 0)
-        grid.addWidget(self._dx, 1, 1)
-        grid.addWidget(QtWidgets.QLabel("Factor"), 2, 0)
-        grid.addWidget(self._factor, 2, 1)
+        grid.addWidget(QtWidgets.QLabel("Method"), 0, 0)
+        grid.addWidget(self._method, 0, 1)
+        grid.addWidget(QtWidgets.QLabel("Initial step (s)"), 1, 0)
+        grid.addWidget(self._dt0, 1, 1)
+        grid.addWidget(QtWidgets.QLabel("Target"), 2, 0)
+        grid.addWidget(self._dx, 2, 1)
+        grid.addWidget(QtWidgets.QLabel("Factor"), 3, 0)
+        grid.addWidget(self._factor, 3, 1)
 
         self.setLayout(grid)
 
@@ -107,6 +110,7 @@ class TimeDependentSolverWidget(QtWidgets.QWidget):
         self.__initlayout()
 
     def __initlayout(self):
+        self._method = _MethodComboBox(self._solver)
         self._step = ScientificSpinBox()
         self._step.setValue(self._solver._step)
         self._step.valueChanged.connect(self.__change)
@@ -115,10 +119,12 @@ class TimeDependentSolverWidget(QtWidgets.QWidget):
         self._stop.valueChanged.connect(self.__change)
 
         grid = QtWidgets.QGridLayout()
-        grid.addWidget(QtWidgets.QLabel("Step"), 0, 0)
-        grid.addWidget(self._step, 0, 1)
-        grid.addWidget(QtWidgets.QLabel("Stop"), 1, 0)
-        grid.addWidget(self._stop, 1, 1)
+        grid.addWidget(QtWidgets.QLabel("Method"), 0, 0)
+        grid.addWidget(self._method, 0, 1)
+        grid.addWidget(QtWidgets.QLabel("Step"), 1, 0)
+        grid.addWidget(self._step, 1, 1)
+        grid.addWidget(QtWidgets.QLabel("Stop"), 2, 0)
+        grid.addWidget(self._stop, 2, 1)
 
         self.setLayout(grid)
 
@@ -127,3 +133,13 @@ class TimeDependentSolverWidget(QtWidgets.QWidget):
         self._solver._stop = self._stop.value()
 
 
+class _MethodComboBox(QtWidgets.QComboBox):
+    def __init__(self, solver):
+        super().__init__()
+        self._solver = solver
+        self.addItems(["BackwardEuler", "NewmarkBeta"])
+        self.setCurrentText(self._solver._method)
+        self.currentIndexChanged.connect(self.__change)
+
+    def __change(self):
+        self._solver._method = self.currentText()
