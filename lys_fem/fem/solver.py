@@ -3,6 +3,13 @@ from .base import FEMObject
 
 
 class SolverStep:
+    """
+    Solver step that determines which variable is solved.
+
+    Args:
+        vars(list of str): The name of variables that is solved in this step.
+        deformation(str): The name of a variable that is used for deformation of mesh.
+    """
     def __init__(self, vars=None, deformation=None):
         self._vars = vars
         self._deform = deformation

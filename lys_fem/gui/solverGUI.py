@@ -1,8 +1,8 @@
 from lys.Qt import QtWidgets
 from lys.widgets import ScientificSpinBox
 
-from ..widgets import FEMTreeItem, ModelSelector
-from ..fem.solver import solvers
+from ..widgets import FEMTreeItem
+from ..fem.solver import solvers, SolverStep
 
 
 class SolverTree(FEMTreeItem):
@@ -38,10 +38,21 @@ class _SolverGUI(FEMTreeItem):
     def __init__(self, solver, parent):
         super().__init__(parent)
         self._solver = solver
+        self.setSteps(solver)
 
-    def remove(self, init):
-        i = super().remove(init)
-        self._solver.subSolvers.remove(self._solver.subSolvers[i])
+    def setSteps(self, solver):
+        self.clear()
+        for step in solver.steps:
+            super().append(_SolverStepGUI(solver, step, self))
+
+    def __add(self):
+        step = SolverStep()
+        self._solver.steps.append(step)
+        super().append(_SolverStepGUI(self._solver, step, self))
+
+    def remove(self, item):
+        i = super().remove(item)
+        self._solver.steps.remove(self._solver.steps[i])
 
     @property
     def name(self):
@@ -51,6 +62,28 @@ class _SolverGUI(FEMTreeItem):
     def widget(self):
         return self._solver.widget(self.fem())
 
+    @property
+    def menu(self):
+        self._menu = QtWidgets.QMenu()
+        self._menu.addAction(QtWidgets.QAction("Add Step", self.treeWidget(), triggered=self.__add))
+        self._menu.addAction(QtWidgets.QAction("Remove", self.treeWidget(), triggered=lambda: self.parent.remove(self)))
+        return self._menu
+
+
+class _SolverStepGUI(FEMTreeItem):
+    def __init__(self, solver, step, parent):
+        super().__init__(parent)
+        self._solver = solver
+        self._step = step
+
+    @property
+    def name(self):
+        return "Step " + str(self._solver.steps.index(self._step)+1)
+
+    @property
+    def widget(self):
+        return _SolverStepWidget(self._step)
+    
     @property
     def menu(self):
         self._menu = QtWidgets.QMenu()
@@ -132,6 +165,80 @@ class TimeDependentSolverWidget(QtWidgets.QWidget):
         self._solver._step = self._step.value()
         self._solver._stop = self._stop.value()
 
+
+class _SolverStepWidget(QtWidgets.QWidget):
+    def __init__(self, step):
+        super().__init__()
+        self._step = step
+        self.__initLayout(step)
+
+    def __initLayout(self, step):
+        g1 = self.__initVars(step)
+        g2 = self.__initDeform(step)
+
+        layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(g1)
+        layout.addWidget(g2)
+
+        self.setLayout(layout)
+
+    def __initVars(self, step):
+        self._varType = QtWidgets.QComboBox()
+        self._varType.addItems(["All", "Custom"])
+        self._vars = QtWidgets.QLineEdit()
+        self._vars.setPlaceholderText("u,T,E")
+        if step.variables is not None:
+            self._varType.setCurrentText("Custom")
+            self._vars.setText(", ".join(step.variables))
+        else:
+            self._vars.setEnabled(False)
+        self._varType.currentIndexChanged.connect(self.__changeVars)
+        self._vars.textChanged.connect(self.__changeVars)
+
+        h1 = QtWidgets.QHBoxLayout()
+        h1.addWidget(QtWidgets.QLabel("Variable names"))
+        h1.addWidget(self._vars)
+
+        v1 = QtWidgets.QVBoxLayout()
+        v1.addWidget(self._varType)
+        v1.addLayout(h1)
+
+        g1 = QtWidgets.QGroupBox("Variables to be solved")
+        g1.setLayout(v1)
+        return g1
+
+    def __changeVars(self):
+        self._vars.setEnabled(self._varType.currentText() != "All")
+        if self._varType.currentText() == "all":
+            self._step._vars = None
+        else:
+            self._step._vars = self._vars.text().replace(" ", "").split(",")
+
+    def __initDeform(self, step):
+        self._deform_var = QtWidgets.QLineEdit()
+        self._deform_var.setPlaceholderText("u")
+        self._deform_var.textChanged.connect(self.__changeDeform)
+
+        h1 = QtWidgets.QHBoxLayout()
+        h1.addWidget(QtWidgets.QLabel("Variable name"))
+        h1.addWidget(self._deform_var)
+
+        self._deform = QtWidgets.QGroupBox("Apply Deformation")
+        self._deform.setCheckable(True)
+        self._deform.setLayout(h1)
+        if step.deformation is None:
+            self._deform.setChecked(False)
+        else:
+            self._deform.setChecked(True)
+            self._deform_var.setText(self._deform)
+        self._deform.toggled.connect(self.__changeDeform)
+        return self._deform
+    
+    def __changeDeform(self):
+        if self._deform.isChecked():
+            self._step._deform = self._deform_var.text()
+        else:
+            self._step._deform = None
 
 class _MethodComboBox(QtWidgets.QComboBox):
     def __init__(self, solver):
