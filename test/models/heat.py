@@ -43,7 +43,7 @@ class heat_test(FEMTestCase):
 
     def neumann_1d(self, lib):
         p = FEMProject(1)
-        p.scaling.set(length=100, temperature=1e2, time=10)
+        p.scaling.set(length=100, temperature=1e4, time=10)
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))

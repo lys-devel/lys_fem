@@ -53,8 +53,7 @@ class Materials(FEMObjectList):
 
     def __generateCoefForParameter(self, pname, group, dim):
         #coefs = {"default": self.defaultParameter(group, dim)[pname]}
-        scale = self.fem.scaling.getScaling(_getParameters(group).units[pname])
-        coefs = FEMCoefficient(geomType="Domain", scale=scale, xscale=self.fem.scaling.getScaling("m"), vars=self.fem.parameters.getSolved())
+        coefs = FEMCoefficient(geomType="Domain", xscale=self.fem.scaling.getScaling("m"), vars=self.fem.parameters.getSolved())
         for m in self:
             p = m[group]
             if p is not None:

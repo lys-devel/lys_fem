@@ -13,13 +13,14 @@ def generateModel(fem, mesh, mat):
 
 
 class NGSVariable:
-    def __init__(self, name, fes, scale, initialValue, initialVelocity, isScalar):
+    def __init__(self, name, fes, scale, initialValue, initialVelocity, xscale, isScalar):
         self._name = name
         self._fes = fes
         self._scale = scale
         self._init = initialValue
         self._vel = initialVelocity
         self._isScalar = isScalar
+        self._xscale = xscale
 
     @property
     def name(self):
@@ -58,8 +59,8 @@ class NGSVariable:
     def setTnT(self, trial, test):
         if self.size==1 and self._isScalar:
             trial, test = trial[0], test[0]        
-        self._trial = util.TrialFunction(self.name, trial)
-        self._test = util.TestFunction(test, name=self.name)
+        self._trial = util.TrialFunction(self.name, trial, scale=self._xscale)
+        self._test = util.TestFunction(test, name=self.name, scale=self._xscale)
         return self._trial, self._test
 
     @property
@@ -81,8 +82,8 @@ class NGSModel:
             for eq in model.equations:
                 self.addVariable(eq.variableName, eq.variableDimension, region=eq.geometries, order=order, isScalar=eq.isScalar)
 
-    def addVariable(self, name, vdim, dirichlet="auto", initialValue="auto", initialVelocity=None, region=None, order=1, scale=1, isScalar=False):
-        initialValue, scale = self.__initialValue(vdim, initialValue, scale)
+    def addVariable(self, name, vdim, dirichlet="auto", initialValue="auto", initialVelocity=None, region=None, order=1, isScalar=False):
+        initialValue = self.__initialValue(vdim, initialValue)
         if initialVelocity is None:
             initialVelocity = util.generateCoefficient([0]*vdim)
 
@@ -100,13 +101,13 @@ class NGSModel:
                 kwargs["dirichlet"] = "|".join(["boundary" + str(item) for item in dirichlet[i]])
             fess.append(ngsolve.H1(self._mesh, **kwargs))
 
-        self._vars.append(NGSVariable(name, fess, scale, initialValue, initialVelocity, isScalar=isScalar))
+        self._vars.append(NGSVariable(name, fess, self.scale, initialValue, initialVelocity, xscale=self._mesh.scale, isScalar=isScalar))
 
-    def __initialValue(self, vdim, initialValue, scale):
+    def __initialValue(self, vdim, initialValue):
         if initialValue is None:
-            return util.generateCoefficient([0]*vdim), 1
+            return util.generateCoefficient([0]*vdim)
         if initialValue != "auto":
-            return initialValue, scale
+            return initialValue
         init = None
         for type in self._model.initialConditionTypes:
             c = self._model.initialConditions.coef(type)
@@ -115,7 +116,7 @@ class NGSModel:
             else:
                 init.update(c)
         initialValue = util.generateCoefficient(init, self._mesh)
-        return initialValue, init.scale
+        return initialValue
 
     def coef(self, cls, name="Undefined"):
         c = self._model.boundaryConditions.coef(cls)
@@ -137,6 +138,10 @@ class NGSModel:
     @property
     def name(self):
         return self._model.name
+    
+    @property
+    def scale(self):
+        return 1
 
 
 class CompositeModel:
@@ -157,6 +162,8 @@ class CompositeModel:
         for var in self.variables:
             tnt[var.name] = var.setTnT(trial[n:n+var.size], test[n:n+var.size])
             n+=var.size
+
+        util.dx.setScale(self._mesh.scale)
 
         # create weakforms
         wf = util.NGSFunction()

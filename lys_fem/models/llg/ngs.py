@@ -21,8 +21,8 @@ class NGSLLGModel(NGSModel):
             lam, test_lam = vars[eq.variableName+"_lam"]
 
             # Left-hand side, normalization, exchange term
-            wf += m.t.dot(test_m)*dx 
-            wf += (1e-5 * lam * test_lam + 2*lam*m0.dot(test_m) + (m0.dot(m)-1)*test_lam)*dx
+            wf += m.t.dot(test_m)*dx
+            wf += (1e-5 * lam * test_lam + 2*lam*m0.dot(test_m) + (m0.dot(m)-1)*test_lam)/1e-11*dx
             wf -= A * m0.cross(grad(m)).ddot(grad(test_m)) * dx
 
             if self._model.domainConditions.have(GilbertDamping):
@@ -47,4 +47,4 @@ class NGSLLGModel(NGSModel):
                     #region = self._mesh.Materials(util.generateGeometry(eq.geometries))
                     wf += Ms*m.dot(grad(test_phi))*dx
 
-        return wf   
+        return wf

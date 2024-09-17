@@ -111,6 +111,7 @@ class _Operator:
         if self._nl:
             with TaskManager():
                 self._blf.AssembleLinearization(x)
+                print(self._blf.mat[0,0])
                 return self._blf.mat.Inverse(self._fes.FreeDofs(), "pardiso")
         else:
             return self._inv

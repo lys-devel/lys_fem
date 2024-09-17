@@ -64,14 +64,14 @@ class LLG_test(FEMTestCase):
 
     def anisU(self, lib):
         p = FEMProject(1)
-        p.scaling.set(length=1e-7, time=1e-9, mass=1e-21, current=1)
+        p.scaling.set(length=1e-6)
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1e-6, 0, 0))
 
 
         # material
-        param = llg.LLGParameters(alpha=1, Ms=1, Ku=1, u_Ku=[1,0,1])
+        param = llg.LLGParameters(alpha=1, Ms=1e5, Ku=1e5, u_Ku=[1,0,1])
         mat1 = Material([param], geometries="all")
         p.materials.append(mat1)
 
@@ -244,7 +244,7 @@ class LLG_test(FEMTestCase):
     def precession(self, lib):
         factor = 1
         p = FEMProject(3)
-        p.scaling.set(length=1e-9, time=1e-12, mass=1e-27, current=1e-3)
+        p.scaling.set(length=1e-9)
 
 
         # geometry
@@ -271,6 +271,7 @@ class LLG_test(FEMTestCase):
 
         # solution
         sol = FEMSolution()
+        print(sol.eval("m_lam", data_number=25*factor)[0].data)
         res = sol.eval("m[0]", data_number=25*factor)
         for w in res:
             self.assert_array_almost_equal(w.data, np.zeros(w.data.shape), decimal=2)

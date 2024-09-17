@@ -37,8 +37,8 @@ class NGSTwoVariableTestModel(NGSModel):
         dirichlet = util.generateDirichletCondition(self._model)
 
         for eq in model.equations:
-            self.addVariable("x", 1, [dirichlet[0]], initialValue[0], region = eq.geometries, order=1, scale=init.scale)
-            self.addVariable("y", 1, [dirichlet[1]], initialValue[1], region = eq.geometries, order=1, scale=init.scale)
+            self.addVariable("x", 1, [dirichlet[0]], initialValue[0], region = eq.geometries, order=1)
+            self.addVariable("y", 1, [dirichlet[1]], initialValue[1], region = eq.geometries, order=1)
 
     def weakform(self, vars, mat):
         wf = 0

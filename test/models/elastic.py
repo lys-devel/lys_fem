@@ -143,7 +143,6 @@ class elasticity_test(FEMTestCase):
         for w in res:
             self.assert_array_almost_equal(w.data, np.exp(-((w.x[:, 0]-np.sqrt(3)/2)/0.1)**2)/2, decimal=2)
 
-
     def thermoelasticity_1d(self, lib):
         p = FEMProject(1)
         p.scaling.set(length=1e-9, temperature=1e2, time=1e-12)
@@ -180,7 +179,6 @@ class elasticity_test(FEMTestCase):
         sol = FEMSolution()
         self.assertAlmostEqual(sol.eval("u", data_number=200, coords=0), 0)
         self.assertAlmostEqual(sol.eval("u", data_number=400, coords=0), 0)
-
 
     def thermoelasticity_2d(self, lib):
         p = FEMProject(2)
@@ -222,6 +220,7 @@ class elasticity_test(FEMTestCase):
         os.chdir("run1")
 
         p = FEMProject(1)
+        p.scaling.set(length=100, time=10)
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
@@ -255,7 +254,7 @@ class elasticity_test(FEMTestCase):
         # second calculation
         os.chdir("../run2")
         p = FEMProject(1)
-        p.scaling.set(length=10, time=10)
+        p.scaling.set(length=100, time=10)
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
@@ -274,7 +273,7 @@ class elasticity_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        solver = TimeDependentSolver(0.01, 10, method="NewmarkBeta")
+        solver = TimeDependentSolver(0.01, 0.1, method="NewmarkBeta")
         p.solvers.append(solver)
 
         # solve

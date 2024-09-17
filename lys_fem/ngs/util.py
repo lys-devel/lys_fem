@@ -301,6 +301,8 @@ class _Mul(_Oper):
             if isinstance(x, ngsolve.CoefficientFunction) and isinstance(y, ngsolve.CoefficientFunction):
                 if len(x.shape)!=0 and len(x.shape) == len(y.shape):
                     return ngsolve.CoefficientFunction(tuple([xi*yi for xi, yi in zip(x,y)]), dims=x.shape)
+            if isinstance(y, _DMul):
+                return y * x
             return x * y
         else:
             return x / y
@@ -438,23 +440,24 @@ class _Cross(_Oper):
 
 
 class TrialFunction(NGSFunction):
-    def __init__(self, name, obj, dt=0, grad=False):
+    def __init__(self, name, obj, dt=0, grad=False, scale=1):
         super().__init__(obj, name="trial("+name+")")
         self._name = name
         self._dt = dt
         self._grad = grad
+        self._scale = scale
 
     @property
     def t(self):
-        return TrialFunction(self._name, self._obj, self._dt+1, grad=self._grad)
+        return TrialFunction(self._name, self._obj, self._dt+1, grad=self._grad, scale=self._scale)
 
     @property
     def tt(self):
-        return TrialFunction(self._name, self._obj, self._dt+2, grad=self._grad)
+        return TrialFunction(self._name, self._obj, self._dt+2, grad=self._grad, scale=self._scale)
 
     @property    
     def grad(self):
-        return TrialFunction(self._name, self._obj, self._dt, grad=True)
+        return TrialFunction(self._name, self._obj, self._dt, grad=True, scale=self._scale)
     
     @property
     def value(self):
@@ -483,8 +486,8 @@ class TrialFunction(NGSFunction):
     def eval(self):
         if self._grad:
             if isinstance(self._obj, list):
-                return ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._obj]), dims=(ngsolve.grad(self._obj[0]).shape[0], len(self._obj))).TensorTranspose((1,0))
-            return ngsolve.grad(self._obj)
+                return 1/self._scale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._obj]), dims=(ngsolve.grad(self._obj[0]).shape[0], len(self._obj))).TensorTranspose((1,0))
+            return 1/self._scale * ngsolve.grad(self._obj)
         else:
             if isinstance(self._obj, list):
                 return ngsolve.CoefficientFunction(tuple([t for t in self._obj]))
@@ -492,20 +495,21 @@ class TrialFunction(NGSFunction):
 
 
 class TestFunction(NGSFunction):
-    def __init__(self, obj, name, grad=False):
+    def __init__(self, obj, name, grad=False, scale=1):
         super().__init__(obj, name="test("+name+")")
         self._grad = grad
         self._nam = name
+        self._scale = scale
 
     @property    
     def grad(self):
-        return TestFunction(self._obj, "grad("+self._nam+")", grad=True)
+        return TestFunction(self._obj, "grad("+self._nam+")", grad=True, scale=self._scale)
     
     def eval(self):
         if self._grad:
             if isinstance(self._obj, list):
-                return ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._obj]), dims=(ngsolve.grad(self._obj[0]).shape[0], len(self._obj))).TensorTranspose((1,0))
-            return ngsolve.grad(self._obj)
+                return 1/self._scale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._obj]), dims=(ngsolve.grad(self._obj[0]).shape[0], len(self._obj))).TensorTranspose((1,0))
+            return 1/self._scale * ngsolve.grad(self._obj)
         else:
             if isinstance(self._obj, list):
                 return ngsolve.CoefficientFunction(tuple([t for t in self._obj]))
@@ -531,7 +535,23 @@ class TrialFunctionValue(NGSFunction):
 
 
 class DifferentialSymbol(NGSFunction):
-    pass
+    def __init__(self, obj, scale=1, **kwargs):
+        super().__init__(obj, **kwargs)
+        self._scale = scale
+
+    def setScale(self, scale):
+        self._scale = scale
+
+    def eval(self):
+        return _DMul(self._obj, self._scale)
+
+class _DMul:
+    def __init__(self, obj, scale):
+        self._obj = obj
+        self._scale = scale
+
+    def __mul__(self, other):
+        return self._scale * other * self._obj
 
 
 dx = DifferentialSymbol(ngsolve.dx, name="dx")

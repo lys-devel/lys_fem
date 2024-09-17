@@ -16,6 +16,7 @@ def loadMesh(fem, file):
     ngmesh.Load(file)
     mesh = NGSMesh(ngmesh)
     mesh._coords_global = np.array(ngmesh.Coordinates()) * fem.scaling.getScaling("m")
+    mesh.scale = fem.scaling.getScaling("m")
     return mesh
 
 
@@ -40,6 +41,7 @@ def generateMesh(fem, file="mesh.msh"):
     else:
         mesh = NGSMesh(gmesh)
         mesh._coords_global = coords * fem.scaling.getScaling("m")
+    mesh.scale = fem.scaling.getScaling("m")
     return mesh
 
 def _setBCNames(gmesh, file):

@@ -11,8 +11,8 @@ class NGSSemiconductorModel(NGSModel):
         dirichlet = util.generateDirichletCondition(self._model)
 
         for eq in model.equations:
-            self.addVariable(eq.variableName+"_e", 1, [dirichlet[0]], initialValue[0], region = eq.geometries, order=order, scale=init.scale, isScalar=True)
-            self.addVariable(eq.variableName+"_h", 1, [dirichlet[1]], initialValue[1], region = eq.geometries, order=order, scale=init.scale, isScalar=True)
+            self.addVariable(eq.variableName+"_e", 1, [dirichlet[0]], initialValue[0], region = eq.geometries, order=order, isScalar=True)
+            self.addVariable(eq.variableName+"_h", 1, [dirichlet[1]], initialValue[1], region = eq.geometries, order=order, isScalar=True)
 
     def weakform(self, vars, mat):
         mu_n, mu_p, q, kB, Nd, Na = mat["mu_e"], mat["mu_h"], mat["q"], mat["k_B"], mat["N_d"], mat["N_a"]

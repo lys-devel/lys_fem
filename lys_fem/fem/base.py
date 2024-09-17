@@ -69,11 +69,7 @@ class FEMCoefficient(dict):
     @property
     def geometryType(self):
         return self._type
-    
-    @property
-    def scale(self):
-        return self._scale
-    
+      
     @property
     def xscale(self):
         return self._xscale
@@ -85,10 +81,10 @@ class FEMCoefficient(dict):
         if isinstance(value, (list, tuple, np.ndarray)):
             return [self.__parseItem(v) for v in value]
         elif isinstance(value, (int, float, sp.Integer, sp.Float)):
-            return value/self._scale
+            return value
         elif isinstance(value, sp.Basic):
             xs, ys, zs = sp.symbols("x_scaled,y_scaled,z_scaled")
-            val = value.subs({"x":xs*self._xscale, "y":ys*self._xscale, "z":zs*self._xscale})/self._scale
+            val = value.subs({"x":xs*self._xscale, "y":ys*self._xscale, "z":zs*self._xscale})
             return val.subs(self._vars)
         else:
             return value

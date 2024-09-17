@@ -79,7 +79,7 @@ class RelaxationSolver(FEMSolver):
 
     @property
     def dt0(self):
-        return self._dt0/self.fem.scaling.getScaling("s")
+        return self._dt0
     
     @property
     def dx(self):
@@ -114,7 +114,7 @@ class TimeDependentSolver(FEMSolver):
         return TimeDependentSolverWidget(fem, self)
 
     def getStepList(self):
-        return np.array([self._step]* (int(self._stop / self._step)+1))  / self.fem.scaling.getScaling("s")
+        return np.array([self._step]* (int(self._stop / self._step)+1))
 
     def saveAsDictionary(self):
         d = super().saveAsDictionary()
