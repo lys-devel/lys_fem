@@ -15,10 +15,10 @@ class LLG_test(FEMTestCase):
         Aex = sp.symbols("Aex")
 
         p = FEMProject(1)
-        p.scaling.set(length=1e-9, time=1e-9, mass=1e-21, current=1)
         p.parameters[Aex] = 1e-11
 
         # geometry
+        p.geometries.scale=1e-9
         p.geometries.add(geometry.Line(0, 0, 0, 1e-6, 0, 0))
         p.geometries.add(geometry.Line(1e-6, 0, 0, 2e-6, 0, 0))
         p.mesher.setRefinement(4)
@@ -64,11 +64,9 @@ class LLG_test(FEMTestCase):
 
     def anisU(self, lib):
         p = FEMProject(1)
-        p.scaling.set(length=1e-6)
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1e-6, 0, 0))
-
 
         # material
         param = llg.LLGParameters(alpha=1, Ms=1e5, Ku=1e5, u_Ku=[1,0,1])
@@ -244,10 +242,9 @@ class LLG_test(FEMTestCase):
     def precession(self, lib):
         factor = 1
         p = FEMProject(3)
-        p.scaling.set(length=1e-9)
-
 
         # geometry
+        p.geometries.scale=1e-9
         p.geometries.add(geometry.Box(0, 0, 0, 1e-9, 0.1e-9, 0.1e-9))
         p.mesher.setRefinement(0)
 

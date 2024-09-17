@@ -10,7 +10,6 @@ from ..base import FEMTestCase
 class magnetostatistics_test(FEMTestCase):
     def dirichlet_2d(self, lib):
         p = FEMProject(2)
-        p.scaling.set(current=100)
 
         r0 = 3
         a = 1

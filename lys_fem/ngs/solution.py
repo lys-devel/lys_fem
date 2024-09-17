@@ -44,15 +44,15 @@ class NGSSolution:
             return self.__getDomainValues(f)
         else:
             if not hasattr(coords, "__iter__"):
-                mip = self.__coordsToMIP(np.array([coords])/self._fem.scaling.getScaling("m"))
+                mip = self.__coordsToMIP(np.array([coords])/self._fem.geometries.scale)
                 return np.array([f(mi) for mi in mip])[0]
             else:
-                mip = self.__coordsToMIP(np.array(coords)/self._fem.scaling.getScaling("m"))
+                mip = self.__coordsToMIP(np.array(coords)/self._fem.geometries.scale)
                 return np.array([f(mi) for mi in mip])
 
     def __getDomainValues(self, f):
         domains, coords = self._meshInfo
-        mip = [self._mesh(*c) for c in coords/self._fem.scaling.getScaling("m")]
+        mip = [self._mesh(*c) for c in coords/self._fem.geometries.scale]
         data=np.array([f(mi) for mi in mip])
         res = []
         if coords.shape[1] < 3:

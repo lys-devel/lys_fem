@@ -43,7 +43,7 @@ class elasticity_test(FEMTestCase):
 
     def dirichlet_2d(self, lib):
         p = FEMProject(2)
-        p.scaling.set(length=100, temperature=1e2, time=10)
+        p.geometries.scale = 100
 
         # geometry
         p.geometries.add(geometry.Rect(0, 0, 0, 1, 1))
@@ -108,7 +108,6 @@ class elasticity_test(FEMTestCase):
 
     def tdep_1d(self, lib):
         p = FEMProject(1)
-        p.scaling.set(time=1e-2)
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 2, 0, 0))
@@ -145,9 +144,9 @@ class elasticity_test(FEMTestCase):
 
     def thermoelasticity_1d(self, lib):
         p = FEMProject(1)
-        p.scaling.set(length=1e-9, temperature=1e2, time=1e-12)
 
         # geometry
+        p.geometries.scale=1e-9
         p.geometries.add(geometry.Line(0, 0, 0, 0.1e-6, 0, 0))
         p.mesher.setRefinement(4)
 
@@ -182,9 +181,9 @@ class elasticity_test(FEMTestCase):
 
     def thermoelasticity_2d(self, lib):
         p = FEMProject(2)
-        p.scaling.set(length=1e-9, temperature=1e2, time=1e-12)
 
         # geometry
+        p.geometries.scale=1e-9
         p.geometries.add(geometry.Rect(0, 0, 0, 0.1e-6, 1e-6))
         p.mesher.setRefinement(2)
 
@@ -220,9 +219,9 @@ class elasticity_test(FEMTestCase):
         os.chdir("run1")
 
         p = FEMProject(1)
-        p.scaling.set(length=100, time=10)
 
         # geometry
+        p.geometries.scale=100
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
         p.geometries.add(geometry.Line(1, 0, 0, 2, 0, 0))
 
@@ -254,9 +253,9 @@ class elasticity_test(FEMTestCase):
         # second calculation
         os.chdir("../run2")
         p = FEMProject(1)
-        p.scaling.set(length=100, time=10)
 
         # geometry
+        p.geometries.scale=100
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
         p.geometries.add(geometry.Line(1, 0, 0, 2, 0, 0))
         p.mesher.setRefinement(3)

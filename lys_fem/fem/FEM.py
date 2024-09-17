@@ -1,5 +1,5 @@
 from .base import FEMObjectList
-from .parameters import Scaling, Parameters
+from .parameters import Parameters
 from .geometry import GeometryGenerator
 from .mesh import OccMesher
 from .material import Material, Materials
@@ -14,7 +14,6 @@ class FEMProject:
     def reset(self, dim=3):
         self._dim = dim
         self._parallel = False
-        self._scaling = Scaling()
         self._params = Parameters()
         self._geom = GeometryGenerator()
         self._geom.setParent(self)
@@ -26,7 +25,6 @@ class FEMProject:
 
     def saveAsDictionary(self, parallel=False):
         d = {"dimension": self._dim, "parallel": parallel}
-        d["scaling"] = self._scaling._norms
         d["parameters"] = self._params.saveAsDictionary()
         d["geometries"] = self._geom.saveAsDictionary()
         d["mesh"] = self._mesher.saveAsDictionary()
@@ -39,8 +37,6 @@ class FEMProject:
     def loadFromDictionary(self, d):
         self._dim = d.get("dimension", 3)
         self._parallel = d.get("parallel", False)
-        if "scaling" in d:
-            self._scaling = Scaling(*d["scaling"])
         if "parameters" in d:
             self._params = Parameters.loadFromDictionary(d["parameters"])
         if "geometries" in d:
@@ -74,10 +70,6 @@ class FEMProject:
     def parallel(self):
         return self._parallel
     
-    @property
-    def scaling(self):
-        return self._scaling
-
     @property
     def parameters(self):
         return self._params

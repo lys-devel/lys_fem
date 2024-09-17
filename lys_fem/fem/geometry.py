@@ -9,8 +9,9 @@ gmsh.option.setNumber("General.Terminal", 0)
 
 
 class GeometryGenerator(FEMObject):
-    def __init__(self, order=None):
+    def __init__(self, order=None, scale=1):
         super().__init__()
+        self.scale = scale
         if order is None:
             order = []
         self._order = []
@@ -75,7 +76,7 @@ class GeometryGenerator(FEMObject):
         m = self.generateGeometry()
         result = {}
         for c in self.commands:
-            result.update(c.generateParameters(m, self.fem.scaling.getScaling("m")))
+            result.update(c.generateParameters(m, self.scale))
         return result
 
     def geometryAttributes(self, dim):
@@ -87,12 +88,12 @@ class GeometryGenerator(FEMObject):
         return self._order
 
     def saveAsDictionary(self):
-        return {"geometries": [c.saveAsDictionary() for c in self.commands]}
+        return {"geometries": [c.saveAsDictionary() for c in self.commands], "scale": self.scale}
 
     @staticmethod
     def loadFromDictionary(d):
         order = [FEMGeometry.loadFromDictionary(dic) for dic in d.get("geometries", [])]
-        return GeometryGenerator(order)
+        return GeometryGenerator(order, scale=d.get("scale", 1))
 
 
 class TransGeom:
@@ -100,7 +101,10 @@ class TransGeom:
         self._fem = fem
 
     def __call__(self, value, unit="1"):
-        scale = self._fem.scaling.getScaling(unit)
+        if unit == "m":
+            scale = self._fem.geometries.scale
+        else:
+            scale = 1
         if isinstance(value, (list, tuple, np.ndarray)):
             return [self(v, unit) for v in value]
         elif isinstance(value, (float, int, sp.Float, sp.Integer)):

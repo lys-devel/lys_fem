@@ -11,7 +11,6 @@ from ..base import FEMTestCase
 class semiconductor_test(FEMTestCase):
     def stationary(self, lib):
         p = FEMProject(1)
-        p.scaling.set(length=1e-9, time=1e-12, mass=1e-27)
         scale = 20
 
         ni = 1e16
@@ -20,6 +19,7 @@ class semiconductor_test(FEMTestCase):
         T = 300
 
         # geometry
+        p.geometries.scale=1e-9
         p.geometries.add(geometry.Line(0, 0, 0, scale*1e-6, 0, 0))
         p.geometries.add(geometry.Line(scale*1e-6, 0, 0, scale*2e-6, 0, 0))
         p.mesher.setRefinement(8)
