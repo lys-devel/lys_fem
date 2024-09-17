@@ -271,7 +271,6 @@ class LLG_test(FEMTestCase):
 
         # solution
         sol = FEMSolution()
-        print(sol.eval("m_lam", data_number=25*factor)[0].data)
         res = sol.eval("m[0]", data_number=25*factor)
         for w in res:
             self.assert_array_almost_equal(w.data, np.zeros(w.data.shape), decimal=2)

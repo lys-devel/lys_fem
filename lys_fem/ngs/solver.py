@@ -59,9 +59,9 @@ class _Solution:
         n = 0
         for v in self._model.variables:
             if v.size == 1 and v.isScalar:
-                res.append(util.NGSFunction(x.components[n], v.name+pre+"0"))
+                res.append(util.NGSFunction(v.scale*x.components[n], v.name+pre+"0"))
             else:
-                res.append(util.NGSFunction(CoefficientFunction(tuple(x.components[n:n+v.size])), v.name+pre+"0"))
+                res.append(util.NGSFunction(v.scale*CoefficientFunction(tuple(x.components[n:n+v.size])), v.name+pre+"0"))
             n+=v.size           
         return res
 
@@ -111,7 +111,6 @@ class _Operator:
         if self._nl:
             with TaskManager():
                 self._blf.AssembleLinearization(x)
-                print(self._blf.mat[0,0])
                 return self._blf.mat.Inverse(self._fes.FreeDofs(), "pardiso")
         else:
             return self._inv

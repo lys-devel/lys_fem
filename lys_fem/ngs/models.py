@@ -45,9 +45,9 @@ class NGSVariable:
     @property
     def value(self):
         if self.size == 1:
-            return [self._init]
+            return [self._init/self._scale]
         else:
-            return [self._init[i] for i in range(self._init.shape[0])]
+            return [self._init[i]/self._scale for i in range(self._init.shape[0])]
     
     @property
     def velocity(self):
@@ -59,8 +59,8 @@ class NGSVariable:
     def setTnT(self, trial, test):
         if self.size==1 and self._isScalar:
             trial, test = trial[0], test[0]        
-        self._trial = util.TrialFunction(self.name, trial, scale=self._xscale)
-        self._test = util.TestFunction(test, name=self.name, scale=self._xscale)
+        self._trial = util.TrialFunction(self.name, trial, xscale=self._xscale, scale=self._scale)
+        self._test = util.TestFunction(test, name=self.name, xscale=self._xscale)
         return self._trial, self._test
 
     @property

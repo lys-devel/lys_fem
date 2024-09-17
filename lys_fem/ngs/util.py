@@ -440,24 +440,25 @@ class _Cross(_Oper):
 
 
 class TrialFunction(NGSFunction):
-    def __init__(self, name, obj, dt=0, grad=False, scale=1):
+    def __init__(self, name, obj, dt=0, grad=False, xscale=1, scale=1):
         super().__init__(obj, name="trial("+name+")")
         self._name = name
         self._dt = dt
         self._grad = grad
+        self._xscale = xscale
         self._scale = scale
 
     @property
     def t(self):
-        return TrialFunction(self._name, self._obj, self._dt+1, grad=self._grad, scale=self._scale)
+        return TrialFunction(self._name, self._obj, self._dt+1, grad=self._grad, xscale=self._xscale, scale=self._scale)
 
     @property
     def tt(self):
-        return TrialFunction(self._name, self._obj, self._dt+2, grad=self._grad, scale=self._scale)
+        return TrialFunction(self._name, self._obj, self._dt+2, grad=self._grad, xscale=self._xscale, scale=self._scale)
 
     @property    
     def grad(self):
-        return TrialFunction(self._name, self._obj, self._dt, grad=True, scale=self._scale)
+        return TrialFunction(self._name, self._obj, self._dt, grad=True, xscale=self._xscale, scale=self._scale)
     
     @property
     def value(self):
@@ -486,34 +487,35 @@ class TrialFunction(NGSFunction):
     def eval(self):
         if self._grad:
             if isinstance(self._obj, list):
-                return 1/self._scale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._obj]), dims=(ngsolve.grad(self._obj[0]).shape[0], len(self._obj))).TensorTranspose((1,0))
-            return 1/self._scale * ngsolve.grad(self._obj)
+                return self._scale/self._xscale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._obj]), dims=(ngsolve.grad(self._obj[0]).shape[0], len(self._obj))).TensorTranspose((1,0))
+            return self._scale/self._xscale * ngsolve.grad(self._obj)
         else:
             if isinstance(self._obj, list):
-                return ngsolve.CoefficientFunction(tuple([t for t in self._obj]))
-            return self._obj
+                return self._scale * ngsolve.CoefficientFunction(tuple([t for t in self._obj]))
+            return self._scale * self._obj
 
 
 class TestFunction(NGSFunction):
-    def __init__(self, obj, name, grad=False, scale=1):
+    def __init__(self, obj, name, grad=False, xscale=1, scale=1):
         super().__init__(obj, name="test("+name+")")
         self._grad = grad
         self._nam = name
+        self._xscale = xscale
         self._scale = scale
 
     @property    
     def grad(self):
-        return TestFunction(self._obj, "grad("+self._nam+")", grad=True, scale=self._scale)
+        return TestFunction(self._obj, "grad("+self._nam+")", grad=True, xscale=self._xscale, scale=self._scale)
     
     def eval(self):
         if self._grad:
             if isinstance(self._obj, list):
-                return 1/self._scale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._obj]), dims=(ngsolve.grad(self._obj[0]).shape[0], len(self._obj))).TensorTranspose((1,0))
-            return 1/self._scale * ngsolve.grad(self._obj)
+                return self._scale/self._xscale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._obj]), dims=(ngsolve.grad(self._obj[0]).shape[0], len(self._obj))).TensorTranspose((1,0))
+            return self._scale/self._xscale * ngsolve.grad(self._obj)
         else:
             if isinstance(self._obj, list):
-                return ngsolve.CoefficientFunction(tuple([t for t in self._obj]))
-            return self._obj
+                return self._scale*ngsolve.CoefficientFunction(tuple([t for t in self._obj]))
+            return self._scale*self._obj
         
     def __hash__(self):
         return hash(self._name + "__" + str(self._grad))
