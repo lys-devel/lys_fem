@@ -57,12 +57,12 @@ class FEMObjectList(list, FEMObject):
 
 
 class FEMCoefficient(dict):
-    def __init__(self, value={}, geomType="Domain", scale=1, xscale=1, vars={}):
+    def __init__(self, value={}, geomType="Domain", xscale=1, vars={}, default=None):
         super().__init__()
         self._type = geomType
-        self._scale = scale
         self._xscale = xscale
         self._vars = vars
+        self._default = default
         for key, val in value.items():
             self[key] = val
 
@@ -71,11 +71,33 @@ class FEMCoefficient(dict):
         return self._type
       
     @property
-    def xscale(self):
-        return self._xscale
+    def default(self):
+        return self._default
 
-    def __setitem__(self, key, value):
-        super().__setitem__(key, self.__parseItem(value))
+    def subs(self, dic):
+        for key, value in self.items():
+            self[key] = self.__subs(value, dic)
+
+    def __subs(self, value, dic):
+        if isinstance(value, (list, tuple, np.ndarray)):
+            return [self.__subs(v) for v in value]
+        elif isinstance(value, (int, float, sp.Integer, sp.Float)):
+            return value
+        elif isinstance(value, sp.Basic):
+            return value.subs(value, dic)
+        else:
+            return value
+
+    def isSympy(self):
+        return any([self.__isSympy(value) for key, value in self.items()])
+
+    def __isSympy(self, value):
+        if isinstance(value, (list, tuple, np.ndarray)):
+            return any([self.__isSympy(v) for v in value])
+        return isinstance(value, sp.Basic)
+
+    #def __setitem__(self, key, value):
+    #    super().__setitem__(key, self.__parseItem(value))
 
     def __parseItem(self, value):
         if isinstance(value, (list, tuple, np.ndarray)):

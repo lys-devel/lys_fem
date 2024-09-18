@@ -110,7 +110,7 @@ class InfiniteVolume(FEMGeometry):
                 if model.isInside(dim, tag, [0, 0, -(c+C)/2]):
                     ids[5] = grp
         J = {ids[i]: self._constructJ(i) for i in range(6)}
-        return {"J": FEMCoefficient(J, xscale=scale)}
+        return {"J": FEMCoefficient(J, xscale=scale, default=np.eye(3))}
 
     def _constructJ(self, domain):
         a,b,c,A,B,C = np.array(self.args)
@@ -235,7 +235,7 @@ class InfinitePlane(FEMGeometry):
                 if model.isInside(dim, tag, [0, -(b+B)/2, 0]):
                     ids[3] = grp
         J = {ids[i]: self._constructJ(i) for i in range(4)}
-        return {"J": FEMCoefficient(J, xscale=scale)}
+        return {"J": FEMCoefficient(J, xscale=scale, default=np.eye(2))}
 
     def _constructJ(self, domain):
         a,b,A,B = self.args

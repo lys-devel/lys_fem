@@ -11,14 +11,11 @@ from ..base import FEMTestCase
 
 class testProblems_test(FEMTestCase):
     def linear(self, lib):
-        a = sp.symbols("a")
-
         p = FEMProject(1)
-        p.parameters[a] = 1
 
         # geometry
-        p.geometries.add(geometry.Line(0, 0, 0, a, 0, 0))
-        p.geometries.add(geometry.Line(a, 0, 0, 2, 0, 0))
+        p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
+        p.geometries.add(geometry.Line(1, 0, 0, 2, 0, 0))
 
         # model: boundary and initial conditions
         model = test.LinearTestModel()

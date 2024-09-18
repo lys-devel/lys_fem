@@ -27,14 +27,18 @@ def generateDirichletCondition(model):
     return list(bdr_dir.values())
 
 
-def generateCoefficient(coef, mesh=None, geom="domain", **kwargs):
+def generateCoefficient(coef, mesh=None):
     if isinstance(coef, FEMCoefficient):
         geom = coef.geometryType.lower()
         coefs = {geom+str(key): generateCoefficient(value) for key, value in coef.items()}
-        if geom=="domain":
-            return mesh.MaterialCF(coefs, **kwargs)
+        if coef.default is not None:
+            default = generateCoefficient(coef.default)
         else:
-            return mesh.BoundaryCF(coefs, **kwargs)
+            default = None
+        if geom=="domain":
+            return mesh.MaterialCF(coefs, default=default)
+        else:
+            return mesh.BoundaryCF(coefs, default=default)
     elif isinstance(coef, (list, tuple, np.ndarray)):
         return ngsolve.CoefficientFunction(tuple([generateCoefficient(c) for c in coef]), dims=np.shape(coef))
     elif isinstance(coef, (int, float, sp.Integer, sp.Float)):
@@ -50,14 +54,12 @@ def generateCoefficient(coef, mesh=None, geom="domain", **kwargs):
         return res
 
 
-def coef(coef, mesh=None, geom="domain", name=None, default=None, **kwargs):
+def coef(coef, mesh=None, name=None):
     if coef == 0:
         return NGSFunction()
     if name is None:
         name = str(coef)
-    if default is not None and not isinstance(default, ngsolve.CoefficientFunction):
-        default = generateCoefficient(default)
-    obj = generateCoefficient(coef, mesh, geom, default=default, **kwargs)
+    obj = generateCoefficient(coef, mesh)
     return NGSFunction(obj, name=name)
 
 
