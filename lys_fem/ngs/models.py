@@ -1,4 +1,5 @@
 import ngsolve
+from lys_fem.fem import FEMCoefficient
 from . import util
 
 modelList = {}
@@ -42,19 +43,19 @@ class NGSVariable:
     def scale(self):
         return self._scale
     
-    @property
-    def value(self):
+    def value(self, vars):
+        coef = vars.eval(self._init)/self._scale
         if self.size == 1:
-            return [self._init/self._scale]
+            return [coef]
         else:
-            return [self._init[i]/self._scale for i in range(self._init.shape[0])]
+            return [coef[i] for i in range(coef.shape[0])]
     
-    @property
-    def velocity(self):
+    def velocity(self, vars):
+        coef = vars.eval(self._vel)/self._scale
         if self.size == 1:
-            return [self._vel]
+            return [coef]
         else:
-            return [self._vel[i] for i in range(self._vel.shape[0])]
+            return [coef[i] for i in range(coef.shape[0])]
 
     def setTnT(self, trial, test):
         if self.size==1 and self._isScalar:
@@ -85,7 +86,7 @@ class NGSModel:
     def addVariable(self, name, vdim, dirichlet="auto", initialValue="auto", initialVelocity=None, region=None, order=1, isScalar=False):
         initialValue = self.__initialValue(vdim, initialValue)
         if initialVelocity is None:
-            initialVelocity = util.generateCoefficient([0]*vdim)
+            initialVelocity = FEMCoefficient([0]*vdim)
 
         kwargs = {"order": order}
         if region is not None:
@@ -105,7 +106,7 @@ class NGSModel:
 
     def __initialValue(self, vdim, initialValue):
         if initialValue is None:
-            return util.generateCoefficient([0]*vdim)
+            return FEMCoefficient([0]*vdim)
         if initialValue != "auto":
             return initialValue
         init = None
@@ -114,9 +115,8 @@ class NGSModel:
             if init is None:
                 init = c
             else:
-                init.update(c)
-        initialValue = util.generateCoefficient(init, self._mesh)
-        return initialValue
+                init.value.update(c.value)
+        return init
 
     def coef(self, cls, name="Undefined"):
         c = self._model.boundaryConditions.coef(cls)
@@ -172,8 +172,8 @@ class CompositeModel:
         return wf
 
     def initialValue(self, use_a=True):
-        x = util.GridFunction(self._fes, [c for v in self.variables for c in v.value])
-        v = util.GridFunction(self._fes, [c for v in self.variables for c in v.velocity])
+        x = util.GridFunction(self._fes, [c for v in self.variables for c in v.value(self._mat)])
+        v = util.GridFunction(self._fes, [c for v in self.variables for c in v.velocity(self._mat)])
         a = None
         if use_a:
             fes = self.finiteElementSpace

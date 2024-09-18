@@ -15,7 +15,7 @@ class LLG_test(FEMTestCase):
         p = FEMProject(1)
 
         # geometry
-        p.geometries.scale=1e-9
+        p.geometries.scale=1e-6
         p.geometries.add(geometry.Line(0, 0, 0, 1e-6, 0, 0))
         p.geometries.add(geometry.Line(1e-6, 0, 0, 2e-6, 0, 0))
         p.mesher.setRefinement(4)
@@ -51,6 +51,8 @@ class LLG_test(FEMTestCase):
 
         # solution
         sol = FEMSolution()
+        m = sol.eval("m[2]", data_number=0)
+        print(m[0].data)
         for i in range(1,n+1):
             m = sol.eval("m[0]**2+m[1]**2+m[2]**2", data_number=i)
             self.assert_array_almost_equal(m, 1, decimal=4)

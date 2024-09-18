@@ -13,10 +13,6 @@ def prod(args):
     return res
 
 
-def generateGeometry(region):
-    return  "|".join([region.geometryType.lower() + str(r) for r in region])
-
-
 def generateDirichletCondition(model):
     conditions = model.boundaryConditions.get(DirichletBoundary)
     bdr_dir = {i: [] for i in range(model.variableDimension())}
@@ -27,10 +23,14 @@ def generateDirichletCondition(model):
     return list(bdr_dir.values())
 
 
-def generateCoefficient(coef, mesh=None):
+def generateCoefficient(coef, mesh=None, geom="Domain"):
+    if isinstance(coef, dict):
+        return generateCoefficient(FEMCoefficient(coef, geom), mesh)
     if isinstance(coef, FEMCoefficient):
         geom = coef.geometryType.lower()
-        coefs = {geom+str(key): generateCoefficient(value) for key, value in coef.items()}
+        if geom == "const":
+            return generateCoefficient(coef.value)
+        coefs = {geom+str(key): generateCoefficient(value) for key, value in coef.value.items() if key != "default"}
         if coef.default is not None:
             default = generateCoefficient(coef.default)
         else:

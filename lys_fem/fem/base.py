@@ -56,61 +56,39 @@ class FEMObjectList(list, FEMObject):
         item.setParent(self)
 
 
-class FEMCoefficient(dict):
-    def __init__(self, value={}, geomType="Domain", xscale=1, vars={}, default=None):
+class FEMCoefficient:
+    """
+    Sympy-based coefficient object for FEM.
+    value is sympy expression, list of sympy expression, or dict of them.
+    """
+    def __init__(self, value=0, geomType="Domain"):
         super().__init__()
+        if not isinstance(value, dict):
+            geomType = "Const"
         self._type = geomType
-        self._xscale = xscale
-        self._vars = vars
-        self._default = default
-        for key, val in value.items():
-            self[key] = val
+        self._value = value
+
+    @property
+    def value(self):
+        return self._value
 
     @property
     def geometryType(self):
         return self._type
-      
+
     @property
     def default(self):
-        return self._default
-
-    def subs(self, dic):
-        for key, value in self.items():
-            self[key] = self.__subs(value, dic)
-
-    def __subs(self, value, dic):
-        if isinstance(value, (list, tuple, np.ndarray)):
-            return [self.__subs(v) for v in value]
-        elif isinstance(value, (int, float, sp.Integer, sp.Float)):
-            return value
-        elif isinstance(value, sp.Basic):
-            return value.subs(value, dic)
-        else:
-            return value
-
-    def isSympy(self):
-        return any([self.__isSympy(value) for key, value in self.items()])
-
-    def __isSympy(self, value):
-        if isinstance(value, (list, tuple, np.ndarray)):
-            return any([self.__isSympy(v) for v in value])
-        return isinstance(value, sp.Basic)
-
-    #def __setitem__(self, key, value):
-    #    super().__setitem__(key, self.__parseItem(value))
-
-    def __parseItem(self, value):
-        if isinstance(value, (list, tuple, np.ndarray)):
-            return [self.__parseItem(v) for v in value]
-        elif isinstance(value, (int, float, sp.Integer, sp.Float)):
-            return value
-        elif isinstance(value, sp.Basic):
-            xs, ys, zs = sp.symbols("x_scaled,y_scaled,z_scaled")
-            val = value.subs({"x":xs*self._xscale, "y":ys*self._xscale, "z":zs*self._xscale})
-            return val.subs(self._vars)
-        else:
-            return value
-
+        if not isinstance(self._value, dict):
+            return None
+        if "default" not in self._value:
+            return None
+        return self._value["default"]
+    
+    def __getitem__(self, index):
+        if isinstance(self._value, dict):
+            return FEMCoefficient({key: value[index] for key, value in self._value.items()}, geomType=self._type)
+        return FEMCoefficient(self.value[index], geomType=self._type)
+      
 
 def strToExpr(x):
     from .conditions import CalculatedResult
