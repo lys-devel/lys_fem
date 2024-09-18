@@ -10,7 +10,7 @@ def addNGSModel(name, model):
 
 
 def generateModel(fem, mesh, mat):
-    return CompositeModel(mesh, [modelList[m.className](m, mesh) for m in fem.models], mat)
+    return CompositeModel(mesh, [modelList[m.className](m, mesh, mat) for m in fem.models], mat)
 
 
 class NGSVariable:
@@ -43,15 +43,17 @@ class NGSVariable:
     def scale(self):
         return self._scale
     
-    def value(self, vars):
-        coef = vars.eval(self._init)/self._scale
+    @property
+    def value(self):
+        coef = self._init/self._scale
         if self.size == 1:
             return [coef]
         else:
             return [coef[i] for i in range(coef.shape[0])]
     
-    def velocity(self, vars):
-        coef = vars.eval(self._vel)/self._scale
+    @property
+    def velocity(self):
+        coef = self._vel/self._scale
         if self.size == 1:
             return [coef]
         else:
@@ -74,9 +76,10 @@ class NGSVariable:
 
 
 class NGSModel:
-    def __init__(self, model, mesh, addVariables=False, order=1):
+    def __init__(self, model, mesh, vars, addVariables=False, order=1):
         self._model = model
         self._mesh = mesh
+        self._funcs = vars
         self._vars = []
 
         if addVariables:
@@ -84,9 +87,9 @@ class NGSModel:
                 self.addVariable(eq.variableName, eq.variableDimension, region=eq.geometries, order=order, isScalar=eq.isScalar)
 
     def addVariable(self, name, vdim, dirichlet="auto", initialValue="auto", initialVelocity=None, region=None, order=1, isScalar=False):
-        initialValue = self.__initialValue(vdim, initialValue)
+        initialValue = self._funcs.eval(self.__initialValue(vdim, initialValue))
         if initialVelocity is None:
-            initialVelocity = FEMCoefficient([0]*vdim)
+            initialVelocity = self._funcs.eval(FEMCoefficient([0]*vdim))
 
         kwargs = {"order": order}
         if region is not None:
@@ -109,31 +112,23 @@ class NGSModel:
             return FEMCoefficient([0]*vdim)
         if initialValue != "auto":
             return initialValue
-        init = None
-        for type in self._model.initialConditionTypes:
-            c = self._model.initialConditions.coef(type)
-            if init is None:
-                init = c
-            else:
-                init.value.update(c.value)
+        init = self._model.initialConditions.coef(self._model.initialConditionTypes[0])
+        for type in self._model.initialConditionTypes[1:]:
+            init.value.update(self._model.initialConditions.coef(type).value)
         return init
 
     def coef(self, cls, name="Undefined"):
         c = self._model.boundaryConditions.coef(cls)
         if c is not None:
-            return util.coef(c, self.mesh, name=name)
+            return util.NGSFunction(self._funcs.eval(c), name=name)
         c = self._model.domainConditions.coef(cls)
         if c is not None:
-            return util.coef(c, self.mesh, name=name)
+            return util.NGSFunction(self._funcs.eval(c), name=name)
         return util.NGSFunction()
 
     @property
     def variables(self):
         return self._vars
-
-    @property
-    def mesh(self):
-        return self._mesh
 
     @property
     def name(self):
@@ -172,8 +167,8 @@ class CompositeModel:
         return wf
 
     def initialValue(self, use_a=True):
-        x = util.GridFunction(self._fes, [c for v in self.variables for c in v.value(self._mat)])
-        v = util.GridFunction(self._fes, [c for v in self.variables for c in v.velocity(self._mat)])
+        x = util.GridFunction(self._fes, [c for v in self.variables for c in v.value])
+        v = util.GridFunction(self._fes, [c for v in self.variables for c in v.velocity])
         a = None
         if use_a:
             fes = self.finiteElementSpace

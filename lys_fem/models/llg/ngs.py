@@ -2,8 +2,8 @@ from lys_fem.ngs import NGSModel, grad, dx
 from . import ExternalMagneticField, Demagnetization, UniaxialAnisotropy, GilbertDamping
 
 class NGSLLGModel(NGSModel):
-    def __init__(self, model, mesh, order=2):
-        super().__init__(model, mesh)
+    def __init__(self, model, mesh, vars, order=2):
+        super().__init__(model, mesh, vars)
         self._model = model
 
         for eq in model.equations:

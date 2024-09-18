@@ -2,8 +2,8 @@ from lys_fem.ngs import NGSModel, grad, dx, util
 
 
 class NGSLinearTestModel(NGSModel):
-    def __init__(self, model, mesh):
-        super().__init__(model, mesh, addVariables=True)
+    def __init__(self, model, mesh, vars):
+        super().__init__(model, mesh, vars, addVariables=True)
         self._model = model
 
     def weakform(self, vars, mat):
@@ -15,8 +15,8 @@ class NGSLinearTestModel(NGSModel):
 
 
 class NGSNonlinearTestModel(NGSModel):
-    def __init__(self, model, mesh):
-        super().__init__(model, mesh, addVariables=True)
+    def __init__(self, model, mesh, vars):
+        super().__init__(model, mesh, vars, addVariables=True)
         self._model = model
 
     def weakform(self, vars, mat):
@@ -28,8 +28,8 @@ class NGSNonlinearTestModel(NGSModel):
     
 
 class NGSTwoVariableTestModel(NGSModel):
-    def __init__(self, model, mesh):
-        super().__init__(model, mesh)
+    def __init__(self, model, mesh, vars):
+        super().__init__(model, mesh, vars)
         self._model = model
 
         init = self._model.initialConditions.coef(self._model.initialConditionTypes[0])

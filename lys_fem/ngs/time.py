@@ -32,8 +32,8 @@ class NewmarkBeta:
         b, g = self._params
         d = {}
         for v, x0, v0, a0 in zip(model.variables, sols.X(), sols.V(), sols.A()):
-            d[v.trial.t] = (v.trial - x0)*util.coef(g/b)*dti + v0*util.coef(1-g/b) + a0*util.coef(1-0.5*g/b)/dti
-            d[v.trial.tt] = (v.trial - x0)*util.coef(1/b)*dti*dti - v0*util.coef(1/b)*dti + a0*util.coef(1-0.5/b)
+            d[v.trial.t] = (v.trial - x0)*(g/b)*dti + v0*(1-g/b) + a0*(1-0.5*g/b)/dti
+            d[v.trial.tt] = (v.trial - x0)*(1/b)*dti*dti - v0*(1/b)*dti + a0*(1-0.5/b)
         wf = wf.replace(d)
         return wf
         

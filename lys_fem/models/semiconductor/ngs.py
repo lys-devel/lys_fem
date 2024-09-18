@@ -2,8 +2,8 @@ from lys_fem.ngs import NGSModel, util, grad, dx
 
 
 class NGSSemiconductorModel(NGSModel):
-    def __init__(self, model, mesh, order=2):
-        super().__init__(model, mesh)
+    def __init__(self, model, mesh, vars, order=2):
+        super().__init__(model, mesh, vars)
         self._model = model
 
         init = self._model.initialConditions.coef(self._model.initialConditionTypes[0])

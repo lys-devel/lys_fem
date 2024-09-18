@@ -3,7 +3,6 @@ import numpy as np
 
 import ngsolve
 
-from lys_fem.fem import FEMCoefficient, CalculatedResult
 from ..models.common import DirichletBoundary
 
 def prod(args):
@@ -21,46 +20,6 @@ def generateDirichletCondition(model):
             if check:
                 bdr_dir[axis].extend(b.geometries)
     return list(bdr_dir.values())
-
-
-def generateCoefficient(coef, mesh=None, geom="Domain"):
-    if isinstance(coef, dict):
-        return generateCoefficient(FEMCoefficient(coef, geom), mesh)
-    if isinstance(coef, FEMCoefficient):
-        geom = coef.geometryType.lower()
-        if geom == "const":
-            return generateCoefficient(coef.value)
-        coefs = {geom+str(key): generateCoefficient(value) for key, value in coef.value.items() if key != "default"}
-        if coef.default is not None:
-            default = generateCoefficient(coef.default)
-        else:
-            default = None
-        if geom=="domain":
-            return mesh.MaterialCF(coefs, default=default)
-        else:
-            return mesh.BoundaryCF(coefs, default=default)
-    elif isinstance(coef, (list, tuple, np.ndarray)):
-        return ngsolve.CoefficientFunction(tuple([generateCoefficient(c) for c in coef]), dims=np.shape(coef))
-    elif isinstance(coef, (int, float, sp.Integer, sp.Float)):
-        return ngsolve.CoefficientFunction(coef)
-    elif isinstance(coef, ngsolve.CoefficientFunction):
-        return coef
-    elif isinstance(coef, CalculatedResult):
-        return coef.solution.obj.coef(coef.expression, coef.index)
-    else:
-        def _absolute(x):
-            return x.Norm()
-        res = sp.lambdify(sp.symbols("x_scaled,y_scaled,z_scaled"), coef, modules=[{"abs": _absolute}, ngsolve])(ngsolve.x,ngsolve.y,ngsolve.z)
-        return res
-
-
-def coef(coef, mesh=None, name=None):
-    if coef == 0:
-        return NGSFunction()
-    if name is None:
-        name = str(coef)
-    obj = generateCoefficient(coef, mesh)
-    return NGSFunction(obj, name=name)
 
 
 def grad(f):
@@ -94,9 +53,12 @@ class GridFunction(ngsolve.GridFunction):
 
 class NGSFunction:
     def __init__(self, obj=None, name="Undefined", grad=False):
-        if obj is None:
+        if obj is None or obj == 0:
             self._obj = None
             self._name = "Zero"
+        elif isinstance(obj, (int, float, complex)):
+            self._obj = ngsolve.CoefficientFunction(obj)
+            self._name = name
         else:
             self._obj = obj
             self._name = name
@@ -111,7 +73,7 @@ class NGSFunction:
     
     def __mul__(self, other):
         if isinstance(other, (int, float, complex)):
-            other = coef(other)
+            other = NGSFunction(other)
         if self.valid and other.valid:
             return _Mul(self, other)
         else:
@@ -119,7 +81,7 @@ class NGSFunction:
 
     def __truediv__(self, other):
         if isinstance(other, (int, float, complex)):
-            other = coef(other)
+            other = NGSFunction(other)
         if self.valid and other.valid:
             return _Mul(self, other, "/")
         else:
@@ -127,7 +89,7 @@ class NGSFunction:
         
     def __add__(self, other):
         if isinstance(other, (int, float, complex)):
-            other = coef(other)
+            other = NGSFunction(other)
         if not self.valid:
             return other
         elif not other.valid:
@@ -137,9 +99,9 @@ class NGSFunction:
 
     def __sub__(self, other):
         if isinstance(other, (int, float, complex)):
-            other = coef(other)
+            other = NGSFunction(other)
         if not self.valid:
-            return coef(-1)*other
+            return (-1)*other
         elif not other.valid:
             return self
         else:
@@ -223,7 +185,7 @@ class NGSFunction:
             else:
                 return self._obj
         else:
-            return generateCoefficient(0)*ngsolve.dx
+            return ngsolve.CoefficientFunction(0)*ngsolve.dx
         
     @property
     def isNonlinear(self):
@@ -407,7 +369,8 @@ class _Cross(_Oper):
         eijk = np.zeros((3, 3, 3))
         eijk[0, 1, 2] = eijk[1, 2, 0] = eijk[2, 0, 1] = 1
         eijk[0, 2, 1] = eijk[2, 1, 0] = eijk[1, 0, 2] = -1
-        eijk = generateCoefficient(eijk.tolist())
+        eijk = tuple([tuple([tuple(ek) for ek in ejk]) for ejk in eijk])
+        eijk = ngsolve.CoefficientFunction(eijk, dims=(3,3,3))
 
         v1, v2 = self._obj[0].eval(), self._obj[1].eval()
         # Create expression
@@ -548,6 +511,7 @@ class DifferentialSymbol(NGSFunction):
 
     def eval(self):
         return _DMul(self._obj, self._scale)
+
 
 class _DMul:
     def __init__(self, obj, scale):

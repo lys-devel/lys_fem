@@ -3,8 +3,8 @@ from .. import Source
 
 
 class NGSPoissonModel(NGSModel):
-    def __init__(self, model, mesh, coef=None):
-        super().__init__(model, mesh, addVariables=True, order=2)
+    def __init__(self, model, mesh, vars, coef=None):
+        super().__init__(model, mesh, vars, addVariables=True, order=2)
         self._model = model
         self._coef = coef
 
