@@ -21,17 +21,9 @@ class ExternalMagneticField(DomainCondition):
 class UniaxialAnisotropy(DomainCondition):
     className = "UniaxialAnisotropy"
 
-    @classmethod
-    def default(cls, model):
-        return cls()
-
 
 class GilbertDamping(DomainCondition):
     className = "GilbertDamping"
-
-    @classmethod
-    def default(cls, model):
-        return cls()
 
 
 class Demagnetization(DomainCondition):
@@ -39,10 +31,6 @@ class Demagnetization(DomainCondition):
 
     def __init__(self, values="phi", *args, **kwargs):
         super().__init__(values=values, *args, **kwargs)
-
-    @classmethod
-    def default(cls, model):
-        return Demagnetization()
 
     def widget(self, fem, canvas):
         from lys.Qt import QtWidgets

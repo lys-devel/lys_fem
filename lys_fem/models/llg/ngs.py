@@ -32,14 +32,13 @@ class NGSLLGModel(NGSModel):
                     wf -= alpha * m0.cross(m).dot(test_m)*dx
 
             B = self.coef(ExternalMagneticField, "B")
-            wf += g*m.cross(B).dot(test_m)*dx
-
+            
             if self._model.domainConditions.have(UniaxialAnisotropy):
                 u, Ku = mat["u_Ku"], mat["Ku"]
                 for uni in self._model.domainConditions.get(UniaxialAnisotropy):
                     #region = self._mesh.Materials(util.generateGeometry(uni.geometries))
-                    B = 2*Ku/Ms*m.dot(u)*u
-                    wf += g*m.cross(B).dot(test_m)*dx
+                    B += 2*Ku/Ms*m.dot(u)*u
+            wf += g*m.cross(B).dot(test_m)*dx
 
             if self._model.domainConditions.have(Demagnetization):
                 for demag in self._model.domainConditions.get(Demagnetization):

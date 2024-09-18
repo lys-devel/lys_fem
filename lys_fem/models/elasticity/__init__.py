@@ -2,7 +2,7 @@ from lys_fem import addMaterialParameter, addModel
 from lys_fem.mf import addMFEMModel
 from lys_fem.ngs import addNGSModel
 
-from ..common import DirichletBoundary
+from ..common import DirichletBoundary, InitialCondition
 from .material import ElasticParameters, ThermalExpansionParameters, DeformationPotentialParameters
 from .model import ElasticModel, ChristffelEquation, InitialCondition, ThermoelasticStress, DeformationPotential
 from .mfem import MFEMElasticModel

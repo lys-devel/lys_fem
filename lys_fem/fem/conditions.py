@@ -111,7 +111,7 @@ class ConditionBase(FEMObject):
 
     @classmethod
     def default(cls, model):
-        raise NotImplementedError
+        raise cls()
 
     def widget(self, fem, canvas, title="Value", computed=False, shape=None):
         from lys_fem.gui import ConditionWidget

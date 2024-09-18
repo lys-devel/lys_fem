@@ -1,6 +1,5 @@
 from lys_fem import FEMModel, Equation, DomainCondition
-from .. import common
-from . import DirichletBoundary
+from . import InitialCondition, DirichletBoundary
 
 import numpy as np
 from lys.Qt import QtWidgets
@@ -13,21 +12,12 @@ class ChristffelEquation(Equation):
         super().__init__(varName, **kwargs)
 
 
-class InitialCondition(common.InitialCondition):
-    unit = "m"
-
-
 class ThermoelasticStress(DomainCondition):
     className = "ThermoelasticStress"
-    unit = "K"
 
     def __init__(self, values=300, varName="T", *args, **kwargs):
         super().__init__(values=values, *args, **kwargs)
         self.varName = varName
-
-    @classmethod
-    def default(cls, model):
-        return ThermoelasticStress()
 
     def widget(self, fem, canvas):
         return ThermoelasticWidget(self, fem, canvas, "Ref. Temperature T0 (K)")
@@ -39,10 +29,6 @@ class DeformationPotential(DomainCondition):
     def __init__(self, varNames=["n_e", "n_h"], *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.varNames = varNames
-
-    @classmethod
-    def default(cls, model):
-        return DeformationPotential()
 
     def widget(self, fem, canvas):
         return DeformationPotentialWidget(self, fem, canvas)

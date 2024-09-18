@@ -146,7 +146,6 @@ class SolverBase:
         self._model = model
         self.__prepareDirectory(dirname)
 
-        self._solver = _NewtonSolver()
         self._integ = self.__prepareIntegrator(obj)
         self._sols = _Solution(model, self._integ.use_a)
         self._ops = [_Operator(model, self._integ, self._sols, step.variables) for step in obj.steps]
@@ -163,7 +162,7 @@ class SolverBase:
                 self._mesh.SetDeformation(gf)
                 print("deformation set")
             op.update(dti)
-            self._x.vec.data = self._solver.solve(op, self._x.vec.CreateVector(copy=True))
+            self._x.vec.data = newton(op, self._x.vec.CreateVector(copy=True))
             self._sols.update(self._integ.updateSolutions(self._x, self._sols, op.dti))
         return self.__calcDifference(self._x.vec, x0)
 
@@ -250,23 +249,19 @@ class TimeDependentSolver(SolverBase):
             t = t + dt
 
 
-class _NewtonSolver:
-    def __init__(self, max_iter=30):
-        self._max_iter = max_iter
-
-    def solve(self, F, x, eps=1e-5):
-        if not F.isNonlinear:
-            self._max_iter=1
-        dx = x.CreateVector()
-        for i in range(self._max_iter):
-            dx.data = F.Jacobian(x)*F(x)
-            x -= dx
-            R = np.sqrt(np.divide(dx.InnerProduct(dx), x.InnerProduct(x)))
-            print(R)
-            if R < eps:
-                if i!=0:
-                    mpi.print_("[Newton solver] Converged in", i, "steps.")
-                return x
-        if self._max_iter !=1:
-            mpi.print_("[Newton solver] NOT Converged in", i, "steps.")
-        return x
+def newton(F, x, eps=1e-5, max_iter=30):
+    if not F.isNonlinear:
+        max_iter=1
+    dx = x.CreateVector()
+    for i in range(max_iter):
+        dx.data = F.Jacobian(x)*F(x)
+        x -= dx
+        R = np.sqrt(np.divide(dx.InnerProduct(dx), x.InnerProduct(x)))
+        #print(R)
+        if R < eps:
+            if i!=0:
+                mpi.print_("[Newton solver] Converged in", i, "steps.")
+            return x
+    if max_iter !=1:
+        mpi.print_("[Newton solver] NOT Converged in", i, "steps.")
+    return x
