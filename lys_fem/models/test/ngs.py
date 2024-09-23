@@ -1,5 +1,5 @@
-from lys_fem.ngs import NGSModel, grad, dx, util
-
+from lys_fem.ngs import NGSModel, grad, dx
+from . import DirichletBoundary, InitialCondition
 
 class NGSLinearTestModel(NGSModel):
     def __init__(self, model, mesh, vars):
@@ -32,12 +32,14 @@ class NGSTwoVariableTestModel(NGSModel):
         super().__init__(model, mesh, vars)
         self._model = model
 
-        init = self._model.initialConditions.coef(self._model.initialConditionTypes[0])
-        dirichlet = util.generateDirichletCondition(self._model)
+        init = self._model.initialConditions.coef(InitialCondition)
+        dirichlet = self._model.boundaryConditions.coef(DirichletBoundary)
+        if dirichlet is None:
+            dirichlet = ["auto", "auto"]
 
         for eq in model.equations:
-            self.addVariable("x", 1, [dirichlet[0]], init[0], region = eq.geometries, order=1)
-            self.addVariable("y", 1, [dirichlet[1]], init[1], region = eq.geometries, order=1)
+            self.addVariable("x", 1, dirichlet[0], init[0], region = eq.geometries, order=1)
+            self.addVariable("y", 1, dirichlet[1], init[1], region = eq.geometries, order=1)
 
     def weakform(self, vars, mat):
         wf = 0

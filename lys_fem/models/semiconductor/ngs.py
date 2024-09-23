@@ -1,4 +1,5 @@
-from lys_fem.ngs import NGSModel, util, grad, dx
+from lys_fem.ngs import NGSModel, grad, dx
+from . import DirichletBoundary, InitialCondition
 
 
 class NGSSemiconductorModel(NGSModel):
@@ -6,12 +7,14 @@ class NGSSemiconductorModel(NGSModel):
         super().__init__(model, mesh, vars)
         self._model = model
 
-        init = self._model.initialConditions.coef(self._model.initialConditionTypes[0])
-        dirichlet = util.generateDirichletCondition(self._model)
+        init = self._model.initialConditions.coef(InitialCondition)
+        dirichlet = self._model.boundaryConditions.coef(DirichletBoundary)
+        if dirichlet is None:
+            dirichlet = ["auto", "auto"]
 
         for eq in model.equations:
-            self.addVariable(eq.variableName+"_e", 1, [dirichlet[0]], init[0], region = eq.geometries, order=order, isScalar=True)
-            self.addVariable(eq.variableName+"_h", 1, [dirichlet[1]], init[1], region = eq.geometries, order=order, isScalar=True)
+            self.addVariable(eq.variableName+"_e", 1, dirichlet[0], init[0], region = eq.geometries, order=order, isScalar=True)
+            self.addVariable(eq.variableName+"_h", 1, dirichlet[1], init[1], region = eq.geometries, order=order, isScalar=True)
 
     def weakform(self, vars, mat):
         mu_n, mu_p, q, kB, Nd, Na = mat["mu_e"], mat["mu_h"], mat["q"], mat["k_B"], mat["N_d"], mat["N_a"]

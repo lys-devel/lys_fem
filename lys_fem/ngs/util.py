@@ -1,25 +1,11 @@
-import sympy as sp
 import numpy as np
-
 import ngsolve
-
-from ..models.common import DirichletBoundary
 
 def prod(args):
     res = args[0]
     for arg in args[1:]:
         res = res * arg
     return res
-
-
-def generateDirichletCondition(model):
-    conditions = model.boundaryConditions.get(DirichletBoundary)
-    bdr_dir = {i: [] for i in range(model.variableDimension())}
-    for b in conditions:
-        for axis, check in enumerate(b.values):
-            if check:
-                bdr_dir[axis].extend(b.geometries)
-    return list(bdr_dir.values())
 
 
 def grad(f):

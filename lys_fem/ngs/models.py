@@ -1,6 +1,8 @@
 import ngsolve
 from lys_fem.fem import FEMCoefficient
 from . import util
+from ..models.common import DirichletBoundary
+
 
 modelList = {}
 
@@ -97,7 +99,8 @@ class NGSModel:
                 kwargs["definedon"] = "|".join([region.geometryType.lower() + str(r) for r in region])
 
         if dirichlet == "auto":
-            dirichlet = util.generateDirichletCondition(self._model)
+            dirichlet = self._model.boundaryConditions.coef(DirichletBoundary)
+        dirichlet = self.__dirichlet(dirichlet, vdim)
 
         fess = []
         for i in range(vdim):
@@ -106,6 +109,19 @@ class NGSModel:
             fess.append(ngsolve.H1(self._mesh, **kwargs))
 
         self._vars.append(NGSVariable(name, fess, self.scale, initialValue, initialVelocity, xscale=self._mesh.scale, isScalar=isScalar))
+
+    def __dirichlet(self, coef, vdim):
+        bdr_dir = [[] for _ in range(vdim)] 
+        if coef is None:
+            return bdr_dir
+        for key, value in coef.value.items():
+            for i, bdr in enumerate(bdr_dir):
+                if hasattr(value, "__iter__"):
+                    if value[i]:
+                        bdr.append(key)
+                elif value:
+                    bdr.append(key)
+        return list(bdr_dir)
 
     def __initialValue(self, vdim, initialValue):
         if initialValue is None:
