@@ -2,7 +2,7 @@ import numpy as np
 import sympy as sp
 import ngsolve
 
-from lys_fem.fem import FEMCoefficient, CalculatedResult
+from lys_fem.fem import FEMCoefficient, SolutionField
 from . import util
 
 
@@ -70,7 +70,7 @@ def _generateCoefficient(coef, mesh=None, geom="Domain"):
         return ngsolve.CoefficientFunction(coef)
     elif isinstance(coef, ngsolve.CoefficientFunction):
         return coef
-    elif isinstance(coef, CalculatedResult):
+    elif isinstance(coef, SolutionField):
         return coef.solution.obj.coef(coef.expression, coef.index)
     else:
         def _absolute(x):

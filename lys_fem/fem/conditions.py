@@ -74,7 +74,7 @@ class ConditionBase(FEMObject):
 
     As values, general sympy expression or sequence of expression is acceptable.
     Even if the single condition requires several parameters (such as temperature and electric field), it is recommended to put all these values into single vector.
-    In addition, values are loaded from calculation result if values is instance of CalculatedResult.
+    In addition, values are loaded from calculation result if values is instance of SolutionField.
     """
     unit = "1"
 
@@ -141,7 +141,7 @@ class InitialCondition(ConditionBase):
         return super().widget(fem, canvas, title, computed=True, shape=(self.model.variableDimension(),))
 
 
-class CalculatedResult:
+class SolutionField:
     def __init__(self, path="", expression="", index=-1):
         self._path = path
         self._expression = expression
@@ -169,4 +169,4 @@ class CalculatedResult:
     
     @classmethod
     def loadFromDictionary(cls, d):
-        return CalculatedResult(**d)
+        return SolutionField(**d)

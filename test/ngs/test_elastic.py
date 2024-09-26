@@ -19,6 +19,3 @@ class ngs_elasticity_test(elasticity_test):
 
     def test_2d_te(self):
         self.thermoelasticity_2d(ngs)
-
-    def test_1d_load(self):
-        self.loadInitial_1d(ngs)

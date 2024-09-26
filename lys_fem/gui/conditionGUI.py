@@ -1,7 +1,7 @@
 import numpy as np
 from lys.Qt import QtWidgets
-from lys_fem.fem import CalculatedResult
-from lys_fem.widgets import GeometrySelector, ScalarFunctionWidget, VectorFunctionWidget, MatrixFunctionWidget, CalculatedResultWidget
+from lys_fem.fem import SolutionField
+from lys_fem.widgets import GeometrySelector, ScalarFunctionWidget, VectorFunctionWidget, MatrixFunctionWidget, SolutionFieldWidget
 
 
 class ConditionWidget(QtWidgets.QWidget):
@@ -9,7 +9,7 @@ class ConditionWidget(QtWidgets.QWidget):
         super().__init__()
         self._cond = cond
         self.__initlayout(fem, canvas, title, computed, shape)
-        if isinstance(self._cond.values, CalculatedResult):
+        if isinstance(self._cond.values, SolutionField):
             self._combo.setCurrentText("Calculated")
 
     def __initlayout(self, fem, canvas, title, computed, shape):
@@ -21,12 +21,12 @@ class ConditionWidget(QtWidgets.QWidget):
         h1.addWidget(QtWidgets.QLabel("Value"))
         h1.addWidget(self._combo)
 
-        if isinstance(self._cond.values, CalculatedResult):
+        if isinstance(self._cond.values, SolutionField):
             value = np.zeros(shape)
             calc = self._cond.values
         else:
             value = self._cond.values
-            calc = CalculatedResult()
+            calc = SolutionField()
 
         if shape is None:
             shape = np.array(self._cond.values).shape
@@ -37,7 +37,7 @@ class ConditionWidget(QtWidgets.QWidget):
         if len(shape) == 2:
             self._value = MatrixFunctionWidget(title, value, valueChanged=self.__valueChanged)
 
-        self._calc = CalculatedResultWidget(calc, valueChanged=self.__valueChanged)
+        self._calc = SolutionFieldWidget(calc, valueChanged=self.__valueChanged)
 
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)

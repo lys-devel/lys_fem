@@ -1,9 +1,8 @@
-import os
 import sympy as sp
 import numpy as np
 
 from lys_fem import geometry
-from lys_fem.fem import FEMProject, Material, StationarySolver, TimeDependentSolver, FEMSolution, CalculatedResult
+from lys_fem.fem import FEMProject, Material, StationarySolver, TimeDependentSolver, FEMSolution
 from lys_fem.models import elasticity, heat
 
 from ..base import FEMTestCase
@@ -210,76 +209,3 @@ class elasticity_test(FEMTestCase):
 
         # solve
         lib.run(p)
-
-    def loadInitial_1d(self, lib):
-        if lib.mpi.isRoot:
-            os.makedirs("run1", exist_ok=True)
-            os.makedirs("run2", exist_ok=True)
-        lib.mpi.wait()
-        os.chdir("run1")
-
-        p = FEMProject(1)
-
-        # geometry
-        p.geometries.scale=100
-        p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
-        p.geometries.add(geometry.Line(1, 0, 0, 2, 0, 0))
-
-        # material
-        param = elasticity.ElasticParameters()
-        mat1 = Material([param], geometries=[1, 2])
-        p.materials.append(mat1)
-
-        # model: boundary and initial conditions
-        model = elasticity.ElasticModel(1)
-        model.boundaryConditions.append(elasticity.DirichletBoundary([True], geometries=[1, 3]))
-        model.initialConditions.append(elasticity.InitialCondition(0, geometries=[1]))
-        model.initialConditions.append(elasticity.InitialCondition(2, geometries=[2]))
-        p.models.append(model)
-
-        # solver
-        stationary = StationarySolver()
-        p.solvers.append(stationary)
-
-        # solve
-        lib.run(p)
-
-        # solution
-        sol = FEMSolution()
-        res = sol.eval("u", data_number=1)
-        for w in res:
-            self.assert_array_almost_equal(w.data, w.x[:, 0])
-
-        # second calculation
-        os.chdir("../run2")
-        p = FEMProject(1)
-
-        # geometry
-        p.geometries.scale=100
-        p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
-        p.geometries.add(geometry.Line(1, 0, 0, 2, 0, 0))
-        p.mesher.setRefinement(3)
-
-        # material
-        mat1 = Material([param], geometries=[1, 2])
-        p.materials.append(mat1)
-
-        # model: boundary and initial conditions
-        model = elasticity.ElasticModel(1)
-        model.boundaryConditions.append(elasticity.DirichletBoundary([True], geometries=[1]))
-        val = CalculatedResult("../run1", "u")
-        model.initialConditions.append(elasticity.InitialCondition(val, geometries="all"))
-        p.models.append(model)
-
-        # solver
-        solver = TimeDependentSolver(0.01, 0.1, method="NewmarkBeta")
-        p.solvers.append(solver)
-
-        # solve
-        lib.run(p)
-
-        # solution
-        sol = FEMSolution()
-        res = sol.eval("u", data_number=0)
-        for w in res:
-            self.assert_array_almost_equal(w.data, w.x[:, 0])

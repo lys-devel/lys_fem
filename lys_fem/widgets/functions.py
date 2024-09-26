@@ -2,7 +2,7 @@ import numpy as np
 from lys.Qt import QtCore, QtWidgets, QtGui
 from lys.decorators import avoidCircularReference
 from .dataView import FEMFileDialog
-from ..fem import CalculatedResult
+from ..fem import SolutionField
 from ..fem.base import strToExpr
 
 
@@ -162,8 +162,8 @@ class MatrixFunctionWidget(QtWidgets.QWidget):
         return self._val
 
 
-class CalculatedResultWidget(QtWidgets.QWidget):
-    valueChanged = QtCore.pyqtSignal(CalculatedResult)
+class SolutionFieldWidget(QtWidgets.QWidget):
+    valueChanged = QtCore.pyqtSignal(SolutionField)
     def __init__(self, value=None, valueChanged=None):
         super().__init__()
         self.__initLayout()
@@ -197,5 +197,5 @@ class CalculatedResultWidget(QtWidgets.QWidget):
 
     @property
     def value(self):
-        return CalculatedResult(self._path.text(), self._expr.text())
+        return SolutionField(self._path.text(), self._expr.text())
     
