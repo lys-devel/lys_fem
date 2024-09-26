@@ -164,6 +164,7 @@ class MatrixFunctionWidget(QtWidgets.QWidget):
 
 class SolutionFieldWidget(QtWidgets.QWidget):
     valueChanged = QtCore.pyqtSignal(SolutionField)
+    
     def __init__(self, value=None, valueChanged=None):
         super().__init__()
         self.__initLayout()

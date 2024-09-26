@@ -2,22 +2,26 @@ import numpy as np
 import sympy as sp
 import ngsolve
 
-from lys_fem.fem import FEMCoefficient, SolutionField
+from lys_fem.fem import FEMCoefficient
 from . import util
 
 
 def generateMaterial(fem, mesh):
+    scale = fem.geometries.scale
+    sols = {"x": ngsolve.x*scale, "y": ngsolve.y*scale, "z": ngsolve.z*scale}
+    sols.update({key: coef.solution.obj.coef(coef.expression, coef.index) for key, coef in fem.solutionFields.items()})
+
     mats = fem.materials.materialDict(mesh.dim)
     mats.update(fem.geometries.geometryParameters())
     #mats.update(fem.parameters)
-    return NGSParams(mats, mesh, fem.geometries.scale)
+    return NGSParams(mats, mesh, sols)
 
 
 class NGSParams(dict):
-    def __init__(self, dic, mesh, scale):
+    def __init__(self, dic, mesh, sols):
         super().__init__()
         self._mesh = mesh
-        self._coefs = {"x": ngsolve.x*scale, "y": ngsolve.y*scale, "z": ngsolve.z*scale}
+        self._coefs = sols
         self.__parse(dic, mesh)
 
     def __parse(self, dic, mesh):
@@ -70,10 +74,3 @@ def _generateCoefficient(coef, mesh=None, geom="Domain"):
         return ngsolve.CoefficientFunction(coef)
     elif isinstance(coef, ngsolve.CoefficientFunction):
         return coef
-    elif isinstance(coef, SolutionField):
-        return coef.solution.obj.coef(coef.expression, coef.index)
-    else:
-        def _absolute(x):
-            return x.Norm()
-        res = sp.lambdify(sp.symbols("x_scaled,y_scaled,z_scaled"), coef, modules=[{"abs": _absolute}, ngsolve])(ngsolve.x,ngsolve.y,ngsolve.z)
-        return res

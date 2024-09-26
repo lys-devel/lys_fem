@@ -5,6 +5,7 @@ from .mesh import OccMesher
 from .material import Material, Materials
 from .model import loadModel
 from .solver import FEMSolver
+from .solution import SolutionFields
 
 
 class FEMProject:
@@ -21,6 +22,7 @@ class FEMProject:
         self._materials = Materials(self, [Material(objName="Material1")])
         self._models = FEMObjectList(self)
         self._solvers = FEMObjectList(self)
+        self._solutions = SolutionFields()
         self._submit = {}
 
     def saveAsDictionary(self, parallel=False):
@@ -31,6 +33,7 @@ class FEMProject:
         d["materials"] = [m.saveAsDictionary() for m in self._materials]
         d["models"] = [m.saveAsDictionary() for m in self._models]
         d["solvers"] = [s.saveAsDictionary() for s in self._solvers]
+        d["solutionFields"] = self._solutions.saveAsDictionary()
         d["submit"] = self._submit
         return d
 
@@ -51,6 +54,8 @@ class FEMProject:
             self._models = FEMObjectList(self, [loadModel(dic) for dic in d["models"]])
         if "solvers" in d:
             self._solvers = FEMObjectList(self, [FEMSolver.loadFromDictionary(dic) for dic in d["solvers"]])
+        if "solutionFields" in d:
+            self._solutions = SolutionFields.loadFromDictionary(d["solutionFields"])
         if "submit" in d:
             self._submit = d["submit"]
 
@@ -97,6 +102,10 @@ class FEMProject:
     @property
     def submitSetting(self):
         return self._submit
+
+    @property
+    def solutionFields(self):
+        return self._solutions
 
     @property
     def domainAttributes(self):

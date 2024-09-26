@@ -74,7 +74,6 @@ class ConditionBase(FEMObject):
 
     As values, general sympy expression or sequence of expression is acceptable.
     Even if the single condition requires several parameters (such as temperature and electric field), it is recommended to put all these values into single vector.
-    In addition, values are loaded from calculation result if values is instance of SolutionField.
     """
     unit = "1"
 
@@ -140,33 +139,3 @@ class InitialCondition(ConditionBase):
     def widget(self, fem, canvas, title="Initial Value"):
         return super().widget(fem, canvas, title, computed=True, shape=(self.model.variableDimension(),))
 
-
-class SolutionField:
-    def __init__(self, path="", expression="", index=-1):
-        self._path = path
-        self._expression = expression
-        self._index = index
-
-    @property
-    def solution(self):
-        from .solution import FEMSolution
-        return FEMSolution(self._path)
-    
-    @property
-    def path(self):
-        return self._path
-    
-    @property
-    def expression(self):
-        return self._expression
-    
-    @property
-    def index(self):
-        return self._index
-    
-    def saveAsDictionary(self):
-        return {"path": self._path, "expression": self._expression, "index": self._index}
-    
-    @classmethod
-    def loadFromDictionary(cls, d):
-        return SolutionField(**d)

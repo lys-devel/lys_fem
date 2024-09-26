@@ -18,27 +18,25 @@ def run(fem, run=True, save=True):
 
     start = time.time()
     mesh = generateMesh(fem)
-    print_("NGS Mesh generated in", '{:.2f}'.format(time.time()-start) ,"second : ", mesh.ne, "elements, ", mesh.nv, "nodes.")
-    print_("\tDomains:", mesh.GetMaterials())
-    print_("\tBoundaries:", mesh.GetBoundaries())
+    print_("NGS Mesh generated in", '{:.2f}'.format(time.time()-start) ,"seconds : ", mesh.ne, "elements, ", mesh.nv, "nodes,", len(mesh.GetMaterials()), "domains, ", len(mesh.GetBoundaries()), "boundaries.")
     print_()
 
     start = time.time()
     mats = generateMaterial(fem, mesh)
-    print_("NGS Material generated in", '{:.2f}'.format(time.time()-start), ":")
+    print_("NGS Variables generated in", '{:.2f}'.format(time.time()-start), "seconds :")
     print_("\tParameters:", {key: value.shape if len(value.shape)>0 else "scalar" for key, value in mats.items()})
     print_()
 
     start = time.time()
     model = generateModel(fem, mesh, mats)
-    print_("NGS Models generated in ", '{:.2f}'.format(time.time()-start), ":")
+    print_("NGS Models generated in ", '{:.2f}'.format(time.time()-start), "seconds :")
     for m in model.models:
         print_("\t"+m.name+":", {v.name: v.size for v in m.variables})
     print_()
 
     start = time.time()
     solvers = generateSolver(fem, mesh, model)
-    print_("NGS Solvers generated in ", '{:.2f}'.format(time.time()-start), ":"+str([s.name for s in solvers]))
+    print_("NGS Solvers generated in ", '{:.2f}'.format(time.time()-start), "seconds :"+str([s.name for s in solvers]))
     print_()
  
     if run:

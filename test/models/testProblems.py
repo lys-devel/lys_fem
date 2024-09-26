@@ -5,7 +5,7 @@ import sympy as sp
 from numpy.testing import assert_array_almost_equal
 
 from lys_fem import geometry
-from lys_fem.fem import FEMProject, StationarySolver, TimeDependentSolver, FEMSolution, SolverStep, SolutionField
+from lys_fem.fem import FEMProject, StationarySolver, TimeDependentSolver, FEMSolution, SolverStep
 from lys_fem.models import test
 
 from ..base import FEMTestCase
@@ -163,11 +163,13 @@ class testProblems_test(FEMTestCase):
         p.geometries.add(geometry.Line(0, 0, 0, 2, 0, 0))
         p.mesher.setRefinement(3)
 
+        # solution fields
+        p.solutionFields.add("x0", "../run1", "x")
+
         # model: boundary and initial conditions
         model = test.LinearTestModel()
         model.boundaryConditions.append(test.DirichletBoundary(True, geometries=[1]))
-        val = SolutionField("../run1", "x")
-        model.initialConditions.append(test.InitialCondition(val, geometries="all"))
+        model.initialConditions.append(test.InitialCondition(sp.Symbol("x0"), geometries="all"))
         p.models.append(model)
 
         # solver

@@ -6,5 +6,5 @@ from .material import Material, FEMParameter, materialParameters
 from .model import FEMModel, FEMFixedModel
 from .solver import FEMSolver, SolverStep, solvers, StationarySolver, TimeDependentSolver, RelaxationSolver
 from .equations import Equation
-from .conditions import DomainCondition, BoundaryCondition, InitialCondition, SolutionField
-from .solution import FEMSolution
+from .conditions import DomainCondition, BoundaryCondition, InitialCondition
+from .solution import FEMSolution, SolutionField

@@ -91,12 +91,8 @@ class FEMCoefficient:
       
 
 def strToExpr(x):
-    from .conditions import SolutionField
     if x.startswith("[String]"):
         return x.replace("[String]","")
-    if x.startswith("[SolutionField]"):
-        x = x.replace("[SolutionField]", "")
-        return SolutionField.loadFromDictionary(eval(x))
     try:
         res = eval(x,{})
     except:
@@ -105,11 +101,8 @@ def strToExpr(x):
 
 
 def exprToStr(x):
-    from .conditions import SolutionField
     if isinstance(x, str):
         return "[String]"+x
     if isinstance(x, np.ndarray):
         x = x.tolist()
-    if isinstance(x, SolutionField):
-        x = "[SolutionField]" + str(x.saveAsDictionary())
     return str(x)
