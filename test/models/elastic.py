@@ -159,7 +159,7 @@ class elasticity_test(FEMTestCase):
         # model: boundary and initial conditions
         model = elasticity.ElasticModel(1)
         model.initialConditions.append(elasticity.InitialCondition(0, geometries="all"))
-        model.domainConditions.append(elasticity.ThermoelasticStress(0, varName="T", geometries="all"))
+        model.domainConditions.append(elasticity.ThermoelasticStress("T", geometries="all"))
         p.models.append(model)
 
         model2 = heat.HeatConductionModel()
@@ -196,7 +196,7 @@ class elasticity_test(FEMTestCase):
         # model: boundary and initial conditions
         model = elasticity.ElasticModel(2)
         model.initialConditions.append(elasticity.InitialCondition([0,0], geometries="all"))
-        model.domainConditions.append(elasticity.ThermoelasticStress(0, varName="T", geometries="all"))
+        model.domainConditions.append(elasticity.ThermoelasticStress("T", geometries="all"))
         p.models.append(model)
 
         model2 = heat.HeatConductionModel()

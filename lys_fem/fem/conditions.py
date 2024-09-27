@@ -1,3 +1,5 @@
+import numpy as np
+import sympy as sp
 from .base import FEMObject, FEMObjectList, FEMCoefficient, strToExpr, exprToStr
 from .geometry import GeometrySelection
 
@@ -75,13 +77,20 @@ class ConditionBase(FEMObject):
     As values, general sympy expression or sequence of expression is acceptable.
     Even if the single condition requires several parameters (such as temperature and electric field), it is recommended to put all these values into single vector.
     """
-    unit = "1"
 
     def __init__(self, geomType, values=None, objName=None, geometries=None):
         super().__init__(objName)
         self._geomType = geomType
         self._geom = GeometrySelection(self._geomType, geometries, parent=self)
-        self._values = values
+        self._values = self.__parseValues(values)
+
+    def __parseValues(self, value):
+        if isinstance(value, (list, tuple, np.ndarray)):
+            return [self.__parseValues(v) for v in value]
+        elif isinstance(value, str):
+            return sp.parsing.sympy_parser.parse_expr(value)
+        else:
+            return value
 
     @property
     def geometries(self):

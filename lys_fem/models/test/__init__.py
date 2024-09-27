@@ -1,9 +1,10 @@
 from lys_fem import addModel
 from lys_fem.ngs import addNGSModel
-from ..common import DirichletBoundary, InitialCondition
+from ..common import DirichletBoundary, InitialCondition, UserDefinedParameter
 
 from .model import LinearTestModel, NonlinearTestModel, TwoVariableTestModel
 from .ngs import NGSLinearTestModel, NGSNonlinearTestModel, NGSTwoVariableTestModel
+
 addModel("Linear Test", LinearTestModel)
 addModel("Nonlinear Test", NonlinearTestModel)
 addModel("TwoVariable Test", TwoVariableTestModel)

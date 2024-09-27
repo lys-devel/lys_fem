@@ -1,5 +1,5 @@
 from lys_fem.ngs import NGSModel, dx, grad
-from .. import Source
+from .. import Source, DivSource
 
 
 class NGSPoissonModel(NGSModel):
@@ -22,7 +22,12 @@ class NGSPoissonModel(NGSModel):
             else:
                 wf += gu.dot(grad(v)) * dx
 
-            f = self.coef(Source, "f")
-            wf += f*v*dx
+            for s in self._model.domainConditions.get(Source):
+                f = mat[s.values]
+                wf += f*v*dx(s.geometries)
+            
+            for s in self._model.domainConditions.get(DivSource):
+                f = mat[s.values]
+                wf += f.dot(grad(v))*dx
         return wf
     

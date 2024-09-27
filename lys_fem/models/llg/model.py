@@ -26,21 +26,10 @@ class GilbertDamping(DomainCondition):
     className = "GilbertDamping"
 
 
-class Demagnetization(DomainCondition):
-    className = "Demagnetization"
-
-    def __init__(self, values="phi", *args, **kwargs):
-        super().__init__(values=values, *args, **kwargs)
-
-    def widget(self, fem, canvas):
-        from lys.Qt import QtWidgets
-        return QtWidgets.QWidget()
-
-
 class LLGModel(FEMFixedModel):
     className = "LLG"
     equationTypes = [LLGEquation]
-    domainConditionTypes = [ExternalMagneticField, UniaxialAnisotropy, GilbertDamping, Demagnetization]
+    domainConditionTypes = [ExternalMagneticField, UniaxialAnisotropy, GilbertDamping]
     boundaryConditionTypes = [DirichletBoundary]
 
     def __init__(self, *args, **kwargs):

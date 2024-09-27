@@ -39,6 +39,7 @@ class GridFunction(ngsolve.GridFunction):
 
 class NGSFunction:
     def __init__(self, obj=None, name="Undefined", grad=False):
+        self._hasTrial = False
         if obj is None or obj == 0:
             self._obj = None
             self._name = "Zero"
@@ -149,7 +150,7 @@ class NGSFunction:
     
     @property
     def hasTrial(self):
-        return False
+        return self._hasTrial
     
     @property
     def rhs(self):
@@ -418,7 +419,6 @@ class _Pow(_Oper):
         return str(self._obj[0]) + "**" + str(self._obj[1])
 
 
-
 class TrialFunction(NGSFunction):
     def __init__(self, name, obj, dt=0, grad=False, xscale=1, scale=1):
         super().__init__(obj, name="trial("+name+")")
@@ -524,9 +524,19 @@ class DifferentialSymbol(NGSFunction):
     def setScale(self, scale):
         self._scale = scale
 
+    def setMesh(self, mesh):
+        self._mesh = mesh
+
     def eval(self):
         return _DMul(self._obj, self._scale)
 
+    def __call__(self, region):
+        geom = "|".join([region.geometryType.lower() + str(r) for r in region])
+        if self == dx:
+            d = self._mesh.Materials(geom)
+        else:
+            d = self._mesh.Boundaries(geom)
+        return DifferentialSymbol(self._obj(definedon=d), self._scale)
 
 class _DMul:
     def __init__(self, obj, scale):

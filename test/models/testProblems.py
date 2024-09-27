@@ -5,7 +5,7 @@ import sympy as sp
 from numpy.testing import assert_array_almost_equal
 
 from lys_fem import geometry
-from lys_fem.fem import FEMProject, StationarySolver, TimeDependentSolver, FEMSolution, SolverStep
+from lys_fem.fem import FEMProject, StationarySolver, TimeDependentSolver, FEMSolution, SolverStep, Material
 from lys_fem.models import test
 
 from ..base import FEMTestCase
@@ -121,6 +121,67 @@ class testProblems_test(FEMTestCase):
         y = [sol.eval("y", coords=0, data_number=i) for i in range(101)]
         self.assert_array_almost_equal(x, (np.exp(-2*t)+1)/2, decimal=4)
         self.assert_array_almost_equal(y, (1-np.exp(-2*t))/2, decimal=4)
+
+    def consts(self, lib):
+        p = FEMProject(1)
+        p.parameters["a"] = 1
+        p.parameters["b"] = "a+1"
+
+        # geometry
+        p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
+        p.geometries.add(geometry.Line(1, 0, 0, 2, 0, 0))
+
+        # model: boundary and initial conditions
+        model = test.LinearTestModel()
+        model.boundaryConditions.append(test.DirichletBoundary([True], geometries=[1, 3]))
+        model.initialConditions.append(test.InitialCondition(0.0, geometries=[1]))
+        model.initialConditions.append(test.InitialCondition("b", geometries=[2]))
+        p.models.append(model)
+
+        # solver
+        stationary = StationarySolver()
+        p.solvers.append(stationary)
+
+        # solve
+        lib.run(p)
+
+        # solution
+        sol = FEMSolution()
+        res = sol.eval("x", data_number=1)
+        for w in res:
+            self.assert_array_almost_equal(w.data, w.x[:, 0])
+
+    def fields(self, lib):
+        p = FEMProject(1)
+
+        # geometry
+        p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
+        p.geometries.add(geometry.Line(1, 0, 0, 2, 0, 0))
+
+        # material
+        param1 = test.UserDefinedParameter(x0 = 0)
+        param2 = test.UserDefinedParameter(x0 = 1)
+        p.materials.append(Material([param1], geometries=[1]))
+        p.materials.append(Material([param2], geometries=[2]))
+
+        # model: boundary and initial conditions
+        model = test.LinearTestModel()
+        model.boundaryConditions.append(test.DirichletBoundary([True], geometries=[1, 3]))
+        model.initialConditions.append(test.InitialCondition("x0", geometries="all"))
+        p.models.append(model)
+
+        # solver
+        stationary = StationarySolver()
+        p.solvers.append(stationary)
+
+        # solve
+        lib.run(p)
+
+        # solution
+        sol = FEMSolution()
+        res = sol.eval("x", data_number=1)
+        for w in res:
+            self.assert_array_almost_equal(w.data, w.x[:, 0]/2)
 
     def loadInitial_1d(self, lib):
         if lib.mpi.isRoot:

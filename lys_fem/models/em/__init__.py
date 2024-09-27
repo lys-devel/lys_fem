@@ -1,10 +1,9 @@
 from lys_fem import addModel, addMaterialParameter
 from lys_fem.ngs import addNGSModel
-from ..common import DirichletBoundary
+from ..common import DirichletBoundary, InitialCondition, Source, DivSource, UserDefinedParameter
 
 from .material import ElectrostaticParameters
-from .model import MagnetostaticsModel, MagnetostaticInitialCondition, MagnetostaticSource
-from .model import ElectrostaticsModel, ElectrostaticInitialCondition, ElectrostaticSource
+from .model import MagnetostaticsModel, ElectrostaticsModel
 from .ngs import NGSMagnetostaticsModel, NGSElectrostaticsModel
 
 addMaterialParameter("Electromagnetism", ElectrostaticParameters)

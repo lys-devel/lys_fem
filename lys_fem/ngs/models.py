@@ -90,6 +90,9 @@ class NGSModel:
 
     def addVariable(self, name, vdim, dirichlet="auto", initialValue="auto", initialVelocity=None, region=None, order=1, isScalar=False):
         initialValue = self._funcs.eval(self.__initialValue(vdim, initialValue))
+        if initialValue is None:
+            raise RuntimeError("Invalid initial value for " + str(name))
+            
         if initialVelocity is None:
             initialVelocity = self._funcs.eval(FEMCoefficient([0]*vdim))
 
@@ -175,6 +178,8 @@ class CompositeModel:
 
     def weakforms(self):
         util.dx.setScale(self._mesh.scale)
+        util.dx.setMesh(self._mesh)
+        util.ds.setMesh(self._mesh)
         tnt = {var.name: (var.trial, var.test) for var in self.variables}   # trial and test functions
         self._mat.update({v.name: v.trial for v in self.variables})         # update variable dictionary
         return sum([model.weakform(tnt, self._mat) for model in self._models], util.NGSFunction())

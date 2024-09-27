@@ -110,7 +110,7 @@ class FEMParameter:
         d["paramsName"] = self.name
         return d
 
-    def getParameters(self):
+    def getParameters(self, dim):
         return {key: value for key, value in vars(self).items() if key[0] != "_"}
 
     @staticmethod
@@ -124,3 +124,16 @@ class FEMParameter:
         for key, value in d.items():
             d[key] = strToExpr(value)
         return cls(**d)
+
+
+class UserDefinedParameter(FEMParameter):
+    name = "User Defined"
+
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+    def widget(self):
+        pass
+
+materialParameters["User Defined"] = [UserDefinedParameter]

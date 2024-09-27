@@ -40,7 +40,7 @@ class semiconductor_test(FEMTestCase):
 
         # poisson equation
         model = em.ElectrostaticsModel()
-        model.initialConditions.append(em.ElectrostaticInitialCondition(0, geometries="all"))
+        model.initialConditions.append(em.InitialCondition(0, geometries="all"))
         p.models.append(model)
 
         # solver

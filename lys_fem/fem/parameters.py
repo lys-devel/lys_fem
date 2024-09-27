@@ -1,6 +1,8 @@
 import sympy as sp
 from sympy.parsing.sympy_parser import parse_expr
-from astropy import units
+
+from .base import FEMObjectList, FEMObject
+from .geometry import GeometrySelection
 
 class Parameters(dict):
     def getSolved(self):
@@ -12,6 +14,13 @@ class Parameters(dict):
             return sol
         else:
             return {key: value for key, value in zip(self.keys(), sol[0])}
+
+    def __setitem__(self, key, value):
+        if isinstance(key, str):
+            key = parse_expr(key)
+        if isinstance(value, str):
+            value = parse_expr(value)
+        super().__setitem__(key, value)
 
     def saveAsDictionary(self):
         return {str(key): str(item) for key, item in self.items()}

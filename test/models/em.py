@@ -2,7 +2,7 @@
 import numpy as np
 
 from lys_fem import geometry
-from lys_fem.fem import FEMProject, FEMSolution, StationarySolver
+from lys_fem.fem import FEMProject, FEMSolution, StationarySolver, Material
 from lys_fem.models import em
 
 from ..base import FEMTestCase
@@ -21,10 +21,10 @@ class magnetostatistics_test(FEMTestCase):
 
         # model: boundary and initial conditions
         model = em.MagnetostaticsModel()
-        model.domainConditions.append(em.MagnetostaticSource(rho, geometries=[1]))
+        model.domainConditions.append(em.Source(rho, geometries=[1]))
         model.boundaryConditions.append(em.DirichletBoundary([True], geometries=[1]))
-        model.initialConditions.append(em.MagnetostaticInitialCondition(0, geometries=[2]))
-        model.initialConditions.append(em.MagnetostaticInitialCondition(1, geometries=[1]))
+        model.initialConditions.append(em.InitialCondition(0, geometries=[2]))
+        model.initialConditions.append(em.InitialCondition(1, geometries=[1]))
         p.models.append(model)
 
         # solver
@@ -44,3 +44,43 @@ class magnetostatistics_test(FEMTestCase):
             r = np.sqrt(w.x[:,0]**2+w.x[:,1]**2)
             self.assert_allclose(w.data, solution(r), atol=1e-3, rtol=0)
 
+    def demagnetization(self, lib):
+        r2 = 2
+        p = FEMProject(3)
+
+        # geometry
+        p.geometries.add(geometry.Sphere(0, 0, 0, 0.8))
+        p.geometries.add(geometry.Box(-1, -1, -1, 2, 2, 2))
+        p.geometries.add(geometry.InfiniteVolume(1, 1, 1, r2, r2, r2))
+        p.mesher.setRefinement(1)
+
+        domain = [1,2,9,10,11,12,13,14]
+        infBdr =[31,36,39,42,43,44]
+        mBdr = [1,5,8,11,14,16,24,25]
+
+        param = em.UserDefinedParameter(M=[0,0,1])
+        p.materials.append(Material([param], geometries=domain))
+
+        # poisson equation for infinite boundary
+        model = em.MagnetostaticsModel()
+        model.initialConditions.append(em.InitialCondition(0, geometries="all"))
+        model.boundaryConditions.append(em.DirichletBoundary(True, geometries=infBdr))
+        model.domainConditions.append(em.DivSource("M", geometries=domain))
+        p.models.append(model)
+
+        # solver
+        stationary = StationarySolver()
+        p.solvers.append(stationary)
+
+        # solve
+        lib.run(p)
+
+        def solution(x, y, z, a, Ms):
+            r = np.sqrt(x**2+y**2+z**2)-1e-16
+            return np.where(r<=a, Ms/3*z, np.nan)
+
+
+        sol = FEMSolution()
+        res = sol.eval("phi", data_number=1)
+        for w in [res[0]]:
+            self.assert_allclose(w.data, -solution(w.x[:,0],w.x[:,1],w.x[:,2], 0.8, 1), atol=0.02, rtol=0)

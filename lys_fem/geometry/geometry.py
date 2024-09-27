@@ -111,7 +111,6 @@ class InfiniteVolume(FEMGeometry):
                     ids[5] = grp
         J = {ids[i]: self._constructJ(i) for i in range(6)}
         J["default"] = np.eye(3)
-        print(J)
         return {"J": FEMCoefficient(J)}
 
     def _constructJ(self, domain):

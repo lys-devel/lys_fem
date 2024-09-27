@@ -1,5 +1,5 @@
 from lys_fem import FEMFixedModel, Equation
-from lys_fem.models.common import Source, DirichletBoundary, NeumannBoundary
+from lys_fem.models.common import Source, DivSource, DirichletBoundary, NeumannBoundary
 
 
 class PoissonEquation(Equation):
@@ -12,12 +12,9 @@ class PoissonEquation(Equation):
 class PoissonModel(FEMFixedModel):
     className = "Poisson"
     equationTypes = [PoissonEquation]
-    domainConditionTypes = [Source]
+    domainConditionTypes = [Source, DivSource]
     boundaryConditionTypes = [DirichletBoundary, NeumannBoundary]
 
     def __init__(self, *args, **kwargs):
         super().__init__(1, *args, **kwargs)
-
-
-
 

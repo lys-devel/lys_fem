@@ -1,5 +1,5 @@
 from lys_fem.ngs import NGSModel, grad, dx
-from . import ExternalMagneticField, Demagnetization, UniaxialAnisotropy, GilbertDamping
+from . import ExternalMagneticField, UniaxialAnisotropy, GilbertDamping
 
 class NGSLLGModel(NGSModel):
     def __init__(self, model, mesh, vars, order=2):
@@ -39,11 +39,5 @@ class NGSLLGModel(NGSModel):
                     #region = self._mesh.Materials(util.generateGeometry(uni.geometries))
                     B += 2*Ku/Ms*m.dot(u)*u
             wf += g*m.cross(B).dot(test_m)*dx
-
-            if self._model.domainConditions.have(Demagnetization):
-                for demag in self._model.domainConditions.get(Demagnetization):
-                    phi, test_phi = vars[demag.values]
-                    #region = self._mesh.Materials(util.generateGeometry(eq.geometries))
-                    wf += Ms*m.dot(grad(test_phi))*dx
 
         return wf

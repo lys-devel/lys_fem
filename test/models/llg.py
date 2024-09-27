@@ -52,7 +52,6 @@ class LLG_test(FEMTestCase):
         # solution
         sol = FEMSolution()
         m = sol.eval("m[2]", data_number=0)
-        print(m[0].data)
         for i in range(1,n+1):
             m = sol.eval("m[0]**2+m[1]**2+m[2]**2", data_number=i)
             self.assert_array_almost_equal(m, 1, decimal=4)
@@ -94,54 +93,6 @@ class LLG_test(FEMTestCase):
         res = sol.eval("m[2]", data_number=50)
         for w in res:
             self.assert_array_almost_equal(w.data, -np.ones(w.data.shape)/np.sqrt(2), decimal=2)
-
-    def demagnetization(self, lib):
-        r2 = 2
-        p = FEMProject(3)
-
-        # geometry
-        p.geometries.add(geometry.Sphere(0, 0, 0, 0.8))
-        p.geometries.add(geometry.Box(-1, -1, -1, 2, 2, 2))
-        p.geometries.add(geometry.InfiniteVolume(1, 1, 1, r2, r2, r2))
-        p.mesher.setRefinement(1)
-
-        domain = [1,2,9,10,11,12,13,14]
-        infBdr =[31,36,39,42,43,44]
-        mBdr = [1,5,8,11,14,16,24,25]
-
-        param = llg.LLGParameters(Ms=1)
-        mat1 = Material([param], geometries=domain)
-        p.materials.append(mat1)
-
-        # poisson equation for infinite boundary
-        model = em.MagnetostaticsModel()
-        model.initialConditions.append(em.MagnetostaticInitialCondition(0, geometries="all"))
-        model.boundaryConditions.append(em.DirichletBoundary([True], geometries=infBdr))
-        p.models.append(model)
-
-        # llg
-        model2 = llg.LLGModel(equations=[llg.LLGEquation(geometries=domain)])
-        model2.initialConditions.append(llg.InitialCondition([0, 0, 1], geometries=domain))
-        model2.domainConditions.append(llg.ExternalMagneticField([0,0,1], geometries=domain))
-        model2.domainConditions.append(llg.Demagnetization(geometries=mBdr))
-        p.models.append(model2)
-
-        # solver
-        stationary = StationarySolver()
-        p.solvers.append(stationary)
-
-        # solve
-        lib.run(p)
-
-        def solution(x, y, z, a, Ms):
-            r = np.sqrt(x**2+y**2+z**2)-1e-16
-            return np.where(r<=a, Ms/3*z, np.nan)
-
-
-        sol = FEMSolution()
-        res = sol.eval("phi", data_number=1)
-        for w in [res[0]]:
-            self.assert_allclose(w.data, -solution(w.x[:,0],w.x[:,1],w.x[:,2], 0.8, 1), atol=0.02, rtol=0)
 
     def deformation(self, lib):
         return

@@ -9,11 +9,11 @@ from . import util
 def generateMaterial(fem, mesh):
     scale = fem.geometries.scale
     sols = {"x": ngsolve.x*scale, "y": ngsolve.y*scale, "z": ngsolve.z*scale}
+    sols.update({str(key): _generateCoefficient(value) for key, value in fem.parameters.getSolved().items()})
     sols.update({key: coef.solution.obj.coef(coef.expression, coef.index) for key, coef in fem.solutionFields.items()})
 
     mats = fem.materials.materialDict(mesh.dim)
     mats.update(fem.geometries.geometryParameters())
-    #mats.update(fem.parameters)
     return NGSParams(mats, mesh, sols)
 
 
@@ -35,6 +35,16 @@ class NGSParams(dict):
         # Convert all coefs into NGSFunction
         for key, value in coefs.items():
             self[key] = util.NGSFunction(value, name=key)
+
+    def __getitem__(self, expr):
+        if isinstance(expr, (list, tuple, np.ndarray)):
+            return tuple([self[ex] for ex in expr])
+        if isinstance(expr, str):
+            expr = sp.parsing.sympy_parser.parse_expr(expr)
+        if isinstance(expr, sp.Basic):
+            return sp.lambdify(sp.symbols(list(self.keys())), expr)(**self)
+        else:
+            return expr
 
     def eval(self, expr):
         coefs = {key: item.eval() for key, item in self.items()}

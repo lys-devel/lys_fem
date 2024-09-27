@@ -14,5 +14,11 @@ class test(testProblems_test):
     def test_twoval_step(self):
         self.twoVars_step(ngs)
 
+    def test_consts(self):
+        self.consts(ngs)
+
+    def test_fields(self):
+        self.fields(ngs)
+
     def test_loadInitial(self):
         self.loadInitial_1d(ngs)

@@ -15,20 +15,18 @@ class ChristffelEquation(Equation):
 class ThermoelasticStress(DomainCondition):
     className = "ThermoelasticStress"
 
-    def __init__(self, values=300, varName="T", *args, **kwargs):
+    def __init__(self, values="T", *args, **kwargs):
         super().__init__(values=values, *args, **kwargs)
-        self.varName = varName
 
     def widget(self, fem, canvas):
-        return ThermoelasticWidget(self, fem, canvas, "Ref. Temperature T0 (K)")
+        return ThermoelasticWidget(self, fem, canvas, "Temperature T (K)")
 
 
 class DeformationPotential(DomainCondition):
     className = "DeformationPotential"
 
-    def __init__(self, varNames=["n_e", "n_h"], *args, **kwargs):
+    def __init__(self, values=["n_e", "n_h"], *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.varNames = varNames
 
     def widget(self, fem, canvas):
         return DeformationPotentialWidget(self, fem, canvas)
@@ -43,9 +41,6 @@ class ThermoelasticWidget(QtWidgets.QWidget):
     def __initlayout(self, fem, canvas, title):
         self._selector = GeometrySelector(canvas, fem, self._cond.geometries)
         self._value = ScalarFunctionWidget(title, self._cond.values, valueChanged=self.__valueChanged)
-        self._varName = QtWidgets.QLineEdit()
-        self._varName.setText(self._cond.varName)
-        self._varName.textChanged.connect(self.__textChanged)
 
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -55,9 +50,6 @@ class ThermoelasticWidget(QtWidgets.QWidget):
 
     def __valueChanged(self, vector):
         self._cond.values = vector
-
-    def __textChanged(self, txt):
-        self._cond.varName = txt
 
 
 class DeformationPotentialWidget(QtWidgets.QWidget):

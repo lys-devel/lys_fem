@@ -7,20 +7,15 @@ from lys_fem.widgets import ScalarFunctionWidget, MatrixFunctionWidget
 
 
 class ElasticParameters(FEMParameter):
+    """
+    C: Elastic constant in Pa
+    rho: density in kg/m^3
+    """
+    name = "Elasticity"
     def __init__(self, rho=1, C=[1, 1], type="lame"):
         self.rho = rho
         self.C = C
         self.type = type
-
-    @classmethod
-    @property
-    def name(cls):
-        return "Elasticity"
-
-    @classmethod
-    @property
-    def units(self):
-        return {"rho": "kg/m^3", "C": "Pa"}
 
     def getParameters(self, dim):
         return {"rho": self.rho, "C": self.__getC(dim, self._constructC())}
@@ -134,7 +129,6 @@ class _ElasticParamsWidget(QtWidgets.QWidget):
 
 class ThermalExpansionParameters(FEMParameter):
     name = "Thermal Expansion"
-    units = {"alpha": "1"}
     def __init__(self, alpha=np.eye(3).tolist()):
         self.alpha = alpha
 
