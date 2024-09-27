@@ -48,6 +48,10 @@ class NGSVariable:
     @property
     def value(self):
         coef = self._init/self._scale
+        if coef.valid:
+            coef = coef.eval()
+        else:
+            coef = ngsolve.CoefficientFunction(tuple([0] * self.size))
         if self.size == 1:
             return [coef]
         else:
@@ -56,6 +60,10 @@ class NGSVariable:
     @property
     def velocity(self):
         coef = self._vel/self._scale
+        if coef.valid:
+            coef = coef.eval()
+        else:
+            coef = ngsolve.CoefficientFunction(tuple([0] * self.size))
         if self.size == 1:
             return [coef]
         else:
@@ -136,15 +144,6 @@ class NGSModel:
             init.value.update(self._model.initialConditions.coef(type).value)
         return init
 
-    def coef(self, cls, name="Undefined"):
-        c = self._model.boundaryConditions.coef(cls)
-        if c is not None:
-            return util.NGSFunction(self._funcs.eval(c), name=name)
-        c = self._model.domainConditions.coef(cls)
-        if c is not None:
-            return util.NGSFunction(self._funcs.eval(c), name=name)
-        return util.NGSFunction()
-
     @property
     def variables(self):
         return self._vars
@@ -196,9 +195,10 @@ class CompositeModel:
             for var in self.variables:
                 d[var.trial.t] = 0
                 d[var.trial.tt] = 0
-            wf_K = wf.replace(d)
+            wf_K = wf.replace(d).lhs
             K = ngsolve.BilinearForm(fes)
-            K += wf_K.lhs.eval()
+            if wf_K.valid:
+                K += wf_K.eval()
 
             d = {}
             for var in self.variables:
@@ -206,9 +206,10 @@ class CompositeModel:
                 d[var.trial] = 0
                 d[var.trial.t] = var.trial
                 d[var.trial.tt] = 0
-            wf_C = wf.replace(d)
+            wf_C = wf.replace(d).lhs
             C = ngsolve.BilinearForm(fes)
-            C += wf_C.lhs.eval()
+            if wf_C.valid:
+                C += wf_C.eval()
 
             d = {}
             for var in self.variables:
@@ -216,17 +217,19 @@ class CompositeModel:
                 d[var.trial] = 0
                 d[var.trial.t] = 0
                 d[var.trial.tt] = var.trial
-            wf_M = wf.replace(d)
+            wf_M = wf.replace(d).lhs
             M = ngsolve.BilinearForm(fes)
-            M += wf_M.lhs.eval()
+            if wf_M.valid:
+                M += wf_M.eval()
 
             d = {}
             for var in self.variables:
                 d[var.trial.t] = var.trial
                 d[var.trial.tt] = var.trial
-            wf_F = wf.replace(d)
+            wf_F = wf.replace(d).rhs
             F = ngsolve.LinearForm(fes)
-            F += wf_F.rhs.eval()
+            if wf_F.valid:
+                F += wf_F.eval()
 
             rhs = - F.vec - K.Apply(x.vec) - C.Apply(v.vec)
             M.AssembleLinearization(x.vec)

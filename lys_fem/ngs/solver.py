@@ -59,9 +59,9 @@ class _Solution:
         n = 0
         for v in self._model.variables:
             if v.size == 1 and v.isScalar:
-                res.append(util.NGSFunction(v.scale*x.components[n], v.name+pre+"0"))
+                res.append(util.NGSFunction(v.scale*x.components[n], name=v.name+pre+"0"))
             else:
-                res.append(util.NGSFunction(v.scale*CoefficientFunction(tuple(x.components[n:n+v.size])), v.name+pre+"0"))
+                res.append(util.NGSFunction(v.scale*CoefficientFunction(tuple(x.components[n:n+v.size])), name=v.name+pre+"0"))
             n+=v.size           
         return res
 
@@ -75,8 +75,11 @@ class _Operator:
         wf = self.__prepareWeakform(model, integ, sols, symbols)
         self._fes = model.finiteElementSpace
         self._blf, self._lf = BilinearForm(self._fes), LinearForm(self._fes)
-        self._blf += wf.lhs.eval()
-        self._lf += wf.rhs.eval()
+        lhs, rhs = wf.lhs, wf.rhs
+        if lhs.valid:
+            self._blf += lhs.eval()
+        if rhs.valid:
+            self._lf += rhs.eval()
         self._nl = wf.isNonlinear
         self._init  = False
 
@@ -96,7 +99,7 @@ class _Operator:
                     d[util.grad(v.trial)] = util.grad(values[v.name])
                     d[util.grad(v.test)] = 0
             wf = wf.replace(d)
-        wf = integ.generateWeakforms(wf, model, sols, util.NGSFunction(self._dti,"dti"))
+        wf = integ.generateWeakforms(wf, model, sols, util.NGSFunction(self._dti, name="dti"))
         return wf
 
     def __call__(self, x):

@@ -51,7 +51,9 @@ class LLG_test(FEMTestCase):
 
         # solution
         sol = FEMSolution()
-        m = sol.eval("m[2]", data_number=0)
+        m = sol.eval("m[2]", data_number=0, coords=[0, 1e-6, 2e-6])
+        self.assert_array_almost_equal(m, [1,0,-1])
+
         for i in range(1,n+1):
             m = sol.eval("m[0]**2+m[1]**2+m[2]**2", data_number=i)
             self.assert_array_almost_equal(m, 1, decimal=4)
