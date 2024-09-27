@@ -477,8 +477,12 @@ class _Cross(_Oper):
 
 
 class _Pow(_Oper):
+    def __init__(self, v1, v2):
+        super().__init__(v1)
+        self._pow = v2
+
     def __call__(self, v1, v2):
-        return v1**v2
+        return v1 ** v2
     
     @property
     def shape(self):
@@ -486,21 +490,21 @@ class _Pow(_Oper):
 
     @property
     def rhs(self):
-        return self(self._obj[0].rhs, self._obj[1])
+        return self(self._obj[0].rhs, self._pow)
 
     @property
     def lhs(self):
-        return self(self._obj[0].lhs, self._obj[1])
+        return self(self._obj[0].lhs, self._pow)
 
     @property
     def hasTrial(self):
         return self._obj[0].hasTrial
 
     def eval(self):
-        return self(self._obj[0].eval(), self._obj[1].eval())
+        return self(self._obj[0].eval(), self._pow)
     
     def __str__(self):
-        return str(self._obj[0]) + "**" + str(self._obj[1])
+        return str(self._obj[0]) + "**" + str(self._pow)
 
 
 class _Func(_Oper):

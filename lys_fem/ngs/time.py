@@ -6,7 +6,7 @@ class BackwardEuler:
         d = {}
         for v, x0, v0 in zip(model.variables, sols.X(), sols.V()):
             d[v.trial.t] = (v.trial - x0)*dti
-            d[v.trial.tt] = (v.trial - x0)*dti*dti - v0*dti
+            d[v.trial.tt] = (v.trial - x0)*dti**2 - v0*dti
         wf = wf.replace(d)
         return wf
         
