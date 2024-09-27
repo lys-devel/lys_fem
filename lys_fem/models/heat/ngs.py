@@ -15,8 +15,9 @@ class NGSHeatConductionModel(NGSModel):
 
             wf += Cv * u.t * v * dx + grad(u).dot(k.dot(grad(v))) * dx
 
-            f = self.coef(NeumannBoundary, name="f")
-            wf -= f * v * ds
+            for n in self._model.boundaryConditions.get(NeumannBoundary):
+                f = mat[n.values]
+                wf -= f * v * ds(n.geometries)
 
         return wf
 

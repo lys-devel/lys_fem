@@ -21,7 +21,6 @@ class SemiconductorDriftDiffusionEquation(Equation):
 
 class InitialCondition(common.InitialCondition):
     className="Initial Condition"
-    unit = "1/m^3"
 
     @staticmethod
     def fromDensities(ni, Nd=0, Na=0, *args, **kwargs):

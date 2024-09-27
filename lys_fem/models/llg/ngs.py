@@ -25,19 +25,15 @@ class NGSLLGModel(NGSModel):
             wf += (1e-5 * lam * test_lam + 2*lam*m0.dot(test_m) + (m0.dot(m)-1)*test_lam)/1e-11*dx
             wf -= A * m0.cross(grad(m)).ddot(grad(test_m)) * dx
 
-            if self._model.domainConditions.have(GilbertDamping):
-                alpha = mat["alpha"]
-                for gil in self._model.domainConditions.get(GilbertDamping):
-                    #region = self._mesh.Materials(util.generateGeometry(gil.geometries))
-                    wf -= alpha * m0.cross(m).dot(test_m)*dx
+            for gil in self._model.domainConditions.get(GilbertDamping):
+                wf -= mat["alpha"] * m0.cross(m).dot(test_m)*dx(gil.geometries)
 
-            B = self.coef(ExternalMagneticField, "B")
+            for ex in self._model.domainConditions.get(ExternalMagneticField):
+                B = mat[ex.values]
+                wf += g*m.cross(B).dot(test_m)*dx(ex.geometries)
             
-            if self._model.domainConditions.have(UniaxialAnisotropy):
+            for uni in self._model.domainConditions.get(UniaxialAnisotropy):
                 u, Ku = mat["u_Ku"], mat["Ku"]
-                for uni in self._model.domainConditions.get(UniaxialAnisotropy):
-                    #region = self._mesh.Materials(util.generateGeometry(uni.geometries))
-                    B += 2*Ku/Ms*m.dot(u)*u
-            wf += g*m.cross(B).dot(test_m)*dx
-
+                B = 2*Ku/Ms*m.dot(u)*u
+                wf += g*m.cross(B).dot(test_m)*dx(uni.geometries)
         return wf

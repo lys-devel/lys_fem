@@ -4,8 +4,11 @@ from lys_fem.widgets import ScalarFunctionWidget
 
 
 class SemiconductorParameters(FEMParameter):
-    name = "Semiconductor Drift Diffusion"
+    """
     units = {"mu_e": "m^2/V s", "mu_h": "m^2/V s", "N_d": "1/m^3", "N_a": "1/m^3", "q": "C", "k_B": "J/K", "T": "K"}
+    """
+
+    name = "Semiconductor Drift Diffusion"
     def __init__(self, mu_n, mu_p, N_d=0.0, N_a=0.0, T=None):
         self.mu_n = mu_n
         self.mu_p = mu_p

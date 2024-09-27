@@ -19,10 +19,10 @@ class NGSElasticModel(NGSModel):
 
             for te in self._model.domainConditions.get(ThermoelasticStress):
                 alpha, T = mat["alpha"], mat[te.values]
-                wf += T*C.ddot(alpha).ddot(gv)*dx
+                wf += T*C.ddot(alpha).ddot(gv)*dx(te.geometries)
 
             for df in self._model.domainConditions.get(DeformationPotential):
-                d_n, d_p = mat[("d_e", "d_h")]
+                d_n, d_p = mat["d_e"], mat["d_h"]
                 n,p = mat[df.values]
-                wf += (d_n*n - d_p*p).ddot(gv)*dx
+                wf += (d_n*n - d_p*p).ddot(gv)*dx(df.geometries)
         return wf
