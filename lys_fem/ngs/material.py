@@ -21,24 +21,24 @@ class NGSParams(dict):
     def __init__(self, dic, mesh, sols):
         super().__init__()
         self._mesh = mesh
-        self._coefs = sols
-        self.__parse(dic, mesh)
+        self.__parse(dic, mesh, sols)
 
-    def __parse(self, dic, mesh):
+    def __parse(self, dic, mesh, coefs):
         # Replace all items by dic
         while True:
-            n = len(self._coefs)
+            n = len(coefs)
             for key, value in dic.items():
-                value = self.__subs(value.value, self._coefs)
-                self._coefs[key] = _generateCoefficient(value, mesh)
-            if len(self._coefs) == n:
+                value = self.__subs(value.value, coefs)
+                coefs[key] = _generateCoefficient(value, mesh)
+            if len(coefs) == n:
                 break
         # Convert all coefs into NGSFunction
-        for key, value in self._coefs.items():
+        for key, value in coefs.items():
             self[key] = util.NGSFunction(value, name=key)
 
     def eval(self, expr):
-        return _generateCoefficient(self.__subs(expr.value, self._coefs), self._mesh, geom=expr.geometryType)
+        coefs = {key: item.eval() for key, item in self.items()}
+        return _generateCoefficient(self.__subs(expr.value, coefs), self._mesh, geom=expr.geometryType)
     
     def __subs(self, value, dic):
         if isinstance(value, dict):
@@ -51,6 +51,7 @@ class NGSParams(dict):
             return sp.lambdify(sp.symbols(list(dic.keys())), value, modules=[ngsolve])(**dic)
         else:
             return value
+
 
 def _generateCoefficient(coef, mesh=None, geom="Domain"):
     if isinstance(coef, dict):

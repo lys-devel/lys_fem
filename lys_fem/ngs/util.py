@@ -108,6 +108,11 @@ class NGSFunction:
     def __rsub__(self, other):
         return (-self) + other 
 
+    def __pow__(self, other):
+        if not self.valid:
+            return self
+        return _Pow(self, other)
+
     def dot(self, other):
         if self.valid and other.valid:
             return _TensorDot(self, other)
@@ -388,6 +393,30 @@ class _Cross(_Oper):
                 return self._obj[0].cross(self._obj[1].lhs)
         else:
             return NGSFunction()
+
+
+class _Pow(_Oper):
+    def __call__(self, v1, v2):
+        return v1**v2
+
+    @property
+    def rhs(self):
+        return self(self._obj[0].rhs, self._obj[1])
+
+    @property
+    def lhs(self):
+        return self(self._obj[0].lhs, self._obj[1])
+
+    @property
+    def hasTrial(self):
+        return self._obj[0].hasTrial
+
+    def eval(self):
+        return self(self._obj[0].eval(), self._obj[1].eval())
+    
+    def __str__(self):
+        return str(self._obj[0]) + "**" + str(self._obj[1])
+
 
 
 class TrialFunction(NGSFunction):

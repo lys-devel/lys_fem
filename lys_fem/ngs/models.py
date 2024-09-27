@@ -161,26 +161,23 @@ class CompositeModel:
         self._models = models
         self._mat = mat
         self._fes = util.prod([v.finiteElementSpace for v in self.variables])
+        self.__initTnT()
 
-    def weakforms(self):
-        # prepare test and trial functions
-        tnt = {}
-        if not isinstance(self.finiteElementSpace, ngsolve.ProductSpace):
+    def __initTnT(self):
+        if not isinstance(self._fes, ngsolve.ProductSpace):
             trial, test = [[t] for t in self._fes.TnT()]
         else:
             trial, test = self._fes.TnT()
         n = 0
         for var in self.variables:
-            tnt[var.name] = var.setTnT(trial[n:n+var.size], test[n:n+var.size])
+            var.setTnT(trial[n:n+var.size], test[n:n+var.size])
             n+=var.size
 
+    def weakforms(self):
         util.dx.setScale(self._mesh.scale)
-
-        # create weakforms
-        wf = util.NGSFunction()
-        for model in self._models:
-            wf += model.weakform(tnt, self._mat)
-        return wf
+        tnt = {var.name: (var.trial, var.test) for var in self.variables}   # trial and test functions
+        self._mat.update({v.name: v.trial for v in self.variables})         # update variable dictionary
+        return sum([model.weakform(tnt, self._mat) for model in self._models], util.NGSFunction())
 
     def initialValue(self, use_a=True):
         x = util.GridFunction(self._fes, [c for v in self.variables for c in v.value])
