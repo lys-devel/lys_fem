@@ -38,7 +38,7 @@ class NGSParams(dict):
 
     def __getitem__(self, expr):
         if isinstance(expr, (list, tuple, np.ndarray)):
-            return tuple([self[ex] for ex in expr])
+            return util.NGSFunctionVector([self[ex] for ex in expr])
         if isinstance(expr, str):
             expr = sp.parsing.sympy_parser.parse_expr(expr)
         if isinstance(expr, sp.Basic):

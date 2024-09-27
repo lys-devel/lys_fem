@@ -182,7 +182,7 @@ class CompositeModel:
         util.ds.setMesh(self._mesh)
         tnt = {var.name: (var.trial, var.test) for var in self.variables}   # trial and test functions
         self._mat.update({v.name: v.trial for v in self.variables})         # update variable dictionary
-        return sum([model.weakform(tnt, self._mat) for model in self._models], util.NGSFunction())
+        return sum([model.weakform(tnt, self._mat) for model in self._models])
 
     def initialValue(self, use_a=True):
         x = util.GridFunction(self._fes, [c for v in self.variables for c in v.value])
@@ -194,27 +194,27 @@ class CompositeModel:
 
             d = {}
             for var in self.variables:
-                d[var.trial.t] = util.NGSFunction()
-                d[var.trial.tt] = util.NGSFunction()
+                d[var.trial.t] = 0
+                d[var.trial.tt] = 0
             wf_K = wf.replace(d)
             K = ngsolve.BilinearForm(fes)
             K += wf_K.lhs.eval()
 
             d = {}
             for var in self.variables:
-                d[util.grad(var.trial)] = util.NGSFunction()
-                d[var.trial] = util.NGSFunction()
+                d[util.grad(var.trial)] = 0
+                d[var.trial] = 0
                 d[var.trial.t] = var.trial
-                d[var.trial.tt] = util.NGSFunction()
+                d[var.trial.tt] = 0
             wf_C = wf.replace(d)
             C = ngsolve.BilinearForm(fes)
             C += wf_C.lhs.eval()
 
             d = {}
             for var in self.variables:
-                d[util.grad(var.trial)] = util.NGSFunction()
-                d[var.trial] = util.NGSFunction()
-                d[var.trial.t] = util.NGSFunction()
+                d[util.grad(var.trial)] = 0
+                d[var.trial] = 0
+                d[var.trial.t] = 0
                 d[var.trial.tt] = var.trial
             wf_M = wf.replace(d)
             M = ngsolve.BilinearForm(fes)

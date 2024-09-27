@@ -42,10 +42,10 @@ class NGSFunction:
         self._hasTrial = False
         if obj is None or obj == 0:
             self._obj = None
-            self._name = "Zero"
+            self._name = "0"
         elif isinstance(obj, (int, float, complex)):
             self._obj = ngsolve.CoefficientFunction(obj)
-            self._name = name
+            self._name = str(obj)
         else:
             self._obj = obj
             self._name = name
@@ -184,6 +184,48 @@ class NGSFunction:
         return False
 
 
+class NGSFunctionVector(NGSFunction):
+    def __init__(self, objs=None):
+        self._objs = [obj if isinstance(obj, NGSFunction) else NGSFunction(obj) for obj in objs]
+
+    @property
+    def shape(self):
+        return tuple([len(self._objs)] + list(self._objs[0].shape))
+            
+    @property
+    def grad(self):
+        return NGSFunctionVector([grad(obj) for obj in self._objs])
+
+    def __str__(self):
+        return str(tuple([str(obj) for obj in self._objs]))
+    
+    @property
+    def hasTrial(self):
+        return any([obj.hasTrial for obj in self._objs])
+    
+    @property
+    def rhs(self):
+        return NGSFunctionVector([obj.rhs for obj in self._objs])
+
+    @property
+    def lhs(self):
+        return NGSFunctionVector([obj.lhs for obj in self._objs])
+        
+    @property
+    def valid(self):
+        return any([obj.valid for obj in self._objs])
+        
+    def eval(self):
+        if self.valid:
+            return ngsolve.CoefficientFunction(tuple([obj.eval() if obj.valid else 0 for obj in self._objs]), dims=self.shape)
+        else:
+            return ngsolve.CoefficientFunction(0)*ngsolve.dx
+        
+    @property
+    def isNonlinear(self):
+        return any([obj.isNonlinear for obj in self._objs])
+
+
 def printError(f):
     def wrapper(*args, **kwargs):
         try:
@@ -207,9 +249,12 @@ class _Oper(NGSFunction):
         for i in range(2):
             obj = self._obj[i]
             if isinstance(obj, _Oper):
-                objs.append(obj.replace(d))
+                replaced = obj.replace(d)
             else:
-                objs.append(d.get(obj, obj))
+                replaced = d.get(obj, obj)
+            if replaced == 0:
+                replaced = NGSFunction()
+            objs.append(replaced)
         return self(*objs)
     
     @property

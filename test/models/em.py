@@ -37,7 +37,6 @@ class magnetostatistics_test(FEMTestCase):
         def solution(r):
             return rho/4*np.where(r<=1, r**2-1-2*np.log(r0), 2*np.log(r/r0))
 
-
         sol = FEMSolution()
         res = sol.eval("phi", data_number=1)
         for w in res:
@@ -58,14 +57,15 @@ class magnetostatistics_test(FEMTestCase):
         infBdr =[31,36,39,42,43,44]
         mBdr = [1,5,8,11,14,16,24,25]
 
-        param = em.UserDefinedParameter(M=[0,0,1])
+        # Material
+        param = em.UserDefinedParameter(M=1)
         p.materials.append(Material([param], geometries=domain))
 
         # poisson equation for infinite boundary
         model = em.MagnetostaticsModel()
         model.initialConditions.append(em.InitialCondition(0, geometries="all"))
         model.boundaryConditions.append(em.DirichletBoundary(True, geometries=infBdr))
-        model.domainConditions.append(em.DivSource("M", geometries=domain))
+        model.domainConditions.append(em.DivSource(np.array([0,0,"M"]), geometries=domain))
         p.models.append(model)
 
         # solver

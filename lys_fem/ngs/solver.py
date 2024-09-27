@@ -90,11 +90,11 @@ class _Operator:
                 if v.name not in symbols:
                     d[v.trial] = values[v.name]
                     d[v.trial.value] = values[v.name]
-                    d[v.trial.t] = util.NGSFunction()
-                    d[v.trial.tt] = util.NGSFunction()
-                    d[v.test] = util.NGSFunction()
+                    d[v.trial.t] = 0
+                    d[v.trial.tt] = 0
+                    d[v.test] = 0
                     d[util.grad(v.trial)] = util.grad(values[v.name])
-                    d[util.grad(v.test)] = util.NGSFunction()
+                    d[util.grad(v.test)] = 0
             wf = wf.replace(d)
         wf = integ.generateWeakforms(wf, model, sols, util.NGSFunction(self._dti,"dti"))
         return wf
