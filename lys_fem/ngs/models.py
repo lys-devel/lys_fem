@@ -97,12 +97,12 @@ class NGSModel:
                 self.addVariable(eq.variableName, eq.variableDimension, region=eq.geometries, order=order, isScalar=eq.isScalar)
 
     def addVariable(self, name, vdim, dirichlet="auto", initialValue="auto", initialVelocity=None, region=None, order=1, isScalar=False):
-        initialValue = self._funcs.eval(self.__initialValue(vdim, initialValue))
+        initialValue = self._funcs[self.__initialValue(vdim, initialValue)]
         if initialValue is None:
             raise RuntimeError("Invalid initial value for " + str(name))
             
         if initialVelocity is None:
-            initialVelocity = self._funcs.eval(FEMCoefficient([0]*vdim))
+            initialVelocity = self._funcs[FEMCoefficient([0]*vdim)]
 
         kwargs = {"order": order}
         if region is not None:

@@ -21,28 +21,16 @@ class NGSParams(dict):
     def __init__(self, dic, mesh, sols):
         super().__init__(sols)
         self._mesh = mesh
-        self.__parse(dic, mesh)
-
-    def __parse(self, dic, mesh):
-        # Replace all items by dic
         for key, value in dic.items():
             self[key] = _generateCoefficient(value, mesh, name=key, dic=self)
 
     def __getitem__(self, expr):
-        if isinstance(expr, (list, tuple, np.ndarray)):
-            return util.NGSFunction([self[ex] for ex in expr])
         if isinstance(expr, str):
             expr = sp.parsing.sympy_parser.parse_expr(expr)
-        if isinstance(expr, sp.Basic):
-            return sp.lambdify(sp.symbols(list(self.keys())), expr)(**self)
-        else:
-            return expr
-
-    def eval(self, expr):
-        return _generateCoefficient(expr, self._mesh, geom=expr.geometryType, dic=self)
+        return _generateCoefficient(expr, self._mesh, dic=self)
     
 
-def _generateCoefficient(coef, mesh=None, geom="Domain", name="Undefined", dic={}):
+def _generateCoefficient(coef, mesh=None, name="Undefined", dic={}):
     if isinstance(coef, FEMCoefficient):
         geom = coef.geometryType.lower()
         if geom == "const":
