@@ -185,8 +185,9 @@ class NGSFunction:
 
 
 class NGSFunctionVector(NGSFunction):
-    def __init__(self, objs=None):
+    def __init__(self, objs, name="Undefined"):
         self._objs = [obj if isinstance(obj, NGSFunction) else NGSFunction(obj) for obj in objs]
+        self._name = name
 
     @property
     def shape(self):
@@ -195,9 +196,6 @@ class NGSFunctionVector(NGSFunction):
     @property
     def grad(self):
         return NGSFunctionVector([grad(obj) for obj in self._objs])
-
-    def __str__(self):
-        return str(tuple([str(obj) for obj in self._objs]))
     
     @property
     def hasTrial(self):
@@ -224,6 +222,60 @@ class NGSFunctionVector(NGSFunction):
     @property
     def isNonlinear(self):
         return any([obj.isNonlinear for obj in self._objs])
+    
+
+class NGSDomainWiseFunction(NGSFunction):
+    def __init__(self, objs, mesh, geomType="domain", default=None, name="Undefined"):
+        self._objs = {key: obj if isinstance(obj, NGSFunction) else NGSFunction(obj) for key, obj in objs.items()}
+        self._mesh = mesh
+        self._default = default
+        self._geom = geomType
+        self._name = name
+
+    @property
+    def _first(self):
+        return list(self._objs.values())[0]
+
+    @property
+    def shape(self):
+        return self._first.shape
+            
+    @property
+    def grad(self):
+        return NGSDomainWiseFunction({key: grad(obj) for key, obj in self._objs.items()})
+
+    def __str__(self):
+        return self._name
+    
+    @property
+    def hasTrial(self):
+        return any([obj.hasTrial for obj in self._objs.values()])
+    
+    @property
+    def rhs(self):
+        return NGSDomainWiseFunction({key: obj.rhs for key, obj in self._objs.items()}, self._name)
+
+    @property
+    def lhs(self):
+        return NGSDomainWiseFunction({key: obj.lhs for key, obj in self._objs.items()}, self._name)
+        
+    @property
+    def valid(self):
+        return any([obj.valid for obj in self._objs.values()])
+        
+    def eval(self):
+        if self.valid:
+            coefs = {key: obj.eval() if obj.valid else 0 for key, obj in self._objs.items()}
+            if self._geom=="domain":
+                return self._mesh.MaterialCF(coefs, default=self._default)
+            else:
+                return self._mesh.BoundaryCF(coefs, default=self._default)
+        else:
+            return ngsolve.CoefficientFunction(0)*ngsolve.dx
+        
+    @property
+    def isNonlinear(self):
+        return any([obj.isNonlinear for obj in self._objs.values()])
 
 
 def printError(f):
