@@ -62,13 +62,14 @@ class GridFunction(ngsolve.GridFunction):
 
 
 class NGSFunction:
-    def __init__(self, obj=None, mesh=None, default=None, geomType="domain", name="Undefined"):
+    def __init__(self, obj=None, mesh=None, default=None, geomType="domain", name="Undefined", tdep=False):
         if obj is None or obj == 0:
             self._obj = None
             self._name = "0"
         elif isinstance(obj, (int, float, complex, sp.Integer, sp.Float)):
             self._obj = ngsolve.CoefficientFunction(obj)
             self._name = str(obj)
+            self._tdep = False
         elif isinstance(obj, (list, tuple, np.ndarray)):
             self._obj = [value if isinstance(value, NGSFunction) else NGSFunction(value) for value in obj]
             self._name = name
@@ -81,6 +82,7 @@ class NGSFunction:
         else:
             self._obj = obj
             self._name = name
+            self._tdep = tdep
 
     @property
     def shape(self):
@@ -177,6 +179,19 @@ class NGSFunction:
             return any([obj.isNonlinear for obj in self._obj])
         elif isinstance(self._obj, dict):
             return any([obj.isNonlinear for obj in self._obj.values()])
+        else:
+            raise RuntimeError("error")
+        
+    @property
+    def isTimeDependent(self):
+        if self._obj is None:
+            return False
+        if isinstance(self._obj, ngsolve.CoefficientFunction):
+            return self._tdep
+        elif isinstance(self._obj, list):
+            return any([obj.isTimeDependent for obj in self._obj])
+        elif isinstance(self._obj, dict):
+            return any([obj.isTimeDependent for obj in self._obj.values()])
         else:
             raise RuntimeError("error")
 
@@ -301,6 +316,10 @@ class _Oper(NGSFunction):
     @property
     def isNonlinear(self):
         return self._obj[0].isNonlinear or self._obj[1].isNonlinear
+    
+    @property
+    def isTimeDependent(self):
+        return self._obj[0].isTimeDependent or self._obj[1].isTimeDependent
 
 
 class _Add(_Oper):
@@ -695,6 +714,10 @@ class DifferentialSymbol(NGSFunction):
     @property
     def isNonlinear(self):
         return False
+    
+    @property
+    def isTimeDependent(self):
+        return False
 
     def __call__(self, region):
         geom = "|".join([region.geometryType.lower() + str(r) for r in region])
@@ -706,11 +729,14 @@ class DifferentialSymbol(NGSFunction):
 
 
 class Parameter(NGSFunction):
-    def __init__(self, name, value):
-        super().__init__(ngsolve.Parameter(value), name=name)
+    def __init__(self, name, value, tdep=False):
+        super().__init__(ngsolve.Parameter(value), name=name, tdep=tdep)
 
     def set(self, value):
         self._obj.Set(value)
+
+    def get(self):
+        return self._obj.Get()
 
 
 class _DMul:
@@ -724,4 +750,4 @@ class _DMul:
 
 dx = DifferentialSymbol(ngsolve.dx, name="dx")
 ds = DifferentialSymbol(ngsolve.ds, name="ds")
-t = Parameter("t", 0)
+t = Parameter("t", 0, tdep=True)

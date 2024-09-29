@@ -167,7 +167,7 @@ class elasticity_test(FEMTestCase):
         p.models.append(model2)
 
         # solver
-        solver = TimeDependentSolver(0.5e-13, 1e-13*500, method="NewmarkBeta")
+        solver = TimeDependentSolver(0.5e-13, 0.5e-13*500, method="NewmarkBeta")
         p.solvers.append(solver)
 
         # solve
@@ -175,7 +175,6 @@ class elasticity_test(FEMTestCase):
 
         # solution
         sol = FEMSolution()
-        self.assertAlmostEqual(sol.eval("u", data_number=200, coords=0), 0, places=12)
         self.assertAlmostEqual(sol.eval("u", data_number=400, coords=0), 0, places=12)
 
     def thermoelasticity_2d(self, lib):

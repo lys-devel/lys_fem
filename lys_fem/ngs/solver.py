@@ -2,9 +2,9 @@ import os
 import shutil
 import numpy as np
 
-from ngsolve import Parameter, BilinearForm, LinearForm, CoefficientFunction, VectorH1, TaskManager, SetNumThreads
+from ngsolve import BilinearForm, LinearForm, CoefficientFunction, VectorH1, TaskManager, SetNumThreads
 
-from . import mpi, mesh, time, util
+from . import mpi, time, util
 
 SetNumThreads(16)
 
@@ -59,9 +59,9 @@ class _Solution:
         n = 0
         for v in self._model.variables:
             if v.size == 1 and v.isScalar:
-                res.append(util.NGSFunction(v.scale*x.components[n], name=v.name+pre+"0"))
+                res.append(util.NGSFunction(v.scale*x.components[n], name=v.name+pre+"0", tdep=True))
             else:
-                res.append(util.NGSFunction(v.scale*CoefficientFunction(tuple(x.components[n:n+v.size])), name=v.name+pre+"0"))
+                res.append(util.NGSFunction(v.scale*CoefficientFunction(tuple(x.components[n:n+v.size])), name=v.name+pre+"0", tdep=True))
             n+=v.size           
         return res
 
@@ -71,8 +71,8 @@ class _Solution:
 
 
 class _Operator:
-    def __init__(self, model, integ, sols, symbols):
-        wf = self.__prepareWeakform(model, integ, sols, symbols)
+    def __init__(self, model, integ, sols, symbols, variableStep):
+        wf = self.__prepareWeakform(model, integ, sols, symbols, variableStep)
         self._fes = model.finiteElementSpace
         self._blf, self._lf = BilinearForm(self._fes), LinearForm(self._fes)
         lhs, rhs = wf.lhs, wf.rhs
@@ -80,11 +80,14 @@ class _Operator:
             self._blf += lhs.eval()
         if rhs.valid:
             self._lf += rhs.eval()
-        self._nl = wf.isNonlinear
+        self._nl_lhs = lhs.isNonlinear
+        self._nl_rhs = rhs.isNonlinear
+        self._tdep_lhs = lhs.isTimeDependent
+        self._tdep_rhs = rhs.isTimeDependent
         self._init  = False
 
-    def __prepareWeakform(self, model, integ, sols, symbols):
-        self._dti = Parameter(-1)
+    def __prepareWeakform(self, model, integ, sols, symbols, variableStep):
+        self._dti = util.Parameter("dti", -1, tdep=variableStep)
         wf = model.weakforms()
         if symbols is not None:
             values = {v.name: x0 for v, x0 in zip(model.variables, sols.X())}
@@ -99,51 +102,47 @@ class _Operator:
                     d[util.grad(v.trial)] = util.grad(values[v.name])
                     d[util.grad(v.test)] = 0
             wf = wf.replace(d)
-        wf = integ.generateWeakforms(wf, model, sols, util.NGSFunction(self._dti, name="dti"))
+        wf = integ.generateWeakforms(wf, model, sols, self._dti)
         return wf
 
     def __call__(self, x):
         with TaskManager():
-            self._lf.Assemble()
-            if self._nl:
+            if self._nl_rhs:
+                self._lf.Assemble()
+            if self._nl_lhs:
                 return self._blf.Apply(x) + self._lf.vec
             else:
                 return self._blf.mat * x  + self._lf.vec
 
     def Jacobian(self, x):
-        if self._nl:
-            with TaskManager():
+        with TaskManager():
+            if self._nl_lhs:
                 self._blf.AssembleLinearization(x)
                 return self._blf.mat.Inverse(self._fes.FreeDofs(), "pardiso")
-        else:
-            return self._inv
+            else:
+                return self._inv
         
     def update(self, dti):
-        if self._nl:
-            return self._dti.Set(dti)
-        if self._dti.Get() != dti:
-            self._dti.Set(dti)
-            self._assemble()
-        elif not self._init:
-            self._assemble()
-            self._init = True
-
-    def _assemble(self):
+        self._dti.set(dti)
         with TaskManager():
-            self._blf.Assemble()
-            self._inv = self._blf.mat.Inverse(self._fes.FreeDofs(), "pardiso")
-    
+            if (self._tdep_rhs or not self._init) and not self._nl_rhs:
+                self._lf.Assemble()
+            if (self._tdep_lhs or not self._init) and not self._nl_lhs:
+                self._blf.Assemble()
+                self._inv = self._blf.mat.Inverse(self._fes.FreeDofs(), "pardiso")
+        self._init = True
+        
     @property
     def isNonlinear(self):
-        return self._nl
+        return self._nl_lhs or self._nl_rhs
     
     @property
     def dti(self):
-        return self._dti.Get()
+        return self._dti.get()
 
 
 class SolverBase:
-    def __init__(self, obj, mesh, model, dirname):
+    def __init__(self, obj, mesh, model, dirname, variableStep=False):
         self._obj = obj
         self._mesh = mesh
         self._model = model
@@ -151,7 +150,7 @@ class SolverBase:
 
         self._integ = self.__prepareIntegrator(obj)
         self._sols = _Solution(model, self._integ.use_a)
-        self._ops = [_Operator(model, self._integ, self._sols, step.variables) for step in obj.steps]
+        self._ops = [_Operator(model, self._integ, self._sols, step.variables, variableStep) for step in obj.steps]
         self._x = self._sols.copy()
 
     @np.errstate(divide='ignore', invalid="ignore")
@@ -214,7 +213,7 @@ class StationarySolver(SolverBase):
 
 class RelaxationSolver(SolverBase):
     def __init__(self, obj, mesh, model, dirname):
-        super().__init__(obj, mesh, model, dirname)
+        super().__init__(obj, mesh, model, dirname, variableStep=True)
         self._tSolver = obj
 
     def execute(self):
