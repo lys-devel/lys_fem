@@ -167,7 +167,7 @@ class elasticity_test(FEMTestCase):
         p.models.append(model2)
 
         # solver
-        solver = TimeDependentSolver(1e-13, 1e-13*500, method="NewmarkBeta")
+        solver = TimeDependentSolver(0.5e-13, 1e-13*500, method="NewmarkBeta")
         p.solvers.append(solver)
 
         # solve
@@ -175,8 +175,8 @@ class elasticity_test(FEMTestCase):
 
         # solution
         sol = FEMSolution()
-        self.assertAlmostEqual(sol.eval("u", data_number=200, coords=0), 0)
-        self.assertAlmostEqual(sol.eval("u", data_number=400, coords=0), 0)
+        self.assertAlmostEqual(sol.eval("u", data_number=200, coords=0), 0, places=12)
+        self.assertAlmostEqual(sol.eval("u", data_number=400, coords=0), 0, places=12)
 
     def thermoelasticity_2d(self, lib):
         p = FEMProject(2)
@@ -209,3 +209,35 @@ class elasticity_test(FEMTestCase):
 
         # solve
         lib.run(p)
+
+    def thermoelasticity_time(self, lib):
+        p = FEMProject(1)
+
+        # geometry
+        p.geometries.scale=1e-9
+        p.geometries.add(geometry.Line(0, 0, 0, 0.1e-6, 0, 0))
+        p.mesher.setRefinement(4)
+
+        # material
+        param = elasticity.ElasticParameters(rho=1000, C=[100e9, 60e9], type="isotropic")
+        param2 = elasticity.ThermalExpansionParameters(alpha=np.eye(3)*2e-6)
+        param3 = elasticity.UserDefinedParameter(T=100)
+        mat = Material([param, param2, param3], geometries="all")
+        p.materials.append(mat)
+
+        # model: boundary and initial conditions
+        model = elasticity.ElasticModel(1)
+        model.initialConditions.append(elasticity.InitialCondition(0, geometries="all"))
+        model.domainConditions.append(elasticity.ThermoelasticStress("T*step(t-1e-12)", geometries="all"))
+        p.models.append(model)
+
+        # solver
+        solver = TimeDependentSolver(0.5e-13, 0.5e-13*500, method="NewmarkBeta")
+        p.solvers.append(solver)
+
+        # solve
+        lib.run(p)
+
+        # solution
+        sol = FEMSolution()
+        self.assertAlmostEqual(sol.eval("u", data_number=420, coords=0), 0, places=12)

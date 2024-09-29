@@ -552,9 +552,19 @@ class _Func(_Oper):
             return ngsolve.tan(self._obj[0].eval())
         if self._type == "step":
             return ngsolve.IfPos(self._obj[0].eval(), 1, 0)
+        
+    def replace(self, d):
+        obj = self._obj[0]
+        if isinstance(obj, _Oper):
+            replaced = obj.replace(d)
+        else:
+            replaced = d.get(obj, obj)
+        if replaced == 0:
+            replaced = NGSFunction()
+        return _Func(obj, self._type)
     
     def __str__(self):
-        return "exp(" + str(self._obj[0]) + ")"
+        return self._type + "(" + str(self._obj[0]) + ")"
 
 
 class TrialFunction(NGSFunction):
