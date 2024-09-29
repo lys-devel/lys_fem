@@ -224,6 +224,7 @@ class RelaxationSolver(SolverBase):
         t = 0
         dt, dx_ref = self._tSolver.dt0, self._tSolver.dx
         for i in range(1,100):
+            util.t.set(t)
             dx = self.solve(1/dt)
             t = t + dt
             mpi.print_("Step", i, ", t = {:3e}".format(t), ", dt = {:3e}".format(dt), ", dx = {:3e}".format(dx))
@@ -246,6 +247,7 @@ class TimeDependentSolver(SolverBase):
 
         t = 0
         for i, dt in enumerate(self._tSolver.getStepList()):
+            util.t.set(t)
             dx = self.solve(1/dt)
             mpi.print_("Timestep", i, ", t = {:3e}".format(t), ", dx = {:3e}".format(dx))
             self.exportSolution(i + 1)

@@ -8,7 +8,7 @@ from . import util
 
 def generateMaterial(fem, mesh):
     scale = fem.geometries.scale
-    sols = {"x": util.NGSFunction(ngsolve.x*scale, name="x"), "y": util.NGSFunction(ngsolve.y*scale, name="y"), "z": util.NGSFunction(ngsolve.z*scale, name="z")}
+    sols = {"x": util.NGSFunction(ngsolve.x*scale, name="x"), "y": util.NGSFunction(ngsolve.y*scale, name="y"), "z": util.NGSFunction(ngsolve.z*scale, name="z"), "t": util.t}
     sols.update({str(key): util.NGSFunction(value) for key, value in fem.parameters.getSolved().items()})
     sols.update({key: util.NGSFunction(coef.solution.obj.coef(coef.expression, coef.index)) for key, coef in fem.solutionFields.items()})
 

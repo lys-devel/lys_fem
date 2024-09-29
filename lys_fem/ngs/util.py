@@ -20,6 +20,22 @@ def exp(x):
     return _Func(x, "exp")
 
 
+def sin(x):
+    return _Func(x, "sin")
+
+
+def cos(x):
+    return _Func(x, "cos")
+
+
+def tan(x):
+    return _Func(x, "tan")
+
+
+def step(x):
+    return _Func(x, "step")
+
+
 class GridFunction(ngsolve.GridFunction):
     def __init__(self, fes, value=None):
         super().__init__(fes)
@@ -164,6 +180,9 @@ class NGSFunction:
         else:
             raise RuntimeError("error")
 
+    def __str__(self):
+        return self._name
+
     def __mul__(self, other):
         if isinstance(other, (int, float, complex)):
             other = NGSFunction(other)
@@ -247,8 +266,6 @@ class NGSFunction:
         elif J.shape[0] == 1:
             return NGSFunction(J[0,0], "|"+self._name+"|")
         
-    def __str__(self):
-        return self._name
 
 def printError(f):
     def wrapper(*args, **kwargs):
@@ -527,6 +544,14 @@ class _Func(_Oper):
     def eval(self):
         if self._type == "exp":
             return ngsolve.exp(self._obj[0].eval())
+        if self._type == "sin":
+            return ngsolve.sin(self._obj[0].eval())
+        if self._type == "cos":
+            return ngsolve.cos(self._obj[0].eval())
+        if self._type == "tan":
+            return ngsolve.tan(self._obj[0].eval())
+        if self._type == "step":
+            return ngsolve.IfPos(self._obj[0].eval(), 1, 0)
     
     def __str__(self):
         return "exp(" + str(self._obj[0]) + ")"
@@ -669,6 +694,15 @@ class DifferentialSymbol(NGSFunction):
             d = self._mesh.Boundaries(geom)
         return DifferentialSymbol(self._obj(definedon=d), self._scale, name=str(self))
 
+
+class Parameter(NGSFunction):
+    def __init__(self, name, value):
+        super().__init__(ngsolve.Parameter(value), name=name)
+
+    def set(self, value):
+        self._obj.Set(value)
+
+
 class _DMul:
     def __init__(self, obj, scale):
         self._obj = obj
@@ -680,3 +714,4 @@ class _DMul:
 
 dx = DifferentialSymbol(ngsolve.dx, name="dx")
 ds = DifferentialSymbol(ngsolve.ds, name="ds")
+t = Parameter("t", 0)
