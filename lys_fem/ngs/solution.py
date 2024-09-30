@@ -24,9 +24,7 @@ class NGSSolution:
         return len(glob.glob(self._dirname+"/ngs*"))-1
 
     def coef(self, expression, index=-1):
-        if index < 0:
-            index = self.maxIndex + index + 1
-        self._grid.Load(self._dirname+"/ngs"+str(index), parallel=self._fem.parallel)
+        self.update(index)
 
         data = {}
         n = 0
@@ -37,6 +35,11 @@ class NGSSolution:
             n += v.size
 
         return eval(expression, {}, data)
+
+    def update(self, index=-1):
+        if index < 0:
+            index = self.maxIndex + index + 1
+        self._grid.Load(self._dirname+"/ngs"+str(index), parallel=self._fem.parallel)
 
     def eval(self, expression, index, coords=None):
         f = self.coef(expression, index)

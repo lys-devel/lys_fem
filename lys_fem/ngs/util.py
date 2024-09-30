@@ -739,6 +739,10 @@ class Parameter(NGSFunction):
         return self._obj.Get()
 
 
+class SolutionFieldFunction(NGSFunction):
+    pass
+
+
 class _DMul:
     def __init__(self, obj, scale):
         self._obj = obj

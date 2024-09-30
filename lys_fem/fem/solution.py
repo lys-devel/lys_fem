@@ -1,6 +1,6 @@
 class SolutionFields(dict):
     def add(self, name, path, expression, index=-1):
-        self[name] = SolutionField(path, expression)
+        self[name] = SolutionField(path, expression, index)
 
     def saveAsDictionary(self):
         return {key: value.saveAsDictionary() for key, value in self.items()}
@@ -18,11 +18,16 @@ class SolutionField:
         self._path = path
         self._expression = expression
         self._index = index
+        self._sol = FEMSolution(self._path)
 
-    @property
-    def solution(self):
-        from .solution import FEMSolution
-        return FEMSolution(self._path)
+    def get(self):
+        if self._index is None:
+            return self._sol.obj.coef(self.expression, -1)
+        else:
+            return self._sol.obj.coef(self.expression, self.index)
+
+    def update(self, step):
+        self._sol.obj.update(step)
     
     @property
     def path(self):

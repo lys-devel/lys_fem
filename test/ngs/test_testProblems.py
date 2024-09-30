@@ -22,3 +22,6 @@ class test(testProblems_test):
 
     def test_loadInitial(self):
         self.loadInitial_1d(ngs)
+
+    def test_tdepField(self):
+        self.tdepField(ngs)

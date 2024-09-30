@@ -10,16 +10,17 @@ def generateMaterial(fem, mesh):
     scale = fem.geometries.scale
     sols = {"x": util.NGSFunction(ngsolve.x*scale, name="x"), "y": util.NGSFunction(ngsolve.y*scale, name="y"), "z": util.NGSFunction(ngsolve.z*scale, name="z"), "t": util.t}
     sols.update({str(key): util.NGSFunction(value) for key, value in fem.parameters.getSolved().items()})
-    sols.update({key: util.NGSFunction(coef.solution.obj.coef(coef.expression, coef.index)) for key, coef in fem.solutionFields.items()})
+    sols.update({key: util.SolutionFieldFunction(coef.get(), tdep=coef.index is None) for key, coef in fem.solutionFields.items()})
 
     mats = fem.materials.materialDict(mesh.dim)
     mats.update(fem.geometries.geometryParameters())
-    return NGSParams(mats, mesh, sols)
+    return NGSParams(fem, mats, mesh, sols)
 
 
 class NGSParams(dict):
-    def __init__(self, dic, mesh, sols):
+    def __init__(self, fem, dic, mesh, sols):
         super().__init__(sols)
+        self._fem = fem
         self._mesh = mesh
         for key, value in dic.items():
             self[key] = _generateCoefficient(value, mesh, name=key, dic=self)
@@ -28,6 +29,11 @@ class NGSParams(dict):
         if isinstance(expr, str):
             expr = sp.parsing.sympy_parser.parse_expr(expr)
         return _generateCoefficient(expr, self._mesh, dic=self)
+
+    def updateSolutionFields(self, step):
+        for key, f in self.items():
+            if isinstance(f, util.SolutionFieldFunction) and f.isTimeDependent:
+                self._fem.solutionFields[key].update(step)
     
 
 def _generateCoefficient(coef, mesh=None, name="Undefined", dic={}):

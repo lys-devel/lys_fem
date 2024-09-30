@@ -237,7 +237,11 @@ class CompositeModel:
             a = util.GridFunction(fes)
             a.vec.data  = M.mat.Inverse(fes.FreeDofs(), "pardiso") * rhs
         return x, v, a
-    
+
+    @property
+    def materials(self):
+        return self._mat
+
     @property
     def models(self):
         return self._models

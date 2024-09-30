@@ -245,3 +245,61 @@ class testProblems_test(FEMTestCase):
         res = sol.eval("x", data_number=0)
         for w in res:
             self.assert_array_almost_equal(w.data, w.x[:, 0])
+
+
+    def tdepField(self, lib):
+        if lib.mpi.isRoot:
+            os.makedirs("run1", exist_ok=True)
+            os.makedirs("run2", exist_ok=True)
+        lib.mpi.wait()
+        os.chdir("run1")
+
+        p = FEMProject(1)
+
+        # geometry
+        p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
+
+        # model: boundary and initial conditions
+        model = test.ExpTestModel()
+        model.initialConditions.append(test.InitialCondition(1, geometries="all"))
+        p.models.append(model)
+
+        # solver
+        stationary = TimeDependentSolver(0.001, 0.1)
+        p.solvers.append(stationary)
+
+        # solve
+        lib.run(p)
+
+        # solution
+        sol = FEMSolution()
+        t = np.linspace(0,0.1,101)
+        x = [sol.eval("x", coords=0, data_number=i) for i in range(101)]
+        self.assert_array_almost_equal(x, np.exp(-t), decimal=4)
+
+        # second calculation
+        os.chdir("../run2")
+        p = FEMProject(1)
+
+        # geometry
+        p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
+
+        # solution fields
+        p.solutionFields.add("x0", "../run1", "x", index=None)
+
+        # model: boundary and initial conditions
+        model = test.TdepFieldTestModel()
+        model.initialConditions.append(test.InitialCondition(0, geometries="all"))
+        p.models.append(model)
+
+        # solver
+        solver = TimeDependentSolver(0.001, 0.1)
+        p.solvers.append(solver)
+
+        # solve
+        lib.run(p)
+
+        # solution
+        sol = FEMSolution()
+        y = [sol.eval("y", coords=0, data_number=i) for i in range(101)]
+        self.assert_array_almost_equal(y, np.exp(-t)-1, decimal=4)

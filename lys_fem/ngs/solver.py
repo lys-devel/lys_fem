@@ -152,10 +152,13 @@ class SolverBase:
         self._sols = _Solution(model, self._integ.use_a)
         self._ops = [_Operator(model, self._integ, self._sols, step.variables, variableStep) for step in obj.steps]
         self._x = self._sols.copy()
+        self._step = 0
 
     @np.errstate(divide='ignore', invalid="ignore")
     def solve(self, dti=0):
         x0 = self._x.vec.CreateVector(copy=True)
+        self._model.materials.updateSolutionFields(self._step)
+        self._step += 1
         for op, step in zip(self._ops, self._obj.steps):
             if step.deformation is not None:
                 deform = {v.name: x0 for v, x0 in zip(self._model.variables, self._sols.X())}[step.deformation]

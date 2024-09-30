@@ -49,3 +49,29 @@ class NGSTwoVariableTestModel(NGSModel):
             wf += (x.t*test_x + y.t*test_y) * dx
             wf += (x-y)*test_x *dx + (y-x)*test_y*dx
         return wf
+
+
+class NGSExpTestModel(NGSModel):
+    def __init__(self, model, mesh, vars):
+        super().__init__(model, mesh, vars, addVariables=True)
+        self._model = model
+
+    def weakform(self, vars, mat):
+        wf = 0
+        for eq in self._model.equations:
+            x,test_x = vars["x"]
+            wf += (x.t + x)*test_x * dx
+        return wf
+
+
+class NGSTdepFieldTestModel(NGSModel):
+    def __init__(self, model, mesh, vars):
+        super().__init__(model, mesh, vars, addVariables=True)
+        self._model = model
+
+    def weakform(self, vars, mat):
+        wf = 0
+        for eq in self._model.equations:
+            y,test_y = vars["y"]
+            wf += (y.t + mat["x0"])*test_y * dx
+        return wf
