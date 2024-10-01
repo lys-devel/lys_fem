@@ -1,3 +1,4 @@
+import numpy as np
 
 from .base import FEMObject, FEMObjectList, FEMCoefficient, exprToStr, strToExpr
 from .geometry import GeometrySelection
@@ -111,7 +112,7 @@ class FEMParameter:
         return d
 
     def getParameters(self, dim):
-        return {key: value for key, value in vars(self).items() if key[0] != "_"}
+        return {key: value for key, value in vars(self).items() if key[0] != "_" and value is not None}
 
     @staticmethod
     def loadFromDictionary(d):
@@ -124,6 +125,18 @@ class FEMParameter:
         for key, value in d.items():
             d[key] = strToExpr(value)
         return cls(**d)
+
+    def widget(self, name):
+        from ..widgets import ScalarFunctionWidget, MatrixFunctionWidget, VectorFunctionWidget
+        param = self.getParameters(3)[name]
+        if np.shape(param) == ():
+            return ScalarFunctionWidget(None, getattr(self, name), valueChanged=lambda x: setattr(self, name, x))
+        elif len(np.shape(param)) == 1:
+            return VectorFunctionWidget(None, getattr(self, name), valueChanged=lambda x: setattr(self, name, x))
+        elif len(np.shape(param)) == 2:
+            return MatrixFunctionWidget(None, getattr(self, name), valueChanged=lambda x: setattr(self, name, x))
+        else:
+            return QtWidgets.QWidget()
 
 
 class UserDefinedParameter(FEMParameter):

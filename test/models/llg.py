@@ -21,7 +21,7 @@ class LLG_test(FEMTestCase):
         p.mesher.setRefinement(4)
 
         # material
-        param = llg.LLGParameters(alpha=5, Ms=1e6, Ku=1e3, Aex=1e-11)
+        param = llg.LLGParameters(alpha=5, Ms=1e6, Ku=1e3, Aex=1e-11, u_Ku=[0,0,1])
         mat1 = Material([param], geometries="all")
         p.materials.append(mat1)
 

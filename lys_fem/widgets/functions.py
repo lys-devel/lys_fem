@@ -17,14 +17,14 @@ class ScalarFunctionWidget(QtWidgets.QWidget):
             self.valueChanged.connect(valueChanged)
 
     def __initLayout(self, label, value):
-        self._label = QtWidgets.QLabel(label)
         self._value = QtWidgets.QLineEdit()
         self._value.setText(str(value))
         self._value.textChanged.connect(self.__valueChanged)
 
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self._label)
+        if label is not None:
+            layout.addWidget(QtWidgets.QLabel(label))
         layout.addWidget(self._value)
         self.setLayout(layout)
 
@@ -50,7 +50,6 @@ class VectorFunctionWidget(QtWidgets.QWidget):
             self.valueChanged.connect(valueChanged)
 
     def __initLayout(self, label, value):
-        self._label = QtWidgets.QLabel(label)
         self._value = [QtWidgets.QLineEdit() for v in value]
         for w, v in zip(self._value, value):
             w.setText(str(v))
@@ -58,7 +57,8 @@ class VectorFunctionWidget(QtWidgets.QWidget):
 
         layout = QtWidgets.QGridLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self._label, 0, 0)
+        if label is not None:
+            layout.addWidget(QtWidgets.QLabel(label), 0, 0)
         for i, w in enumerate(self._value):
             layout.addWidget(QtWidgets.QLabel("Axis " + str(i + 1)), i + 1, 0, 1, 1)
             layout.addWidget(w, i + 1, 1, 1, 3)
@@ -87,13 +87,13 @@ class MatrixFunctionWidget(QtWidgets.QWidget):
             self.valueChanged.connect(valueChanged)
 
     def __initLayout(self, label, value):
-        self._label = QtWidgets.QLabel(label)
         self._combo = QtWidgets.QComboBox()
         self._combo.addItems(["Scalar", "Diagonal", "Symmetric", "Full"])
         self._combo.currentTextChanged.connect(self.__typeChanged)
         h = QtWidgets.QHBoxLayout()
         h.setContentsMargins(0, 0, 0, 0)
-        h.addWidget(self._label, 2)
+        if label is not None:
+            h.addWidget(QtWidgets.QLabel(label), 2)
         h.addWidget(self._combo, 1)
 
         self._value = [[QtWidgets.QLineEdit() for _ in range(value.shape[1])] for _ in range(value.shape[0])]

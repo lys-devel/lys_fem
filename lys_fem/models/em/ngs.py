@@ -7,4 +7,4 @@ class NGSMagnetostaticsModel(general.NGSPoissonModel):
 
 class NGSElectrostaticsModel(general.NGSPoissonModel):
     def __init__(self, model, mesh, vars):
-        super().__init__(model, mesh, vars, coef="eps")
+        super().__init__(model, mesh, vars, coef="eps_r*8.8541878128e-12")

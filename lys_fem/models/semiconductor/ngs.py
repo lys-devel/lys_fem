@@ -17,7 +17,8 @@ class NGSSemiconductorModel(NGSModel):
             self.addVariable(eq.variableName+"_h", 1, dirichlet[1], init[1], region = eq.geometries, order=order, isScalar=True)
 
     def weakform(self, vars, mat):
-        mu_n, mu_p, q, kB, Nd, Na = mat["mu_e"], mat["mu_h"], mat["q"], mat["k_B"], mat["N_d"], mat["N_a"]
+        q, kB = 1.602176634e-19, 1.3806488e-23
+        mu_n, mu_p, Nd, Na = mat["mu_n"], mat["mu_p"] , mat["N_d"], mat["N_a"]
 
         wf = 0
         for eq in self._model.equations:

@@ -1,4 +1,4 @@
-from lys.Qt import QtWidgets, QtCore
+from lys.Qt import QtWidgets, QtCore, QtGui
 
 from ..widgets import FEMTreeItem, GeometrySelector
 from ..fem import Material, materialParameters
@@ -91,7 +91,7 @@ class _ParameterGUI(FEMTreeItem):
 
     @property
     def widget(self):
-        return self._param.widget()
+        return _ParameterWidget(self._param)
 
 
 class _MaterialWidget(QtWidgets.QWidget):
@@ -106,3 +106,52 @@ class _MaterialWidget(QtWidgets.QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(domain)
         self.setLayout(layout)
+
+
+class _ParameterWidget(QtWidgets.QTreeWidget):
+    def __init__(self, param, parent=None):
+        super().__init__(parent)
+        self._param = param
+        self.setColumnCount(2)
+        self.setHeaderLabels(["Symbol", "Description"])
+        self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self._buildContextMenu)
+        self.__initLayout(param)
+
+    def __initLayout(self, param):
+        self._widgets = []
+        for key in param.getParameters(3).keys():
+            self.__addItem(key)
+
+    def __addItem(self, key):
+        child = QtWidgets.QTreeWidgetItem(["", ""])
+        parent = QtWidgets.QTreeWidgetItem([key, self._param.description[key]])
+        parent.addChild(child)
+        widget = self._param.widget(key)
+        self.addTopLevelItem(parent)
+        self.setIndexWidget(self.indexFromItem(child, column=1), widget)
+        self._widgets.append(widget)
+
+    def _buildContextMenu(self):
+        self._menu = QtWidgets.QMenu()
+        params = self._param.getParameters(3)
+        sub = self._menu.addMenu("Add")
+        for key, desc in self._param.description.items():
+            if key not in params:
+                sub.addAction(QtWidgets.QAction(key+": "+desc, self, triggered=lambda x, y=key: self.__add(y)))
+        self._menu.addAction(QtWidgets.QAction("Remove", self, triggered=self.__remove))
+        self._menu.exec_(QtGui.QCursor.pos())
+
+    def __add(self, key):
+        setattr(self._param, key, self._param.default[key])
+        self.__addItem(key)
+
+    def __remove(self):
+        index = self.indexFromItem(self.currentItem())
+        if not index.isValid():
+            return
+        if index.parent().isValid():
+            index=index.parent()
+        key = index.data(QtCore.Qt.DisplayRole)
+        setattr(self._param, key, None)
+        self.takeTopLevelItem(index.row())

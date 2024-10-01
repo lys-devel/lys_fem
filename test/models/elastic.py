@@ -150,10 +150,9 @@ class elasticity_test(FEMTestCase):
         p.mesher.setRefinement(4)
 
         # material
-        param = elasticity.ElasticParameters(rho=1000, C=[100e9, 60e9], type="isotropic")
-        param2 = elasticity.ThermalExpansionParameters(alpha=np.eye(3)*2e-6)
-        param3 = heat.HeatConductionParameters()
-        mat1 = Material([param, param2, param3], geometries="all")
+        param = elasticity.ElasticParameters(rho=1000, C=[100e9, 60e9], alpha=np.eye(3)*2e-6, type="isotropic")
+        param2 = heat.HeatConductionParameters()
+        mat1 = Material([param, param2], geometries="all")
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
@@ -186,10 +185,9 @@ class elasticity_test(FEMTestCase):
         p.mesher.setRefinement(2)
 
         # material
-        param = elasticity.ElasticParameters(rho=1000, C=[100e9, 60e9], type="isotropic")
-        param2 = elasticity.ThermalExpansionParameters(alpha=np.eye(3)*2e-6)
-        param3 = heat.HeatConductionParameters()
-        mat1 = Material([param, param2, param3], geometries="all")
+        param = elasticity.ElasticParameters(rho=1000, C=[100e9, 60e9], alpha=np.eye(3)*2e-6, type="isotropic")
+        param2 = heat.HeatConductionParameters()
+        mat1 = Material([param, param2], geometries="all")
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
@@ -218,10 +216,9 @@ class elasticity_test(FEMTestCase):
         p.mesher.setRefinement(4)
 
         # material
-        param = elasticity.ElasticParameters(rho=1000, C=[100e9, 60e9], type="isotropic")
-        param2 = elasticity.ThermalExpansionParameters(alpha=np.eye(3)*2e-6)
-        param3 = elasticity.UserDefinedParameter(T=100)
-        mat = Material([param, param2, param3], geometries="all")
+        param = elasticity.ElasticParameters(rho=1000, C=[100e9, 60e9], alpha=np.eye(3)*2e-6, type="isotropic")
+        param2 = elasticity.UserDefinedParameter(T=100)
+        mat = Material([param, param2], geometries="all")
         p.materials.append(mat)
 
         # model: boundary and initial conditions

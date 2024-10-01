@@ -1,6 +1,6 @@
 from lys_fem import addMaterialParameter, addModel
 from lys_fem.ngs import addNGSModel
-from ..common import DirichletBoundary
+from ..common import DirichletBoundary, UserDefinedParameter
 
 from .material import SemiconductorParameters
 from .model import SemiconductorModel, InitialCondition

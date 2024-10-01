@@ -1,23 +1,27 @@
 import numpy as np
-
-from lys.Qt import QtWidgets
 from lys_fem import FEMParameter
-from lys_fem.widgets import MatrixFunctionWidget
 
 
 class ElectrostaticParameters(FEMParameter):
     name = "Electrostatics"
-    units = {"eps": "F/m"}
-    def __init__(self, eps_r=np.eye(3)):
+
+    def __init__(self, eps_r=np.eye(3).tolist()):
         self.eps_r = eps_r
 
     def getParameters(self, dim):
-        res = {"eps": (np.array(self.eps_r)*8.8541878128e-12)[:dim,:dim].tolist()}
+        res = {}
+        if self.eps_r is not None:
+            res["eps_r"] = (np.array(self.eps_r))[:dim,:dim].tolist()
         return res
 
-    def widget(self):
-        self._eps = MatrixFunctionWidget("Relative permittivity", self.eps_r, valueChanged=self.__set)
-        return self._eps
+    @property
+    def description(self):
+        return {
+            "eps_r": "Relative permittivity",
+        }
 
-    def __set(self):
-        self.eps_r = self._eps.value()
+    @property
+    def default(self):
+        return {
+            "eps_r": np.eye(3).tolist(),
+        }

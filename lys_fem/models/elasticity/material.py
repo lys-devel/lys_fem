@@ -3,22 +3,61 @@ import numpy as np
 
 from lys.Qt import QtWidgets
 from lys_fem import FEMParameter
-from lys_fem.widgets import ScalarFunctionWidget, MatrixFunctionWidget
+from lys_fem.widgets import ScalarFunctionWidget
 
 
 class ElasticParameters(FEMParameter):
-    """
-    C: Elastic constant in Pa
-    rho: density in kg/m^3
-    """
     name = "Elasticity"
-    def __init__(self, rho=1, C=[1, 1], type="lame"):
+
+    def __init__(self, rho=1, C=[1, 1], type="lame", alpha=None, d_e=None, d_h=None):
         self.rho = rho
         self.C = C
+        self.alpha = alpha
+        self.d_e = d_e
+        self.d_h = d_h
         self.type = type
 
     def getParameters(self, dim):
-        return {"rho": self.rho, "C": self.__getC(dim, self._constructC())}
+        super().getParameters(dim)
+        res = {}
+        if self.rho is not None:
+            res["rho"] = self.rho
+        if self.C is not None:
+            res["C"] = self.__getC(dim, self._constructC())
+        if self.alpha is not None:
+            res["alpha"] = np.array(self.alpha)[:dim,:dim].tolist()
+        if self.d_e is not None:
+            res["d_e"] = self.d_e*1.60218e-19
+        if self.d_h is not None:
+            res["d_h"] = self.d_h*1.60218e-19
+        return res
+
+    @property
+    def description(self):
+        return {
+            "rho": "Density (kg/m^3)",
+            "C": "Elastic constant (GPa)",
+            "alpha": "Thermal expansion coef. (1/K)",
+            "d_e": "DP coef. for electron (eV)",
+            "d_h": "DP coef. for hole (eV)"
+        }
+
+    @property
+    def default(self):
+        return {
+            "rho": 1,
+            "C": [1e9, 1e9],
+            "alpha": np.eye(3).tolist(),
+            "d_e": 10,
+            "d_h": 10
+        }
+
+    def widget(self, name):
+        if name=="C":
+            return _ElasticConstWidget(self)
+        else:
+            return super().widget(name)
+
 
     def _constructC(self):
         if self.type in ["lame", "young", "isotropic"]:
@@ -59,11 +98,8 @@ class ElasticParameters(FEMParameter):
                 res += mu
         return res
 
-    def widget(self):
-        return _ElasticParamsWidget(self)
 
-
-class _ElasticParamsWidget(QtWidgets.QWidget):
+class _ElasticConstWidget(QtWidgets.QWidget):
     def __init__(self, param):
         super().__init__()
         self._param = param
@@ -75,7 +111,6 @@ class _ElasticParamsWidget(QtWidgets.QWidget):
         self._type.addItems(d.values())
         self._type.setCurrentText(d[self._param.type])
         self._type.currentTextChanged.connect(self.__changeMode)
-        self._rho = ScalarFunctionWidget("Density rho (kg/m^3)", self._param.rho, valueChanged=self.__set)
 
         self._lamb = ScalarFunctionWidget("Lamé const. lambda (GPa)", self._param.C[0]*1e-9, valueChanged=self.__set)
         self._mu = ScalarFunctionWidget("Lamé const. mu (GPa)", self._param.C[1]*1e-9, valueChanged=self.__set)
@@ -91,7 +126,6 @@ class _ElasticParamsWidget(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._type)
-        layout.addWidget(self._rho)
         layout.addWidget(self._lamb)
         layout.addWidget(self._mu)
         layout.addWidget(self._E)
@@ -115,7 +149,6 @@ class _ElasticParamsWidget(QtWidgets.QWidget):
             self._C2.show()
 
     def __set(self):
-        self._param.rho = self._rho.value()
         if self._type.currentText() == "Lamé":
             self._param.type = "lame"
             self._param.C = [self._lamb.value()*1e9, self._mu.value()*1e9]
@@ -125,63 +158,3 @@ class _ElasticParamsWidget(QtWidgets.QWidget):
         if self._type.currentText() == "Isotropic":
             self._param.type = "isotropic"
             self._param.C = [self._C1.value()*1e9, self._C2.value()*1e9]
-
-
-class ThermalExpansionParameters(FEMParameter):
-    name = "Thermal Expansion"
-    def __init__(self, alpha=np.eye(3).tolist()):
-        self.alpha = alpha
-
-    def getParameters(self, dim):
-        return {"alpha": np.array(self.alpha)[:dim,:dim].tolist()}
-
-    def widget(self):
-        return _ThermalExpansionWidget(self)
-
-
-class _ThermalExpansionWidget(QtWidgets.QWidget):
-    def __init__(self, param):
-        super().__init__()
-        self._param = param
-        self._alpha = MatrixFunctionWidget("Thermal expansion coef. alpha", self._param.alpha, valueChanged=self.__set)
-
-        layout = QtWidgets.QVBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self._alpha)
-        self.setLayout(layout)
-
-    def __set(self):
-        self._param.alpha = self._alpha.value()
-
-
-
-class DeformationPotentialParameters(FEMParameter):
-    name = "Deformation potential"
-    units = {"d_e": "J", "d_h": "J"}
-    def __init__(self, d_e=-10, d_h=-10):
-        self.d_e = d_e
-        self.d_h = d_h
-
-    def getParameters(self, dim):
-        return {"d_e": np.eye(dim) * self.d_e*1.60218e-19, "d_h": np.eye(dim) * self.d_h*1.60218e-19}
-
-    def widget(self):
-        return _DeformationPotentialWidget(self)
-
-
-class _DeformationPotentialWidget(QtWidgets.QWidget):
-    def __init__(self, param):
-        super().__init__()
-        self._param = param
-        self._d_e = ScalarFunctionWidget("DP coef. for electron (eV)", self._param.d_e, valueChanged=self.__set)
-        self._d_h = ScalarFunctionWidget("DP coef. for hole (eV)", self._param.d_h, valueChanged=self.__set)
-
-        layout = QtWidgets.QVBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self._d_e)
-        layout.addWidget(self._d_h)
-        self.setLayout(layout)
-
-    def __set(self):
-        self._param.d_e = self._d_e.value()
-        self._param.d_h = self._d_h.value()

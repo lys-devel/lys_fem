@@ -11,8 +11,8 @@ class NGSLLGModel(NGSModel):
             self.addVariable(eq.variableName+"_lam", 1, initialValue=None, dirichlet=None, region=eq.geometries, order=2, isScalar=True)
 
     def weakform(self, vars, mat):
-        g, Ms = mat["g_LL"], mat["M_s"]
-        A = 2*mat["A_ex"] * g / Ms
+        g, Ms = 1.760859770e11, mat["Ms"]
+        A = 2*mat["Aex"] * g / Ms
 
         wf = 0
         for eq in self._model.equations:
