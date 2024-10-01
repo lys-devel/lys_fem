@@ -15,20 +15,29 @@ class SolutionFields(dict):
 
 class SolutionField:
     def __init__(self, path="", expression="", index=-1):
+        self.set(path, expression, index)
+
+    def set(self, path, expression, index):
         self._path = path
         self._expression = expression
         self._index = index
-        self._sol = FEMSolution(self._path)
+        self._sol = None
 
     def get(self):
         if self._index is None:
-            return self._sol.obj.coef(self.expression, -1)
+            return self.solution.obj.coef(self.expression, -1)
         else:
-            return self._sol.obj.coef(self.expression, self.index)
+            return self.solution.obj.coef(self.expression, self.index)
 
     def update(self, step):
-        self._sol.obj.update(step)
+        self.solution.obj.update(step)
     
+    @property
+    def solution(self):
+        if self._sol is None:
+            self._sol = FEMSolution(self._path)
+        return self._sol
+
     @property
     def path(self):
         return self._path

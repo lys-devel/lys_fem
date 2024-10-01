@@ -5,9 +5,13 @@ from ..fem import Material, materialParameters
 
 
 class MaterialTree(FEMTreeItem):
-    def __init__(self, obj, canvas):
-        super().__init__(fem=obj, canvas=canvas)
-        self.setMaterials(obj.materials)
+    def __init__(self, parent, materials):
+        super().__init__(parent)
+        self.setMaterials(materials)
+
+    @property
+    def name(self):
+        return "Materials"
 
     def setMaterials(self, materials):
         self.clear()
@@ -70,20 +74,6 @@ class _MaterialGUI(FEMTreeItem):
         return menu
 
 
-class _MaterialWidget(QtWidgets.QWidget):
-    def __init__(self, canvas, fem, mat):
-        super().__init__()
-        self._material = mat
-        self.__initlayout(canvas, fem, mat)
-
-    def __initlayout(self, canvas, fem, mat):
-        domain = GeometrySelector(canvas, fem, mat.geometries)
-        layout = QtWidgets.QVBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(domain)
-        self.setLayout(layout)
-
-
 class _ParameterGUI(FEMTreeItem):
     def __init__(self, parent, param):
         super().__init__(parent=parent)
@@ -102,3 +92,17 @@ class _ParameterGUI(FEMTreeItem):
     @property
     def widget(self):
         return self._param.widget()
+
+
+class _MaterialWidget(QtWidgets.QWidget):
+    def __init__(self, canvas, fem, mat):
+        super().__init__()
+        self._material = mat
+        self.__initlayout(canvas, fem, mat)
+
+    def __initlayout(self, canvas, fem, mat):
+        domain = GeometrySelector(canvas, fem, mat.geometries)
+        layout = QtWidgets.QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(domain)
+        self.setLayout(layout)

@@ -121,9 +121,9 @@ class ConditionBase(FEMObject):
     def default(cls, model):
         raise cls()
 
-    def widget(self, fem, canvas, title="Value", computed=False, shape=None):
+    def widget(self, fem, canvas, title="Value", shape=None):
         from lys_fem.gui import ConditionWidget
-        return ConditionWidget(self, fem, canvas, title=title, computed=computed, shape=shape)
+        return ConditionWidget(self, fem, canvas, title=title, shape=shape)
 
 
 class DomainCondition(ConditionBase):
@@ -146,5 +146,5 @@ class InitialCondition(ConditionBase):
         return InitialCondition([0]*model.variableDimension())
 
     def widget(self, fem, canvas, title="Initial Value"):
-        return super().widget(fem, canvas, title, computed=True, shape=(self.model.variableDimension(),))
+        return super().widget(fem, canvas, title, shape=(self.model.variableDimension(),))
 

@@ -52,7 +52,6 @@ class _SolutionGUI(FEMTreeItem):
         return self._obj
 
     
-
 class _FEMSolutionWidget(QtWidgets.QWidget):
     def __init__(self, canvas, solution):
         super().__init__()

@@ -7,13 +7,12 @@ class ConditionWidget(QtWidgets.QWidget):
     def __init__(self, cond, fem, canvas, title, shape=None):
         super().__init__()
         self._cond = cond
-        self.__initlayout(fem, canvas, title, computed, shape)
+        self.__initlayout(fem, canvas, title, shape)
 
     def __initlayout(self, fem, canvas, title, shape):
         self._selector = GeometrySelector(canvas, fem, self._cond.geometries)
         h1 = QtWidgets.QHBoxLayout()
         h1.addWidget(QtWidgets.QLabel("Value"))
-        h1.addWidget(self._combo)
 
         if shape is None:
             shape = np.array(self._cond.values).shape
