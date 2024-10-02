@@ -159,8 +159,8 @@ class testProblems_test(FEMTestCase):
         p.geometries.add(geometry.Line(1, 0, 0, 2, 0, 0))
 
         # material
-        param1 = test.UserDefinedParameter(x0 = 0)
-        param2 = test.UserDefinedParameter(x0 = 1)
+        param1 = test.UserDefinedParameters(x0 = 0)
+        param2 = test.UserDefinedParameters(x0 = 1)
         p.materials.append(Material([param1], geometries=[1]))
         p.materials.append(Material([param2], geometries=[2]))
 

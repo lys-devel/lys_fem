@@ -58,7 +58,7 @@ class magnetostatistics_test(FEMTestCase):
         mBdr = [1,5,8,11,14,16,24,25]
 
         # Material
-        param = em.UserDefinedParameter(M=1)
+        param = em.UserDefinedParameters(M=1)
         p.materials.append(Material([param], geometries=domain))
 
         # poisson equation for infinite boundary

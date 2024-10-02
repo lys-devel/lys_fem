@@ -139,14 +139,12 @@ class FEMParameter:
             return QtWidgets.QWidget()
 
 
-class UserDefinedParameter(FEMParameter):
+class UserDefinedParameters(FEMParameter):
     name = "User Defined"
 
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-    def widget(self):
-        pass
 
-materialParameters["User Defined"] = [UserDefinedParameter]
+materialParameters["User Defined"] = [UserDefinedParameters]

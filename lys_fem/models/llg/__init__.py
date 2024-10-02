@@ -1,6 +1,6 @@
 from lys_fem import addMaterialParameter, addModel
 from lys_fem.ngs import addNGSModel
-from ..common import InitialCondition, DirichletBoundary, UserDefinedParameter
+from ..common import InitialCondition, DirichletBoundary, UserDefinedParameters
 
 from .material import LLGParameters
 from .model import LLGModel, LLGEquation, ExternalMagneticField, UniaxialAnisotropy, GilbertDamping

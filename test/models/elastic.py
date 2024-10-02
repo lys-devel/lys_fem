@@ -217,7 +217,7 @@ class elasticity_test(FEMTestCase):
 
         # material
         param = elasticity.ElasticParameters(rho=1000, C=[100e9, 60e9], alpha=np.eye(3)*2e-6, type="isotropic")
-        param2 = elasticity.UserDefinedParameter(T=100)
+        param2 = elasticity.UserDefinedParameters(T=100)
         mat = Material([param, param2], geometries="all")
         p.materials.append(mat)
 
