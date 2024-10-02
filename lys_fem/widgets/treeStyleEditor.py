@@ -174,6 +174,8 @@ class TreeItem(object):
         if self.parent is None:
             return QtCore.QModelIndex()
         else:
+            if not self in self.parent.children:
+                return QtCore.QModelIndex()
             return self._treeModel().createIndex(self.parent.children.index(self), 0, self)
 
     def beginRemoveRow(self, row):

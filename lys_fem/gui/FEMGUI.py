@@ -91,7 +91,7 @@ class FEMGUI(LysSubWindow):
     def _refresh(self):
         self._gedit.setGeometry(self._obj.geometries)
         self._medit.setMesher(self._obj.mesher)
-        self._mat.rootItem.setMaterials(self._obj.materials)
+        self._mat.rootItem.setVariables(self._obj.materials)
         self._model.rootItem.setModels(self._obj.models)
         self._solver.rootItem.setSolvers(self._obj.solvers)
 

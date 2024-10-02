@@ -63,6 +63,7 @@ class GeometryEditor(QtWidgets.QWidget):
 
     def setGeometry(self, geom):
         self._geom = geom
+        self.__setScale(geom.scale)
         self._gt.setGeometry(geom)
 
 

@@ -34,7 +34,7 @@ class NGSParams(dict):
         for key, f in self.items():
             if isinstance(f, util.SolutionFieldFunction) and f.isTimeDependent:
                 self._fem.solutionFields[key].update(step)
-    
+
 
 def _generateCoefficient(coef, mesh=None, name="Undefined", dic={}):
     if isinstance(coef, FEMCoefficient):

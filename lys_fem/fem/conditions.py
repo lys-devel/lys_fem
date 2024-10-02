@@ -119,7 +119,7 @@ class ConditionBase(FEMObject):
 
     @classmethod
     def default(cls, model):
-        raise cls()
+        return cls()
 
     def widget(self, fem, canvas, title="Value", shape=None):
         from lys_fem.gui import ConditionWidget

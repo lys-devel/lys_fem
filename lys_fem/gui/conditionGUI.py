@@ -14,19 +14,21 @@ class ConditionWidget(QtWidgets.QWidget):
         h1 = QtWidgets.QHBoxLayout()
         h1.addWidget(QtWidgets.QLabel("Value"))
 
-        if shape is None:
-            shape = np.array(self._cond.values).shape
-        if len(shape) == 0:
-            self._value = ScalarFunctionWidget(title, self._cond.values, valueChanged=self.__valueChanged)
-        if len(shape) == 1:
-            self._value = VectorFunctionWidget(title, self._cond.values, valueChanged=self.__valueChanged)
-        if len(shape) == 2:
-            self._value = MatrixFunctionWidget(title, self._cond.values, valueChanged=self.__valueChanged)
+        if self._cond.values is not None:
+            if shape is None:
+                shape = np.array(self._cond.values).shape
+            if len(shape) == 0:
+                self._value = ScalarFunctionWidget(title, self._cond.values, valueChanged=self.__valueChanged)
+            if len(shape) == 1:
+                self._value = VectorFunctionWidget(title, self._cond.values, valueChanged=self.__valueChanged)
+            if len(shape) == 2:
+                self._value = MatrixFunctionWidget(title, self._cond.values, valueChanged=self.__valueChanged)
 
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._selector)
-        layout.addWidget(self._value)
+        if self._cond.values is not None:
+            layout.addWidget(self._value)
         
         self.setLayout(layout)
 

@@ -12,6 +12,9 @@ class VariableTree(FEMTreeItem):
         self.append(SolutionFieldTree(self))
         self.append(MaterialTree(self, obj.materials))
 
+    def setVariables(self, materials):
+        self.children[2].setMaterials(materials)
+
 
 class GlobalVariableTree(FEMTreeItem):
     def __init__(self, parent):
