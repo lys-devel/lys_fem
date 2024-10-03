@@ -1,5 +1,5 @@
 from lys_fem.ngs import NGSModel, grad, dx
-from . import ExternalMagneticField, UniaxialAnisotropy, GilbertDamping
+from . import ExternalMagneticField, UniaxialAnisotropy, GilbertDamping, MagneticScalarPotential
 
 class NGSLLGModel(NGSModel):
     def __init__(self, model, mesh, vars, order=2):
@@ -11,7 +11,7 @@ class NGSLLGModel(NGSModel):
             self.addVariable(eq.variableName+"_lam", 1, initialValue=None, dirichlet=None, region=eq.geometries, order=2, isScalar=True)
 
     def weakform(self, vars, mat):
-        g, Ms = 1.760859770e11, mat["Ms"]
+        g, mu0, Ms = 1.760859770e11, 1.25663706e-6, mat["Ms"]
         A = 2*mat["Aex"] * g / Ms
 
         wf = 0
@@ -36,4 +36,9 @@ class NGSLLGModel(NGSModel):
                 u, Ku = mat["u_Ku"], mat["Ku"]
                 B = 2*Ku/Ms*m.dot(u)*u
                 wf += g*m.cross(B).dot(test_m)*dx(uni.geometries)
+
+            for sc in self._model.domainConditions.get(MagneticScalarPotential):
+                phi = mat[sc.values]
+                wf += g*m.cross(mu0*grad(phi.value)).dot(test_m)*dx(sc.geometries)
+                
         return wf

@@ -16,14 +16,13 @@ def generateModel(fem, mesh, mat):
 
 
 class NGSVariable:
-    def __init__(self, name, fes, scale, initialValue, initialVelocity, xscale, isScalar):
+    def __init__(self, name, fes, scale, initialValue, initialVelocity, isScalar):
         self._name = name
         self._fes = fes
         self._scale = scale
         self._init = initialValue
         self._vel = initialVelocity
         self._isScalar = isScalar
-        self._xscale = xscale
 
     @property
     def name(self):
@@ -71,9 +70,9 @@ class NGSVariable:
 
     def setTnT(self, trial, test):
         if self.size==1 and self._isScalar:
-            trial, test = trial[0], test[0]        
-        self._trial = util.TrialFunction(self.name, trial, xscale=self._xscale, scale=self._scale)
-        self._test = util.TestFunction(test, name=self.name, xscale=self._xscale)
+            trial, test = trial[0], test[0]
+        self._trial = util.TrialFunction(self.name, trial, scale=self._scale)
+        self._test = util.TestFunction(test, name=self.name)
         return self._trial, self._test
 
     @property
@@ -119,7 +118,7 @@ class NGSModel:
                 kwargs["dirichlet"] = "|".join(["boundary" + str(item) for item in dirichlet[i]])
             fess.append(ngsolve.H1(self._mesh, **kwargs))
 
-        self._vars.append(NGSVariable(name, fess, self.scale, initialValue, initialVelocity, xscale=self._mesh.scale, isScalar=isScalar))
+        self._vars.append(NGSVariable(name, fess, self.scale, initialValue, initialVelocity, isScalar=isScalar))
 
     def __dirichlet(self, coef, vdim):
         bdr_dir = [[] for _ in range(vdim)] 
@@ -176,9 +175,6 @@ class CompositeModel:
             n+=var.size
 
     def weakforms(self):
-        util.dx.setScale(self._mesh.scale)
-        util.dx.setMesh(self._mesh)
-        util.ds.setMesh(self._mesh)
         tnt = {var.name: (var.trial, var.test) for var in self.variables}   # trial and test functions
         self._mat.update({v.name: v.trial for v in self.variables})         # update variable dictionary
         return sum([model.weakform(tnt, self._mat) for model in self._models])
@@ -201,12 +197,17 @@ class CompositeModel:
                 K += wf_K.eval()
 
             d = {}
+            print(wf)
+            print("---------------------")
             for var in self.variables:
                 d[util.grad(var.trial)] = 0
                 d[var.trial] = 0
                 d[var.trial.t] = var.trial
                 d[var.trial.tt] = 0
+            print(d)
+            print("---------------------")
             wf_C = wf.replace(d).lhs
+            print("---------------------")
             C = ngsolve.BilinearForm(fes)
             if wf_C.valid:
                 C += wf_C.eval()

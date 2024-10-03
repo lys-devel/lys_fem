@@ -26,10 +26,21 @@ class GilbertDamping(DomainCondition):
     className = "GilbertDamping"
 
 
+class MagneticScalarPotential(DomainCondition):
+    className = "MagneitcScalarPotential"
+
+    @classmethod
+    def default(cls, model):
+        return MagneticScalarPotential(0)
+
+    def widget(self, fem, canvas):
+        return super().widget(fem, canvas, title="Magnetic scalar potential (A)")
+
+
 class LLGModel(FEMFixedModel):
     className = "LLG"
     equationTypes = [LLGEquation]
-    domainConditionTypes = [ExternalMagneticField, UniaxialAnisotropy, GilbertDamping]
+    domainConditionTypes = [ExternalMagneticField, UniaxialAnisotropy, GilbertDamping, MagneticScalarPotential]
     boundaryConditionTypes = [DirichletBoundary]
 
     def __init__(self, *args, **kwargs):

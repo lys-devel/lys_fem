@@ -5,7 +5,7 @@ import gmsh
 import ngsolve
 from netgen.meshing import Mesh, Element0D, Element1D, Element2D, Element3D, FaceDescriptor, Pnt, MeshPoint
 
-from . import mpi
+from . import mpi, util
 
 class NGSMesh(ngsolve.Mesh):
     pass
@@ -42,6 +42,10 @@ def generateMesh(fem, file="mesh.msh"):
         mesh = NGSMesh(gmesh)
         mesh._coords_global = coords * fem.geometries.scale
     mesh.scale = fem.geometries.scale
+    util.xscale = mesh.scale
+    util.dx.setMesh(mesh)
+    util.dx.setScale(mesh.scale)
+    util.ds.setMesh(mesh)
     return mesh
 
 def _setBCNames(gmesh, file):

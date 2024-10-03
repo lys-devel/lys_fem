@@ -231,3 +231,50 @@ class LLG_test(FEMTestCase):
         res = sol.eval("m[1]", data_number=50*factor)
         for w in res:
             self.assert_array_almost_equal(w.data, np.zeros(w.data.shape), decimal=2)
+
+    def scalar(self, lib):
+        factor = 1
+        x = sp.Symbol("x")
+        p = FEMProject(3)
+
+        # geometry
+        p.geometries.scale=1e-9
+        p.geometries.add(geometry.Box(0, 0, 0, 1e-9, 0.1e-9, 0.1e-9))
+        p.mesher.setRefinement(0)
+
+        # material
+        param = llg.LLGParameters(alpha=0, Aex=0)
+        mat1 = Material([param], geometries="all")
+        p.materials.append(mat1)
+
+        # model: boundary and initial conditions
+        model = llg.LLGModel()
+        model.initialConditions.append(llg.InitialCondition([1, 0, 0], geometries="all"))
+        model.domainConditions.append(llg.MagneticScalarPotential(x/1.25663706e-6, geometries="all"))
+        p.models.append(model)
+
+        #model = em.MagnetostaticsModel()
+        #model.initialConditions.append(em.InitialCondition(x/1.25663706e-6, geometries="all"))
+        #p.models.append(model)
+
+        # solver
+        solver = TimeDependentSolver(T/100/factor, T/2, steps=[SolverStep(["m", "m_lam"])])
+        p.solvers.append(solver)
+
+        # solve
+        lib.run(p)
+
+        # solution
+        sol = FEMSolution()
+        res = sol.eval("m[0]", data_number=25*factor)
+        for w in res:
+            self.assert_array_almost_equal(w.data, np.zeros(w.data.shape), decimal=2)
+        res = sol.eval("m[1]", data_number=25*factor)
+        for w in res:
+            self.assert_array_almost_equal(w.data, np.ones(w.data.shape), decimal=3)
+        res = sol.eval("m[0]", data_number=50*factor)
+        for w in res:
+            self.assert_array_almost_equal(w.data, -np.ones(w.data.shape), decimal=3)
+        res = sol.eval("m[1]", data_number=50*factor)
+        for w in res:
+            self.assert_array_almost_equal(w.data, np.zeros(w.data.shape), decimal=2)

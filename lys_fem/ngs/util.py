@@ -10,10 +10,7 @@ def prod(args):
 
 
 def grad(f):
-    if hasattr(f, "grad"): 
-        return f.grad
-    else:
-        return 0
+    return _Func(f, "grad")
 
 
 def exp(x):
@@ -194,6 +191,10 @@ class NGSFunction:
             return any([obj.isTimeDependent for obj in self._obj.values()])
         else:
             raise RuntimeError("error")
+        
+    @property
+    def value(self):
+        return self
 
     def __str__(self):
         return self._name
@@ -284,6 +285,7 @@ class NGSFunction:
 
 def printError(f):
     def wrapper(*args, **kwargs):
+        return f(*args, **kwargs)
         try:
             return f(*args, **kwargs)
         except:
@@ -560,6 +562,14 @@ class _Func(_Oper):
     def hasTrial(self):
         return self._obj[0].hasTrial
 
+    def __hash__(self):
+        if self._type == "grad" and isinstance(self._obj[0], (TrialFunction, TestFunction)):
+            return hash(str(self._obj[0])+"__grad")
+        return super().__hash__()
+    
+    def __eq__(self, other):
+        return hash(self) == hash(other)
+
     def eval(self):
         if self._type == "exp":
             return ngsolve.exp(self._obj[0].eval())
@@ -571,8 +581,14 @@ class _Func(_Oper):
             return ngsolve.tan(self._obj[0].eval())
         if self._type == "step":
             return ngsolve.IfPos(self._obj[0].eval(), 1, 0)
+        if self._type == "grad":
+            if hasattr(self._obj[0], "grad"):
+                return self._obj[0].grad()
+            raise RuntimeError("grad not implemented")
         
     def replace(self, d):
+        if self in d:
+            return d.get(self)
         obj = self._obj[0]
         if isinstance(obj, _Oper):
             replaced = obj.replace(d)
@@ -587,30 +603,24 @@ class _Func(_Oper):
 
 
 class TrialFunction(NGSFunction):
-    def __init__(self, name, obj, dt=0, grad=False, xscale=1, scale=1):
+    def __init__(self, name, obj, dt=0, scale=1):
         super().__init__(obj, name="trial("+name+")")
         self._name = name
         self._tris = obj
         self._dt = dt
-        self._grad = grad
-        self._xscale = xscale
         self._scale = scale
 
     @property
     def t(self):
-        return TrialFunction(self._name, self._tris, self._dt+1, grad=self._grad, xscale=self._xscale, scale=self._scale)
+        return TrialFunction(self._name, self._tris, self._dt+1, scale=self._scale)
 
     @property
     def tt(self):
-        return TrialFunction(self._name, self._tris, self._dt+2, grad=self._grad, xscale=self._xscale, scale=self._scale)
+        return TrialFunction(self._name, self._tris, self._dt+2, scale=self._scale)
 
-    @property    
-    def grad(self):
-        return TrialFunction(self._name, self._tris, self._dt, grad=True, xscale=self._xscale, scale=self._scale)
-    
     @property
     def value(self):
-        return TrialFunctionValue(self.eval(), name = self._name)
+        return TrialFunctionValue(self._tris, name = self._name)
     
     @property
     def rhs(self):
@@ -621,7 +631,7 @@ class TrialFunction(NGSFunction):
         return self
        
     def __hash__(self):
-        return hash(self._name + "__" + str(self._dt) + "__" + str(self._grad))
+        return hash(self._name + "__" + str(self._dt))
     
     def __eq__(self, other):
         return hash(self) == hash(other)
@@ -632,8 +642,6 @@ class TrialFunction(NGSFunction):
             return name+"0"
         for i in range(self._dt):
             name += "t" 
-        if self._grad:
-            name = "grad(" + name + ")"
         return name
 
     @property
@@ -641,64 +649,66 @@ class TrialFunction(NGSFunction):
         return True
     
     def eval(self):
-        if self._grad:
-            if isinstance(self._tris, list):
-                return self._scale/self._xscale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._tris]), dims=(ngsolve.grad(self._tris[0]).shape[0], len(self._tris))).TensorTranspose((1,0))
-            return self._scale/self._xscale * ngsolve.grad(self._tris)
-        else:
-            return self._scale * super().eval()
-
+        return self._scale * super().eval()
+        
+    def grad(self):
+        if isinstance(self._tris, list):
+            return self._scale/xscale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._tris]), dims=(ngsolve.grad(self._tris[0]).shape[0], len(self._tris))).TensorTranspose((1,0))
+        return self._scale/xscale * ngsolve.grad(super().eval())
+        
 
 class TestFunction(NGSFunction):
-    def __init__(self, obj, name, grad=False, xscale=1, scale=1):
+    def __init__(self, obj, name, scale=1):
         super().__init__(obj, name="test("+name+")")
         self._tests = obj
-        self._grad = grad
         self._nam = name
-        self._xscale = xscale
         self._scale = scale
 
-    @property    
-    def grad(self):
-        return TestFunction(self._tests, "grad("+self._nam+")", grad=True, xscale=self._xscale, scale=self._scale)
-    
     def eval(self):
-        if self._grad:
-            if isinstance(self._tests, list):
-                return self._scale/self._xscale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._tests]), dims=(ngsolve.grad(self._tests[0]).shape[0], len(self._obj))).TensorTranspose((1,0))
-            return self._scale/self._xscale * ngsolve.grad(self._tests)
-        else:
-            return self._scale*super().eval()
+        return self._scale*super().eval()
+        
+    def grad(self):
+        if isinstance(self._tests, list):
+            return self._scale/xscale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._tests]), dims=(ngsolve.grad(self._tests[0]).shape[0], len(self._obj))).TensorTranspose((1,0))
+        return self._scale/xscale * ngsolve.grad(self._tests)
         
     def __hash__(self):
-        return hash(self._name + "__" + str(self._grad))
+        return hash(self._name)
     
     def __eq__(self, other):
         return hash(self) == hash(other)
     
 
 class TrialFunctionValue(NGSFunction):
+    def __init__(self, obj, name):
+        super().__init__(obj, name=name)
+        self._tris = obj
+
     def __hash__(self):
         return hash("Value__" + self._name)
     
     def __eq__(self, other):
         return hash(self) == hash(other)
 
+    def grad(self):
+        if isinstance(self._tris, list):
+            return 1/xscale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._tris]), dims=(ngsolve.grad(self._tris[0]).shape[0], len(self._tris))).TensorTranspose((1,0))
+        return 1/xscale * ngsolve.grad(super().eval())
+
     @property
     def isNonlinear(self):
-        return True
-
+        return True  
 
 class DifferentialSymbol(NGSFunction):
     def __init__(self, obj, scale=1, **kwargs):
         super().__init__(obj, **kwargs)
         self._scale = scale
 
-    def setScale(self, scale):
-        self._scale = scale
-
     def setMesh(self, mesh):
         self._mesh = mesh
+
+    def setScale(self, scale):
+        self._scale = scale
 
     def eval(self):
         return _DMul(self._obj, self._scale)
@@ -755,3 +765,4 @@ class _DMul:
 dx = DifferentialSymbol(ngsolve.dx, name="dx")
 ds = DifferentialSymbol(ngsolve.ds, name="ds")
 t = Parameter("t", 0, tdep=True)
+xscale = 1

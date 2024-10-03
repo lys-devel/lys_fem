@@ -16,3 +16,6 @@ class ngs_LLG_test(LLG_test):
 
     def test_deform(self):
         self.deformation(ngs)
+
+    def test_scalar(self):
+        self.scalar(ngs)
