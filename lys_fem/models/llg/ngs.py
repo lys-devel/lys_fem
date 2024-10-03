@@ -40,5 +40,5 @@ class NGSLLGModel(NGSModel):
             for sc in self._model.domainConditions.get(MagneticScalarPotential):
                 phi = mat[sc.values]
                 wf += g*m.cross(mu0*grad(phi.value)).dot(test_m)*dx(sc.geometries)
-                
+
         return wf

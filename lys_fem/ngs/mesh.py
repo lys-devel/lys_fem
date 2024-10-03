@@ -43,6 +43,7 @@ def generateMesh(fem, file="mesh.msh"):
         mesh._coords_global = coords * fem.geometries.scale
     mesh.scale = fem.geometries.scale
     util.xscale = mesh.scale
+    util.dimension = fem.dimension
     util.dx.setMesh(mesh)
     util.dx.setScale(mesh.scale)
     util.ds.setMesh(mesh)

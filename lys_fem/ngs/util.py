@@ -32,6 +32,9 @@ def tan(x):
 def step(x):
     return _Func(x, "step")
 
+def sqrt(x):
+    return _Func(x, "sqrt")
+
 
 class GridFunction(ngsolve.GridFunction):
     def __init__(self, fes, value=None):
@@ -124,6 +127,14 @@ class NGSFunction:
                 return self._mesh.MaterialCF(coefs, default=default)
             else:
                 return self._mesh.BoundaryCF(coefs, default=default)
+            
+    def grad(self):
+        if self._obj is None:
+            return ngsolve.CoefficientFunction([0]*dimension)
+        if isinstance(self._obj, ngsolve.CoefficientFunction):
+            g = [self._obj.Diff(symbol) for symbol in [ngsolve.x, ngsolve.y, ngsolve.z][:dimension]]
+            return ngsolve.CoefficientFunction(tuple(g), dims=(dimension,))/xscale
+        raise RuntimeError("grad not implemented")
 
     @property
     def hasTrial(self):
@@ -388,6 +399,11 @@ class _Mul(_Oper):
     def eval(self):
         return self(self._obj[0].eval(), self._obj[1].eval())
 
+    def grad(self):
+        if self._type == "*":
+            return self._obj[0].eval()*self._obj[1].grad()+self._obj[1].eval()*self._obj[0].grad()
+        raise RuntimeError("grad not implenented")
+
     def __str__(self):
         if isinstance(self._obj[0], _Mul) or isinstance(self._obj[1], _Mul):
             return str(self._obj[0]) + self._type + str(self._obj[1])
@@ -413,7 +429,7 @@ class _Mul(_Oper):
         else:
             return NGSFunction()
         
-
+        
 class _TensorDot(_Oper):
     def __init__(self, obj1, obj2, axes=1):
         super().__init__(obj1, obj2)
@@ -581,10 +597,12 @@ class _Func(_Oper):
             return ngsolve.tan(self._obj[0].eval())
         if self._type == "step":
             return ngsolve.IfPos(self._obj[0].eval(), 1, 0)
+        if self._type == "sqrt":
+            return ngsolve.sqrt(self._obj[0].eval())    
         if self._type == "grad":
             if hasattr(self._obj[0], "grad"):
                 return self._obj[0].grad()
-            raise RuntimeError("grad not implemented")
+            raise RuntimeError("grad is not implemented for " + str(type(self._obj[0])))
         
     def replace(self, d):
         if self in d:
@@ -699,6 +717,7 @@ class TrialFunctionValue(NGSFunction):
     def isNonlinear(self):
         return True  
 
+
 class DifferentialSymbol(NGSFunction):
     def __init__(self, obj, scale=1, **kwargs):
         super().__init__(obj, **kwargs)
@@ -766,3 +785,4 @@ dx = DifferentialSymbol(ngsolve.dx, name="dx")
 ds = DifferentialSymbol(ngsolve.ds, name="ds")
 t = Parameter("t", 0, tdep=True)
 xscale = 1
+dimension = 3

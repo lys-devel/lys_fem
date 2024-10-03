@@ -19,3 +19,6 @@ class ngs_LLG_test(LLG_test):
 
     def test_scalar(self):
         self.scalar(ngs)
+
+    def test_scalar_em(self):
+        self.scalar_em(ngs)

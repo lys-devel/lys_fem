@@ -27,7 +27,7 @@ class GilbertDamping(DomainCondition):
 
 
 class MagneticScalarPotential(DomainCondition):
-    className = "MagneitcScalarPotential"
+    className = "MagneticScalarPotential"
 
     @classmethod
     def default(cls, model):
