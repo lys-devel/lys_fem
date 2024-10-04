@@ -157,9 +157,9 @@ class NGSFunction:
             if isinstance(self._obj, ngsolve.CoefficientFunction):
                 return self
             elif isinstance(self._obj, list):
-                return NGSFunction([obj.rhs for obj in self._objs])
+                return NGSFunction([obj.rhs for obj in self._obj])
             elif isinstance(self._obj, dict):
-                return NGSFunction({key: obj.rhs for key, obj in self._objs.items()})
+                return NGSFunction({key: obj.rhs for key, obj in self._obj.items()})
             else:
                 raise RuntimeError("error")
 
@@ -169,9 +169,9 @@ class NGSFunction:
             if isinstance(self._obj, ngsolve.CoefficientFunction):
                 return self
             elif isinstance(self._obj, list):
-                return NGSFunction([obj.lhs for obj in self._objs])
+                return NGSFunction([obj.lhs for obj in self._obj])
             elif isinstance(self._obj, dict):
-                return NGSFunction({key: obj.lhs for key, obj in self._objs.items()})
+                return NGSFunction({key: obj.lhs for key, obj in self._obj.items()})
             else:
                 raise RuntimeError("error")
         else:
@@ -260,6 +260,11 @@ class NGSFunction:
     
     def __rsub__(self, other):
         return (-self) + other 
+    
+    def __rtruediv__(self, other):
+        if isinstance(other, (int, float, complex)):
+            other = NGSFunction(other)
+        return other/self
 
     def __pow__(self, other):
         if not self.valid:
@@ -577,6 +582,10 @@ class _Func(_Oper):
     @property
     def hasTrial(self):
         return self._obj[0].hasTrial
+    
+    @property
+    def shape(self):
+        return self._obj[0].shape
 
     def __hash__(self):
         if self._type == "grad" and isinstance(self._obj[0], (TrialFunction, TestFunction)):

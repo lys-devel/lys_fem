@@ -115,14 +115,14 @@ class InfiniteVolume(FEMGeometry):
 
     def _constructJ(self, domain):
         a,b,c,A,B,C = np.array(self.args)
-        alpha = 1
+        alpha = sp.Integer(1)
 
         Cx = np.array([0, b-a*(B-b)/(A-a), c-a*(C-c)/(A-a)])
         Cy = np.array([a-b*(A-a)/(B-b), 0, c-b*(C-c)/(B-b)])
         Cz = np.array([a-c*(A-a)/(C-c), b-c*(B-b)/(C-c), 0])
         Cb = (Cx + Cy + Cz)/3
 
-        x,y,z = sp.symbols("x,y,z", real=True)
+        x,y,z = sp.symbols("x,y,z")
         if domain == 0:
             X = Cb[0] + (a-Cb[0])/((A-x)/(A-a))**(1/alpha)
             Y = y * (X-Cy[0]) / (x-Cy[0])
@@ -147,16 +147,14 @@ class InfiniteVolume(FEMGeometry):
             Z = -(Cb[2] + (c-Cb[2])/((C+z)/(C-c))**(1/alpha))
             X = x * (-Z -Cx[2]) / (-z-Cx[2])
             Y = y * (-Z -Cy[2]) / (-z-Cy[2])
-        J = sp.Matrix([[X.diff(x), Y.diff(x), Z.diff(x)],[X.diff(y), Y.diff(y), Z.diff(y)],[X.diff(z), Y.diff(z), Z.diff(z)]]).inv()
-        J = self.__subs(J,x,y,z)
+        m = np.array([[X.diff(x), Y.diff(x), Z.diff(x)],[X.diff(y), Y.diff(y), Z.diff(y)],[X.diff(z), Y.diff(z), Z.diff(z)]]) 
+        det = m[0,0]*m[1,1]*m[2,2] + m[0,1]*m[1,2]*m[2,0] + m[0,2]*m[1,0]*m[2,1]
+        J = sp.Matrix([
+            [m[1,1]*m[2,2]-m[1,2]*m[2,1], m[0,2]*m[2,1]-m[0,1]*m[2,2], m[0,1]*m[1,2]-m[0,2]*m[1,1]],
+            [m[1,2]*m[2,0]-m[1,0]*m[2,2], m[0,0]*m[2,2]-m[0,2]*m[2,0], m[0,2]*m[1,0]-m[0,0]*m[1,2]],
+            [m[1,0]*m[2,1]-m[1,1]*m[2,0], m[0,1]*m[2,0]-m[0,0]*m[2,1], m[0,0]*m[1,1]-m[0,1]*m[1,0]]])/det
         return [[J[i,j] for j in range(3)] for i in range(3)]
     
-    def __subs(self,J,x,y,z):
-        # disable assumption that xyz is real
-        xs, ys, zs = sp.symbols("xs,ys,zs")
-        xx, yy, zz = sp.symbols("x,y,z")
-        return J.subs({x:xs, y:ys, z:zs}).subs({xs:xx, ys:yy, zs:zz})
-
 
 class Rect(FEMGeometry):
     def __init__(self, x=0, y=0, z=0, dx=1, dy=1):
@@ -241,13 +239,13 @@ class InfinitePlane(FEMGeometry):
 
     def _constructJ(self, domain):
         a,b,A,B = self.args
-        alpha = 1
+        alpha = sp.Integer(1)
 
         Cx = np.array([0, b-a*(B-b)/(A-a)])
         Cy = np.array([a-b*(A-a)/(B-b), 0])
         Cb = (Cx + Cy)/2
 
-        x,y = sp.symbols("x,y", real=True)
+        x,y = sp.symbols("x,y")
         if domain == 0:
             X = Cb[0] + (a-Cb[0])/((A-x)/(A-a))**(1/alpha)
             Y = y * (X-Cy[0]) / (x-Cy[0])
@@ -260,15 +258,10 @@ class InfinitePlane(FEMGeometry):
         elif domain == 3:
             Y = -(Cb[1] + (b-Cb[1])/((B+y)/(B-b))**(1/alpha))
             X = x * (-Y-Cx[1]) / (-y-Cx[1])
-        J = sp.Matrix([[X.diff(x), Y.diff(x)],[X.diff(y), Y.diff(y)]]).inv()
-        J = self.__subs(J, x, y)
+        m = np.array([[X.diff(x), Y.diff(x)],[X.diff(y), Y.diff(y)]])
+        det = m[0,0]*m[1,1]-m[0,1]*m[1,0]
+        J = sp.Matrix([[m[1,1], -m[0,1]], [-m[1,0], m[0,0]]])/det
         return [[J[i,j] for j in range(2)] for i in range(2)]
-
-    def __subs(self,J,x,y):
-        # disable assumption that xyz is real
-        xs, ys = sp.symbols("xs,ys")
-        xx, yy = sp.symbols("x,y")
-        return J.subs({x:xs, y:ys}).subs({xs:xx, ys:yy})
 
     def widget(self):
         return InfinitePlaneGUI(self)
