@@ -84,3 +84,12 @@ class TdepFieldTestModel(FEMFixedModel):
     def __init__(self, *args, **kwargs):
         super().__init__(1, *args, **kwargs)
 
+
+class ScaleTestModel(FEMFixedModel):
+    className = "Scale Test"
+    equationTypes = [LinearTestEquation]
+    boundaryConditionTypes = [DirichletBoundary]
+    initialConditionTypes = [InitialCondition]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(1, *args, **kwargs)

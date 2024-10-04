@@ -303,3 +303,30 @@ class testProblems_test(FEMTestCase):
         sol = FEMSolution()
         y = [sol.eval("y", coords=0, data_number=i) for i in range(101)]
         self.assert_array_almost_equal(y, np.exp(-t)-1, decimal=4)
+
+    def scale(self, lib):
+        p = FEMProject(1)
+
+        # geometry
+        p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
+        p.geometries.add(geometry.Line(1, 0, 0, 2, 0, 0))
+
+        # model: boundary and initial conditions
+        model = test.ScaleTestModel()
+        model.boundaryConditions.append(test.DirichletBoundary([True], geometries=[1, 3]))
+        model.initialConditions.append(test.InitialCondition(0.0, geometries=[1]))
+        model.initialConditions.append(test.InitialCondition(2.0, geometries=[2]))
+        p.models.append(model)
+
+        # solver
+        stationary = StationarySolver()
+        p.solvers.append(stationary)
+
+        # solve
+        lib.run(p)
+
+        # solution
+        sol = FEMSolution()
+        res = sol.eval("x", data_number=1)
+        for w in res:
+            self.assert_array_almost_equal(w.data, w.x[:, 0])

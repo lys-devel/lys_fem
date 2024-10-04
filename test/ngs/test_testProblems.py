@@ -25,3 +25,6 @@ class test(testProblems_test):
 
     def test_tdepField(self):
         self.tdepField(ngs)
+
+    def test_scale(self):
+        self.scale(ngs)

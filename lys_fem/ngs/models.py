@@ -16,10 +16,11 @@ def generateModel(fem, mesh, mat):
 
 
 class NGSVariable:
-    def __init__(self, name, fes, scale, initialValue, initialVelocity, isScalar):
+    def __init__(self, name, fes, scale, residualScale, initialValue, initialVelocity, isScalar):
         self._name = name
         self._fes = fes
         self._scale = scale
+        self._residualScale = residualScale
         self._init = initialValue
         self._vel = initialVelocity
         self._isScalar = isScalar
@@ -72,7 +73,7 @@ class NGSVariable:
         if self.size==1 and self._isScalar:
             trial, test = trial[0], test[0]
         self._trial = util.TrialFunction(self.name, trial, scale=self._scale)
-        self._test = util.TestFunction(test, name=self.name)
+        self._test = util.TestFunction(test, name=self.name, scale=self._residualScale)
         return self._trial, self._test
 
     @property
@@ -95,7 +96,7 @@ class NGSModel:
             for eq in model.equations:
                 self.addVariable(eq.variableName, eq.variableDimension, region=eq.geometries, order=order, isScalar=eq.isScalar)
 
-    def addVariable(self, name, vdim, dirichlet="auto", initialValue="auto", initialVelocity=None, region=None, order=1, isScalar=False):
+    def addVariable(self, name, vdim, dirichlet="auto", initialValue="auto", initialVelocity=None, region=None, order=1, isScalar=False, scale=None, residualScale=None):
         initialValue = self._funcs[self.__initialValue(vdim, initialValue)]
         if initialValue is None:
             raise RuntimeError("Invalid initial value for " + str(name))
@@ -117,8 +118,14 @@ class NGSModel:
             if dirichlet is not None:
                 kwargs["dirichlet"] = "|".join(["boundary" + str(item) for item in dirichlet[i]])
             fess.append(ngsolve.H1(self._mesh, **kwargs))
+        
+        if scale is None:
+            scale = self.scale
 
-        self._vars.append(NGSVariable(name, fess, self.scale, initialValue, initialVelocity, isScalar=isScalar))
+        if residualScale is None:
+            residualScale = self.residualScale
+
+        self._vars.append(NGSVariable(name, fess, scale, residualScale, initialValue, initialVelocity, isScalar=isScalar))
 
     def __dirichlet(self, coef, vdim):
         bdr_dir = [[] for _ in range(vdim)] 
@@ -153,6 +160,10 @@ class NGSModel:
     
     @property
     def scale(self):
+        return 1
+    
+    @property
+    def residualScale(self):
         return 1
 
 
@@ -197,17 +208,12 @@ class CompositeModel:
                 K += wf_K.eval()
 
             d = {}
-            print(wf)
-            print("---------------------")
             for var in self.variables:
                 d[util.grad(var.trial)] = 0
                 d[var.trial] = 0
                 d[var.trial.t] = var.trial
                 d[var.trial.tt] = 0
-            print(d)
-            print("---------------------")
             wf_C = wf.replace(d).lhs
-            print("---------------------")
             C = ngsolve.BilinearForm(fes)
             if wf_C.valid:
                 C += wf_C.eval()

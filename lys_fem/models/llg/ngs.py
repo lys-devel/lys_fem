@@ -42,3 +42,7 @@ class NGSLLGModel(NGSModel):
                 wf += g*m.cross(mu0*grad(phi.value)).dot(test_m)*dx(sc.geometries)
 
         return wf
+
+    @property
+    def residualScale(self):
+        return 1e-11

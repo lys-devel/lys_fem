@@ -75,3 +75,24 @@ class NGSTdepFieldTestModel(NGSModel):
             y,test_y = vars["y"]
             wf += (y.t + mat["x0"])*test_y * dx
         return wf
+    
+
+class NGSScaleTestModel(NGSModel):
+    def __init__(self, model, mesh, vars):
+        super().__init__(model, mesh, vars, addVariables=True)
+        self._model = model
+
+    def weakform(self, vars, mat):
+        wf = 0
+        for eq in self._model.equations:
+            u,v = vars[eq.variableName]
+            wf += grad(u).dot(grad(v)) * dx
+        return wf
+    
+    @property
+    def scale(self):
+        return 10
+    
+    @property
+    def residualScale(self):
+        return 2
