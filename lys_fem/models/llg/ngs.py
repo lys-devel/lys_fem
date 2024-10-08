@@ -45,4 +45,4 @@ class NGSLLGModel(NGSModel):
 
     @property
     def residualScale(self):
-        return 1e-11
+        return 1

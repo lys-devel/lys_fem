@@ -192,16 +192,16 @@ class LLG_test(FEMTestCase):
 
     def precession(self, lib):
         factor = 1
-        p = FEMProject(3)
+        p = FEMProject(1)
 
         # geometry
         p.geometries.scale=1e-9
-        p.geometries.add(geometry.Box(0, 0, 0, 1e-9, 0.1e-9, 0.1e-9))
+        p.geometries.add(geometry.Line(0, 0, 0, 1e-9, 0, 0))
         p.mesher.setRefinement(0)
 
         # material
         param = llg.LLGParameters(alpha=0, Aex=0)
-        mat1 = Material([param], geometries=[1, 2])
+        mat1 = Material([param], geometries="all")
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
