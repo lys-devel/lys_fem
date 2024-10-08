@@ -22,7 +22,19 @@ class _Solution:
         self._model = model
         fes = model.finiteElementSpace
         self._sols = [(util.GridFunction(fes), util.GridFunction(fes), util.GridFunction(fes)) for n in range(nlog)]
+        self._coefs = [[self.__toFunc(self[n][i], "t"*i) for i in range(3)] for n in range(nlog)]
         self.update(model.initialValue(use_a))
+
+    def __toFunc(self, x, pre=""):
+        res = []
+        n = 0
+        for v in self._model.variables:
+            if v.size == 1 and v.isScalar:
+                res.append(util.NGSFunction(v.scale*x.components[n], name=v.name+pre+"0", tdep=True))
+            else:
+                res.append(util.NGSFunction(v.scale*CoefficientFunction(tuple(x.components[n:n+v.size])), name=v.name+pre+"0", tdep=True))
+            n+=v.size           
+        return res
 
     def update(self, xva):
         # Store old data
@@ -46,24 +58,14 @@ class _Solution:
         self._sols[0][0].Save(path, parallel=mpi.isParallel())
 
     def X(self, n=0):
-        return self.__toFunc(self[n][0])
+        return self._coefs[n][0]
 
     def V(self, n=0):
-        return self.__toFunc(self[n][1], "t")
+        return self._coefs[n][1]
 
     def A(self, n=0):
-        return self.__toFunc(self[n][2], "tt")
+        return self._coefs[n][2]
 
-    def __toFunc(self, x, pre=""):
-        res = []
-        n = 0
-        for v in self._model.variables:
-            if v.size == 1 and v.isScalar:
-                res.append(util.NGSFunction(v.scale*x.components[n], name=v.name+pre+"0", tdep=True))
-            else:
-                res.append(util.NGSFunction(v.scale*CoefficientFunction(tuple(x.components[n:n+v.size])), name=v.name+pre+"0", tdep=True))
-            n+=v.size           
-        return res
 
     @property
     def finiteElementSpace(self):
