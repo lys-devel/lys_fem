@@ -104,12 +104,15 @@ class OccMesher(FEMObject):
                 tagSet = set()
                 for tag in geom:
                     if dim == 1:
-                        tagSet.add(tag)
+                        edge = model.getEntitiesForPhysicalGroup(1, tag)[0]
+                        tagSet.add(edge)
                     if dim == 2:
-                        _, edges = model.getAdjacencies(2, tag)
+                        surf = model.getEntitiesForPhysicalGroup(2, tag)[0]
+                        _, edges = model.getAdjacencies(2, surf)
                         tagSet |= set(edges)
                     if dim == 3:
-                        _, surfs = model.getAdjacencies(3, tag)
+                        domain = model.getEntitiesForPhysicalGroup(3, tag)[0]
+                        _, surfs = model.getAdjacencies(3, domain)
                         edges = itertools.chain.from_iterable([model.getAdjacencies(2, v)[1] for v in surfs])
                         tagSet |= set(edges)
                 self._refineData.append((tagSet, geom.factor))

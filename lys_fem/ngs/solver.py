@@ -284,12 +284,11 @@ def newton(F, x, eps=1e-5, max_iter=30):
         dx.data = F.Jacobian(x)*F(x)
         x -= dx
         R = np.sqrt(np.divide(dx.InnerProduct(dx), x.InnerProduct(x)))
-        print(R)
+        print("R =", R)
         if R < eps:
             if i!=0:
                 mpi.print_("[Newton solver] Converged in", i, "steps.")
             return x
     if max_iter !=1:
         raise RuntimeError("[Newton solver] NOT Converged in " + str(i) + " steps.")
-        #mpi.print_()
     return x
