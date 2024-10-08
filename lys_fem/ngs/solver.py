@@ -2,6 +2,7 @@ import os
 import shutil
 import numpy as np
 
+import ngsolve
 from ngsolve import BilinearForm, LinearForm, CoefficientFunction, VectorH1, TaskManager, SetNumThreads
 
 from . import mpi, time, util
@@ -75,7 +76,11 @@ class _Solution:
 class _Operator:
     def __init__(self, model, integ, sols, symbols, variableStep):
         wf = self.__prepareWeakform(model, integ, sols, symbols, variableStep)
+        self._model = model
+        self._symbols = symbols
         self._fes = model.finiteElementSpace
+        self.__setCoupling()
+
         self._blf, self._lf = BilinearForm(self._fes), LinearForm(self._fes)
         lhs, rhs = wf.lhs, wf.rhs
         if lhs.valid:
@@ -92,16 +97,12 @@ class _Operator:
         self._dti = util.Parameter("dti", -1, tdep=variableStep)
         wf = model.weakforms()
         if symbols is not None:
-            values = {v.name: x0 for v, x0 in zip(model.variables, sols.X())}
             d = {}
-            for v in model.variables:
+            for v, X, V in zip(model.variables, sols.X(), sols.V()):
                 if v.name not in symbols:
-                    d[v.trial] = values[v.name]
-                    d[v.trial.value] = values[v.name]
-                    d[v.trial.t] = 0
-                    d[v.trial.tt] = 0
+                    d[v.trial] = X
+                    d[v.trial.t] = V
                     d[v.test] = 0
-                    d[util.grad(v.trial)] = util.grad(values[v.name])
                     d[util.grad(v.test)] = 0
             wf = wf.replace(d)
         wf = integ.generateWeakforms(wf, model, sols, self._dti)
@@ -120,12 +121,15 @@ class _Operator:
         with TaskManager():
             if self._nl_lhs:
                 self._blf.AssembleLinearization(x)
-                return self._blf.mat.Inverse(self._fes.FreeDofs(), "pardiso")
+                res = self._blf.mat.Inverse(self._fes.FreeDofs(), "pardiso")
+                return res
             else:
                 return self._inv
         
     def update(self, dti):
         self._dti.set(dti)
+        self.__setCoupling()
+
         with TaskManager():
             if (self._tdep_rhs or not self._init) and not self._nl_rhs:
                 self._lf.Assemble()
@@ -133,6 +137,20 @@ class _Operator:
                 self._blf.Assemble()
                 self._inv = self._blf.mat.Inverse(self._fes.FreeDofs(), "pardiso")
         self._init = True
+
+    def __setCoupling(self):
+        if self._symbols is None:
+            return
+        n = 0
+        for v in self._model.variables:
+            if v.name in self._symbols:
+                t = ngsolve.COUPLING_TYPE.WIREBASKET_DOF
+            else:
+                t = ngsolve.COUPLING_TYPE.UNUSED_DOF
+            for j in range(n, n+v.size):
+                self._fes.SetCouplingType(self._fes.Range(j), t)
+            n += v.size
+        ngsolve.Compress(self._fes)
         
     @property
     def isNonlinear(self):
@@ -266,11 +284,12 @@ def newton(F, x, eps=1e-5, max_iter=30):
         dx.data = F.Jacobian(x)*F(x)
         x -= dx
         R = np.sqrt(np.divide(dx.InnerProduct(dx), x.InnerProduct(x)))
-        #print(R)
+        print(R)
         if R < eps:
             if i!=0:
                 mpi.print_("[Newton solver] Converged in", i, "steps.")
             return x
     if max_iter !=1:
-        mpi.print_("[Newton solver] NOT Converged in", i, "steps.")
+        raise RuntimeError("[Newton solver] NOT Converged in " + str(i) + " steps.")
+        #mpi.print_()
     return x

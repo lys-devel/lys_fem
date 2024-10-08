@@ -35,6 +35,12 @@ class TdepFieldTestEquation(Equation):
         super().__init__(varName, **kwargs)
 
 
+class TwoVarGradTestEquation(Equation):
+    className = "Two Variable Grad Test"
+    def __init__(self, varName="x", **kwargs):
+        super().__init__(varName, **kwargs)
+
+
 class LinearTestModel(FEMFixedModel):
     className = "Linear Test"
     equationTypes = [LinearTestEquation]
@@ -93,3 +99,12 @@ class ScaleTestModel(FEMFixedModel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(1, *args, **kwargs)
+
+
+class TwoVarGradTestModel(FEMFixedModel):
+    className = "Two Variable Grad Test"
+    equationTypes = [TwoVarGradTestEquation]
+    initialConditionTypes = [InitialCondition]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(2, *args, **kwargs)

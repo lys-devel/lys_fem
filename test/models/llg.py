@@ -276,7 +276,6 @@ class LLG_test(FEMTestCase):
             self.assert_array_almost_equal(w.data, np.zeros(w.data.shape), decimal=2)
 
     def scalar_em(self, lib):
-        return
         factor = 1
         z = sp.Symbol("z")
         p = FEMProject(3)
@@ -328,3 +327,51 @@ class LLG_test(FEMTestCase):
         res = sol.eval("m[1]", data_number=50*factor)
         for w in res:
             self.assert_array_almost_equal(w.data, np.zeros(w.data.shape), decimal=2)
+
+
+    def demagnetization_em(self, lib):
+        r2 = 2
+        p = FEMProject(3)
+
+        # geometry
+        p.geometries.add(geometry.Sphere(0, 0, 0, 0.8))
+        p.geometries.add(geometry.Box(-1, -1, -1, 2, 2, 2))
+        p.geometries.add(geometry.InfiniteVolume(1, 1, 1, r2, r2, r2))
+        p.mesher.setRefinement(1)
+
+        domain = [1,2,9,10,11,12,13,14]
+        infBdr =[31,36,39,42,43,44]
+        mBdr = [1,5,8,11,14,16,24,25]
+
+        # Material
+        param = llg.LLGParameters(alpha=0, Aex=0, Ms=1)
+        p.materials.append(Material([param], geometries=domain))
+
+        # poisson equation for infinite boundary
+        model1 = em.MagnetostaticsModel()
+        model1.initialConditions.append(em.InitialCondition(0, geometries="all"))
+        model1.boundaryConditions.append(em.DirichletBoundary(True, geometries=infBdr))
+        model1.domainConditions.append(em.DivSource("Ms*m", geometries=domain))
+        p.models.append(model1)
+
+        # model: boundary and initial conditions
+        model2 = llg.LLGModel([llg.LLGEquation(geometries=domain)])
+        model2.initialConditions.append(llg.InitialCondition([0, 0, 1], geometries=domain))
+        p.models.append(model2)
+
+        # solver
+        stationary = StationarySolver(steps=[SolverStep(["phi"])])
+        p.solvers.append(stationary)
+
+        # solve
+        lib.run(p)
+
+        def solution(x, y, z, a, Ms):
+            r = np.sqrt(x**2+y**2+z**2)-1e-16
+            return np.where(r<=a, Ms/3*z, np.nan)
+
+
+        sol = FEMSolution()
+        res = sol.eval("phi", data_number=1)
+        for w in [res[0]]:
+            self.assert_allclose(w.data, -solution(w.x[:,0],w.x[:,1],w.x[:,2], 0.8, 1), atol=0.02, rtol=0)

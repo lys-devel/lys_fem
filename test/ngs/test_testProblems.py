@@ -14,6 +14,9 @@ class test(testProblems_test):
     def test_twoval_step(self):
         self.twoVars_step(ngs)
 
+    def test_twoval_fix(self):
+        self.twoVars_fix(ngs)
+
     def test_consts(self):
         self.consts(ngs)
 
@@ -28,3 +31,6 @@ class test(testProblems_test):
 
     def test_scale(self):
         self.scale(ngs)
+
+    def test_twoval_grad(self):
+        self.twoVars_grad(ngs)
