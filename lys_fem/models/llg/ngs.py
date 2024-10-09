@@ -1,4 +1,4 @@
-from lys_fem.ngs import NGSModel, grad, dx
+from lys_fem.ngs import NGSModel, grad, dx, util
 from . import ExternalMagneticField, UniaxialAnisotropy, GilbertDamping, MagneticScalarPotential
 
 class NGSLLGModel(NGSModel):
@@ -11,7 +11,7 @@ class NGSLLGModel(NGSModel):
             self.addVariable(eq.variableName+"_lam", 1, initialValue=None, dirichlet=None, region=eq.geometries, order=2, isScalar=True)
 
     def weakform(self, vars, mat):
-        g, mu0, Ms = 1.760859770e11, 1.25663706e-6, mat["Ms"]
+        g, mu0, Ms = mat.const.g_e, mat.const.mu_0, mat["Ms"]
         A = 2*mat["Aex"] * g / Ms
 
         wf = 0
@@ -19,10 +19,11 @@ class NGSLLGModel(NGSModel):
             m, test_m = vars[eq.variableName]
             m0 = m.value
             lam, test_lam = vars[eq.variableName+"_lam"]
+            scale = util.max(mat.const.dti, 1e-5)
 
             # Left-hand side, normalization, exchange term
-            wf += m.t.dot(test_m)*dx
-            wf += (1e-5 * lam * test_lam + 2*lam*m0.dot(test_m) + (m0.dot(m)-1)*test_lam)/1e-11*dx
+            wf += (m.t + 2*lam*m0*scale).dot(test_m)*dx
+            wf += (1e-5*lam + (m0.dot(m)-1))*test_lam*scale*dx
             wf -= A * m0.cross(grad(m)).ddot(grad(test_m)) * dx
 
             for gil in self._model.domainConditions.get(GilbertDamping):
@@ -39,7 +40,7 @@ class NGSLLGModel(NGSModel):
 
             for sc in self._model.domainConditions.get(MagneticScalarPotential):
                 phi = mat[sc.values]
-                wf += g*m.cross(-mu0*grad(phi.value)).dot(test_m)*dx(sc.geometries)
+                wf += g*m.cross(mu0*grad(phi.value)).dot(test_m)*dx(sc.geometries)
 
         return wf
 

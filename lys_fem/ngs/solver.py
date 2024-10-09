@@ -74,8 +74,8 @@ class _Solution:
 
 
 class _Operator:
-    def __init__(self, model, integ, sols, symbols, variableStep):
-        wf = self.__prepareWeakform(model, integ, sols, symbols, variableStep)
+    def __init__(self, model, integ, sols, symbols, dti):
+        wf = self.__prepareWeakform(model, integ, sols, symbols, dti)
         self._model = model
         self._symbols = symbols
         self._fes = model.finiteElementSpace
@@ -93,8 +93,7 @@ class _Operator:
         self._tdep_rhs = rhs.isTimeDependent
         self._init  = False
 
-    def __prepareWeakform(self, model, integ, sols, symbols, variableStep):
-        self._dti = util.Parameter("dti", -1, tdep=variableStep)
+    def __prepareWeakform(self, model, integ, sols, symbols, dti):
         wf = model.weakforms()
         if symbols is not None:
             d = {}
@@ -105,7 +104,7 @@ class _Operator:
                     d[v.test] = 0
                     d[util.grad(v.test)] = 0
             wf = wf.replace(d)
-        wf = integ.generateWeakforms(wf, model, sols, self._dti)
+        wf = integ.generateWeakforms(wf, model, sols, dti)
         return wf
 
     def __call__(self, x):
@@ -127,9 +126,7 @@ class _Operator:
                 return self._inv
         
     def update(self, dti):
-        self._dti.set(dti)
         self.__setCoupling()
-
         with TaskManager():
             if (self._tdep_rhs or not self._init) and not self._nl_rhs:
                 self._lf.Assemble()
@@ -156,9 +153,6 @@ class _Operator:
     def isNonlinear(self):
         return self._nl_lhs or self._nl_rhs
     
-    @property
-    def dti(self):
-        return self._dti.get()
 
 
 class SolverBase:
@@ -166,19 +160,22 @@ class SolverBase:
         self._obj = obj
         self._mesh = mesh
         self._model = model
+        self._mat = model.materials
+        self._mat.const.dti.tdep = variableStep
         self.__prepareDirectory(dirname)
 
         self._integ = self.__prepareIntegrator(obj)
         self._sols = _Solution(model, self._integ.use_a)
-        self._ops = [_Operator(model, self._integ, self._sols, step.variables, variableStep) for step in obj.steps]
+        self._ops = [_Operator(model, self._integ, self._sols, step.variables, self._mat.const.dti) for step in obj.steps]
         self._x = self._sols.copy()
         self._step = 0
 
     @np.errstate(divide='ignore', invalid="ignore")
     def solve(self, dti=0):
-        x0 = self._x.vec.CreateVector(copy=True)
-        self._model.materials.updateSolutionFields(self._step)
+        self._mat.updateSolutionFields(self._step)
         self._step += 1
+        x0 = self._x.vec.CreateVector(copy=True)
+        self._mat.const.dti.set(dti)
         for op, step in zip(self._ops, self._obj.steps):
             if step.deformation is not None:
                 deform = {v.name: x0 for v, x0 in zip(self._model.variables, self._sols.X())}[step.deformation]
@@ -188,7 +185,7 @@ class SolverBase:
                 print("deformation set")
             op.update(dti)
             self._x.vec.data = newton(op, self._x.vec.CreateVector(copy=True))
-            self._sols.update(self._integ.updateSolutions(self._x, self._sols, op.dti))
+            self._sols.update(self._integ.updateSolutions(self._x, self._sols, self._mat.const.dti.get()))
         return self.__calcDifference(self._x.vec, x0)
 
     def __calcDifference(self, x, x0):

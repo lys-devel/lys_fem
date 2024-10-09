@@ -22,6 +22,7 @@ class NGSParams(dict):
         super().__init__(sols)
         self._fem = fem
         self._mesh = mesh
+        self._const = NGSConstants()
         for key, value in dic.items():
             self[key] = _generateCoefficient(value, mesh, name=key, dic=self)
 
@@ -34,6 +35,28 @@ class NGSParams(dict):
         for key, f in self.items():
             if isinstance(f, util.SolutionFieldFunction) and f.isTimeDependent:
                 self._fem.solutionFields[key].update(step)
+
+    @property
+    def const(self):
+        return self._const
+
+
+class NGSConstants(dict):
+    def __init__(self):
+        self["c"] = util.NGSFunction(2.99792458e8, name="c")
+        self["e"] = util.NGSFunction(-1.602176634e-19, name="e")
+        self["pi"] = util.NGSFunction(np.pi, name="pi")
+        self["k_B"] = util.NGSFunction(1.3806488e-23, name="k_B")
+        self["g_e"] = util.NGSFunction(1.760859770e11, name="g_e")
+        self["mu_0"] = util.NGSFunction(1.25663706e-6, name="mu_0")
+        self["eps_0"] = util.NGSFunction(8.8541878128e-12, name="eps_0")
+        self["dti"] = util.Parameter("dti", -1)
+
+    def __getattr__(self, key):
+        if key in self:
+            return self[key]
+        else:
+            super().__getattr__(key)
 
 
 def _generateCoefficient(coef, mesh=None, name="Undefined", dic={}):

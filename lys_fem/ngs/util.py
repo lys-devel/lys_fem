@@ -32,8 +32,17 @@ def tan(x):
 def step(x):
     return _Func(x, "step")
 
+
 def sqrt(x):
     return _Func(x, "sqrt")
+
+
+def min(x,y):
+    return _MinMax(x, y)
+
+
+def max(x,y):
+    return _MinMax(x, y)
 
 
 class GridFunction(ngsolve.GridFunction):
@@ -629,6 +638,41 @@ class _Func(_Oper):
         return self._type + "(" + str(self._obj[0]) + ")"
 
 
+class _MinMax(_Oper):
+    def __init__(self, obj1, obj2, type="min"):
+        super().__init__(obj1, obj2)
+        self._type = type
+
+    def __call__(self, obj1, obj2):
+        return _MinMax(obj1, obj2, self._type)
+
+    @property
+    def shape(self):
+        return self._obj[0].shape
+
+    @property
+    def rhs(self):
+        return self(self._obj[0].rhs, self._obj[1].rhs)
+
+    @property
+    def lhs(self):
+        return self(self._obj[0].lhs, self._obj[1].lhs)
+
+    @property
+    def hasTrial(self):
+        return self._obj[0].hasTrial or self._obj[1].hasTrial
+
+    def eval(self):
+        e1, e2 = self._obj[0].eval(), self._obj[1].eval()
+        if self._type == "max":
+            return ngsolve.IfPos(e1-e2, e2, e1)
+        else:
+            return ngsolve.IfPos(e1-e2, e1, e2)
+    
+    def __str__(self):
+        return self._type + "(" + str(self._obj[0]) + ", " + str(self._obj[1]) + ")"
+
+
 class TrialFunction(NGSFunction):
     def __init__(self, name, obj, dt=0, scale=1):
         super().__init__(obj, name="trial("+name+")")
@@ -775,6 +819,14 @@ class Parameter(NGSFunction):
 
     def get(self):
         return self._obj.Get()
+
+    @property
+    def tdep(self):
+        return self._tdep
+
+    @tdep.setter
+    def tdep(self, b):
+        self._tdep = b
 
 
 class SolutionFieldFunction(NGSFunction):
