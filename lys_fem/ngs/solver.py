@@ -74,10 +74,11 @@ class _Solution:
 
 
 class _Operator:
-    def __init__(self, model, integ, sols, symbols, dti):
+    def __init__(self, model, integ, sols, symbols, dti, solver="pardiso", prec=None):
         wf = self.__prepareWeakform(model, integ, sols, symbols, dti)
         self._model = model
         self._symbols = symbols
+        self._solver = solver
         self._fes = model.finiteElementSpace
         self.__setCoupling()
 
@@ -87,6 +88,8 @@ class _Operator:
             self._blf += lhs.eval()
         if rhs.valid:
             self._lf += rhs.eval()
+        if prec is not None:
+            self._prec = ngsolve.Preconditioner(self._blf, prec)
         self._nl_lhs = lhs.isNonlinear
         self._nl_rhs = rhs.isNonlinear
         self._tdep_lhs = lhs.isTimeDependent
@@ -120,7 +123,7 @@ class _Operator:
         with TaskManager():
             if self._nl_lhs:
                 self._blf.AssembleLinearization(x)
-                res = self._blf.mat.Inverse(self._fes.FreeDofs(), "pardiso")
+                res = self.__inverse(self._blf.mat)
                 return res
             else:
                 return self._inv
@@ -132,8 +135,17 @@ class _Operator:
                 self._lf.Assemble()
             if (self._tdep_lhs or not self._init) and not self._nl_lhs:
                 self._blf.Assemble()
-                self._inv = self._blf.mat.Inverse(self._fes.FreeDofs(), "pardiso")
+                self._inv = self.__inverse(self._blf.mat)
         self._init = True
+
+    def __inverse(self, mat):
+        with TaskManager():
+            if self._solver in ["pardiso", "sparsecholesky"]:
+                return mat.Inverse(self._fes.FreeDofs(), self._solver)
+            if self._solver == "CG":
+                return ngsolve.CGSolver(mat, self._prec.mat)
+            if self._solver == "GMRES":
+                return ngsolve.GMRESSolver(mat, self._prec.mat)
 
     def __setCoupling(self):
         if self._symbols is None:
@@ -166,7 +178,7 @@ class SolverBase:
 
         self._integ = self.__prepareIntegrator(obj)
         self._sols = _Solution(model, self._integ.use_a)
-        self._ops = [_Operator(model, self._integ, self._sols, step.variables, self._mat.const.dti) for step in obj.steps]
+        self._ops = [_Operator(model, self._integ, self._sols, step.variables, self._mat.const.dti, solver=step.solver, prec=step.preconditioner) for step in obj.steps]
         self._x = self._sols.copy()
         self._step = 0
 
@@ -278,7 +290,8 @@ def newton(F, x, eps=1e-5, max_iter=30):
         max_iter=1
     dx = x.CreateVector()
     for i in range(max_iter):
-        dx.data = F.Jacobian(x)*F(x)
+        with ngsolve.TaskManager():
+            dx.data = F.Jacobian(x)*F(x)
         x -= dx
         R = np.sqrt(np.divide(dx.InnerProduct(dx), x.InnerProduct(x)))
         print("R =", R)

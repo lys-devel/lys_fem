@@ -10,9 +10,11 @@ class SolverStep:
         vars(list of str): The name of variables that is solved in this step.
         deformation(str): The name of a variable that is used for deformation of mesh.
     """
-    def __init__(self, vars=None, deformation=None):
+    def __init__(self, vars=None, deformation=None, solver="pardiso", prec=None):
         self._vars = vars
         self._deform = deformation
+        self._solver = solver
+        self._prec = prec
 
     @property
     def variables(self):
@@ -21,9 +23,17 @@ class SolverStep:
     @property
     def deformation(self):
         return self._deform
+
+    @property
+    def solver(self):
+        return self._solver
+
+    @property
+    def preconditioner(self):
+        return self._prec
     
     def saveAsDictionary(self):
-        return {"vars": self._vars, "deformation": self._deform}
+        return {"vars": self._vars, "deformation": self._deform, "solver": self._solver, "prec": self._prec}
     
     @classmethod
     def loadFromDictionary(cls, d):

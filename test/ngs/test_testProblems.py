@@ -34,3 +34,12 @@ class test(testProblems_test):
 
     def test_twoval_grad(self):
         self.twoVars_grad(ngs)
+
+    def test_solvers(self):
+        self.solver(ngs, "pardiso", None)
+        self.solver(ngs, "sparsecholesky", None)
+        self.solver(ngs, "CG", "local")
+        self.solver(ngs, "CG", "direct")
+        self.solver(ngs, "CG", "h1amg")
+        self.solver(ngs, "CG", "bddc")
+        self.solver(ngs, "GMRES", "local")

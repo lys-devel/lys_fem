@@ -173,14 +173,45 @@ class _SolverStepWidget(QtWidgets.QWidget):
         self.__initLayout(step)
 
     def __initLayout(self, step):
+        g0 = self.__initSolvers(step)
         g1 = self.__initVars(step)
         g2 = self.__initDeform(step)
 
         layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(g0)
         layout.addWidget(g1)
         layout.addWidget(g2)
 
         self.setLayout(layout)
+
+    def __initSolvers(self, step):
+        self._solver = QtWidgets.QComboBox()
+        self._solver.addItems(["pardiso", "sparsecholesky", "CG", "GMRES"])
+        self._solver.setCurrentText(step.solver)
+        self._solver.currentTextChanged.connect(self.__changeSolvers)
+
+        self._prec = QtWidgets.QComboBox()
+        self._prec.addItems(["None", "local", "direct", "h1amg", "bddc"])
+        if step.preconditioner is not None:
+            self._prec.setCurrentText(step.preconditioner)
+        self._prec.currentTextChanged.connect(self.__changeSolvers)
+
+        g = QtWidgets.QGridLayout()
+        g.addWidget(QtWidgets.QLabel("Solver"), 0, 0)
+        g.addWidget(self._solver, 0, 1)
+        g.addWidget(QtWidgets.QLabel("Preconditioner"), 1, 0)
+        g.addWidget(self._prec, 1, 1)
+
+        g1 = QtWidgets.QGroupBox("Solvers")
+        g1.setLayout(g)
+        return g1
+
+    def __changeSolvers(self):
+        self._step._solver = self._solver.currentText()
+        if self._prec.currentText() == "None":
+            self._step._prec = None
+        else:
+            self._step._prec = self._prec.currentText()
 
     def __initVars(self, step):
         self._varType = QtWidgets.QComboBox()
