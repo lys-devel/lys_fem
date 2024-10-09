@@ -27,7 +27,7 @@ class NGSLLGModel(NGSModel):
             wf -= A * m0.cross(grad(m)).ddot(grad(test_m)) * dx
 
             for gil in self._model.domainConditions.get(GilbertDamping):
-                wf -= mat["alpha"] * m0.cross(m).dot(test_m)*dx(gil.geometries)
+                wf += -mat["alpha"] * m.cross(m.t).dot(test_m)*dx(gil.geometries)
 
             for ex in self._model.domainConditions.get(ExternalMagneticField):
                 B = mat[ex.values]

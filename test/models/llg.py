@@ -254,7 +254,7 @@ class LLG_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        solver = RelaxationSolver(dt0=1e-13)#, steps=[SolverStep(solver="sparsecholesky")])
+        solver = RelaxationSolver(dt0=1e-13)
         p.solvers.append(solver)
 
         # solve
