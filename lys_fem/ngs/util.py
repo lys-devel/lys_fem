@@ -38,11 +38,11 @@ def sqrt(x):
 
 
 def min(x,y):
-    return _MinMax(x, y)
+    return _MinMax(x, y, "min")
 
 
 def max(x,y):
-    return _MinMax(x, y)
+    return _MinMax(x, y, "max")
 
 
 class GridFunction(ngsolve.GridFunction):
@@ -665,9 +665,9 @@ class _MinMax(_Oper):
     def eval(self):
         e1, e2 = self._obj[0].eval(), self._obj[1].eval()
         if self._type == "max":
-            return ngsolve.IfPos(e1-e2, e2, e1)
-        else:
             return ngsolve.IfPos(e1-e2, e1, e2)
+        else:
+            return ngsolve.IfPos(e1-e2, e2, e1)
     
     def __str__(self):
         return self._type + "(" + str(self._obj[0]) + ", " + str(self._obj[1]) + ")"

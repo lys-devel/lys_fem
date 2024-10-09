@@ -211,7 +211,7 @@ class LLG_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        solver = TimeDependentSolver(T/100/factor, T/2)
+        solver = TimeDependentSolver(T/100/factor, T/2, steps=[SolverStep(solver="sparsecholesky")])
         p.solvers.append(solver)
 
         # solve
@@ -231,6 +231,40 @@ class LLG_test(FEMTestCase):
         res = sol.eval("m[1]", data_number=50*factor)
         for w in res:
             self.assert_array_almost_equal(w.data, np.zeros(w.data.shape), decimal=2)
+
+
+    def damping(self, lib):
+        p = FEMProject(1)
+
+        # geometry
+        p.geometries.scale=1e-9
+        p.geometries.add(geometry.Line(0, 0, 0, 1e-9, 0, 0))
+        p.mesher.setRefinement(0)
+
+        # material
+        param = llg.LLGParameters(alpha=1, Aex=0)
+        mat1 = Material([param], geometries="all")
+        p.materials.append(mat1)
+
+        # model: boundary and initial conditions
+        model = llg.LLGModel()
+        model.initialConditions.append(llg.InitialCondition([1, 0, 0], geometries="all"))
+        model.domainConditions.append(llg.ExternalMagneticField([0,0,1], geometries="all"))
+        model.domainConditions.append(llg.GilbertDamping(geometries="all"))
+        p.models.append(model)
+
+        # solver
+        solver = RelaxationSolver(dt0=1e-13)#, steps=[SolverStep(solver="sparsecholesky")])
+        p.solvers.append(solver)
+
+        # solve
+        lib.run(p)
+
+        # solution
+        sol = FEMSolution()
+        res = sol.eval("m[2]", data_number=-2)
+        for w in res:
+            self.assert_array_almost_equal(w.data, np.ones(w.data.shape), decimal=4)
 
     def scalar(self, lib):
         factor = 1
@@ -267,7 +301,7 @@ class LLG_test(FEMTestCase):
             self.assert_array_almost_equal(w.data, np.zeros(w.data.shape), decimal=2)
         res = sol.eval("m[1]", data_number=25*factor)
         for w in res:
-            self.assert_array_almost_equal(w.data, np.ones(w.data.shape), decimal=3)
+            self.assert_array_almost_equal(w.data, -np.ones(w.data.shape), decimal=3)
         res = sol.eval("m[0]", data_number=50*factor)
         for w in res:
             self.assert_array_almost_equal(w.data, -np.ones(w.data.shape), decimal=3)
@@ -320,7 +354,7 @@ class LLG_test(FEMTestCase):
             self.assert_array_almost_equal(w.data, np.zeros(w.data.shape), decimal=2)
         res = sol.eval("m[1]", data_number=25*factor)
         for w in res:
-            self.assert_array_almost_equal(w.data, np.ones(w.data.shape), decimal=3)
+            self.assert_array_almost_equal(w.data, -np.ones(w.data.shape), decimal=3)
         res = sol.eval("m[0]", data_number=50*factor)
         for w in res:
             self.assert_array_almost_equal(w.data, -np.ones(w.data.shape), decimal=3)

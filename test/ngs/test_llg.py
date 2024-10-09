@@ -25,3 +25,6 @@ class ngs_LLG_test(LLG_test):
 
     def test_demag_em(self):
         self.demagnetization_em(ngs)
+    
+    def test_damping(self):
+        self.damping(ngs)
