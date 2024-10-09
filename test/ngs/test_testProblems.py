@@ -37,8 +37,10 @@ class test(testProblems_test):
 
     def test_solvers(self):
         self.solver(ngs, "pardiso", None)
+        self.solver(ngs, "pardisospd", None)
         self.solver(ngs, "sparsecholesky", None)
         self.solver(ngs, "masterinverse", None)
+        self.solver(ngs, "umfpack", None)
         self.solver(ngs, "CG", "local")
         self.solver(ngs, "CG", "direct")
         self.solver(ngs, "CG", "h1amg")

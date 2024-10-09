@@ -7,8 +7,6 @@ from ngsolve import BilinearForm, LinearForm, CoefficientFunction, VectorH1, Tas
 
 from . import mpi, time, util
 
-SetNumThreads(16)
-
 def generateSolver(fem, mesh, model):
     solvers = {"Stationary Solver": StationarySolver, "Relaxation Solver": RelaxationSolver, "Time Dependent Solver": TimeDependentSolver}
     result = []
@@ -140,7 +138,7 @@ class _Operator:
 
     def __inverse(self, mat):
         with TaskManager():
-            if self._solver in ["pardiso", "sparsecholesky", "masterinverse"]:
+            if self._solver in ["pardiso", "pardisospd", "mumps", "sparsecholesky", "masterinverse", "umfpack"]:
                 return mat.Inverse(self._fes.FreeDofs(), self._solver)
             if self._solver == "CG":
                 return ngsolve.CGSolver(mat, self._prec.mat)
