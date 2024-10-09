@@ -186,7 +186,7 @@ class _SolverStepWidget(QtWidgets.QWidget):
 
     def __initSolvers(self, step):
         self._solver = QtWidgets.QComboBox()
-        self._solver.addItems(["pardiso", "sparsecholesky", "CG", "GMRES"])
+        self._solver.addItems(["pardiso", "masterinverse", "sparsecholesky", "CG", "GMRES"])
         self._solver.setCurrentText(step.solver)
         self._solver.currentTextChanged.connect(self.__changeSolvers)
 

@@ -140,7 +140,7 @@ class _Operator:
 
     def __inverse(self, mat):
         with TaskManager():
-            if self._solver in ["pardiso", "sparsecholesky"]:
+            if self._solver in ["pardiso", "sparsecholesky", "masterinverse"]:
                 return mat.Inverse(self._fes.FreeDofs(), self._solver)
             if self._solver == "CG":
                 return ngsolve.CGSolver(mat, self._prec.mat)
