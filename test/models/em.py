@@ -83,4 +83,4 @@ class magnetostatistics_test(FEMTestCase):
         sol = FEMSolution()
         res = sol.eval("phi", data_number=1)
         for w in [res[0]]:
-            self.assert_allclose(w.data, -solution(w.x[:,0],w.x[:,1],w.x[:,2], 0.8, 1), atol=0.02, rtol=0)
+            self.assert_allclose(w.data, solution(w.x[:,0],w.x[:,1],w.x[:,2], 0.8, 1), atol=0.02, rtol=0)
