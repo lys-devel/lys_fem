@@ -338,12 +338,14 @@ class testProblems_test(FEMTestCase):
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
         p.geometries.add(geometry.Line(1, 0, 0, 2, 0, 0))
+        p.mesher.setRefinement(2)
 
         # model: boundary and initial conditions
+        x = sp.Symbol("x")
         model = test.ScaleTestModel()
         model.boundaryConditions.append(test.DirichletBoundary([True], geometries=[1, 3]))
-        model.initialConditions.append(test.InitialCondition(0.0, geometries=[1]))
-        model.initialConditions.append(test.InitialCondition(2.0, geometries=[2]))
+        model.initialConditions.append(test.InitialCondition(x, geometries=[1]))
+        model.initialConditions.append(test.InitialCondition(x, geometries=[2]))
         p.models.append(model)
 
         # solver
@@ -357,7 +359,9 @@ class testProblems_test(FEMTestCase):
         sol = FEMSolution()
         res = sol.eval("x", data_number=1)
         for w in res:
-            self.assert_array_almost_equal(w.data, w.x[:, 0])
+            assert_array_almost_equal(w.data, np.sqrt(2 * w.x[:, 0]), decimal=2)
+        c = np.array([0.5,0.6,0.7])
+        assert_array_almost_equal(sol.eval("x", data_number=1, coords=c), np.sqrt(2*c))
 
     def twoVars_grad(self, lib):
         p = FEMProject(1)

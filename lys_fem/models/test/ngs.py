@@ -86,7 +86,7 @@ class NGSScaleTestModel(NGSModel):
         wf = 0
         for eq in self._model.equations:
             u,v = vars[eq.variableName]
-            wf += grad(u).dot(grad(v)) * dx
+            wf += u.value * grad(u).dot(grad(v)) * dx
         return wf
     
     @property
