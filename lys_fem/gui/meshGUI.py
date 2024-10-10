@@ -25,6 +25,11 @@ class MeshEditor(QtWidgets.QWidget):
 
     def _showMesh(self):
         mesh = self._obj.getMeshWave()
+        elements, nodes = 0, 0
+        for m in mesh:
+            elements += sum([len(value) for value in m.note["elements"].values()])
+            nodes += len(m.note["nodes"])
+        print("Mesh:", elements, "elements,", nodes, "nodes")
         with self._canvas.delayUpdate():
             self._canvas.clear()
             obj = self._canvas.append(mesh)

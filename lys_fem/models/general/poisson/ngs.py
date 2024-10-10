@@ -28,6 +28,6 @@ class NGSPoissonModel(NGSModel):
             
             for s in self._model.domainConditions.get(DivSource):
                 f = mat[s.values]
-                wf += f.dot(grad(v))*dx(s.geometries)
+                wf += -f.dot(grad(v))*dx(s.geometries)
         return wf
     
