@@ -1,5 +1,5 @@
 from lys_fem.ngs import NGSModel, grad, dx, util
-from . import ExternalMagneticField, UniaxialAnisotropy, GilbertDamping, MagneticScalarPotential
+from . import ExternalMagneticField, UniaxialAnisotropy, MagneticScalarPotential
 
 class NGSLLGModel(NGSModel):
     def __init__(self, model, mesh, vars, order=2):

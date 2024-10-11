@@ -22,10 +22,6 @@ class UniaxialAnisotropy(DomainCondition):
     className = "UniaxialAnisotropy"
 
 
-class GilbertDamping(DomainCondition):
-    className = "GilbertDamping"
-
-
 class MagneticScalarPotential(DomainCondition):
     className = "MagneticScalarPotential"
 
@@ -40,7 +36,7 @@ class MagneticScalarPotential(DomainCondition):
 class LLGModel(FEMFixedModel):
     className = "LLG"
     equationTypes = [LLGEquation]
-    domainConditionTypes = [ExternalMagneticField, UniaxialAnisotropy, GilbertDamping, MagneticScalarPotential]
+    domainConditionTypes = [ExternalMagneticField, UniaxialAnisotropy, MagneticScalarPotential]
     boundaryConditionTypes = [DirichletBoundary]
 
     def __init__(self, *args, **kwargs):

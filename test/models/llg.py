@@ -33,7 +33,6 @@ class LLG_test(FEMTestCase):
         my = sp.sqrt(1 - mz**2)
         model.initialConditions.append(llg.InitialCondition([0, my, mz], geometries="all"))
         model.domainConditions.append(llg.UniaxialAnisotropy(geometries="all"))
-        model.domainConditions.append(llg.GilbertDamping(geometries="all"))
         model.boundaryConditions.append(llg.DirichletBoundary([True, True, True], geometries=[1,3]))
         p.models.append(model)
 
@@ -84,7 +83,6 @@ class LLG_test(FEMTestCase):
         my = sp.sqrt(1 - mz**2)
         model.initialConditions.append(llg.InitialCondition([0, my, mz], geometries="all"))
         model.domainConditions.append(llg.UniaxialAnisotropy(geometries="all"))
-        model.domainConditions.append(llg.GilbertDamping(geometries="all"))
         model.boundaryConditions.append(llg.DirichletBoundary([True, True, True], geometries=[4,6]))
         p.models.append(model)
 
@@ -131,7 +129,6 @@ class LLG_test(FEMTestCase):
         model = llg.LLGModel()
         model.initialConditions.append(llg.InitialCondition([0, 0, -1], geometries="all"))
         model.domainConditions.append(llg.UniaxialAnisotropy(geometries="all"))
-        model.domainConditions.append(llg.GilbertDamping(geometries="all"))
         p.models.append(model)
 
         # solver
@@ -270,7 +267,6 @@ class LLG_test(FEMTestCase):
         model = llg.LLGModel()
         model.initialConditions.append(llg.InitialCondition([1, 0, 0], geometries="all"))
         model.domainConditions.append(llg.ExternalMagneticField([0,0,1], geometries="all"))
-        model.domainConditions.append(llg.GilbertDamping(geometries="all"))
         p.models.append(model)
 
         # solver
