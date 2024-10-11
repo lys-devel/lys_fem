@@ -10,7 +10,7 @@ from .geometry import GeometrySelection
 class OccMesher(FEMObject):
     _keys = {15: "point", 1: "line", 2: "triangle", 3: "quad", 4: "tetra", 5: "hexa", 6: "prism", 7: "pyramid"}
 
-    def __init__(self, parent=None, refinement=0, partialRefine=None, periodicity=None):
+    def __init__(self, parent=None, refinement=0, partialRefine=None, transfinite=None, periodicity=None):
         super().__init__()
         if parent is not None:
             self.setParent(parent)
@@ -18,9 +18,21 @@ class OccMesher(FEMObject):
         if partialRefine is None:
             partialRefine = []
         self._partialRefine = FEMObjectList(self, partialRefine)
+        if transfinite is None:
+            transfinite=[]
+        self._transfinite = FEMObjectList(self, transfinite)
         if periodicity is None:
             periodicity = []
         self._periodicity = periodicity
+
+    def addTransfinite(self, geomType="Volume", geometries=[]):
+        geom = GeometrySelection(geometryType=geomType, selection=geometries)
+        self._transfinite.append(geom)
+        return geom
+
+    @property
+    def transfinite(self):
+        return self._transfinite
 
     def setPartialRefinement(self, dim, tag, factor):
         self._partialRefine[(dim, tag)] = factor
@@ -60,6 +72,7 @@ class OccMesher(FEMObject):
 
     def _generate(self, model):
         model.mesh.clear()
+        self.__setTransfinite(model)
         self.__setPeriodicity(model)
         self.__partialRefine(model)
 
@@ -69,6 +82,18 @@ class OccMesher(FEMObject):
             model.mesh.refine()
 
         model.mesh.optimize()
+
+    def __setTransfinite(self, model):
+        # prepare partial refinement
+        for geom in self._transfinite:
+            dim = {"Volume": 3, "Surface": 2, "Edge": 1, "Point": 0}[geom.geometryType]
+            for tag in geom:
+                if dim == 2:
+                    surf = model.getEntitiesForPhysicalGroup(2, tag)[0]
+                    model.mesh.setTransfiniteSurface(surf)
+                if dim == 3:
+                    domain = model.getEntitiesForPhysicalGroup(3, tag)[0]
+                    model.mesh.setTransfiniteVolume(domain)
 
     def __setPeriodicity(self, model):
         if len(self._periodicity) == 0:
@@ -165,7 +190,8 @@ class OccMesher(FEMObject):
     def saveAsDictionary(self):
         pairs = [(p[0].saveAsDictionary(), p[1].saveAsDictionary()) for p in self._periodicity]
         partial = [{"factor": p.factor, "geometries": p.saveAsDictionary()} for p in self._partialRefine]
-        return {"refine": self.refinement, "partial": partial, "periodicity": pairs}
+        trans = [t.saveAsDictionary() for t in self._transfinite]
+        return {"refine": self.refinement, "partial": partial, "periodicity": pairs, "transfinite": trans}
 
     @classmethod
     def loadFromDictionary(cls, d):
@@ -175,4 +201,8 @@ class OccMesher(FEMObject):
             g = GeometrySelection.loadFromDictionary(p["geometries"])
             g.factor = p["factor"]
             partial.append(g)
-        return OccMesher(refinement=d["refine"], partialRefine=partial, periodicity=pairs)
+        transfinite=[]
+        for p in d.get("transfinite", []):
+            g = GeometrySelection.loadFromDictionary(p)
+            transfinite.append(g)
+        return OccMesher(refinement=d["refine"], partialRefine=partial, transfinite=transfinite, periodicity=pairs)

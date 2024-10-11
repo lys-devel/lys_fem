@@ -51,6 +51,7 @@ class MeshTree(FEMTreeItem):
         self.clear()
         self._mesher = mesher
         super().append(_RefineGUI(self._mesher, self))
+        super().append(_TransfiniteGroupGUI(self._mesher, self))
         super().append(_PeriodicPairsGUI(self._mesher, self))
 
 
@@ -146,6 +147,66 @@ class _PartialRefineWidget(QtWidgets.QWidget):
 
     def _setFactor(self, v):
         self._geom.factor=v
+
+
+class _TransfiniteGroupGUI(FEMTreeItem):
+    def __init__(self, mesher, parent):
+        super().__init__(parent, children=[_TransfiniteGUI(t, self) for t in mesher.transfinite])
+        self._mesher = mesher
+
+    @property
+    def name(self):
+        return "Transfinite"
+
+    def _append(self, type):
+        geom = self._mesher.addTransfinite(type)
+        super().append(_TransfiniteGUI(geom, self))
+
+    def remove(self, init):
+        i = super().remove(init)
+        self._mesher.transfinite.remove(self._mesher.transfinite[i])
+
+    @ property
+    def menu(self):
+        self._menu = QtWidgets.QMenu()
+        self._menu.addAction(QtWidgets.QAction("Add Transfinite Volume", self.treeWidget(), triggered=lambda: self._append("Volume")))
+        self._menu.addAction(QtWidgets.QAction("Add Transfinite Surface", self.treeWidget(), triggered=lambda: self._append("Surface")))
+        return self._menu
+
+
+class _TransfiniteGUI(FEMTreeItem):
+    def __init__(self, geom, parent):
+        super().__init__(parent)
+        self._geom = geom
+
+    @property
+    def name(self):
+        return "Transfinite " + self._geom.geometryType
+
+    @property
+    def widget(self):
+        return _TransfiniteWidget(self.canvas(), self.fem(), self._geom)
+
+    @property
+    def menu(self):
+        self._menu = QtWidgets.QMenu()
+        self._menu.addAction(QtWidgets.QAction("Remove", self.treeWidget(), triggered=lambda: self.parent.remove(self)))
+        return self._menu
+
+
+class _TransfiniteWidget(QtWidgets.QWidget):
+    def __init__(self, canvas, fem, geom):
+        super().__init__()
+        self._geom = geom
+        self.__initlayout(canvas, fem, geom)
+
+    def __initlayout(self, canvas, fem, geom):
+        self._sel = GeometrySelector(canvas, fem, geom)
+
+        layout = QtWidgets.QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._sel)
+        self.setLayout(layout)
 
 
 class _PeriodicPairsGUI(FEMTreeItem):
