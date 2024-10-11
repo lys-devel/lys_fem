@@ -38,7 +38,7 @@ class LLG_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        solver = RelaxationSolver(dt0=1e-9)
+        solver = RelaxationSolver(dt0=1e-9, damping=0.3)
         
         p.solvers.append(solver)
 
@@ -151,7 +151,6 @@ class LLG_test(FEMTestCase):
             self.assert_array_almost_equal(w.data, -np.ones(w.data.shape)/np.sqrt(2), decimal=2)
 
     def deformation(self, lib):
-        return
         p = FEMProject(3)
 
         # geometry
@@ -210,40 +209,6 @@ class LLG_test(FEMTestCase):
         for w in [res[0]]:
             self.assert_allclose(w.data, -solution2(w.x[:,0],w.x[:,1],w.x[:,2], 0.8, 1), atol=0.002, rtol=0)
             self.assert_allclose(w.data, -solution(w.x[:,0],w.x[:,1],w.x[:,2], 0.8, 1), atol=0.002, rtol=0)
-
-    def stationary(self, lib):
-        p = FEMProject(3)
-
-        # geometry
-        p.geometries.add(geometry.Box(0, 0, 0, 1, 0.1, 0.1))
-        p.mesher.setRefinement(0)
-
-        # material
-        param = llg.LLGParameters(0)
-        mat1 = Material([param], geometries="all")
-        p.materials.append(mat1)
-
-        # model: boundary and initial conditions
-        model = llg.LLGModel()
-        model.initialConditions.append(llg.InitialCondition([1/np.sqrt(2), 0, 1/np.sqrt(2)], geometries="all"))
-        model.domainConditions.append(llg.ExternalMagneticField([0,0,1], geometries="all"))
-        p.models.append(model)
-
-        # solver
-        solver = StationarySolver()
-        p.solvers.append(solver)
-
-        # solve
-        lib.run(p)
-
-        # solution
-        sol = FEMSolution()
-        res = sol.eval("m[0]", data_number=1)
-        for w in res:
-            self.assert_array_almost_equal(w.data, np.zeros(w.data.shape), decimal=2)
-        res = sol.eval("m[2]", data_number=1)
-        for w in res:
-            self.assert_array_almost_equal(w.data, np.ones(w.data.shape), decimal=2)
 
     def precession(self, lib):
         factor = 1

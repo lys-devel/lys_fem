@@ -36,7 +36,11 @@ def run(fem, run=True, save=True):
 
     start = time.time()
     solvers = generateSolver(fem, mesh, model)
-    print_("NGS Solvers generated in ", '{:.2f}'.format(time.time()-start), "seconds :"+str([s.name for s in solvers]))
+    print_("NGS Solvers generated in ", '{:.2f}'.format(time.time()-start), "seconds :")
+    for i, s in enumerate(solvers):
+        print_("\tSolver", i, ":", s.name)
+        for j, step in enumerate(s.obj.steps):
+            print_("\tStep", j, ":", step)
     print_()
  
     if run:

@@ -10,11 +10,14 @@ class SolverStep:
         vars(list of str): The name of variables that is solved in this step.
         deformation(str): The name of a variable that is used for deformation of mesh.
     """
-    def __init__(self, vars=None, deformation=None, solver="pardiso", prec=None):
+    def __init__(self, vars=None, solver="pardiso", prec=None, maxiter=30, damping=1, eps=1e-5, deformation=None):
         self._vars = vars
         self._deform = deformation
         self._solver = solver
         self._prec = prec
+        self._maxiter = maxiter
+        self._damping = damping
+        self._eps = eps
 
     @property
     def variables(self):
@@ -32,8 +35,30 @@ class SolverStep:
     def preconditioner(self):
         return self._prec
     
+    @property
+    def newton_maxiter(self):
+        return self._maxiter
+    
+    @property
+    def newton_damping(self):
+        return self._damping
+    
+    @property
+    def newton_eps(self):
+        return self._eps
+    
+    def __str__(self):
+        if self._vars is not None:
+            "Variables = " + str(self._vars) + ", "
+        res = "LinearSolver = " + self._solver
+        if self._prec is not None:
+            ", Preconditioner = " + self._prec
+        if self._damping != 1:
+            res += ", Newton damping = " + str(self._damping)
+        return res
+    
     def saveAsDictionary(self):
-        return {"vars": self._vars, "deformation": self._deform, "solver": self._solver, "prec": self._prec}
+        return {"vars": self._vars, "deformation": self._deform, "solver": self._solver, "prec": self._prec, "eps": self._eps, "damping": self._damping, "maxiter": self._maxiter}
     
     @classmethod
     def loadFromDictionary(cls, d):
@@ -41,9 +66,9 @@ class SolverStep:
 
 
 class FEMSolver(FEMObject):
-    def __init__(self, steps=None, method="BackwardEuler"):
+    def __init__(self, steps=None, method="BackwardEuler", **kwargs):
         if steps is None:
-            steps = [SolverStep()]
+            steps = [SolverStep(**kwargs)]
         self._steps = steps
         self._method = method
 

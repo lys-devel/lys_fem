@@ -175,14 +175,45 @@ class _SolverStepWidget(QtWidgets.QWidget):
     def __initLayout(self, step):
         g0 = self.__initSolvers(step)
         g1 = self.__initVars(step)
-        g2 = self.__initDeform(step)
+        g2 = self.__initNewton(step)
+        g3 = self.__initDeform(step)
 
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(g0)
         layout.addWidget(g1)
         layout.addWidget(g2)
+        layout.addWidget(g3)
 
         self.setLayout(layout)
+
+    def __initNewton(self, step):
+        self._maxiter = QtWidgets.QSpinBox()
+        self._maxiter.setRange(1, 100000)
+        self._maxiter.setValue(step.newton_maxiter)
+        self._maxiter.valueChanged.connect(self.__changeNewton)
+        self._eps = ScientificSpinBox()
+        self._eps.setValue(step.newton_eps)
+        self._eps.valueChanged.connect(self.__changeNewton)
+        self._damp = ScientificSpinBox()
+        self._damp.setValue(step.newton_damping)
+        self._damp.valueChanged.connect(self.__changeNewton)
+
+        g = QtWidgets.QGridLayout()
+        g.addWidget(QtWidgets.QLabel("Damping factor"), 0, 0)
+        g.addWidget(QtWidgets.QLabel("Maximum iteration"), 1, 0)
+        g.addWidget(QtWidgets.QLabel("Relative tolerance"), 2, 0)
+        g.addWidget(self._damp, 0, 1)
+        g.addWidget(self._maxiter, 1, 1)
+        g.addWidget(self._eps, 2, 1)
+
+        g1 = QtWidgets.QGroupBox("Newton nonlinear solver")
+        g1.setLayout(g)
+        return g1
+
+    def __changeNewton(self):
+        self._step._damping = self._damp.value()
+        self._step._eps = self._eps.value()
+        self._step._maxiter = self._maxiter.value()
 
     def __initSolvers(self, step):
         self._solver = QtWidgets.QComboBox()
@@ -197,7 +228,7 @@ class _SolverStepWidget(QtWidgets.QWidget):
         self._prec.currentTextChanged.connect(self.__changeSolvers)
 
         g = QtWidgets.QGridLayout()
-        g.addWidget(QtWidgets.QLabel("Solver"), 0, 0)
+        g.addWidget(QtWidgets.QLabel("Linear solver"), 0, 0)
         g.addWidget(self._solver, 0, 1)
         g.addWidget(QtWidgets.QLabel("Preconditioner"), 1, 0)
         g.addWidget(self._prec, 1, 1)

@@ -195,7 +195,7 @@ class SolverBase:
                 self._mesh.SetDeformation(gf)
                 print("deformation set")
             op.update(dti)
-            self._x.vec.data = newton(op, self._x.vec.CreateVector(copy=True))
+            self._x.vec.data = newton(op, self._x.vec.CreateVector(copy=True), eps=step.newton_eps, max_iter=step.newton_maxiter, gamma=step.newton_damping)
             self._sols.update(self._integ.updateSolutions(self._x, self._sols, self._mat.const.dti.get()))
         return self.__calcDifference(self._x.vec, x0)
 
@@ -233,6 +233,10 @@ class SolverBase:
     @property
     def name(self):
         return self._obj.className
+
+    @property
+    def obj(self):
+        return self._obj
 
 
 class StationarySolver(SolverBase):
