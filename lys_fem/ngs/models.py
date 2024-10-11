@@ -176,6 +176,7 @@ class CompositeModel:
         self._models = models
         self._mat = mat
         self._fes = util.prod([v.finiteElementSpace for v in self.variables])
+        self.coupling = [self._fes.CouplingType(i) for i in range(self._fes.ndof)]
         self.__initTnT()
 
     def __initTnT(self):

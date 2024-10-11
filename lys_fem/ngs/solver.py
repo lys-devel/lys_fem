@@ -65,7 +65,6 @@ class _Solution:
     def A(self, n=0):
         return self._coefs[n][2]
 
-
     @property
     def finiteElementSpace(self):
         return self._model.finiteElementSpace
@@ -80,7 +79,7 @@ class _Operator:
         self._fes = model.finiteElementSpace
         self.__setCoupling()
 
-        self._blf, self._lf = BilinearForm(self._fes), LinearForm(self._fes)
+        self._blf, self._lf = BilinearForm(self._fes, condense=self._cond), LinearForm(self._fes)
         lhs, rhs = wf.lhs, wf.rhs
         if lhs.valid:
             self._blf += lhs.eval()
@@ -140,24 +139,32 @@ class _Operator:
     def __inverse(self, mat):
         with TaskManager():
             if self._solver in ["pardiso", "pardisospd", "mumps", "sparsecholesky", "masterinverse", "umfpack"]:
-                return mat.Inverse(self._fes.FreeDofs(), self._solver)
+                inv = mat.Inverse(self._fes.FreeDofs(coupling=self._cond), self._solver)
+                if self._cond:
+                    ext = ngsolve.IdentityMatrix() + self._blf.harmonic_extension
+                    extT = ngsolve.IdentityMatrix() + self._blf.harmonic_extension_trans
+                    inv =  ext @ inv @ extT + self._blf.inner_solve
+                return inv
             if self._solver == "CG":
                 return ngsolve.CGSolver(mat, self._prec.mat)
             if self._solver == "GMRES":
                 return ngsolve.GMRESSolver(mat, self._prec.mat)
 
     def __setCoupling(self):
+        cond = [isinstance(c, ngsolve.L2) for c in self._fes.components]
         if self._symbols is None:
+            self._cond = any(cond)
             return
+        for i, c in enumerate(self._model.coupling):
+            self._fes.SetCouplingType(i, c)
         n = 0
         for v in self._model.variables:
-            if v.name in self._symbols:
-                t = ngsolve.COUPLING_TYPE.WIREBASKET_DOF
-            else:
-                t = ngsolve.COUPLING_TYPE.UNUSED_DOF
-            for j in range(n, n+v.size):
-                self._fes.SetCouplingType(self._fes.Range(j), t)
+            if v.name not in self._symbols:
+                for j in range(n, n+v.size):
+                    cond[j] = False
+                    self._fes.SetCouplingType(self._fes.Range(j), ngsolve.COUPLING_TYPE.UNUSED_DOF)
             n += v.size
+        self._cond = any(cond)
         ngsolve.Compress(self._fes)
         
     @property
