@@ -845,5 +845,6 @@ class _DMul:
 dx = DifferentialSymbol(ngsolve.dx, name="dx")
 ds = DifferentialSymbol(ngsolve.ds, name="ds")
 t = Parameter("t", 0, tdep=True)
+stepn = Parameter("step", 0, tdep=True)
 xscale = 1
 dimension = 3

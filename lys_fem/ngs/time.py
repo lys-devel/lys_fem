@@ -21,6 +21,33 @@ class BackwardEuler:
         return False
 
 
+class BDF2:
+    n = util.Parameter("n", 0)
+
+    def generateWeakforms(self, wf, model, sols, dti):
+        # Replace time derivative
+        d = {}
+        n = util.min(util.stepn, 0)
+        for v, x0, x1 in zip(model.variables, sols.X(), sols.X(1)):
+            d[v.trial.t] = ((2+n)*v.trial-(2+2*n)*x0+n*x1)/2*dti
+        wf = wf.replace(d)
+        return wf
+
+    def updateSolutions(self, x, sols, dti):
+        X0 = sols[0][0]
+        X1 = sols[1][0]
+        v = util.GridFunction(sols.finiteElementSpace)
+        if util.stepn.get() > 1:
+            v.vec.data = dti*3/2*x.vec - dti*4/2*X0.vec + dti*0.5*X1.vec
+        else:
+            v.vec.data = dti*(x.vec - X0.vec)
+        return (x, v, None)
+
+    @property
+    def use_a(self):
+        return False
+
+
 class NewmarkBeta:
     def __init__(self, params="tapezoidal"):
         if params == "tapezoidal":

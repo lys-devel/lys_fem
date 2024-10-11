@@ -13,21 +13,20 @@ class NGSLLGModel(NGSModel):
     def weakform(self, vars, mat):
         g, mu0, Ms = mat.const.g_e, mat.const.mu_0, mat["Ms"]
         A = 2*mat["Aex"] * g / Ms
+        alpha = mat["alpha"]
 
         wf = 0
         for eq in self._model.equations:
             m, test_m = vars[eq.variableName]
             m0 = m.value
             lam, test_lam = vars[eq.variableName+"_lam"]
-            scale = util.max(mat.const.dti, 1e-5)
+            scale = util.max(mat.const.dti, 1)#1e11
 
             # Left-hand side, normalization, exchange term
             wf += (m.t + 2*lam*m0*scale).dot(test_m)*dx
-            wf += (1e-5*lam + (m0.dot(m)-1))*test_lam*scale*dx
-            wf -= A * m0.cross(grad(m)).ddot(grad(test_m)) * dx
-
-            for gil in self._model.domainConditions.get(GilbertDamping):
-                wf += -mat["alpha"] * m.cross(m.t).dot(test_m)*dx(gil.geometries)
+            wf += (-1e-5*lam + (m0.dot(m)-1))*test_lam*scale*dx
+            wf += -A * m0.cross(grad(m)).ddot(grad(test_m))*dx
+            wf += -alpha * m.cross(m.t).dot(test_m)*dx
 
             for ex in self._model.domainConditions.get(ExternalMagneticField):
                 B = mat[ex.values]

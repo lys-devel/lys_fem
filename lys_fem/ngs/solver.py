@@ -121,6 +121,7 @@ class _Operator:
         with TaskManager():
             if self._nl_lhs:
                 self._blf.AssembleLinearization(x)
+                #print("Condition Number:", 1/np.linalg.cond(self._blf.mat.ToDense()))
                 res = self.__inverse(self._blf.mat)
                 return res
             else:
@@ -178,12 +179,12 @@ class SolverBase:
         self._sols = _Solution(model, self._integ.use_a)
         self._ops = [_Operator(model, self._integ, self._sols, step.variables, self._mat.const.dti, solver=step.solver, prec=step.preconditioner) for step in obj.steps]
         self._x = self._sols.copy()
-        self._step = 0
+        util.stepn.set(0)
 
     @np.errstate(divide='ignore', invalid="ignore")
     def solve(self, dti=0):
-        self._mat.updateSolutionFields(self._step)
-        self._step += 1
+        self._mat.updateSolutionFields(int(util.stepn.get()))
+        util.stepn.set(int(util.stepn.get() + 1))
         x0 = self._x.vec.CreateVector(copy=True)
         self._mat.const.dti.set(dti)
         for op, step in zip(self._ops, self._obj.steps):
@@ -205,6 +206,8 @@ class SolverBase:
     def __prepareIntegrator(self, obj):
         if obj.method == "BackwardEuler":
             return time.BackwardEuler()
+        elif obj.method == "BDF2":
+            return time.BDF2()
         elif obj.method == "NewmarkBeta":
             return time.NewmarkBeta()
         else:
@@ -260,8 +263,9 @@ class RelaxationSolver(SolverBase):
             self.exportSolution(i)
             if dt == np.inf:
                 break
-            dt *= min(np.sqrt(dx_ref/dx), 3)
-            if dt > self._tSolver.dt0*1e5:
+            dt *= min(np.sqrt(dx_ref/dx), 2)
+            if dt > self._tSolver.dt0*10**self._tSolver.factor:
+                print("inf")
                 dt = np.inf
 
 
