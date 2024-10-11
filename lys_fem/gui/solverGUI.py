@@ -275,7 +275,7 @@ class _MethodComboBox(QtWidgets.QComboBox):
     def __init__(self, solver):
         super().__init__()
         self._solver = solver
-        self.addItems(["BackwardEuler", "NewmarkBeta"])
+        self.addItems(["BackwardEuler", "BDF2", "NewmarkBeta"])
         self.setCurrentText(self._solver._method)
         self.currentIndexChanged.connect(self.__change)
 

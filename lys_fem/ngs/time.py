@@ -22,12 +22,10 @@ class BackwardEuler:
 
 
 class BDF2:
-    n = util.Parameter("n", 0)
-
     def generateWeakforms(self, wf, model, sols, dti):
         # Replace time derivative
         d = {}
-        n = util.min(util.stepn, 0)
+        n = util.min(util.stepn-1, 1)
         for v, x0, x1 in zip(model.variables, sols.X(), sols.X(1)):
             d[v.trial.t] = ((2+n)*v.trial-(2+2*n)*x0+n*x1)/2*dti
         wf = wf.replace(d)

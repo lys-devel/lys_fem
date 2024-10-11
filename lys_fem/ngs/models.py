@@ -96,7 +96,7 @@ class NGSModel:
             for eq in model.equations:
                 self.addVariable(eq.variableName, eq.variableDimension, region=eq.geometries, order=order, isScalar=eq.isScalar)
 
-    def addVariable(self, name, vdim, dirichlet="auto", initialValue="auto", initialVelocity=None, region=None, order=1, isScalar=False, scale=None, residualScale=None):
+    def addVariable(self, name, vdim, dirichlet="auto", initialValue="auto", initialVelocity=None, region=None, order=1, isScalar=False, scale=None, residualScale=None, L2=False):
         initialValue = self._funcs[self.__initialValue(vdim, initialValue)]
         if initialValue is None:
             raise RuntimeError("Invalid initial value for " + str(name))
@@ -117,7 +117,10 @@ class NGSModel:
         for i in range(vdim):
             if dirichlet is not None:
                 kwargs["dirichlet"] = "|".join(["boundary" + str(item) for item in dirichlet[i]])
-            fess.append(ngsolve.H1(self._mesh, **kwargs))
+            if L2:
+                fess.append(ngsolve.L2(self._mesh, **kwargs))
+            else:
+                fess.append(ngsolve.H1(self._mesh, **kwargs))
         
         if scale is None:
             scale = self.scale

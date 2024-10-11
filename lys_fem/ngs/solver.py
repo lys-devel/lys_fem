@@ -287,13 +287,14 @@ class TimeDependentSolver(SolverBase):
             t = t + dt
 
 
-def newton(F, x, eps=1e-5, max_iter=30):
+def newton(F, x, eps=1e-5, max_iter=30, gamma=1):
     if not F.isNonlinear:
         max_iter=1
     dx = x.CreateVector()
     for i in range(max_iter):
         with ngsolve.TaskManager():
             dx.data = F.Jacobian(x)*F(x)
+        dx.data *= gamma
         x -= dx
         R = np.sqrt(np.divide(dx.InnerProduct(dx), x.InnerProduct(x)))
         print("R =", R)
