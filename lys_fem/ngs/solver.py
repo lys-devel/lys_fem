@@ -151,7 +151,10 @@ class _Operator:
                 return ngsolve.GMRESSolver(mat, self._prec.mat)
 
     def __setCoupling(self):
-        cond = [isinstance(c, ngsolve.L2) for c in self._fes.components]
+        if isinstance(self._fes, ngsolve.ProductSpace):
+            cond = [isinstance(c, ngsolve.L2) for c in self._fes.components]
+        else:
+            cond = [isinstance(self._fes, ngsolve.L2)]
         if self._symbols is None:
             self._cond = any(cond)
             return
@@ -164,7 +167,7 @@ class _Operator:
                     cond[j] = False
                     self._fes.SetCouplingType(self._fes.Range(j), ngsolve.COUPLING_TYPE.UNUSED_DOF)
             n += v.size
-        self._cond = any(cond)
+        self._cond = False
         ngsolve.Compress(self._fes)
         
     @property
