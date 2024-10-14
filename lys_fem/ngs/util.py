@@ -307,6 +307,14 @@ class NGSFunction:
         elif J.shape[0] == 1:
             return NGSFunction(J[0,0], "|"+self._name+"|")
         
+    def __getitem__(self, index):
+        if self._obj is None:
+            return NGSFunction()
+        return _Index(self, index)
+        
+    @property
+    def T(self):
+        return _Transpose(self)
 
 def printError(f):
     def wrapper(*args, **kwargs):
@@ -505,6 +513,10 @@ class _Cross(_Oper):
         return self._obj[0].hasTrial or self._obj[1].hasTrial
 
     def eval(self):
+        v1, v2 = self._obj[0].eval(), self._obj[1].eval()
+        if len(v1.shape) == len(v2.shape) == 1:
+            return ngsolve.Cross(v1, v2)
+
         # Levi Civita symbol
         eijk = np.zeros((3, 3, 3))
         eijk[0, 1, 2] = eijk[1, 2, 0] = eijk[2, 0, 1] = 1
@@ -512,7 +524,6 @@ class _Cross(_Oper):
         eijk = tuple([tuple([tuple(ek) for ek in ejk]) for ejk in eijk])
         eijk = ngsolve.CoefficientFunction(eijk, dims=(3,3,3))
 
-        v1, v2 = self._obj[0].eval(), self._obj[1].eval()
         # Create expression
         sym1, sym2 = "abcdefgh"[:len(v1.shape)], "nmpqrs"[:len(v2.shape)]
         expr = "i"+sym1[-1]+sym2[0]+","+sym1+","+sym2+"->"+sym1[:-1]+"i"+sym2[1:]
@@ -575,6 +586,80 @@ class _Pow(_Oper):
         return str(self._obj[0]) + "**" + str(self._pow)
 
 
+class _Index(_Oper):
+    def __init__(self, obj1, index):
+        super().__init__(obj1)
+        self._index = index
+
+    def __call__(self, obj1, obj2):
+        return _Index(obj1, self._index)
+
+    @property
+    def lhs(self):
+        if self.hasTrial:
+            return self
+        else:
+            return NGSFunction()
+        
+    @property
+    def rhs(self):
+        if self.hasTrial:
+            return NGSFunction()
+        else:
+            return self
+        
+    @property
+    def hasTrial(self):
+        return self._obj[0].hasTrial
+    
+    @property
+    def shape(self):
+        return self._obj[0].shape[1:]
+    
+    def eval(self):
+        sl = [int(self._index)] + [slice(None)]*(len(self.shape))
+        return self._obj[0].eval()[tuple(sl)]
+    
+    def __str__(self):
+        return str(self._obj[0]) + "[" + str(self._index) + "]"
+
+
+class _Transpose(_Oper):
+    def __init__(self, obj):
+        super().__init__(obj)
+
+    def __call__(self, obj1, obj2):
+        return _Transpose(obj1)
+
+    @property
+    def lhs(self):
+        if self.hasTrial:
+            return self
+        else:
+            return NGSFunction()
+        
+    @property
+    def rhs(self):
+        if self.hasTrial:
+            return NGSFunction()
+        else:
+            return self
+        
+    @property
+    def hasTrial(self):
+        return self._obj[0].hasTrial
+    
+    @property
+    def shape(self):
+        return tuple(reversed(self._obj[0].shape))
+    
+    def eval(self):
+        return self._obj[0].eval().TensorTranspose((1,0))
+    
+    def __str__(self):
+        return str(self._obj[0]) + ".T"
+
+
 class _Func(_Oper):
     def __init__(self, obj1, type):
         super().__init__(obj1)
@@ -594,7 +679,10 @@ class _Func(_Oper):
     
     @property
     def shape(self):
-        return self._obj[0].shape
+        if self._type == "grad":
+            return tuple(list(self._obj[0].shape)+[dimension])
+        else:
+            return self._obj[0].shape
 
     def __hash__(self):
         if self._type == "grad" and isinstance(self._obj[0], (TrialFunction, TestFunction)):
