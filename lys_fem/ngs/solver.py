@@ -22,6 +22,7 @@ class _Solution:
         fes = model.finiteElementSpace
         self._sols = [(util.GridFunction(fes), util.GridFunction(fes), util.GridFunction(fes)) for n in range(nlog)]
         self._coefs = [[self.__toFunc(self[n][i], "t"*i) for i in range(3)] for n in range(nlog)]
+        self._grads = [self.__toGrad(self[n][0]) for n in range(nlog)]
         self.update(model.initialValue(use_a))
 
     def __toFunc(self, x, pre=""):
@@ -32,6 +33,18 @@ class _Solution:
                 res.append(util.NGSFunction(v.scale*x.components[n], name=v.name+pre+"0", tdep=True))
             else:
                 res.append(util.NGSFunction(v.scale*CoefficientFunction(tuple(x.components[n:n+v.size])), name=v.name+pre+"0", tdep=True))
+            n+=v.size           
+        return res
+
+    def __toGrad(self, x):
+        res = []
+        n = 0
+        for v in self._model.variables:
+            if v.size == 1 and v.isScalar:
+                res.append(util.NGSFunction(v.scale*ngsolve.grad(x.components[n]), name="grad("+v.name+"0)", tdep=True))
+            else:
+                g = [ngsolve.grad(x.components[i]) for i in range(n,n+v.size)]
+                res.append(util.NGSFunction(v.scale*CoefficientFunction(tuple(g)), name="grad("+v.name+"0)", tdep=True))
             n+=v.size           
         return res
 
@@ -64,6 +77,9 @@ class _Solution:
 
     def A(self, n=0):
         return self._coefs[n][2]
+    
+    def grad(self, n=0):
+        return self._grads[n]
 
     @property
     def finiteElementSpace(self):
