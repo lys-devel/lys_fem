@@ -231,7 +231,7 @@ class NGSFunction:
         if isinstance(other, (int, float, complex)):
             other = NGSFunction(other)
         if self.valid and other.valid:
-            return _Mul(self, other, "/")
+            return _Div(self, other)
         else:
             return NGSFunction()
         
@@ -392,20 +392,16 @@ class _Add(_Oper):
 
 
 class _Mul(_Oper):
-    def __init__(self, obj1, obj2,type="*"):
+    def __init__(self, obj1, obj2):
         super().__init__(obj1, obj2)
-        self._type = type
 
     def __call__(self, x, y):
-        if self._type == "*":
-            if isinstance(x, ngsolve.CoefficientFunction) and isinstance(y, ngsolve.CoefficientFunction):
-                if len(x.shape)!=0 and len(x.shape) == len(y.shape):
-                    return ngsolve.CoefficientFunction(tuple([xi*yi for xi, yi in zip(x,y)]), dims=x.shape)
-            if isinstance(y, _DMul):
-                return y * x
-            return x * y
-        else:
-            return x / y
+        if isinstance(x, ngsolve.CoefficientFunction) and isinstance(y, ngsolve.CoefficientFunction):
+            if len(x.shape)!=0 and len(x.shape) == len(y.shape):
+                return ngsolve.CoefficientFunction(tuple([xi*yi for xi, yi in zip(x,y)]), dims=x.shape)
+        if isinstance(y, _DMul):
+            return y * x
+        return x * y
 
     @property
     def shape(self):
@@ -422,35 +418,62 @@ class _Mul(_Oper):
         return self(self._obj[0].eval(), self._obj[1].eval())
 
     def grad(self):
-        if self._type == "*":
-            return self._obj[0].eval()*self._obj[1].grad()+self._obj[1].eval()*self._obj[0].grad()
+        return self._obj[0].eval()*self._obj[1].grad()+self._obj[1].eval()*self._obj[0].grad()
+
+    def __str__(self):
+        if isinstance(self._obj[0], _Mul) or isinstance(self._obj[1], _Mul):
+            return str(self._obj[0]) + "*" + str(self._obj[1])
+        return "(" + str(self._obj[0]) + "*" + str(self._obj[1]) + ")"
+
+    @property
+    def rhs(self):
+        return self._obj[0].rhs * self._obj[1].rhs
+
+    @property
+    def lhs(self):
+        return self._obj[0].lhs * self._obj[1].lhs + self._obj[0].lhs * self._obj[1].rhs + self._obj[0].rhs * self._obj[1].lhs
+
+
+class _Div(_Oper):
+    def __call__(self, x, y):
+        return x / y
+
+    @property
+    def shape(self):
+        if len(self._obj[0].shape)==0:
+            return self._obj[1].shape
+        else:
+            return self._obj[0].shape
+
+    @property
+    def hasTrial(self):
+        return self._obj[0].hasTrial or self._obj[1].hasTrial
+
+    def eval(self):
+        return self(self._obj[0].eval(), self._obj[1].eval())
+
+    def grad(self):
         raise RuntimeError("grad not implenented")
 
     def __str__(self):
         if isinstance(self._obj[0], _Mul) or isinstance(self._obj[1], _Mul):
-            return str(self._obj[0]) + self._type + str(self._obj[1])
-        return "(" + str(self._obj[0]) + self._type + str(self._obj[1]) + ")"
+            return str(self._obj[0]) + "/" + str(self._obj[1])
+        return "(" + str(self._obj[0]) + "/" + str(self._obj[1]) + ")"
 
     @property
     def rhs(self):
-        if not self.hasTrial:
-            return self
+        if self._obj[1].hasTrial:
+            return NGSFunction()
         else:
-            if self._obj[0].hasTrial:
-                return self(self._obj[0].rhs, self._obj[1])
-            else:
-                return self(self._obj[0], self._obj[1].rhs)
+            return self._obj[0].rhs/self._obj[1]
 
     @property
     def lhs(self):
-        if self.hasTrial:
-            if self._obj[0].hasTrial:
-                return self(self._obj[0].lhs, self._obj[1])
-            else:
-                return self(self._obj[0], self._obj[1].lhs)
+        if self._obj[1].hasTrial:
+            return self
         else:
-            return NGSFunction()
-        
+            return self._obj[0].lhs/self._obj[1]
+
         
 class _TensorDot(_Oper):
     def __init__(self, obj1, obj2, axes=1):
