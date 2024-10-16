@@ -230,6 +230,8 @@ class SolverBase:
         return np.divide(x0.InnerProduct(x0), x.InnerProduct(x))
             
     def __prepareIntegrator(self, obj):
+        if obj.method == "ForwardEuler":
+            return time.ForwardEuler()
         if obj.method == "BackwardEuler":
             return time.BackwardEuler()
         elif obj.method == "BDF2":

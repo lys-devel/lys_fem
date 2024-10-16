@@ -11,5 +11,8 @@ class ngs_heat_test(heat_test):
     def test_1d_tdep(self):
         self.tdep_1d(ngs)
 
+    def test_forwardEuler(self):
+        self.tdep_forward(ngs)
+
     def test_bdf2(self):
         self.tdep_bdf2(ngs)

@@ -1,5 +1,5 @@
 from lys_fem.ngs import NGSModel, grad, dx, util
-from . import ExternalMagneticField, UniaxialAnisotropy, MagneticScalarPotential
+from . import ExternalMagneticField, UniaxialAnisotropy, MagneticScalarPotential, SpinTransferTorque
 
 class NGSLLGModel(NGSModel):
     def __init__(self, model, mesh, vars, order=2):
@@ -11,7 +11,7 @@ class NGSLLGModel(NGSModel):
             self.addVariable(eq.variableName+"_lam", 1, initialValue=None, dirichlet=None, region=eq.geometries, order=0, isScalar=True, L2=True)
 
     def weakform(self, vars, mat):
-        g, mu0, Ms = mat.const.g_e, mat.const.mu_0, mat["Ms"]
+        g, e, mu_B, mu0, Ms = mat.const.g_e, mat.const.e, mat.const.mu_B, mat.const.mu_0, mat["Ms"]
         A = 2*mat["Aex"] * g / Ms
         alpha = mat["alpha"]
 
@@ -40,5 +40,10 @@ class NGSLLGModel(NGSModel):
             for sc in self._model.domainConditions.get(MagneticScalarPotential):
                 phi = mat[sc.values]
                 wf += g*m.cross(-mu0*grad(phi.value)).dot(test_m)*dx(sc.geometries)
+
+            for st in self._model.domainConditions.get(SpinTransferTorque):
+                beta = mat["beta_st"]
+                u = mu_B/e*Ms * mat[st.values]
+                wf += u.dot(grad(m)).dot(test_m) - beta * m.cross(u.dtot(grad(m))).dot(test_m)
 
         return wf

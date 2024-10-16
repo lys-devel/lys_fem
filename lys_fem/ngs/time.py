@@ -1,5 +1,28 @@
 from . import util
 
+class ForwardEuler:
+    def generateWeakforms(self, wf, model, sols, dti):
+        d = {}
+        for v, x0, v0, g0 in zip(model.variables, sols.X(), sols.V(), sols.grad()):
+            d[v.trial.t] = (v.trial - x0)*dti
+            d[v.trial.tt] = (v.trial - x0)*dti**2 - v0*dti
+            d[v.trial] = x0
+            d[v.trial.value] = x0
+            d[util.grad(v.trial)] = g0
+        wf = wf.replace(d)
+        return wf
+
+    def updateSolutions(self, x, sols, dti):
+        X0 = sols[0][0]
+        v = util.GridFunction(sols.finiteElementSpace)
+        v.vec.data = dti*(x.vec - X0.vec)
+        return (x, v, None)
+
+    @property
+    def use_a(self):
+        return False
+
+
 class BackwardEuler: 
     def generateWeakforms(self, wf, model, sols, dti):
         # Replace time derivative

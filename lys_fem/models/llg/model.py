@@ -33,13 +33,23 @@ class MagneticScalarPotential(DomainCondition):
         return super().widget(fem, canvas, title="Magnetic scalar potential (A)")
 
 
+class SpinTransferTorque(DomainCondition):
+    className = "SpinTransferTorque"
+
+    @classmethod
+    def default(cls, model):
+        return cls([0,0,0])
+
+    def widget(self, fem, canvas):
+        return super().widget(fem, canvas, title="Spin polarized current (A/m^2)")
+
+
 class LLGModel(FEMFixedModel):
     className = "LLG"
     equationTypes = [LLGEquation]
-    domainConditionTypes = [ExternalMagneticField, UniaxialAnisotropy, MagneticScalarPotential]
+    domainConditionTypes = [ExternalMagneticField, UniaxialAnisotropy, MagneticScalarPotential, SpinTransferTorque]
     boundaryConditionTypes = [DirichletBoundary]
 
     def __init__(self, *args, **kwargs):
         super().__init__(3, *args, **kwargs)
-
 

@@ -49,6 +49,7 @@ class NGSConstants(dict):
         self["k_B"] = util.NGSFunction(1.3806488e-23, name="k_B")
         self["g_e"] = util.NGSFunction(1.760859770e11, name="g_e")
         self["mu_0"] = util.NGSFunction(1.25663706e-6, name="mu_0")
+        self["mu_B"] = util.NGSFunction(9.2740100657e-24 , name="mu_B")
         self["eps_0"] = util.NGSFunction(8.8541878128e-12, name="eps_0")
         self["dti"] = util.Parameter("dti", -1)
 
