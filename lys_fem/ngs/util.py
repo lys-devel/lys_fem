@@ -1,3 +1,4 @@
+import builtins
 import numpy as np
 import sympy as sp
 import ngsolve
@@ -335,17 +336,20 @@ class _Oper(NGSFunction):
             obj2 = NGSFunction(obj2, str(obj2))
         super().__init__([obj1, obj2])
 
-    def replace(self, d):
+    def replace(self, d, type="NGS"):
         objs = []
         for i in range(2):
             obj = self._obj[i]
             if isinstance(obj, _Oper):
-                replaced = obj.replace(d)
+                replaced = obj.replace(d, type)
             else:
                 replaced = d.get(obj, obj)
-            if replaced == 0:
+            if replaced == 0 and type=="NGS":
                 replaced = NGSFunction()
+            if type=="value" and isinstance(replaced, NGSFunction):
+                replaced = eval(str(replaced))
             objs.append(replaced)
+        #print(self, objs)
         return self(*objs)
     
     @property
@@ -401,6 +405,8 @@ class _Mul(_Oper):
                 return ngsolve.CoefficientFunction(tuple([xi*yi for xi, yi in zip(x,y)]), dims=x.shape)
         if isinstance(y, _DMul):
             return y * x
+        if isinstance(x, (ngsolve.la.DynamicVectorExpression, ngsolve.la.BaseVector)) and isinstance(y, (int, float, complex)):
+            return y * x
         return x * y
 
     @property
@@ -436,6 +442,8 @@ class _Mul(_Oper):
 
 class _Div(_Oper):
     def __call__(self, x, y):
+        if isinstance(x, ngsolve.la.DynamicVectorExpression) and isinstance(y, (int, float, complex)):
+            return 1 / y * x
         return x / y
 
     @property
@@ -733,15 +741,15 @@ class _Func(_Oper):
                 return self._obj[0].grad()
             raise RuntimeError("grad is not implemented for " + str(type(self._obj[0])))
         
-    def replace(self, d):
+    def replace(self, d, type="NGS"):
         if self in d:
             return d.get(self)
         obj = self._obj[0]
         if isinstance(obj, _Oper):
-            replaced = obj.replace(d)
+            replaced = obj.replace(d, type)
         else:
             replaced = d.get(obj, obj)
-        if replaced == 0:
+        if replaced == 0 and type=="NGS":
             replaced = NGSFunction()
         return _Func(obj, self._type)
     
@@ -755,6 +763,11 @@ class _MinMax(_Oper):
         self._type = type
 
     def __call__(self, obj1, obj2):
+        if isinstance(obj1, (int,float)) and isinstance(obj2, (int,float)):
+            if self._type == "min":
+                return builtins.min([obj1, obj2])
+            else:
+                return builtins.max([obj1, obj2])
         return _MinMax(obj1, obj2, self._type)
 
     @property

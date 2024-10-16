@@ -1,6 +1,6 @@
 import ngsolve
 from lys_fem.fem import FEMCoefficient
-from . import util
+from . import util, time
 from ..models.common import DirichletBoundary
 
 
@@ -152,6 +152,21 @@ class NGSModel:
         for type in self._model.initialConditionTypes[1:]:
             init.value.update(self._model.initialConditions.coef(type).value)
         return init
+    
+    def discretize(self, sols, dti):
+        d = {}
+        for v in self.variables:
+            if self._model.discretization == "ForwardEuler":
+                d.update(time.BackwardEuler.generateWeakforms(v, sols, dti))
+            elif self._model.discretization == "BackwardEuler":
+                d.update(time.BackwardEuler.generateWeakforms(v, sols, dti))
+            elif self._model.discretization == "BDF2":
+                d.update(time.BDF2.generateWeakforms(v, sols, dti))
+            elif self._model.discretization == "NewmarkBeta":
+                d.update(time.NewmarkBeta.generateWeakforms(v, sols, dti))
+            else:
+                raise RuntimeError("Unknown discretization: "+self._model.discretization)
+        return d
 
     @property
     def variables(self):
@@ -193,6 +208,12 @@ class CompositeModel:
         tnt = {var.name: (var.trial, var.test) for var in self.variables}   # trial and test functions
         self._mat.update({v.name: v.trial for v in self.variables})         # update variable dictionary
         return sum([model.weakform(tnt, self._mat) for model in self._models])
+    
+    def discretize(self, sols, dti):
+        d = {}
+        for m in self._models:
+            d.update(m.discretize(sols, dti))
+        return d
 
     def initialValue(self, use_a=True):
         x = util.GridFunction(self._fes, [c for v in self.variables for c in v.value])

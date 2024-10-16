@@ -6,7 +6,7 @@ models = {}
 
 
 class FEMModel(FEMObject):
-    def __init__(self, nvar, equations="auto", initialConditions=None, boundaryConditions=None, domainConditions=None, objName=None):
+    def __init__(self, nvar, equations="auto", discretization="BackwardEuler", initialConditions=None, boundaryConditions=None, domainConditions=None, objName=None):
         super().__init__(objName)
         self._nvar = nvar
         if equations == "auto":
@@ -21,6 +21,7 @@ class FEMModel(FEMObject):
         self._init = InitialConditions(self, initialConditions)
         self._bdrs = BoundaryConditions(self, boundaryConditions)
         self._dcs = DomainConditions(self, domainConditions)
+        self._disc = discretization
 
     def setVariableDimension(self, dim):
         self._nvar = dim
@@ -46,6 +47,10 @@ class FEMModel(FEMObject):
     def initialConditions(self):
         return self._init
 
+    @property
+    def discretization(self):
+        return self._disc
+
     def saveAsDictionary(self):
         d = {"model": self.className}
         d["nvar"] = self._nvar
@@ -53,6 +58,7 @@ class FEMModel(FEMObject):
         d["init"] = self.initialConditions.saveAsDictionary()
         d["bdr"] = self.boundaryConditions.saveAsDictionary()
         d["domain"] = self.domainConditions.saveAsDictionary()
+        d["discretization"] = self._disc
         return d
 
     @classmethod

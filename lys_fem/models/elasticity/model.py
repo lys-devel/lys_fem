@@ -90,7 +90,7 @@ class ElasticModel(FEMModel):
     domainConditionTypes = [ThermoelasticStress, DeformationPotential]
     initialConditionTypes = [InitialCondition]
 
-    def __init__(self, nvar=3, *args, **kwargs):
-        super().__init__(nvar, *args, **kwargs)
+    def __init__(self, nvar=3, discretization="NewmarkBeta", *args, **kwargs):
+        super().__init__(nvar, *args, discretization=discretization, **kwargs)
 
 

@@ -26,25 +26,25 @@ class _Solution:
         self.update(model.initialValue(use_a))
 
     def __toFunc(self, x, pre=""):
-        res = []
+        res = {}
         n = 0
         for v in self._model.variables:
             if v.size == 1 and v.isScalar:
-                res.append(util.NGSFunction(v.scale*x.components[n], name=v.name+pre+"0", tdep=True))
+                res[v.name] = util.NGSFunction(v.scale*x.components[n], name=v.name+pre+"0", tdep=True)
             else:
-                res.append(util.NGSFunction(v.scale*CoefficientFunction(tuple(x.components[n:n+v.size])), name=v.name+pre+"0", tdep=True))
+                res[v.name] = util.NGSFunction(v.scale*CoefficientFunction(tuple(x.components[n:n+v.size])), name=v.name+pre+"0", tdep=True)
             n+=v.size           
         return res
 
     def __toGrad(self, x):
-        res = []
+        res = {}
         n = 0
         for v in self._model.variables:
             if v.size == 1 and v.isScalar:
-                res.append(util.NGSFunction(v.scale*ngsolve.grad(x.components[n]), name="grad("+v.name+"0)", tdep=True))
+                res[v.name] = util.NGSFunction(v.scale*ngsolve.grad(x.components[n]), name="grad("+v.name+"0)", tdep=True)
             else:
                 g = [ngsolve.grad(x.components[i]) for i in range(n,n+v.size)]
-                res.append(util.NGSFunction(v.scale*CoefficientFunction(tuple(g)), name="grad("+v.name+"0)", tdep=True))
+                res[v.name] = util.NGSFunction(v.scale*CoefficientFunction(tuple(g)), name="grad("+v.name+"0)", tdep=True)
             n+=v.size           
         return res
 
@@ -82,13 +82,17 @@ class _Solution:
         return self._grads[n]
 
     @property
+    def nlog(self):
+        return len(self._sols)
+
+    @property
     def finiteElementSpace(self):
         return self._model.finiteElementSpace
 
 
 class _Operator:
-    def __init__(self, model, integ, sols, symbols, dti, solver="pardiso", prec=None):
-        wf = self.__prepareWeakform(model, integ, sols, symbols, dti)
+    def __init__(self, model, diff, sols, symbols, solver="pardiso", prec=None):
+        wf = self.__prepareWeakform(model, diff, sols, symbols)
         self._model = model
         self._symbols = symbols
         self._solver = solver
@@ -109,18 +113,20 @@ class _Operator:
         self._tdep_rhs = rhs.isTimeDependent
         self._init  = False
 
-    def __prepareWeakform(self, model, integ, sols, symbols, dti):
+    def __prepareWeakform(self, model, diff, sols, symbols):
         wf = model.weakforms()
+        d = dict(diff)
         if symbols is not None:
-            d = {}
-            for v, X, V in zip(model.variables, sols.X(), sols.V()):
+            X, V, A, G = sols.X(), sols.V(), sols.A(), sols.grad()
+            for v in model.variables:
                 if v.name not in symbols:
-                    d[v.trial] = X
-                    d[v.trial.t] = V
+                    d[v.trial] = X[v.name]
+                    d[v.trial.t] = V[v.name]
+                    d[v.trial.tt] = A[v.name]
+                    d[util.grad(v.trial)] = G[v.name]
                     d[v.test] = 0
                     d[util.grad(v.test)] = 0
-            wf = wf.replace(d)
-        wf = integ.generateWeakforms(wf, model, sols, dti)
+        wf = wf.replace(d)
         return wf
 
     def __call__(self, x):
@@ -203,9 +209,10 @@ class SolverBase:
 
         self._integ = self.__prepareIntegrator(obj)
         self._sols = _Solution(model, self._integ.use_a)
-        self._ops = [_Operator(model, self._integ, self._sols, step.variables, self._mat.const.dti, solver=step.solver, prec=step.preconditioner) for step in obj.steps]
+        self._disc = model.discretize(self._sols, self._mat.const.dti)
+        self._ops = [_Operator(model, self._disc, self._sols, step.variables, solver=step.solver, prec=step.preconditioner) for step in obj.steps]
         self._x = self._sols.copy()
-        util.stepn.set(0)
+        util.stepn.set(-1)
 
     @np.errstate(divide='ignore', invalid="ignore")
     def solve(self, dti=0):
@@ -222,7 +229,7 @@ class SolverBase:
                 print("deformation set")
             op.update(dti)
             self._x.vec.data = newton(op, self._x.vec.CreateVector(copy=True), eps=step.newton_eps, max_iter=step.newton_maxiter, gamma=step.newton_damping)
-            self._sols.update(self._integ.updateSolutions(self._x, self._sols, self._mat.const.dti.get()))
+            self.__updateSolution(self._x, self._disc, self._sols, self._mat.const.dti)
         return self.__calcDifference(self._x.vec, x0)
 
     def __calcDifference(self, x, x0):
@@ -247,6 +254,34 @@ class SolverBase:
             if os.path.exists(self._dirname):
                 shutil.rmtree(self._dirname)
         os.makedirs(self._dirname, exist_ok=True)
+
+    def __updateSolution(self, x, disc, sols, dti):
+        v = util.GridFunction(self._model.finiteElementSpace)
+        a = util.GridFunction(self._model.finiteElementSpace)
+
+        n = 0
+        for var in self._model.variables:
+            # Calculate range for variable
+            if v.isSingle:
+                r = slice(None)
+            else:
+                r = slice(self._model.finiteElementSpace.Range(n).start, self._model.finiteElementSpace.Range(n+var.size-1).stop)
+            n += var.size
+
+            # Parameters
+            d = {var.trial: x.vec[r], dti: dti.get(), util.stepn: util.stepn.get()}
+            for i in range(sols.nlog):
+                d[sols.X(i)[var.name]] = sols[i][0].vec[r]
+                d[sols.V(i)[var.name]] = sols[i][1].vec[r]
+                d[sols.A(i)[var.name]] = sols[i][2].vec[r]
+
+            # Update by replacing discretization
+            if var.trial.t in disc:
+                v.vec.data[r] = disc[var.trial.t].replace(d, type="value")
+            if var.trial.tt in disc:
+                a.vec.data[r] = disc[var.trial.tt].replace(d, type="value")
+
+        sols.update((x,v,a))
 
     def exportMesh(self, m):
         m.ngmesh.Save(self._dirname + "/mesh0.vol")

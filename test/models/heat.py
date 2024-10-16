@@ -135,7 +135,7 @@ class heat_test(FEMTestCase):
         p.mesher.setRefinement(6)
 
         # model: boundary and initial conditions
-        model = heat.HeatConductionModel()
+        model = heat.HeatConductionModel(discretization="ForwardEuler")
         model.initialConditions.append(heat.InitialCondition(0, geometries=[1]))
         model.initialConditions.append(heat.InitialCondition(1, geometries=[2]))
         p.models.append(model)
@@ -177,7 +177,7 @@ class heat_test(FEMTestCase):
         p.mesher.setRefinement(6)
 
         # model: boundary and initial conditions
-        model = heat.HeatConductionModel()
+        model = heat.HeatConductionModel(discretization="BDF2")
         model.initialConditions.append(heat.InitialCondition(0, geometries=[1]))
         model.initialConditions.append(heat.InitialCondition(1, geometries=[2]))
         p.models.append(model)

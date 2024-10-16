@@ -1,22 +1,16 @@
 from . import util
 
 class ForwardEuler:
-    def generateWeakforms(self, wf, model, sols, dti):
+    @staticmethod
+    def generateWeakforms(v, sols, dti):
         d = {}
-        for v, x0, v0, g0 in zip(model.variables, sols.X(), sols.V(), sols.grad()):
-            d[v.trial.t] = (v.trial - x0)*dti
-            d[v.trial.tt] = (v.trial - x0)*dti**2 - v0*dti
-            d[v.trial] = x0
-            d[v.trial.value] = x0
-            d[util.grad(v.trial)] = g0
-        wf = wf.replace(d)
-        return wf
-
-    def updateSolutions(self, x, sols, dti):
-        X0 = sols[0][0]
-        v = util.GridFunction(sols.finiteElementSpace)
-        v.vec.data = dti*(x.vec - X0.vec)
-        return (x, v, None)
+        x0, v0, g0 = sols.X()[v.name], sols.V()[v.name], sols.grad()[v.name]
+        d[v.trial.t] = (v.trial - x0)*dti
+        d[v.trial.tt] = (v.trial - x0)*dti**2 - v0*dti
+        d[v.trial] = x0
+        d[v.trial.value] = x0
+        d[util.grad(v.trial)] = g0
+        return d
 
     @property
     def use_a(self):
@@ -24,20 +18,13 @@ class ForwardEuler:
 
 
 class BackwardEuler: 
-    def generateWeakforms(self, wf, model, sols, dti):
-        # Replace time derivative
+    @staticmethod
+    def generateWeakforms(v, sols, dti):
         d = {}
-        for v, x0, v0 in zip(model.variables, sols.X(), sols.V()):
-            d[v.trial.t] = (v.trial - x0)*dti
-            d[v.trial.tt] = (v.trial - x0)*dti**2 - v0*dti
-        wf = wf.replace(d)
-        return wf
-        
-    def updateSolutions(self, x, sols, dti):
-        X0 = sols[0][0]
-        v = util.GridFunction(sols.finiteElementSpace)
-        v.vec.data = dti*(x.vec - X0.vec)
-        return (x, v, None)
+        x0, v0 = sols.X()[v.name], sols.V()[v.name]
+        d[v.trial.t] = (v.trial - x0)*dti
+        d[v.trial.tt] = (v.trial - x0)*dti**2 - v0*dti
+        return d
 
     @property
     def use_a(self):
@@ -45,24 +32,12 @@ class BackwardEuler:
 
 
 class BDF2:
-    def generateWeakforms(self, wf, model, sols, dti):
-        # Replace time derivative
-        d = {}
-        n = util.min(util.stepn-1, 1)
-        for v, x0, x1 in zip(model.variables, sols.X(), sols.X(1)):
-            d[v.trial.t] = ((2+n)*v.trial-(2+2*n)*x0+n*x1)/2*dti
-        wf = wf.replace(d)
-        return wf
-
-    def updateSolutions(self, x, sols, dti):
-        X0 = sols[0][0]
-        X1 = sols[1][0]
-        v = util.GridFunction(sols.finiteElementSpace)
-        if util.stepn.get() > 1:
-            v.vec.data = dti*3/2*x.vec - dti*4/2*X0.vec + dti*0.5*X1.vec
-        else:
-            v.vec.data = dti*(x.vec - X0.vec)
-        return (x, v, None)
+    @staticmethod
+    def generateWeakforms(v, sols, dti):
+        n = util.min(util.stepn, 1)
+        x0, x1 = sols.X()[v.name], sols.X(1)[v.name]
+        d = {v.trial.t: ((2+n)*v.trial-(2+2*n)*x0+n*x1)/2*dti}
+        return d
 
     @property
     def use_a(self):
@@ -76,26 +51,14 @@ class NewmarkBeta:
         else:
             self._params = params
        
-    def generateWeakforms(self, wf, model, sols, dti):
-        b, g = self._params
+    @staticmethod
+    def generateWeakforms(v, sols, dti):
+        b, g = [1/4, 1/2]
         d = {}
-        for v, x0, v0, a0 in zip(model.variables, sols.X(), sols.V(), sols.A()):
-            d[v.trial.t] = (v.trial - x0)*(g/b)*dti + v0*(1-g/b) + a0*(1-0.5*g/b)/dti
-            d[v.trial.tt] = (v.trial - x0)*(1/b)*dti*dti - v0*(1/b)*dti + a0*(1-0.5/b)
-        wf = wf.replace(d)
-        return wf
-        
-    def updateSolutions(self, x, sols, dti):
-        X0, V0, A0 = sols[0]
-        X0, V0, A0 = X0.vec, V0.vec, A0.vec
-
-        b, g = self._params
-        a = util.GridFunction(sols.finiteElementSpace)
-        v = util.GridFunction(sols.finiteElementSpace)
-
-        a.vec.data = (1/b*dti**2)*(x.vec-X0) - (dti/b)*V0 + (1-0.5/b)*A0
-        v.vec.data = V0 + (1-g)/dti*A0 + g/dti*a.vec
-        return (x, v, a)
+        x0, v0, a0 = sols.X()[v.name], sols.V()[v.name], sols.A()[v.name]
+        d[v.trial.t] = (v.trial - x0)*(g/b)*dti + v0*(1-g/b) + a0*(1-0.5*g/b)/dti
+        d[v.trial.tt] = (v.trial - x0)*(1/b)*dti*dti - v0*(1/b)*dti + a0*(1-0.5/b)
+        return d
     
     @property
     def use_a(self):
