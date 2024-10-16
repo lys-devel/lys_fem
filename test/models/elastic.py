@@ -125,7 +125,7 @@ class elasticity_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        solver = TimeDependentSolver(0.005, 1, method="NewmarkBeta")
+        solver = TimeDependentSolver(0.005, 1)
         p.solvers.append(solver)
 
         # solve
@@ -166,7 +166,7 @@ class elasticity_test(FEMTestCase):
         p.models.append(model2)
 
         # solver
-        solver = TimeDependentSolver(0.5e-13, 0.5e-13*500, method="NewmarkBeta")
+        solver = TimeDependentSolver(0.5e-13, 0.5e-13*500)
         p.solvers.append(solver)
 
         # solve
@@ -201,7 +201,7 @@ class elasticity_test(FEMTestCase):
         p.models.append(model2)
 
         # solver
-        solver = TimeDependentSolver(1e-13, 1e-13*50, method="NewmarkBeta")
+        solver = TimeDependentSolver(1e-13, 1e-13*50)
         p.solvers.append(solver)
 
         # solve
@@ -228,7 +228,7 @@ class elasticity_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        solver = TimeDependentSolver(0.5e-13, 0.5e-13*500, method="NewmarkBeta")
+        solver = TimeDependentSolver(0.5e-13, 0.5e-13*500)
         p.solvers.append(solver)
 
         # solve

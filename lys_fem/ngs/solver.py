@@ -3,9 +3,9 @@ import shutil
 import numpy as np
 
 import ngsolve
-from ngsolve import BilinearForm, LinearForm, CoefficientFunction, VectorH1, TaskManager, SetNumThreads
+from ngsolve import BilinearForm, LinearForm, CoefficientFunction, VectorH1, TaskManager
 
-from . import mpi, time, util
+from . import mpi, util
 
 def generateSolver(fem, mesh, model):
     solvers = {"Stationary Solver": StationarySolver, "Relaxation Solver": RelaxationSolver, "Time Dependent Solver": TimeDependentSolver}
@@ -17,13 +17,13 @@ def generateSolver(fem, mesh, model):
 
 
 class _Solution:
-    def __init__(self, model, use_a, nlog=2):
+    def __init__(self, model, nlog=2):
         self._model = model
         fes = model.finiteElementSpace
         self._sols = [(util.GridFunction(fes), util.GridFunction(fes), util.GridFunction(fes)) for n in range(nlog)]
         self._coefs = [[self.__toFunc(self[n][i], "t"*i) for i in range(3)] for n in range(nlog)]
         self._grads = [self.__toGrad(self[n][0]) for n in range(nlog)]
-        self.update(model.initialValue(use_a))
+        self._use_a = False
 
     def __toFunc(self, x, pre=""):
         res = {}
@@ -48,6 +48,13 @@ class _Solution:
             n+=v.size           
         return res
 
+    def initialize(self):
+        self.update(self._model.initialValue(self._use_a))
+
+    def reset(self):
+        for i in range(self.nlog):
+            self.update((self._sols[0][0], None, None))
+
     def update(self, xva):
         # Store old data
         for j in range(3):
@@ -57,6 +64,8 @@ class _Solution:
         for xi, yi in zip(self._sols[0], xva):
             if yi is not None:
                 xi.vec.data = yi.vec
+            else:
+                xi.vec.data *= 0
 
     def __getitem__(self, n):
         return self._sols[n]
@@ -76,6 +85,7 @@ class _Solution:
         return self._coefs[n][1]
 
     def A(self, n=0):
+        self._use_a=True
         return self._coefs[n][2]
     
     def grad(self, n=0):
@@ -197,7 +207,6 @@ class _Operator:
         return self._nl_lhs or self._nl_rhs
     
 
-
 class SolverBase:
     def __init__(self, obj, mesh, model, dirname, variableStep=False):
         self._obj = obj
@@ -207,15 +216,18 @@ class SolverBase:
         self._mat.const.dti.tdep = variableStep
         self.__prepareDirectory(dirname)
 
-        self._integ = self.__prepareIntegrator(obj)
-        self._sols = _Solution(model, self._integ.use_a)
+        self._sols = _Solution(model)
         self._disc = model.discretize(self._sols, self._mat.const.dti)
         self._ops = [_Operator(model, self._disc, self._sols, step.variables, solver=step.solver, prec=step.preconditioner) for step in obj.steps]
-        self._x = self._sols.copy()
         util.stepn.set(-1)
+        self._sols.initialize()
+        self._x = self._sols.copy()
+        self.exportSolution(0)
 
     @np.errstate(divide='ignore', invalid="ignore")
     def solve(self, dti=0):
+        if dti==0:
+            self._sols.reset()
         self._mat.updateSolutionFields(int(util.stepn.get()))
         util.stepn.set(int(util.stepn.get() + 1))
         x0 = self._x.vec.CreateVector(copy=True)
@@ -230,23 +242,12 @@ class SolverBase:
             op.update(dti)
             self._x.vec.data = newton(op, self._x.vec.CreateVector(copy=True), eps=step.newton_eps, max_iter=step.newton_maxiter, gamma=step.newton_damping)
             self.__updateSolution(self._x, self._disc, self._sols, self._mat.const.dti)
+        self.exportSolution(int(util.stepn.get()+1))
         return self.__calcDifference(self._x.vec, x0)
 
     def __calcDifference(self, x, x0):
         x0.data = x0.data - x.data
         return np.divide(x0.InnerProduct(x0), x.InnerProduct(x))
-            
-    def __prepareIntegrator(self, obj):
-        if obj.method == "ForwardEuler":
-            return time.ForwardEuler()
-        if obj.method == "BackwardEuler":
-            return time.BackwardEuler()
-        elif obj.method == "BDF2":
-            return time.BDF2()
-        elif obj.method == "NewmarkBeta":
-            return time.NewmarkBeta()
-        else:
-            return time.GeneralizedAlpha(obj.method)
 
     def __prepareDirectory(self, dirname):
         self._dirname = "Solutions/" + dirname
@@ -290,7 +291,7 @@ class SolverBase:
         self._sols.save(self._dirname + "/ngs" + str(index))
 
     @property
-    def solution(self):
+    def solutions(self):
         return self._sols
 
     @property
@@ -304,11 +305,7 @@ class SolverBase:
 
 class StationarySolver(SolverBase):
     def execute(self):
-        #self.exportMesh(self._mesh)
-        self.exportSolution(0)
-
         self.solve()
-        self.exportSolution(1)
 
 
 class RelaxationSolver(SolverBase):
@@ -317,9 +314,6 @@ class RelaxationSolver(SolverBase):
         self._tSolver = obj
 
     def execute(self):
-        #self.exportMesh(self._mesh)
-        self.exportSolution(0)
-
         t = 0
         dt, dx_ref = self._tSolver.dt0, self._tSolver.dx
         for i in range(1,100):
@@ -327,7 +321,6 @@ class RelaxationSolver(SolverBase):
             dx = self.solve(1/dt)
             t = t + dt
             mpi.print_("Step", i, ", t = {:3e}".format(t), ", dt = {:3e}".format(dt), ", dx = {:3e}".format(dx))
-            self.exportSolution(i)
             if dt == np.inf:
                 break
             dt *= min(np.sqrt(dx_ref/dx), 2)
@@ -342,15 +335,11 @@ class TimeDependentSolver(SolverBase):
         self._tSolver = obj
 
     def execute(self):
-        #self.exportMesh(self._mesh)
-        self.exportSolution(0)
-
         t = 0
         for i, dt in enumerate(self._tSolver.getStepList()):
             util.t.set(t)
             dx = self.solve(1/dt)
             mpi.print_("Timestep", i, ", t = {:3e}".format(t), ", dx = {:3e}".format(dx))
-            self.exportSolution(i + 1)
             t = t + dt
 
 

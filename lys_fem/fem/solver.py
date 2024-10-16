@@ -66,20 +66,15 @@ class SolverStep:
 
 
 class FEMSolver(FEMObject):
-    def __init__(self, steps=None, method="BackwardEuler", **kwargs):
+    def __init__(self, steps=None, **kwargs):
         if steps is None:
             steps = [SolverStep(**kwargs)]
         self._steps = steps
-        self._method = method
 
     def saveAsDictionary(self):
-        d = {"solver": self.className, "method": self._method, "steps": [s.saveAsDictionary() for s in self._steps]}
+        d = {"solver": self.className, "steps": [s.saveAsDictionary() for s in self._steps]}
         return d
-    
-    @property
-    def method(self):
-        return self._method
-    
+        
     @property
     def steps(self):
         return self._steps

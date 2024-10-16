@@ -337,6 +337,8 @@ class _Oper(NGSFunction):
         super().__init__([obj1, obj2])
 
     def replace(self, d, type="NGS"):
+        if self in d:
+            return d.get(self)
         objs = []
         for i in range(2):
             obj = self._obj[i]
@@ -696,6 +698,9 @@ class _Func(_Oper):
         super().__init__(obj1)
         self._type = type
 
+    def __call__(self, obj1, obj2):
+        return _Func(obj1, self._type)
+
     @property
     def rhs(self):
         return NGSFunction()
@@ -740,18 +745,6 @@ class _Func(_Oper):
             if hasattr(self._obj[0], "grad"):
                 return self._obj[0].grad()
             raise RuntimeError("grad is not implemented for " + str(type(self._obj[0])))
-        
-    def replace(self, d, type="NGS"):
-        if self in d:
-            return d.get(self)
-        obj = self._obj[0]
-        if isinstance(obj, _Oper):
-            replaced = obj.replace(d, type)
-        else:
-            replaced = d.get(obj, obj)
-        if replaced == 0 and type=="NGS":
-            replaced = NGSFunction()
-        return _Func(obj, self._type)
     
     def __str__(self):
         return self._type + "(" + str(self._obj[0]) + ")"

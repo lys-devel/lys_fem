@@ -74,7 +74,7 @@ class heat_test(FEMTestCase):
         for w in res:
             self.assert_array_almost_equal(w.data, w.x[:, 0] / 2)
 
-    def tdep_1d(self, lib, method="BackwardEuler"):
+    def tdep_1d(self, lib):
         def calc_temp(x, t, kappa=1, DT=1, T_0=0):
             return T_0 + DT * special.erfc(-x / np.sqrt(4 * kappa * t)) / 2
 
@@ -99,7 +99,7 @@ class heat_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        stationary = TimeDependentSolver(0.0001, 0.01, method=method)
+        stationary = TimeDependentSolver(0.0001, 0.01)
         p.solvers.append(stationary)
 
         # solve
@@ -141,7 +141,7 @@ class heat_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        stationary = TimeDependentSolver(0.000001, 0.001, method="ForwardEuler")
+        stationary = TimeDependentSolver(0.000001, 0.001)
         p.solvers.append(stationary)
 
         # solve
@@ -183,7 +183,7 @@ class heat_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        stationary = TimeDependentSolver(0.0001, 0.02, method="BDF2")
+        stationary = TimeDependentSolver(0.0001, 0.02)
         p.solvers.append(stationary)
 
         # solve

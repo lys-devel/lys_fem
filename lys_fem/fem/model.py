@@ -6,6 +6,12 @@ models = {}
 
 
 class FEMModel(FEMObject):
+    equationTypes = []
+    domainConditionTypes = []
+    boundaryConditionTypes = []
+    initialConditionTypes = [InitialCondition]
+    discretizationTypes = ["BackwardEuler", "BDF2", "NewmarkBeta", "ForwardEuler"]
+
     def __init__(self, nvar, equations="auto", discretization="BackwardEuler", initialConditions=None, boundaryConditions=None, domainConditions=None, objName=None):
         super().__init__(objName)
         self._nvar = nvar
@@ -76,26 +82,6 @@ class FEMModel(FEMObject):
     def widget(self, fem, canvas):
         from ..gui import FEMModelWidget
         return FEMModelWidget(self)
-    
-    @classmethod
-    @property
-    def equationTypes(cls):
-        return []
-
-    @classmethod
-    @property
-    def domainConditionTypes(self):
-        return []
-
-    @classmethod
-    @property
-    def boundaryConditionTypes(self):
-        return []
-
-    @classmethod
-    @property
-    def initialConditionTypes(self):
-        return [InitialCondition]
     
     
 class FEMFixedModel(FEMModel):

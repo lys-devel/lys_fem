@@ -11,11 +11,7 @@ class ForwardEuler:
         d[v.trial.value] = x0
         d[util.grad(v.trial)] = g0
         return d
-
-    @property
-    def use_a(self):
-        return False
-
+    
 
 class BackwardEuler: 
     @staticmethod
@@ -26,10 +22,6 @@ class BackwardEuler:
         d[v.trial.tt] = (v.trial - x0)*dti**2 - v0*dti
         return d
 
-    @property
-    def use_a(self):
-        return False
-
 
 class BDF2:
     @staticmethod
@@ -39,18 +31,8 @@ class BDF2:
         d = {v.trial.t: ((2+n)*v.trial-(2+2*n)*x0+n*x1)/2*dti}
         return d
 
-    @property
-    def use_a(self):
-        return False
 
-
-class NewmarkBeta:
-    def __init__(self, params="tapezoidal"):
-        if params == "tapezoidal":
-            self._params = [1/4, 1/2]
-        else:
-            self._params = params
-       
+class NewmarkBeta:       
     @staticmethod
     def generateWeakforms(v, sols, dti):
         b, g = [1/4, 1/2]
@@ -59,10 +41,6 @@ class NewmarkBeta:
         d[v.trial.t] = (v.trial - x0)*(g/b)*dti + v0*(1-g/b) + a0*(1-0.5*g/b)/dti
         d[v.trial.tt] = (v.trial - x0)*(1/b)*dti*dti - v0*(1/b)*dti + a0*(1-0.5/b)
         return d
-    
-    @property
-    def use_a(self):
-        return True
     
 
 class GeneralizedAlpha(NewmarkBeta):

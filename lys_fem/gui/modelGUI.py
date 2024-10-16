@@ -238,19 +238,21 @@ class _InitialCondition(FEMTreeItem):
 class FEMModelWidget(QtWidgets.QWidget):
     def __init__(self, model):
         super().__init__()
-        self._model = model
-        self.__initlayout()
+        self.__initlayout(model)
 
-    def __initlayout(self):
+    def __initlayout(self, model):
+        self._method = _MethodComboBox(model)
         self._dim = QtWidgets.QSpinBox()
         self._dim.setRange(1, 3)
-        self._dim.setValue(self._model.variableDimension())
+        self._dim.setValue(model.variableDimension())
         self._dim.valueChanged.connect(self.__changeDim)
 
-        layout = QtWidgets.QHBoxLayout()
+        layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(QtWidgets.QLabel("Variable dimension"))
         layout.addWidget(self._dim)
+        layout.addWidget(QtWidgets.QLabel("Discretization"))
+        layout.addWidget(self._method)
         self.setLayout(layout)
 
     def __changeDim(self, value):
@@ -260,4 +262,24 @@ class FEMModelWidget(QtWidgets.QWidget):
 class FEMFixedModelWidget(QtWidgets.QWidget):
     def __init__(self, model):
         super().__init__()
+        self.__initLayout(model)
+
+    def __initLayout(self, model):
+        self._method = _MethodComboBox(model)
+        layout = QtWidgets.QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(QtWidgets.QLabel("Discretization"))
+        layout.addWidget(self._method)
+        self.setLayout(layout)
+
+
+class _MethodComboBox(QtWidgets.QComboBox):
+    def __init__(self, model):
+        super().__init__()
         self._model = model
+        self.addItems(model.discretizationTypes)
+        self.setCurrentText(self._model.discretization)
+        self.currentIndexChanged.connect(self.__change)
+
+    def __change(self):
+        self._model._disc = self.currentText()
