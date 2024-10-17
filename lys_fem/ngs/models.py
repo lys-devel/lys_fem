@@ -177,6 +177,10 @@ class NGSModel:
         return self._model.name
     
     @property
+    def discretization(self):
+        return self._model.discretization
+    
+    @property
     def scale(self):
         return 1
     

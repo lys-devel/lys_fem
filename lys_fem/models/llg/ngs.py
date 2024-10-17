@@ -23,8 +23,8 @@ class NGSLLGModel(NGSModel):
             scale = util.max(mat.const.dti, 1)#1e11
 
             # Left-hand side, normalization, exchange term
-            wf += (m.t + 2*lam*m0*scale).dot(test_m)*dx
-            wf += (-1e-5*lam + (m0.dot(m)-1))*test_lam*scale*dx
+            wf += (m.t + 2*lam*m*scale).dot(test_m)*dx
+            wf += (-1e-5*lam + (m.dot(m)-1))*test_lam*scale*dx
             wf += -A * m0.cross(grad(m)).ddot(grad(test_m))*dx
             wf += -alpha * m.cross(m.t).dot(test_m)*dx
 
@@ -47,3 +47,15 @@ class NGSLLGModel(NGSModel):
                 wf += u.dot(grad(m)).dot(test_m) - beta * m.cross(u.dtot(grad(m))).dot(test_m)
 
         return wf
+    
+    def discretize(self, sols, dti):
+        if self._model.discretization == "LLG1":
+            d = {}
+            for v in self.variables:
+                if "_lam" in v.name:
+                    continue
+                m0 = sols.X()[v.name]
+                d[v.trial.value] = m0
+                d[v.trial.t] = (v.trial - m0)*dti
+            return d
+        return super().discretize(sols, dti)

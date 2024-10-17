@@ -49,8 +49,10 @@ class LLGModel(FEMFixedModel):
     equationTypes = [LLGEquation]
     domainConditionTypes = [ExternalMagneticField, UniaxialAnisotropy, MagneticScalarPotential, SpinTransferTorque]
     boundaryConditionTypes = [DirichletBoundary]
-    discretizationTypes = ["LLG1"]
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(3, *args, **kwargs)
+    def __init__(self, *args, discretization="LLG1", **kwargs):
+        super().__init__(3, discretization=discretization, *args, **kwargs)
 
+    @property
+    def discretizationTypes(self):
+        return ["LLG1"] + super().discretizationTypes
