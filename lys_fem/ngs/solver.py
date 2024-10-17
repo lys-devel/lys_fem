@@ -30,9 +30,9 @@ class _Solution:
         n = 0
         for v in self._model.variables:
             if v.size == 1 and v.isScalar:
-                res[v.name] = util.NGSFunction(v.scale*x.components[n], name=v.name+pre+"0", tdep=True)
+                res[v.name] = util.NGSFunction(v.scale*x.components[n], name=v.name+pre+"_n", tdep=True)
             else:
-                res[v.name] = util.NGSFunction(v.scale*CoefficientFunction(tuple(x.components[n:n+v.size])), name=v.name+pre+"0", tdep=True)
+                res[v.name] = util.NGSFunction(v.scale*CoefficientFunction(tuple(x.components[n:n+v.size])), name=v.name+pre+"_n", tdep=True)
             n+=v.size           
         return res
 
@@ -41,10 +41,10 @@ class _Solution:
         n = 0
         for v in self._model.variables:
             if v.size == 1 and v.isScalar:
-                res[v.name] = util.NGSFunction(v.scale*ngsolve.grad(x.components[n]), name="grad("+v.name+"0)", tdep=True)
+                res[v.name] = util.NGSFunction(v.scale*ngsolve.grad(x.components[n]), name="grad("+v.name+"_n)", tdep=True)
             else:
                 g = [ngsolve.grad(x.components[i]) for i in range(n,n+v.size)]
-                res[v.name] = util.NGSFunction(v.scale*CoefficientFunction(tuple(g)), name="grad("+v.name+"0)", tdep=True)
+                res[v.name] = util.NGSFunction(v.scale*CoefficientFunction(tuple(g), dims=(g[0].shape[0], v.size)).TensorTranspose((1,0)), name="grad("+v.name+"_n)", tdep=True)
             n+=v.size           
         return res
 
@@ -316,7 +316,7 @@ class RelaxationSolver(SolverBase):
     def execute(self):
         t = 0
         dt, dx_ref = self._tSolver.dt0, self._tSolver.dx
-        for i in range(1,100):
+        for i in range(1,1000):
             util.t.set(t)
             dx = self.solve(1/dt)
             t = t + dt

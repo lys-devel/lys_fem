@@ -518,23 +518,11 @@ class _TensorDot(_Oper):
 
     @property
     def rhs(self):
-        if not self.hasTrial:
-            return self
-        else:
-            if self._obj[0].hasTrial:
-                return self(self._obj[0].rhs, self._obj[1])
-            else:
-                return self(self._obj[0], self._obj[1].rhs)
+        return self(self._obj[0].rhs, self._obj[1].rhs)
 
     @property
     def lhs(self):
-        if self.hasTrial:
-            if self._obj[0].hasTrial:
-                return self(self._obj[0].lhs, self._obj[1])
-            else:
-                return self(self._obj[0], self._obj[1].lhs)
-        else:
-            return NGSFunction()
+        return self(self._obj[0].lhs, self._obj[1].lhs) + self(self._obj[0].lhs, self._obj[1].rhs) + self(self._obj[0].rhs, self._obj[1].lhs)
 
 
 class _Cross(_Oper):
@@ -569,23 +557,11 @@ class _Cross(_Oper):
 
     @property
     def rhs(self):
-        if not self.hasTrial:
-            return self
-        else:
-            if self._obj[0].hasTrial:
-                return self._obj[0].rhs.cross(self._obj[1])
-            else:
-                return self._obj[0].cross(self._obj[1].rhs)
+        return self._obj[0].rhs.cross(self._obj[1].rhs)
 
     @property
     def lhs(self):
-        if self.hasTrial:
-            if self._obj[0].hasTrial:
-                return self._obj[0].lhs.cross(self._obj[1])
-            else:
-                return self._obj[0].cross(self._obj[1].lhs)
-        else:
-            return NGSFunction()
+        return self._obj[0].lhs.cross(self._obj[1].lhs)+self._obj[0].rhs.cross(self._obj[1].lhs)+self._obj[0].lhs.cross(self._obj[1].rhs)
 
 
 class _Pow(_Oper):
@@ -870,6 +846,7 @@ class TestFunction(NGSFunction):
 class TrialFunctionValue(NGSFunction):
     def __init__(self, obj, name):
         super().__init__(obj, name=name)
+        self._nam = name
         self._tris = obj
 
     def __hash__(self):
@@ -878,14 +855,29 @@ class TrialFunctionValue(NGSFunction):
     def __eq__(self, other):
         return hash(self) == hash(other)
 
+    def __str__(self):
+        return self._nam
+
     def grad(self):
         if isinstance(self._tris, list):
             return 1/xscale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._tris]), dims=(ngsolve.grad(self._tris[0]).shape[0], len(self._tris))).TensorTranspose((1,0))
         return 1/xscale * ngsolve.grad(super().eval())
 
     @property
+    def hasTrial(self):
+        return True
+
+    @property
     def isNonlinear(self):
-        return True  
+        return True
+
+    @property
+    def lhs(self):
+        return self
+
+    @property
+    def rhs(self):
+        return NGSFunction()
 
 
 class DifferentialSymbol(NGSFunction):

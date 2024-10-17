@@ -132,7 +132,7 @@ class _PartialRefineWidget(QtWidgets.QWidget):
 
     def __initlayout(self, canvas, fem, geom):
         self._refine = QtWidgets.QSpinBox()
-        self._refine.setRange(1, 19)
+        self._refine.setRange(1, 100000000)
         self._refine.setValue(geom.factor)
         self._refine.valueChanged.connect(self._setFactor)
 
