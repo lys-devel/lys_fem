@@ -76,7 +76,6 @@ class OccMesher(FEMObject):
         self.__setPeriodicity(model)
         self.__partialRefine(model)
 
-        #model.mesh.setTransfiniteAutomatic()
         model.mesh.generate()
         for _ in range(self._refine):
             model.mesh.refine()
@@ -91,8 +90,13 @@ class OccMesher(FEMObject):
                 if dim == 2:
                     surf = model.getEntitiesForPhysicalGroup(2, tag)[0]
                     model.mesh.setTransfiniteSurface(surf)
+                    model.mesh.setRecombine(2, surf)
                 if dim == 3:
                     domain = model.getEntitiesForPhysicalGroup(3, tag)[0]
+                    _, surfs = model.getAdjacencies(3, domain)
+                    for v in surfs:
+                        model.mesh.setTransfiniteSurface(v)
+                        model.mesh.setRecombine(2, v)
                     model.mesh.setTransfiniteVolume(domain)
 
     def __setPeriodicity(self, model):
