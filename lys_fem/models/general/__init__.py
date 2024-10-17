@@ -1,10 +1,8 @@
 from lys_fem import addMaterialParameter, addModel
 from ..common import Source, DivSource, DirichletBoundary, InitialCondition
 
-from lys_fem.mf import addMFEMModel
 from lys_fem.ngs import addNGSModel
-from .poisson import PoissonModel, MFEMPoissonModel, NGSPoissonModel
+from .poisson import PoissonModel, NGSPoissonModel
 
 addModel("General", PoissonModel)
-addMFEMModel("Poisson", MFEMPoissonModel)
 addNGSModel("Poisson", NGSPoissonModel)

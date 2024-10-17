@@ -24,9 +24,9 @@ class NGSLLGModel(NGSModel):
 
             # Left-hand side, normalization, exchange term
             wf += (m.t + 2*lam*m0*scale).dot(test_m)*dx
-            wf += (-1e-5*lam + (m0.dot(m)-1))*test_lam*scale*dx
+            wf += (-1e-5*lam + (m0.dot(m0)-1))*test_lam*scale*dx
             wf += -A * m.cross(grad(m)).ddot(grad(test_m))*dx
-            wf += -alpha * m0.cross(m.t).dot(test_m)*dx
+            wf += -alpha * m.cross(m.t).dot(test_m)*dx
 
             for ex in self._model.domainConditions.get(ExternalMagneticField):
                 B = mat[ex.values]
@@ -39,7 +39,7 @@ class NGSLLGModel(NGSModel):
 
             for sc in self._model.domainConditions.get(MagneticScalarPotential):
                 phi = mat[sc.values]
-                wf += g*m.cross(-mu0*grad(phi.value)).dot(test_m)*dx(sc.geometries)
+                wf += g*m0.cross(-mu0*grad(phi.value)).dot(test_m)*dx(sc.geometries)
 
             for st in self._model.domainConditions.get(SpinTransferTorque):
                 beta = mat["beta_st"]
@@ -49,13 +49,12 @@ class NGSLLGModel(NGSModel):
         return wf
     
     def discretize(self, sols, dti):
-        if self._model.discretization == "LLG1":
+        if self._model.discretization == "LLG Asym":
             d = {}
             for v in self.variables:
                 if "_lam" in v.name:
                     continue
                 mn, gn = sols.X()[v.name], sols.grad()[v.name]
-                #d = time.BDF2.generateWeakforms(v, sols, dti)
                 d[v.trial.t] = (v.trial - mn)*dti
                 d[grad(v.trial)] = gn
             return d
