@@ -674,16 +674,16 @@ class _Func(_Oper):
         super().__init__(obj1)
         self._type = type
 
-    def __call__(self, obj1, obj2):
+    def __call__(self, obj1, obj2=None):
         return _Func(obj1, self._type)
 
     @property
     def rhs(self):
-        return NGSFunction()
+        return self(self._obj[0].rhs)
 
     @property
     def lhs(self):
-        return self
+        return self(self._obj[0].lhs)
 
     @property
     def hasTrial(self):
@@ -841,6 +841,14 @@ class TestFunction(NGSFunction):
     
     def __eq__(self, other):
         return hash(self) == hash(other)
+
+    @property
+    def lhs(self):
+        return NGSFunction()
+
+    @property
+    def rhs(self):
+        return self
     
 
 class TrialFunctionValue(NGSFunction):

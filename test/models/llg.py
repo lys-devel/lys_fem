@@ -27,7 +27,7 @@ class LLG_test(FEMTestCase):
 
         # model: boundary and initial conditions
         x,y,z = sp.symbols("x,y,z")
-        model = llg.LLGModel()
+        model = llg.LLGModel(discretization="BackwardEuler")
 
         mz = -(x-1e-6)/1e-6
         my = sp.sqrt(1 - mz**2)
