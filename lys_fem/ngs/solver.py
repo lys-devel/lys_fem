@@ -21,20 +21,9 @@ class _Solution:
         self._model = model
         fes = model.finiteElementSpace
         self._sols = [(util.GridFunction(fes), util.GridFunction(fes), util.GridFunction(fes)) for n in range(nlog)]
-        self._coefs = [[self.__toFunc(self[n][i], "t"*i) for i in range(3)] for n in range(nlog)]
+        self._coefs = [[self[n][i].toNGSFunctions(model, "t"*i+"_n") for i in range(3)] for n in range(nlog)]
         self._grads = [self.__toGrad(self[n][0]) for n in range(nlog)]
         self._use_a = False
-
-    def __toFunc(self, x, pre=""):
-        res = {}
-        n = 0
-        for v in self._model.variables:
-            if v.size == 1 and v.isScalar:
-                res[v.name] = util.NGSFunction(v.scale*x.components[n], name=v.name+pre+"_n", tdep=True)
-            else:
-                res[v.name] = util.NGSFunction(v.scale*CoefficientFunction(tuple(x.components[n:n+v.size])), name=v.name+pre+"_n", tdep=True)
-            n+=v.size           
-        return res
 
     def __toGrad(self, x):
         res = {}
@@ -238,7 +227,7 @@ class SolverBase:
                 print("deformation set")
             op.update(dti)
             self._x.vec.data = newton(op, self._x.vec.CreateVector(copy=True), eps=step.newton_eps, max_iter=step.newton_maxiter, gamma=step.newton_damping)
-            self.__updateSolution(self._x, self._tdep, self._sols, self._mat.const.dti)
+            self.__updateSolution(self._x)
         self.exportSolution(int(util.stepn.get()+1))
         return self.__calcDifference(self._x.vec, x0)
 
@@ -253,39 +242,24 @@ class SolverBase:
                 shutil.rmtree(self._dirname)
         os.makedirs(self._dirname, exist_ok=True)
 
-    def __updateSolution(self, x, disc, sols, dti):
+    def __updateSolution(self, x):
         v = util.GridFunction(self._model.finiteElementSpace)
         a = util.GridFunction(self._model.finiteElementSpace)
 
-        n = 0
+        fs = x.toNGSFunctions(self._model)
+        d = {v.trial: fs[v.name] for v in self._model.variables}
+
         for var in self._model.variables:
-            # Calculate range for variable
-            if v.isSingle:
-                r = slice(None)
-            else:
-                r = slice(self._model.finiteElementSpace.Range(n).start, self._model.finiteElementSpace.Range(n+var.size-1).stop)
-            n += var.size
-
-            # Parameters
-            d = {var.trial: x.vec[r], dti: dti.get(), util.stepn: util.stepn.get()}
-            for i in range(sols.nlog):
-                d[sols.X(i)[var.name]] = sols[i][0].vec[r]
-                d[sols.V(i)[var.name]] = sols[i][1].vec[r]
-                d[sols.A(i)[var.name]] = sols[i][2].vec[r]
-
-            # Update by replacing discretization
             if var.trial in disc:
-                r1, r2, r3 = self._model.finiteElementSpace.Range(0), self._model.finiteElementSpace.Range(1), self._model.finiteElementSpace.Range(2)
-                m1, m2, m3 = x.vec[r1].FV().NumPy(), x.vec[r2].FV().NumPy(), x.vec[r3].FV().NumPy()
-                norm = np.sqrt(m1**2+m2**2+m3**2)
-                help(x)
-                x.vec.data[r] = (1*disc[var.trial]).replace(d, type="value")/(1*m1*m1+m2*m2+m3*m3)
+                x.setComponent(var, self._tdep[var.trial].replace(d).eval(), self._model)
+        for var in self._model.variables:
             if var.trial.t in disc:
-                v.vec.data[r] = disc[var.trial.t].replace(d, type="value")
+                v.setComponent(var, self._tdep[var.trial.t].replace(d).eval(), self._model)
+        for var in self._model.variables:
             if var.trial.tt in disc:
-                a.vec.data[r] = disc[var.trial.tt].replace(d, type="value")
+                a.setComponent(var, self._tdep[var.trial.tt].replace(d).eval(), self._model)
 
-        sols.update((x,v,a))
+        self._sols.update((x,v,a))
 
     def exportMesh(self, m):
         m.ngmesh.Save(self._dirname + "/mesh0.vol")

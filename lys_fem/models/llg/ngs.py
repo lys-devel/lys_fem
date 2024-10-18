@@ -61,6 +61,7 @@ class NGSLLGModel(NGSModel):
         return super().discretize(sols, dti)
 
     def updater(self, sols, dti):
+        return super().updater(sols, dti)
         d = super().updater(sols, dti)
         if self._model.discretization == "LLG Asym":
             for v in self.variables:

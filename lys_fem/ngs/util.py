@@ -59,6 +59,19 @@ class GridFunction(ngsolve.GridFunction):
             for ui, i in zip(self.components, value):
                 ui.Set(i)
 
+    def setComponent(self, var, value, model):
+        if self.isSingle:
+            self.Set(value)
+        else:
+            n = 0
+            for v in model.variables:
+                if v.name == var.name:
+                    break
+                n += v.size
+            for i in range(var.size):
+                self.components[n+i].Set(value[i])
+
+
     @property
     def components(self):
         if self.isSingle:
@@ -69,6 +82,17 @@ class GridFunction(ngsolve.GridFunction):
     @property
     def isSingle(self):
         return not isinstance(self.space, ngsolve.ProductSpace)
+
+    def toNGSFunctions(self, model, pre=""):
+        res = {}
+        n = 0
+        for v in model.variables:
+            if v.size == 1 and v.isScalar:
+                res[v.name] = NGSFunction(v.scale*self.components[n], name=v.name+pre, tdep=True)
+            else:
+                res[v.name] = NGSFunction(v.scale*ngsolve.CoefficientFunction(tuple(self.components[n:n+v.size])), name=v.name+pre, tdep=True)
+            n+=v.size
+        return res
 
 
 class NGSFunction:
@@ -570,7 +594,7 @@ class _Pow(_Oper):
         self._pow = v2
 
     def __call__(self, v1, v2):
-        return v1 ** v2
+        return v1 ** self._pow
     
     @property
     def shape(self):
