@@ -37,6 +37,9 @@ def step(x):
 def sqrt(x):
     return _Func(x, "sqrt")
 
+def norm(x):
+    return _Func(x, "norm")
+
 
 def min(x,y):
     return _MinMax(x, y, "min")
@@ -741,6 +744,9 @@ class _Func(_Oper):
             return ngsolve.IfPos(self._obj[0].eval(), 1, 0)
         if self._type == "sqrt":
             return ngsolve.sqrt(self._obj[0].eval())    
+        if self._type == "norm":
+            v = self._obj[0].eval()
+            return ngsolve.sqrt(v*v)
         if self._type == "grad":
             if hasattr(self._obj[0], "grad"):
                 return self._obj[0].grad()

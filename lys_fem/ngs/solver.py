@@ -207,7 +207,6 @@ class SolverBase:
         self._ops = [_Operator(model, self._disc, self._sols, step.variables, solver=step.solver, prec=step.preconditioner) for step in obj.steps]
         util.stepn.set(-1)
         self._sols.initialize()
-        self._x = self._sols.copy()
         self.exportSolution(0)
 
     @np.errstate(divide='ignore', invalid="ignore")
@@ -215,21 +214,23 @@ class SolverBase:
         if dti==0:
             self._sols.reset()
         self._mat.updateSolutionFields(int(util.stepn.get()))
-        util.stepn.set(int(util.stepn.get() + 1))
-        x0 = self._x.vec.CreateVector(copy=True)
         self._mat.const.dti.set(dti)
+        util.stepn.set(int(util.stepn.get() + 1))
+
+        x = self._sols.copy()
+        x0 = x.vec.CreateVector(copy=True)
         for op, step in zip(self._ops, self._obj.steps):
             if step.deformation is not None:
-                deform = {v.name: x0 for v, x0 in zip(self._model.variables, self._sols.X())}[step.deformation]
+                deform = {v.name: xx for v, xx in zip(self._model.variables, self._sols.X())}[step.deformation]
                 space = VectorH1(self._mesh)
                 gf = util.GridFunction(space, deform.eval())
                 self._mesh.SetDeformation(gf)
                 print("deformation set")
             op.update(dti)
-            self._x.vec.data = newton(op, self._x.vec.CreateVector(copy=True), eps=step.newton_eps, max_iter=step.newton_maxiter, gamma=step.newton_damping)
-            self.__updateSolution(self._x)
+            x.vec.data = newton(op, x.vec.CreateVector(copy=True), eps=step.newton_eps, max_iter=step.newton_maxiter, gamma=step.newton_damping)
+            self.__updateSolution(x)
         self.exportSolution(int(util.stepn.get()+1))
-        return self.__calcDifference(self._x.vec, x0)
+        return self.__calcDifference(x.vec, x0)
 
     def __calcDifference(self, x, x0):
         x0.data = x0.data - x.data
@@ -242,21 +243,23 @@ class SolverBase:
                 shutil.rmtree(self._dirname)
         os.makedirs(self._dirname, exist_ok=True)
 
-    def __updateSolution(self, x):
+    def __updateSolution(self, x0):
+        x = util.GridFunction(self._model.finiteElementSpace)
         v = util.GridFunction(self._model.finiteElementSpace)
         a = util.GridFunction(self._model.finiteElementSpace)
+        x.vec.data = x0.vec
 
-        fs = x.toNGSFunctions(self._model)
+        fs = x0.toNGSFunctions(self._model, "_new")
         d = {v.trial: fs[v.name] for v in self._model.variables}
 
         for var in self._model.variables:
-            if var.trial in disc:
+            if var.trial in self._tdep:
                 x.setComponent(var, self._tdep[var.trial].replace(d).eval(), self._model)
         for var in self._model.variables:
-            if var.trial.t in disc:
+            if var.trial.t in self._tdep:
                 v.setComponent(var, self._tdep[var.trial.t].replace(d).eval(), self._model)
         for var in self._model.variables:
-            if var.trial.tt in disc:
+            if var.trial.tt in self._tdep:
                 a.setComponent(var, self._tdep[var.trial.tt].replace(d).eval(), self._model)
 
         self._sols.update((x,v,a))

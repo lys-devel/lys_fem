@@ -50,9 +50,25 @@ class LLGModel(FEMFixedModel):
     domainConditionTypes = [ExternalMagneticField, UniaxialAnisotropy, MagneticScalarPotential, SpinTransferTorque]
     boundaryConditionTypes = [DirichletBoundary]
 
-    def __init__(self, *args, discretization="LLG Asym", **kwargs):
+    def __init__(self, *args, discretization="LLG Asym", constraint="Lagrange", **kwargs):
         super().__init__(3, discretization=discretization, *args, **kwargs)
+        self._constraint = constraint
 
     @property
     def discretizationTypes(self):
         return ["LLG Asym"] + super().discretizationTypes
+
+    @property
+    def constraint(self):
+        return self._constraint
+
+    @classmethod
+    def loadFromDictionary(cls, d):
+        m = super().loadFromDictionary(d)
+        m._constraint = d["constraint"]
+        return m
+
+    def saveAsDictionary(self):
+        d = super().saveAsDictionary()
+        d["constraint"] = self._constraint
+        return d

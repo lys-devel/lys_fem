@@ -8,7 +8,8 @@ class NGSLLGModel(NGSModel):
 
         for eq in model.equations:
             self.addVariable(eq.variableName, 3, region = eq.geometries, order=order)
-            self.addVariable(eq.variableName+"_lam", 1, initialValue=None, dirichlet=None, region=eq.geometries, order=0, isScalar=True, L2=True)
+            if self._model._constraint == "Lagrange":
+                self.addVariable(eq.variableName+"_lam", 1, initialValue=None, dirichlet=None, region=eq.geometries, order=0, isScalar=True, L2=True)
 
     def weakform(self, vars, mat):
         g, e, mu_B, mu0, Ms = mat.const.g_e, mat.const.e, mat.const.mu_B, mat.const.mu_0, mat["Ms"]
@@ -19,14 +20,17 @@ class NGSLLGModel(NGSModel):
         for eq in self._model.equations:
             m, test_m = vars[eq.variableName]
             m0 = m.value
-            lam, test_lam = vars[eq.variableName+"_lam"]
-            scale = util.max(mat.const.dti, 1)#1e11
 
             # Left-hand side, normalization, exchange term
-            wf += (m.t + 2*lam*m0*scale).dot(test_m)*dx
-            wf += (-1e-5*lam + (m0.dot(m0)-1))*test_lam*scale*dx
+            wf += m.t.dot(test_m)*dx
             wf += -A * m.cross(grad(m)).ddot(grad(test_m))*dx
-            wf += -alpha * m.cross(m.t).dot(test_m)*dx
+            wf += -alpha * m0.cross(m.t).dot(test_m)*dx
+
+            if self._model._constraint == "Lagrange":
+                lam, test_lam = vars[eq.variableName+"_lam"]
+                scale = util.max(mat.const.dti, 1)#1e11
+                wf += 2*lam*m0.dot(test_m)*scale*dx
+                wf += (-1e-5*lam + (m0.dot(m0)-1))*test_lam*scale*dx
 
             for ex in self._model.domainConditions.get(ExternalMagneticField):
                 B = mat[ex.values]
@@ -61,12 +65,9 @@ class NGSLLGModel(NGSModel):
         return super().discretize(sols, dti)
 
     def updater(self, sols, dti):
-        return super().updater(sols, dti)
         d = super().updater(sols, dti)
-        if self._model.discretization == "LLG Asym":
-            for v in self.variables:
-                if "_lam" in v.name:
-                    continue
-                d[v.trial] = v.trial#/util.sqrt(v.trial[0]**2+v.trial[1]**2+v.trial[2]**2)
+        if self._model._constraint == "Lagrange":
             return d
-        return super().discretize(sols, dti)
+        for v in self.variables:
+            d[v.trial] = v.trial/util.norm(v.trial)
+        return d

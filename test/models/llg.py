@@ -208,7 +208,7 @@ class LLG_test(FEMTestCase):
             self.assert_allclose(w.data, -solution(w.x[:,0],w.x[:,1],w.x[:,2], 0.8, 1), atol=0.002, rtol=0)
 
     def precession(self, lib):
-        factor = 1
+        factor = 5
         p = FEMProject(1)
 
         # geometry
@@ -222,7 +222,7 @@ class LLG_test(FEMTestCase):
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
-        model = llg.LLGModel()
+        model = llg.LLGModel(constraint="Projection")
         model.initialConditions.append(llg.InitialCondition([1, 0, 0], geometries="all"))
         model.domainConditions.append(llg.ExternalMagneticField([0,0,1], geometries="all"))
         p.models.append(model)
@@ -248,7 +248,6 @@ class LLG_test(FEMTestCase):
         res = sol.eval("m[1]", data_number=50*factor)
         for w in res:
             self.assert_array_almost_equal(w.data, np.zeros(w.data.shape), decimal=2)
-
 
     def damping(self, lib):
         p = FEMProject(1)
