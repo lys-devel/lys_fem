@@ -214,6 +214,7 @@ class SolverBase:
 
         self._sols = _Solution(model)
         self._disc = model.discretize(self._sols, self._mat.const.dti)
+        self._tdep = model.updater(self._sols, self._mat.const.dti)
         self._ops = [_Operator(model, self._disc, self._sols, step.variables, solver=step.solver, prec=step.preconditioner) for step in obj.steps]
         util.stepn.set(-1)
         self._sols.initialize()
@@ -237,7 +238,7 @@ class SolverBase:
                 print("deformation set")
             op.update(dti)
             self._x.vec.data = newton(op, self._x.vec.CreateVector(copy=True), eps=step.newton_eps, max_iter=step.newton_maxiter, gamma=step.newton_damping)
-            self.__updateSolution(self._x, self._disc, self._sols, self._mat.const.dti)
+            self.__updateSolution(self._x, self._tdep, self._sols, self._mat.const.dti)
         self.exportSolution(int(util.stepn.get()+1))
         return self.__calcDifference(self._x.vec, x0)
 
@@ -273,6 +274,12 @@ class SolverBase:
                 d[sols.A(i)[var.name]] = sols[i][2].vec[r]
 
             # Update by replacing discretization
+            if var.trial in disc:
+                r1, r2, r3 = self._model.finiteElementSpace.Range(0), self._model.finiteElementSpace.Range(1), self._model.finiteElementSpace.Range(2)
+                m1, m2, m3 = x.vec[r1].FV().NumPy(), x.vec[r2].FV().NumPy(), x.vec[r3].FV().NumPy()
+                norm = np.sqrt(m1**2+m2**2+m3**2)
+                help(x)
+                x.vec.data[r] = (1*disc[var.trial]).replace(d, type="value")/(1*m1*m1+m2*m2+m3*m3)
             if var.trial.t in disc:
                 v.vec.data[r] = disc[var.trial.t].replace(d, type="value")
             if var.trial.tt in disc:

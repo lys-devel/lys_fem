@@ -59,3 +59,13 @@ class NGSLLGModel(NGSModel):
                 d[grad(v.trial)] = gn
             return d
         return super().discretize(sols, dti)
+
+    def updater(self, sols, dti):
+        d = super().updater(sols, dti)
+        if self._model.discretization == "LLG Asym":
+            for v in self.variables:
+                if "_lam" in v.name:
+                    continue
+                d[v.trial] = v.trial#/util.sqrt(v.trial[0]**2+v.trial[1]**2+v.trial[2]**2)
+            return d
+        return super().discretize(sols, dti)

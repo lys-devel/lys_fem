@@ -168,6 +168,16 @@ class NGSModel:
                 raise RuntimeError("Unknown discretization: "+self._model.discretization)
         return d
 
+    def updater(self, sols, dti):
+        d = self.discretize(sols, dti)
+        res = {}
+        for v in self.variables:
+            if v.trial.t in d:
+                res[v.trial.t] = d[v.trial.t]
+            if v.trial.tt in d:
+                res[v.trial.tt] = d[v.trial.tt]
+        return res
+
     @property
     def variables(self):
         return self._vars
@@ -217,6 +227,12 @@ class CompositeModel:
         d = {}
         for m in self._models:
             d.update(m.discretize(sols, dti))
+        return d
+
+    def updater(self, sols, dti):
+        d = {}
+        for m in self._models:
+            d.update(m.updater(sols, dti))
         return d
 
     def initialValue(self, use_a=True):
