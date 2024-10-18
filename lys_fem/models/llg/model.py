@@ -65,7 +65,8 @@ class LLGModel(FEMFixedModel):
     @classmethod
     def loadFromDictionary(cls, d):
         m = super().loadFromDictionary(d)
-        m._constraint = d["constraint"]
+        if "constraint" in d:
+            m._constraint = d["constraint"]
         return m
 
     def saveAsDictionary(self):

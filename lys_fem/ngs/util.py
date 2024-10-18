@@ -74,7 +74,6 @@ class GridFunction(ngsolve.GridFunction):
             for i in range(var.size):
                 self.components[n+i].Set(value[i])
 
-
     @property
     def components(self):
         if self.isSingle:
@@ -468,6 +467,13 @@ class _Mul(_Oper):
     def lhs(self):
         return self._obj[0].lhs * self._obj[1].lhs + self._obj[0].lhs * self._obj[1].rhs + self._obj[0].rhs * self._obj[1].lhs
 
+    @property
+    def isNonlinear(self):
+        if self._obj[0].hasTrial and self._obj[1].hasTrial:
+            return True
+        else:
+            return super().isNonlinear
+
 
 class _Div(_Oper):
     def __call__(self, x, y):
@@ -511,7 +517,13 @@ class _Div(_Oper):
         else:
             return self._obj[0].lhs/self._obj[1]
 
-        
+    @property
+    def isNonlinear(self):
+        if self._obj[1].hasTrial:
+            return True
+        return self._obj[0].isNonlinear
+
+
 class _TensorDot(_Oper):
     def __init__(self, obj1, obj2, axes=1):
         super().__init__(obj1, obj2)
@@ -551,6 +563,12 @@ class _TensorDot(_Oper):
     def lhs(self):
         return self(self._obj[0].lhs, self._obj[1].lhs) + self(self._obj[0].lhs, self._obj[1].rhs) + self(self._obj[0].rhs, self._obj[1].lhs)
 
+    @property
+    def isNonlinear(self):
+        if self._obj[0].hasTrial and self._obj[1].hasTrial:
+            return True
+        else:
+            return super().isNonlinear
 
 class _Cross(_Oper):
     def __call__(self, v1, v2):
@@ -590,6 +608,13 @@ class _Cross(_Oper):
     def lhs(self):
         return self._obj[0].lhs.cross(self._obj[1].lhs)+self._obj[0].rhs.cross(self._obj[1].lhs)+self._obj[0].lhs.cross(self._obj[1].rhs)
 
+    @property
+    def isNonlinear(self):
+        if self._obj[0].hasTrial and self._obj[1].hasTrial:
+            return True
+        else:
+            return super().isNonlinear
+
 
 class _Pow(_Oper):
     def __init__(self, v1, v2):
@@ -620,6 +645,10 @@ class _Pow(_Oper):
     
     def __str__(self):
         return str(self._obj[0]) + "**" + str(self._pow)
+
+    @property
+    def isNonlinear(self):
+        return self._obj[0].hasTrial
 
 
 class _Index(_Oper):
@@ -659,6 +688,10 @@ class _Index(_Oper):
     def __str__(self):
         return str(self._obj[0]) + "[" + str(self._index) + "]"
 
+    @property
+    def isNonlinear(self):
+        return self._obj[0].hasTrial
+
 
 class _Transpose(_Oper):
     def __init__(self, obj):
@@ -695,6 +728,10 @@ class _Transpose(_Oper):
     def __str__(self):
         return str(self._obj[0]) + ".T"
 
+    @property
+    def isNonlinear(self):
+        return self._obj[0].hasTrial
+
 
 class _Func(_Oper):
     def __init__(self, obj1, type):
@@ -715,7 +752,14 @@ class _Func(_Oper):
     @property
     def hasTrial(self):
         return self._obj[0].hasTrial
-    
+
+    @property
+    def isNonlinear(self):
+        if self._type == "grad":
+            return self._obj[0].isNonlinear
+        else:
+            return self._obj[0].hasTrial
+
     @property
     def shape(self):
         if self._type == "grad":
@@ -785,6 +829,10 @@ class _MinMax(_Oper):
     def hasTrial(self):
         return self._obj[0].hasTrial or self._obj[1].hasTrial
 
+    @property
+    def isNonlinear(self):
+        return self._obj[0].hasTrial
+
     def eval(self):
         e1, e2 = self._obj[0].eval(), self._obj[1].eval()
         if self._type == "max":
@@ -850,6 +898,10 @@ class TrialFunction(NGSFunction):
             return self._scale/xscale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._tris]), dims=(ngsolve.grad(self._tris[0]).shape[0], len(self._tris))).TensorTranspose((1,0))
         return self._scale/xscale * ngsolve.grad(super().eval())
         
+    @property
+    def isNonlinear(self):
+        return False
+        
 
 class TestFunction(NGSFunction):
     def __init__(self, obj, name, scale=1):
@@ -879,7 +931,11 @@ class TestFunction(NGSFunction):
     @property
     def rhs(self):
         return self
-    
+
+    @property
+    def isNonlinear(self):
+        return False
+     
 
 class TrialFunctionValue(NGSFunction):
     def __init__(self, obj, name):
@@ -907,7 +963,7 @@ class TrialFunctionValue(NGSFunction):
 
     @property
     def isNonlinear(self):
-        return True
+        return False
 
     @property
     def lhs(self):
@@ -974,6 +1030,10 @@ class Parameter(NGSFunction):
     @tdep.setter
     def tdep(self, b):
         self._tdep = b
+
+    @property
+    def isNonlinear(self):
+        return False
 
 
 class SolutionFieldFunction(NGSFunction):

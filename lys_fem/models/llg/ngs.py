@@ -2,7 +2,7 @@ from lys_fem.ngs import NGSModel, grad, dx, util, time
 from . import ExternalMagneticField, UniaxialAnisotropy, MagneticScalarPotential, SpinTransferTorque
 
 class NGSLLGModel(NGSModel):
-    def __init__(self, model, mesh, vars, order=2):
+    def __init__(self, model, mesh, vars, order=3):
         super().__init__(model, mesh, vars)
         self._model = model
 
@@ -60,6 +60,7 @@ class NGSLLGModel(NGSModel):
                     continue
                 mn, gn = sols.X()[v.name], sols.grad()[v.name]
                 d[v.trial.t] = (v.trial - mn)*dti
+                d[v.trial.value] = mn
                 d[grad(v.trial)] = gn
             return d
         return super().discretize(sols, dti)

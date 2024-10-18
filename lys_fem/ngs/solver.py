@@ -98,7 +98,7 @@ class _Operator:
         self._fes = model.finiteElementSpace
         self.__setCoupling()
 
-        self._blf, self._lf = BilinearForm(self._fes, condense=self._cond), LinearForm(self._fes)
+        self._blf, self._lf = BilinearForm(self._fes, condense=self._cond, check_unused=False), LinearForm(self._fes)
         lhs, rhs = wf.lhs, wf.rhs
         if lhs.valid:
             self._blf += lhs.eval()
@@ -106,8 +106,7 @@ class _Operator:
             self._lf += rhs.eval()
         if prec is not None:
             self._prec = ngsolve.Preconditioner(self._blf, prec)
-        self._nl_lhs = lhs.isNonlinear
-        self._nl_rhs = rhs.isNonlinear
+        self._nl = lhs.isNonlinear
         self._tdep_lhs = lhs.isTimeDependent
         self._tdep_rhs = rhs.isTimeDependent
         self._init  = False
@@ -129,27 +128,23 @@ class _Operator:
         return wf
 
     def __call__(self, x):
-        if self._nl_rhs:
-            self._lf.Assemble()
-        if self._nl_lhs:
+        if self.isNonlinear:
             return self._blf.Apply(x) + self._lf.vec
         else:
             return self._blf.mat * x  + self._lf.vec
 
     def Jacobian(self, x):
-        if self._nl_lhs:
+        if self.isNonlinear:
             self._blf.AssembleLinearization(x)
-            #print("Condition Number:", 1/np.linalg.cond(self._blf.mat.ToDense()))
-            res = self.__inverse(self._blf.mat)
-            return res
+            return self.__inverse(self._blf.mat)
         else:
             return self._inv
         
-    def update(self, dti):
+    def update(self):
         self.__setCoupling()
-        if (self._tdep_rhs or not self._init) and not self._nl_rhs:
+        if (self._tdep_rhs or not self._init):
             self._lf.Assemble()
-        if (self._tdep_lhs or not self._init) and not self._nl_lhs:
+        if (self._tdep_lhs or not self._init) and not self.isNonlinear:
             self._blf.Assemble()
             self._inv = self.__inverse(self._blf.mat)
         self._init = True
@@ -189,7 +184,7 @@ class _Operator:
         
     @property
     def isNonlinear(self):
-        return self._nl_lhs or self._nl_rhs
+        return self._nl
     
 
 class SolverBase:
@@ -202,9 +197,9 @@ class SolverBase:
         self.__prepareDirectory(dirname)
 
         self._sols = _Solution(model)
-        self._disc = model.discretize(self._sols, self._mat.const.dti)
+        disc = model.discretize(self._sols, self._mat.const.dti)
         self._tdep = model.updater(self._sols, self._mat.const.dti)
-        self._ops = [_Operator(model, self._disc, self._sols, step.variables, solver=step.solver, prec=step.preconditioner) for step in obj.steps]
+        self._ops = [_Operator(model, disc, self._sols, step.variables, solver=step.solver, prec=step.preconditioner) for step in obj.steps]
         util.stepn.set(-1)
         self._sols.initialize()
         self.exportSolution(0)
@@ -226,7 +221,7 @@ class SolverBase:
                 gf = util.GridFunction(space, deform.eval())
                 self._mesh.SetDeformation(gf)
                 print("deformation set")
-            op.update(dti)
+            op.update()
             x.vec.data = newton(op, x.vec.CreateVector(copy=True), eps=step.newton_eps, max_iter=step.newton_maxiter, gamma=step.newton_damping)
             self.__updateSolution(x)
         self.exportSolution(int(util.stepn.get()+1))
