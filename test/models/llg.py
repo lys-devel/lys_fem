@@ -53,7 +53,7 @@ class LLG_test(FEMTestCase):
         self.assert_array_almost_equal(m, [1,0,-1])
 
         for i in range(0,10):
-            m = sol.eval("m[0]**2+m[1]**2+m[2]**2", data_number=i)
+            m = sol.eval("norm(m)", data_number=i)
             self.assert_array_almost_equal(m, 1, decimal=2)
 
         res = sol.eval("m[2]", data_number=-1)
@@ -126,7 +126,7 @@ class LLG_test(FEMTestCase):
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
-        model = llg.LLGModel()
+        model = llg.LLGModel(discretization="BackwardEuler")
         model.initialConditions.append(llg.InitialCondition([0, 0, -1], geometries="all"))
         model.domainConditions.append(llg.UniaxialAnisotropy(geometries="all"))
         p.models.append(model)
@@ -263,7 +263,7 @@ class LLG_test(FEMTestCase):
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
-        model = llg.LLGModel()
+        model = llg.LLGModel(discretization="BackwardEuler")
         model.initialConditions.append(llg.InitialCondition([1, 0, 0], geometries="all"))
         model.domainConditions.append(llg.ExternalMagneticField([0,0,1], geometries="all"))
         p.models.append(model)
@@ -297,7 +297,7 @@ class LLG_test(FEMTestCase):
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
-        model1 = llg.LLGModel()
+        model1 = llg.LLGModel(discretization="BackwardEuler")
         model1.initialConditions.append(llg.InitialCondition([1, 0, 0], geometries="all"))
         model1.domainConditions.append(llg.MagneticScalarPotential(z/1.25663706e-6, geometries="all"))
         p.models.append(model1)
@@ -340,7 +340,7 @@ class LLG_test(FEMTestCase):
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
-        model1 = llg.LLGModel()
+        model1 = llg.LLGModel(discretization="BackwardEuler")
         model1.initialConditions.append(llg.InitialCondition([1, 0, 0], geometries="all"))
         model1.domainConditions.append(llg.MagneticScalarPotential("phi", geometries="all"))
         p.models.append(model1)

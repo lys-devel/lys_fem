@@ -2,7 +2,7 @@ from lys_fem.ngs import NGSModel, grad, dx, util, time
 from . import ExternalMagneticField, UniaxialAnisotropy, MagneticScalarPotential, SpinTransferTorque
 
 class NGSLLGModel(NGSModel):
-    def __init__(self, model, mesh, vars, order=3):
+    def __init__(self, model, mesh, vars, order=2):
         super().__init__(model, mesh, vars)
         self._model = model
 

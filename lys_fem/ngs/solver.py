@@ -7,12 +7,12 @@ from ngsolve import BilinearForm, LinearForm, CoefficientFunction, VectorH1, Tas
 
 from . import mpi, util
 
-def generateSolver(fem, mesh, model):
+def generateSolver(fem, mesh, model, load=False):
     solvers = {"Stationary Solver": StationarySolver, "Relaxation Solver": RelaxationSolver, "Time Dependent Solver": TimeDependentSolver}
     result = []
     for i, s in enumerate(fem.solvers):
         sol = solvers[s.className]
-        result.append(sol(s, mesh, model, "Solver" + str(i)))
+        result.append(sol(s, mesh, model, dirname="Solver" + str(i), load=load))
     return result
 
 
@@ -66,6 +66,9 @@ class _Solution:
     
     def save(self, path):
         self._sols[0][0].Save(path, parallel=mpi.isParallel())
+
+    def load(self, path, parallel):
+        self._sols[0][0].Load(path, parallel = parallel)
 
     def X(self, n=0):
         return self._coefs[n][0]
@@ -188,13 +191,14 @@ class _Operator:
     
 
 class SolverBase:
-    def __init__(self, obj, mesh, model, dirname, variableStep=False):
+    def __init__(self, obj, mesh, model, dirname, variableStep=False, load=False):
         self._obj = obj
         self._mesh = mesh
         self._model = model
         self._mat = model.materials
         self._mat.const.dti.tdep = variableStep
-        self.__prepareDirectory(dirname)
+        if not load:
+            self.__prepareDirectory(dirname)
 
         self._sols = _Solution(model)
         disc = model.discretize(self._sols, self._mat.const.dti)
@@ -202,7 +206,8 @@ class SolverBase:
         self._ops = [_Operator(model, disc, self._sols, step.variables, solver=step.solver, prec=step.preconditioner) for step in obj.steps]
         util.stepn.set(-1)
         self._sols.initialize()
-        self.exportSolution(0)
+        if not load:
+            self.exportSolution(0)
 
     @np.errstate(divide='ignore', invalid="ignore")
     def solve(self, dti=0):
@@ -265,6 +270,11 @@ class SolverBase:
     def exportSolution(self, index):
         self._sols.save(self._dirname + "/ngs" + str(index))
 
+    def importSolution(self, index, parallel, dirname=None):
+        if dirname is None:
+            dirname=self._dirname
+        self._sols.load((dirname + "/ngs" + str(index)), parallel)
+
     @property
     def solutions(self):
         return self._sols
@@ -284,8 +294,8 @@ class StationarySolver(SolverBase):
 
 
 class RelaxationSolver(SolverBase):
-    def __init__(self, obj, mesh, model, dirname):
-        super().__init__(obj, mesh, model, dirname, variableStep=True)
+    def __init__(self, obj, mesh, model, **kwargs):
+        super().__init__(obj, mesh, model, variableStep=True, **kwargs)
         self._tSolver = obj
 
     def execute(self):
@@ -305,8 +315,8 @@ class RelaxationSolver(SolverBase):
 
 
 class TimeDependentSolver(SolverBase):
-    def __init__(self, obj, mesh, model, dirname):
-        super().__init__(obj, mesh, model, dirname)
+    def __init__(self, obj, mesh, model, **kwargs):
+        super().__init__(obj, mesh, model, **kwargs)
         self._tSolver = obj
 
     def execute(self):

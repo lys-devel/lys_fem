@@ -2,21 +2,21 @@ import glob
 import numpy as np
 
 from lys import Wave
-from .mesh import generateMesh, exportMesh, loadMesh
+from .mesh import generateMesh, exportMesh
 from .material import generateMaterial
 from .models import generateModel
-from .util import GridFunction
+from .solver import generateSolver
+
 
 class NGSSolution:
     def __init__(self, fem, dirname):
         self._fem = fem
         self._dirname = dirname
         self._mesh = generateMesh(fem)
-        #self._mesh = loadMesh(fem, self._dirname+"/mesh0.vol")
         self._mats = generateMaterial(fem, self._mesh)
         self._model = generateModel(fem, self._mesh, self._mats)
+        self._solvers = generateSolver(fem, self._mesh, self._model, load=True)
 
-        self._grid = GridFunction(self._model.finiteElementSpace)
         self._meshInfo = exportMesh(self._mesh)
 
     @property
@@ -25,22 +25,14 @@ class NGSSolution:
 
     def coef(self, expression, index=-1):
         self.update(index)
-
-        data = {}
-        n = 0
-        for v in self._model.variables:
-            data[v.name] = [v.scale * self._grid.components[i] for i in range(n,n+v.size)]
-            if v.size == 1:
-                data[v.name] = data[v.name][0]
-            n += v.size
-
-        return eval(expression, {}, data)
+        return self._mats.eval(expression).eval()
 
     def update(self, index=-1):
         if index < 0:
             index = self.maxIndex + index + 1
-        self._grid.Load(self._dirname+"/ngs"+str(index), parallel=self._fem.parallel)
-
+        self._solvers[0].importSolution(index, parallel=self._fem.parallel, dirname=self._dirname)
+        self._mats.update(self._solvers[0].solutions[0][0].toNGSFunctions(self._model))
+        
     def eval(self, expression, index, coords=None):
         f = self.coef(expression, index)
         if coords is None:
