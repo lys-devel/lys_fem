@@ -11,7 +11,7 @@ g = 1.760859770e11
 T = 2*np.pi/g
 
 class LLG_test(FEMTestCase):
-    def domainWall(self, lib):
+    def domainWall(self, lib, constraint="Projection", discretization="BackwardEuler"):
         p = FEMProject(1)
 
         # geometry
@@ -21,13 +21,13 @@ class LLG_test(FEMTestCase):
         p.mesher.setRefinement(4)
 
         # material
-        param = llg.LLGParameters(alpha=5, Ms=1e6, Ku=1e3, Aex=1e-11, u_Ku=[0,0,1])
+        param = llg.LLGParameters(alpha=10, Ms=1e6, Ku=1e3, Aex=1e-11, u_Ku=[0,0,1])
         mat1 = Material([param], geometries="all")
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
         x,y,z = sp.symbols("x,y,z")
-        model = llg.LLGModel(discretization="BackwardEuler")
+        model = llg.LLGModel(constraint=constraint, discretization=discretization)
 
         mz = -(x-1e-6)/1e-6
         my = sp.sqrt(1 - mz**2)
@@ -37,7 +37,10 @@ class LLG_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        solver = RelaxationSolver(dt0=1e-9, damping=0.3)
+        if constraint == "Alouges":
+            solver = RelaxationSolver(dt0=1e-14, damping=0.3, maxiter=300, factor=7, steps=[SolverStep(solver="pardiso", vars=["m_v", "m_lam"])])
+        else:
+            solver = RelaxationSolver(dt0=1e-12, damping=0.3, maxiter=300, factor=7)
         
         p.solvers.append(solver)
 
@@ -49,6 +52,14 @@ class LLG_test(FEMTestCase):
 
         # solution
         sol = FEMSolution()
+
+        import matplotlib.pyplot as plt
+        x = np.linspace(0,2e-6,100)
+        for i in range(0,min(300, sol.obj.maxIndex)):
+            m = sol.eval("m[2]", data_number=i, coords=x.tolist())
+            plt.plot(m)
+        plt.show()
+
         m = sol.eval("m[2]", data_number=0, coords=[0, 1e-6, 2e-6])
         self.assert_array_almost_equal(m, [1,0,-1])
 
@@ -113,8 +124,7 @@ class LLG_test(FEMTestCase):
         for w in res:
             self.assert_array_almost_equal(w.data, -np.sin(solution(w.x[:,0]-1e-6, 1e-11, 1e3)), decimal=2)
 
-
-    def anisU(self, lib):
+    def anisU(self, lib, constraint="Projection", discretization="BackwardEuler"):
         p = FEMProject(1)
 
         # geometry
@@ -126,13 +136,16 @@ class LLG_test(FEMTestCase):
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
-        model = llg.LLGModel(discretization="BackwardEuler")
+        model = llg.LLGModel(constraint=constraint, discretization=discretization)
         model.initialConditions.append(llg.InitialCondition([0, 0, -1], geometries="all"))
         model.domainConditions.append(llg.UniaxialAnisotropy(geometries="all"))
         p.models.append(model)
 
         # solver
-        solver = TimeDependentSolver(T/10, T*10)
+        if constraint == "Alouges":
+            solver = TimeDependentSolver(T/10, T*10, steps=[SolverStep(solver="pardiso", vars=["m_v", "m_lam"])])
+        else:
+            solver = TimeDependentSolver(T/10, T*10)
         p.solvers.append(solver)
 
         # solve
@@ -207,7 +220,7 @@ class LLG_test(FEMTestCase):
             self.assert_allclose(w.data, -solution2(w.x[:,0],w.x[:,1],w.x[:,2], 0.8, 1), atol=0.002, rtol=0)
             self.assert_allclose(w.data, -solution(w.x[:,0],w.x[:,1],w.x[:,2], 0.8, 1), atol=0.002, rtol=0)
 
-    def precession(self, lib):
+    def precession(self, lib, constraint="Projection", discretization="BackwardEuler"):
         factor = 5
         p = FEMProject(1)
 
@@ -222,13 +235,16 @@ class LLG_test(FEMTestCase):
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
-        model = llg.LLGModel(constraint="Projection")
+        model = llg.LLGModel(constraint=constraint, discretization=discretization)
         model.initialConditions.append(llg.InitialCondition([1, 0, 0], geometries="all"))
         model.domainConditions.append(llg.ExternalMagneticField([0,0,1], geometries="all"))
         p.models.append(model)
 
         # solver
-        solver = TimeDependentSolver(T/100/factor, T/2, steps=[SolverStep(solver="sparsecholesky")])
+        if constraint == "Alouges":
+            solver = TimeDependentSolver(T/100/factor, T/2, steps=[SolverStep(solver="pardiso", vars=["m_v", "m_lam"])])
+        else:
+            solver = TimeDependentSolver(T/100/factor, T/2, steps=[SolverStep(solver="sparsecholesky")])
         p.solvers.append(solver)
 
         # solve
