@@ -56,7 +56,7 @@ class LLGModel(FEMFixedModel):
 
     @property
     def discretizationTypes(self):
-        return ["LLG Asym"] + super().discretizationTypes
+        return ["LLG Asym", "Alouges theta"] + super().discretizationTypes
 
     @property
     def constraint(self):

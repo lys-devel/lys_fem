@@ -38,7 +38,7 @@ class LLG_test(FEMTestCase):
 
         # solver
         if constraint == "Alouges":
-            solver = RelaxationSolver(dt0=1e-14, damping=0.3, maxiter=300, factor=7, steps=[SolverStep(solver="pardiso", vars=["m_v", "m_lam"])])
+            solver = RelaxationSolver(dt0=1e-14, damping=0.3, maxiter=300, factor=9, steps=[SolverStep(solver="pardiso", vars=["m_v", "m_lam"])])
         else:
             solver = RelaxationSolver(dt0=1e-12, damping=0.3, maxiter=300, factor=7)
         
@@ -71,7 +71,7 @@ class LLG_test(FEMTestCase):
         for w in res:
             self.assert_array_almost_equal(w.data, -np.sin(solution(w.x[:,0]-1e-6, 1e-11, 1e3)), decimal=2)
 
-    def domainWall_3d(self, lib):
+    def domainWall_3d(self, lib, constraint="Projection", discretization="BackwardEuler"):
         p = FEMProject(2)
 
         # geometry
@@ -88,7 +88,7 @@ class LLG_test(FEMTestCase):
 
         # model: boundary and initial conditions
         x,y,z = sp.symbols("x,y,z")
-        model = llg.LLGModel()
+        model = llg.LLGModel(constraint=constraint, discretization=discretization)
 
         mz = -(x-s)/s
         my = sp.sqrt(1 - mz**2)
@@ -99,7 +99,10 @@ class LLG_test(FEMTestCase):
 
         # solver
         #solver = StationarySolver()
-        solver = RelaxationSolver(dt0=1e-18, dx=0.05, factor=5)
+        if constraint=="Alouges":
+            solver = RelaxationSolver(dt0=1e-11, dx=0.05, factor=5, steps=[SolverStep(solver="pardiso", vars=["m_v", "m_lam"])])
+        else:
+            solver = RelaxationSolver(dt0=1e-13, dx=0.05, factor=5)
         #solver = TimeDependentSolver(1e-10, 1e-7)
         
         p.solvers.append(solver)

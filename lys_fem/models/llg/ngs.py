@@ -91,7 +91,7 @@ class NGSLLGModel(NGSModel):
             for sc in self._model.domainConditions.get(MagneticScalarPotential):
                 phi = mat[sc.values]
                 B = -mu0*grad(phi.value)
-                wf += g*B.dot(test_v)*dx(sc.geometries)
+                wf += -g*B.dot(test_v)*dx(sc.geometries)
 
         return wf
 
@@ -113,7 +113,7 @@ class NGSLLGModel(NGSModel):
             for v in self.variables:
                 if "_lam" in v.name or "_v" in v.name:
                     continue
-                t = 0.5
+                t = 1.0
                 mn, gn = sols.X()[v.name], sols.grad()[v.name]
                 vel = [vv for vv in self.variables if vv.name==v.name+"_v"][0]
                 d[grad(v.trial)] = gn + t * grad(vel.trial) /dti
