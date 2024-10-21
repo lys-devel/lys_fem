@@ -120,6 +120,7 @@ class FEMGUI(LysSubWindow):
             self._obj.submitSetting.update(sub)
             path = d.getPath()
             os.makedirs(path, exist_ok=True)
+            self.__save()
             self.__save(path=path + "/input.dic", parallel=sub["type"] != "Serial")
             ncore = 1 if sub["type"] == "Serial" else sub["ncore"]
             if sub["type"] in ["Serial", "Parallel"]:

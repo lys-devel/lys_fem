@@ -35,7 +35,7 @@ class NGSParams(dict):
     def eval(self, expr):
         d = dict(self._const)
         d.update(self)
-        res = eval(str(expr), globals(), d)
+        res = eval(str(expr), d)
         if not isinstance(res, NGSFunction):
             res = NGSFunction(res)
         return res

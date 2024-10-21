@@ -3,6 +3,9 @@ import numpy as np
 import sympy as sp
 import ngsolve
 
+def eval(expr, dic={}):
+    return builtins.eval(expr, globals(), dic)
+
 def prod(args):
     res = args[0]
     for arg in args[1:]:

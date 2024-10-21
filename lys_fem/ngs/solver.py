@@ -231,20 +231,21 @@ class SolverBase:
             x.vec.data = newton(op, x.vec.CreateVector(copy=True), eps=step.newton_eps, max_iter=step.newton_maxiter, gamma=step.newton_damping)
             self.__updateSolution(x)
         self.exportSolution(int(util.stepn.get()+1))
-        return self.__calcDifference(x, x0)
+        return self.__calcDifference(self._sols.copy(), x0)
 
     def __calcDifference(self, x, x0):
         if self._diff_expr is None:
             self._diff_expr = self._model.variables[0].name
         x, x0 = x.toNGSFunctions(self._model), x0.toNGSFunctions(self._model)
-        xd = {v.name: x[v.name] for v in self._model.variables}
-        x0d = {v.name: x0[v.name] for v in self._model.variables}
+        xd, x0d = dict(self._mat), dict(self._mat)
+        xd.update({v.name: x[v.name] for v in self._model.variables})
+        x0d.update({v.name: x0[v.name] for v in self._model.variables})
 
-        x = eval(self._diff_expr, self._mat, xd).eval()
-        x0 = eval(self._diff_expr, self._mat, x0d).eval()
+        x = util.eval(self._diff_expr, xd).eval()
+        x0 = util.eval(self._diff_expr, x0d).eval()
         diff = ngsolve.Integrate(x-x0, self._mesh)
-        x0 = ngsolve.Integrate(x0, self._mesh)
-        return np.divide(np.linalg.norm(diff), np.linalg.norm(x0))
+        x = ngsolve.Integrate(x, self._mesh)
+        return np.divide(np.linalg.norm(diff), np.linalg.norm(x))
 
     def __prepareDirectory(self, dirname):
         self._dirname = "Solutions/" + dirname
@@ -317,14 +318,15 @@ class RelaxationSolver(SolverBase):
             t = t + dt
             mpi.print_("Step", i, ", t = {:3e}".format(t), ", dt = {:3e}".format(dt), ", dx = {:3e}".format(dx))
             if dt == np.inf:
-                break
-            dt *= min(np.sqrt(dx_ref/dx), self._tSolver.maxStep)
+                return
+            if dx != 0:
+                dt *= min(np.sqrt(dx_ref/dx), self._tSolver.maxStep)
             if dt > self._tSolver.dt0*10**self._tSolver.factor:
                 if self._tSolver.inf:
                     print("inf")
                     dt = np.inf
                 else:
-                    break
+                    return
 
 class TimeDependentSolver(SolverBase):
     def __init__(self, obj, mesh, model, **kwargs):

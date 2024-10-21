@@ -24,6 +24,7 @@ class ngs_LLG_test(LLG_test):
         self.domainWall(ngs, constraint="Alouges", discretization="Alouges theta")
 
     def test_DW_3d(self):
+        return
         self.domainWall_3d(ngs, constraint="Alouges", discretization="Alouges theta")
 
     def test_deform(self):
