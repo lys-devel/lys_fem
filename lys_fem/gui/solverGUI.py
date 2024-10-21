@@ -105,31 +105,56 @@ class RelaxationSolverWidget(QtWidgets.QWidget):
         self.__initlayout()
 
     def __initlayout(self):
-        self._dt0 = ScientificSpinBox()
-        self._dt0.setValue(self._solver._dt0)
-        self._dt0.valueChanged.connect(self.__change)
+        self._expr = QtWidgets.QLineEdit()
+        self._expr.setText(self._solver.diff_expr)
+        self._expr.setPlaceholderText("Auto if blank")
+        self._expr.textChanged.connect(self.__change)
+
         self._dx = ScientificSpinBox()
         self._dx.setValue(self._solver._dx)
         self._dx.valueChanged.connect(self.__change)
+
+        self._dt0 = ScientificSpinBox()
+        self._dt0.setValue(self._solver._dt0)
+        self._dt0.valueChanged.connect(self.__change)
+
+        self._maxstep = ScientificSpinBox()
+        self._maxstep.setValue(self._solver._maxStep)
+        self._maxstep.valueChanged.connect(self.__change)
+
         self._factor = QtWidgets.QSpinBox()
         self._factor.setRange(1,1000)
         self._factor.setValue(self._solver._factor)
         self._factor.valueChanged.connect(self.__change)
 
+        self._maxiter = QtWidgets.QSpinBox()
+        self._maxiter.setRange(1,1000)
+        self._maxiter.setValue(self._solver._maxiter)
+        self._maxiter.valueChanged.connect(self.__change)
+
         grid = QtWidgets.QGridLayout()
-        grid.addWidget(QtWidgets.QLabel("Initial step (s)"), 0, 0)
-        grid.addWidget(self._dt0, 0, 1)
-        grid.addWidget(QtWidgets.QLabel("Target"), 1, 0)
+        grid.addWidget(QtWidgets.QLabel("Expression of x"), 0, 0)
+        grid.addWidget(QtWidgets.QLabel("Target dx"), 1, 0)
+        grid.addWidget(QtWidgets.QLabel("Initial step (s)"), 2, 0)
+        grid.addWidget(QtWidgets.QLabel("Max step factor"), 3, 0)
+        grid.addWidget(QtWidgets.QLabel("Stop Factor"), 4, 0)
+        grid.addWidget(QtWidgets.QLabel("Max Iteration"), 5, 0)
+        grid.addWidget(self._expr, 0, 1)
         grid.addWidget(self._dx, 1, 1)
-        grid.addWidget(QtWidgets.QLabel("Factor"), 2, 0)
-        grid.addWidget(self._factor, 2, 1)
+        grid.addWidget(self._dt0, 2, 1)
+        grid.addWidget(self._maxstep, 3, 1)
+        grid.addWidget(self._factor, 4, 1)
+        grid.addWidget(self._maxiter, 5, 1)
 
         self.setLayout(grid)
 
     def __change(self):
+        self._solver._diff_expr = self._expr.text()
         self._solver._dt0 = self._dt0.value()
         self._solver._dx = self._dx.value()
         self._solver._factor = self._factor.value()
+        self._solver._maxStep = self._maxstep.value()
+        self._solver._maxiter = self._maxiter.value()
 
 
 class TimeDependentSolverWidget(QtWidgets.QWidget):

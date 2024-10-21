@@ -66,18 +66,23 @@ class SolverStep:
 
 
 class FEMSolver(FEMObject):
-    def __init__(self, steps=None, **kwargs):
+    def __init__(self, steps=None, diff_expr=None, **kwargs):
         if steps is None:
             steps = [SolverStep(**kwargs)]
         self._steps = steps
+        self._diff_expr = diff_expr
 
     def saveAsDictionary(self):
-        d = {"solver": self.className, "steps": [s.saveAsDictionary() for s in self._steps]}
+        d = {"solver": self.className, "steps": [s.saveAsDictionary() for s in self._steps], "diff_expr": self._diff_expr}
         return d
         
     @property
     def steps(self):
         return self._steps
+
+    @property
+    def diff_expr(self):
+        return self._diff_expr
 
     @staticmethod
     def loadFromDictionary(d):
@@ -101,11 +106,14 @@ class StationarySolver(FEMSolver):
 class RelaxationSolver(FEMSolver):
     className = "Relaxation Solver"
 
-    def __init__(self, dt0 = 1e-9, dx = 1e-1, factor=5, **kwargs):
+    def __init__(self, dt0 = 1e-9, dx = 1e-1, factor=5, maxiter=100, maxStep=2, inf=False, **kwargs):
         super().__init__(**kwargs)
         self._dt0 = dt0
         self._dx = dx
         self._factor = factor
+        self._maxStep = maxStep
+        self._maxiter = maxiter
+        self._inf = inf
 
     @property
     def dt0(self):
@@ -119,6 +127,18 @@ class RelaxationSolver(FEMSolver):
     def factor(self):
         return self._factor
 
+    @property
+    def maxiter(self):
+        return self._maxiter
+
+    @property
+    def maxStep(self):
+        return self._maxStep
+
+    @property
+    def inf(self):
+        return self._inf
+
     def widget(self, fem):
         from ..gui import RelaxationSolverWidget
         return RelaxationSolverWidget(fem, self)
@@ -128,6 +148,9 @@ class RelaxationSolver(FEMSolver):
         d["dt0"] = self._dt0
         d["dx"] = self._dx
         d["factor"] = self._factor
+        d["maxiter"] = self._maxiter
+        d["maxStep"] = self._maxStep
+        d["inf"] = self._inf
         return d
 
 

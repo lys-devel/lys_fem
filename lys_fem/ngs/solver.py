@@ -124,7 +124,8 @@ class _Operator:
                     d[v.trial] = X[v.name]
                     d[v.trial.t] = V[v.name]
                     d[v.trial.tt] = A[v.name]
-                    d[util.grad(v.trial)] = G[v.name]
+                    if util.grad(v.trial) not in d:
+                        d[util.grad(v.trial)] = G[v.name]
                     d[v.test] = 0
                     d[util.grad(v.test)] = 0
         wf = wf.replace(d)
@@ -195,6 +196,7 @@ class SolverBase:
         self._obj = obj
         self._mesh = mesh
         self._model = model
+        self._diff_expr = obj.diff_expr
         self._mat = model.materials
         self._mat.const.dti.tdep = variableStep
         if not load:
@@ -217,8 +219,7 @@ class SolverBase:
         self._mat.const.dti.set(dti)
         util.stepn.set(int(util.stepn.get() + 1))
 
-        x = self._sols.copy()
-        x0 = x.vec.CreateVector(copy=True)
+        x, x0 = self._sols.copy(), self._sols.copy()
         for op, step in zip(self._ops, self._obj.steps):
             if step.deformation is not None:
                 deform = {v.name: xx for v, xx in zip(self._model.variables, self._sols.X())}[step.deformation]
@@ -230,11 +231,20 @@ class SolverBase:
             x.vec.data = newton(op, x.vec.CreateVector(copy=True), eps=step.newton_eps, max_iter=step.newton_maxiter, gamma=step.newton_damping)
             self.__updateSolution(x)
         self.exportSolution(int(util.stepn.get()+1))
-        return self.__calcDifference(x.vec, x0)
+        return self.__calcDifference(x, x0)
 
     def __calcDifference(self, x, x0):
-        x0.data = x0.data - x.data
-        return np.divide(x0.InnerProduct(x0), x.InnerProduct(x))
+        if self._diff_expr is None:
+            self._diff_expr = self._model.variables[0].name
+        x, x0 = x.toNGSFunctions(self._model), x0.toNGSFunctions(self._model)
+        xd = {v.name: x[v.name] for v in self._model.variables}
+        x0d = {v.name: x0[v.name] for v in self._model.variables}
+
+        x = eval(self._diff_expr, self._mat, xd).eval()
+        x0 = eval(self._diff_expr, self._mat, x0d).eval()
+        diff = ngsolve.Integrate(x-x0, self._mesh)
+        x0 = ngsolve.Integrate(x0, self._mesh)
+        return np.divide(np.linalg.norm(diff), np.linalg.norm(x0))
 
     def __prepareDirectory(self, dirname):
         self._dirname = "Solutions/" + dirname
@@ -301,18 +311,20 @@ class RelaxationSolver(SolverBase):
     def execute(self):
         t = 0
         dt, dx_ref = self._tSolver.dt0, self._tSolver.dx
-        for i in range(1,1000):
+        for i in range(1,self._tSolver.maxiter):
             util.t.set(t)
             dx = self.solve(1/dt)
             t = t + dt
             mpi.print_("Step", i, ", t = {:3e}".format(t), ", dt = {:3e}".format(dt), ", dx = {:3e}".format(dx))
             if dt == np.inf:
                 break
-            dt *= min(np.sqrt(dx_ref/dx), 2)
+            dt *= min(np.sqrt(dx_ref/dx), self._tSolver.maxStep)
             if dt > self._tSolver.dt0*10**self._tSolver.factor:
-                print("inf")
-                dt = np.inf
-
+                if self._tSolver.inf:
+                    print("inf")
+                    dt = np.inf
+                else:
+                    break
 
 class TimeDependentSolver(SolverBase):
     def __init__(self, obj, mesh, model, **kwargs):
