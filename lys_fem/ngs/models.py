@@ -86,7 +86,7 @@ class NGSVariable:
 
 
 class NGSModel:
-    def __init__(self, model, mesh, vars, addVariables=False, order=1):
+    def __init__(self, model, mesh, vars, addVariables=False):
         self._model = model
         self._mesh = mesh
         self._funcs = vars
@@ -94,7 +94,7 @@ class NGSModel:
 
         if addVariables:
             for eq in model.equations:
-                self.addVariable(eq.variableName, eq.variableDimension, region=eq.geometries, order=order, isScalar=eq.isScalar)
+                self.addVariable(eq.variableName, eq.variableDimension, region=eq.geometries, order=model.order, isScalar=eq.isScalar)
 
     def addVariable(self, name, vdim, dirichlet="auto", initialValue="auto", initialVelocity=None, region=None, order=1, isScalar=False, scale=None, residualScale=None, L2=False):
         initialValue = self._funcs[self.__initialValue(vdim, initialValue)]

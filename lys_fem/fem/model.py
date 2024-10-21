@@ -12,7 +12,7 @@ class FEMModel(FEMObject):
     initialConditionTypes = [InitialCondition]
     discretizationTypes = ["BackwardEuler", "BDF2", "NewmarkBeta", "ForwardEuler"]
 
-    def __init__(self, nvar, equations="auto", discretization="BackwardEuler", initialConditions=None, boundaryConditions=None, domainConditions=None, objName=None):
+    def __init__(self, nvar, equations="auto", discretization="BackwardEuler", order=2, initialConditions=None, boundaryConditions=None, domainConditions=None, objName=None):
         super().__init__(objName)
         self._nvar = nvar
         if equations == "auto":
@@ -28,6 +28,7 @@ class FEMModel(FEMObject):
         self._bdrs = BoundaryConditions(self, boundaryConditions)
         self._dcs = DomainConditions(self, domainConditions)
         self._disc = discretization
+        self._order = order
 
     def setVariableDimension(self, dim):
         self._nvar = dim
@@ -57,6 +58,14 @@ class FEMModel(FEMObject):
     def discretization(self):
         return self._disc
 
+    @property
+    def order(self):
+        return self._order
+
+    @order.setter
+    def order(self, value):
+        self._order=value
+
     def saveAsDictionary(self):
         d = {"model": self.className}
         d["nvar"] = self._nvar
@@ -65,6 +74,7 @@ class FEMModel(FEMObject):
         d["bdr"] = self.boundaryConditions.saveAsDictionary()
         d["domain"] = self.domainConditions.saveAsDictionary()
         d["discretization"] = self._disc
+        d["order"] = self._order
         return d
 
     @classmethod
@@ -77,7 +87,7 @@ class FEMModel(FEMObject):
         init = InitialConditions.loadFromDictionary(d["init"], cls.initialConditionTypes)
         bdr = BoundaryConditions.loadFromDictionary(d.get("bdr", []), cls.boundaryConditionTypes)
         domain = DomainConditions.loadFromDictionary(d.get("domain", []), cls.domainConditionTypes)
-        return {"equations": eqs, "initialConditions": init, "boundaryConditions": bdr, "domainConditions": domain, "discretization": d["discretization"]}
+        return {"equations": eqs, "initialConditions": init, "boundaryConditions": bdr, "domainConditions": domain, "discretization": d["discretization"], "order": d.get("order", 2)}
 
     def widget(self, fem, canvas):
         from ..gui import FEMModelWidget

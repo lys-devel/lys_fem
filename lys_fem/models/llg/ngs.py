@@ -2,15 +2,15 @@ from lys_fem.ngs import NGSModel, grad, dx, util, time
 from . import ExternalMagneticField, UniaxialAnisotropy, MagneticScalarPotential, SpinTransferTorque
 
 class NGSLLGModel(NGSModel):
-    def __init__(self, model, mesh, vars, order=2):
+    def __init__(self, model, mesh, vars):
         super().__init__(model, mesh, vars)
         self._model = model
 
         for eq in model.equations:
-            self.addVariable(eq.variableName, 3, region = eq.geometries, order=order)
+            self.addVariable(eq.variableName, 3, region = eq.geometries, order=model.order)
 
             if self._model.constraint == "Alouges":
-                self.addVariable(eq.variableName+"_v", 3, initialValue=None, region = eq.geometries, order=order)
+                self.addVariable(eq.variableName+"_v", 3, initialValue=None, region = eq.geometries, order=model.order)
                 self.addVariable(eq.variableName+"_lam", 1, initialValue=None, dirichlet=None, region=eq.geometries, order=0, isScalar=True, L2=True)
 
             if self._model.constraint == "Lagrange":
