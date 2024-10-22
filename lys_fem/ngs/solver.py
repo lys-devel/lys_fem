@@ -99,9 +99,10 @@ class _Operator:
         self._symbols = symbols
         self._solver = solver
         self._fes = model.finiteElementSpace
+        self._cond = any([isinstance(c, ngsolve.L2) for c in self._fes.components]) and symbols is None
         self.__setCoupling()
 
-        self._blf, self._lf = BilinearForm(self._fes, condense=self._cond, check_unused=False), LinearForm(self._fes)
+        self._blf, self._lf = BilinearForm(self._fes, condense=self._cond), LinearForm(self._fes)
         lhs, rhs = wf.lhs, wf.rhs
         if lhs.valid:
             self._blf += lhs.eval()
@@ -145,7 +146,6 @@ class _Operator:
             return self._inv
         
     def update(self):
-        self.__setCoupling()
         if (self._tdep_rhs or not self._init):
             self._lf.Assemble()
         if (self._tdep_lhs or not self._init) and not self.isNonlinear:
@@ -155,7 +155,7 @@ class _Operator:
 
     def __inverse(self, mat):
         if self._solver in ["pardiso", "pardisospd", "mumps", "sparsecholesky", "masterinverse", "umfpack"]:
-            inv = mat.Inverse(self._fes.FreeDofs(coupling=self._cond), self._solver)
+            inv = mat.Inverse(self._dofs, self._solver)
             if self._cond:
                 ext = ngsolve.IdentityMatrix() + self._blf.harmonic_extension
                 extT = ngsolve.IdentityMatrix() + self._blf.harmonic_extension_trans
@@ -167,25 +167,17 @@ class _Operator:
             return ngsolve.GMRESSolver(mat, self._prec.mat)
 
     def __setCoupling(self):
-        if isinstance(self._fes, ngsolve.ProductSpace):
-            cond = [isinstance(c, ngsolve.L2) for c in self._fes.components]
-        else:
-            cond = [isinstance(self._fes, ngsolve.L2)]
+        self._dofs = self._fes.FreeDofs(coupling=self._cond)
         if self._symbols is None:
-            self._cond = any(cond)
             return
-        for i, c in enumerate(self._model.coupling):
-            self._fes.SetCouplingType(i, c)
         n = 0
         for v in self._model.variables:
             if v.name not in self._symbols:
                 for j in range(n, n+v.size):
-                    cond[j] = False
-                    self._fes.SetCouplingType(self._fes.Range(j), ngsolve.COUPLING_TYPE.UNUSED_DOF)
+                    self._dofs[self._fes.Range(j)]=False
             n += v.size
-        self._cond = False
-        ngsolve.Compress(self._fes)
-        
+        return
+
     @property
     def isNonlinear(self):
         return self._nl
@@ -352,7 +344,7 @@ def newton(F, x, eps=1e-5, max_iter=30, gamma=1):
         dx.data *= gamma
         x -= dx
         R = np.sqrt(np.divide(dx.InnerProduct(dx), x.InnerProduct(x)))
-        print("R =", R)
+        #print("R =", R)
         if R < eps:
             if i!=0:
                 mpi.print_("[Newton solver] Converged in", i, "steps.")
