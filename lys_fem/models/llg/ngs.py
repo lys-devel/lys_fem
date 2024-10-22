@@ -64,7 +64,7 @@ class NGSLLGModel(NGSModel):
         return wf
 
     def _weakform_alouges(self, vars, mat):
-        g, e, mu_B, mu0, Ms = mat.const.g_e, mat.const.e, mat.const.mu_B, mat.const.mu_0, mat["Ms"]
+        g, e, mu_B, mu0, Ms, dti = mat.const.g_e, mat.const.e, mat.const.mu_B, mat.const.mu_0, mat["Ms"], mat.const.dti
         A = 2*mat["Aex"] * g / Ms
         alpha = mat["alpha"]
 
@@ -78,6 +78,7 @@ class NGSLLGModel(NGSModel):
             wf += m.cross(v).dot(test_v)*dx + alpha*v.dot(test_v)*dx
             wf += (lam*m.dot(test_v) + v.dot(m)*test_lam)*dx
             wf += A*grad(m).ddot(grad(test_v))*dx
+            wf += A*grad(v).ddot(grad(test_v))/dti*dx
 
             for ex in self._model.domainConditions.get(ExternalMagneticField):
                 B = mat[ex.values]
@@ -113,10 +114,8 @@ class NGSLLGModel(NGSModel):
             for v in self.variables:
                 if "_lam" in v.name or "_v" in v.name:
                     continue
-                t = 1.0
                 mn, gn = sols.X()[v.name], sols.grad()[v.name]
-                vel = [vv for vv in self.variables if vv.name==v.name+"_v"][0]
-                d[grad(v.trial)] = gn + t * grad(vel.trial) /dti
+                d[grad(v.trial)] = gn
             return d
         return super().discretize(sols, dti)
 
