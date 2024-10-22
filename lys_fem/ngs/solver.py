@@ -99,7 +99,6 @@ class _Operator:
         self._symbols = symbols
         self._solver = solver
         self._fes = model.finiteElementSpace
-        self._cond = any([isinstance(c, ngsolve.L2) for c in self._fes.components]) and symbols is None
         self.__setCoupling()
 
         self._blf, self._lf = BilinearForm(self._fes, condense=self._cond), LinearForm(self._fes)
@@ -167,7 +166,12 @@ class _Operator:
             return ngsolve.GMRESSolver(mat, self._prec.mat)
 
     def __setCoupling(self):
-        self._dofs = self._fes.FreeDofs(coupling=self._cond)
+        if isinstance(self._fes, ngsolve.ProductSpace):
+            self._cond = any([isinstance(c, ngsolve.L2) for c in self._fes.components]) and self._symbols is None
+        else:
+            self._cond = False
+
+        self._dofs = ngsolve.BitArray(self._fes.FreeDofs(coupling=self._cond))
         if self._symbols is None:
             return
         n = 0
@@ -221,7 +225,7 @@ class SolverBase:
                 print("deformation set")
             op.update()
             x.vec.data = newton(op, x.vec.CreateVector(copy=True), eps=step.newton_eps, max_iter=step.newton_maxiter, gamma=step.newton_damping)
-            self.__updateSolution(x)
+        self.__updateSolution(x)
         self.exportSolution(int(util.stepn.get()+1))
         return self.__calcDifference(self._sols.copy(), x0)
 
