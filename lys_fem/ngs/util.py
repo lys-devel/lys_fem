@@ -99,6 +99,18 @@ class GridFunction(ngsolve.GridFunction):
             n+=v.size
         return res
 
+    def toGradFunctions(self, model, pre=""):
+        res = {}
+        n = 0
+        for v in model.variables:
+            if v.size == 1 and v.isScalar:
+                res[v.name] = NGSFunction(v.scale*ngsolve.grad(self.components[n]), name="grad("+v.name+pre+")", tdep=True)
+            else:
+                g = [ngsolve.grad(self.components[i]) for i in range(n,n+v.size)]
+                res[v.name] = NGSFunction(v.scale*ngsolve.CoefficientFunction(tuple(g), dims=(g[0].shape[0], v.size)).TensorTranspose((1,0)), name="grad("+v.name+pre+")", tdep=True)
+            n+=v.size           
+        return res
+
 
 class NGSFunction:
     def __init__(self, obj=None, mesh=None, default=None, geomType="domain", name="Undefined", tdep=False):
@@ -174,6 +186,9 @@ class NGSFunction:
             g = [self._obj.Diff(symbol) for symbol in [ngsolve.x, ngsolve.y, ngsolve.z][:dimension]]
             return ngsolve.CoefficientFunction(tuple(g), dims=(dimension,))
         raise RuntimeError("grad not implemented")
+    
+    def replace(self, d):
+        return (1*self).replace(d)
 
     @property
     def hasTrial(self):

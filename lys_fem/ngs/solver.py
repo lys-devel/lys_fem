@@ -22,20 +22,8 @@ class _Solution:
         fes = model.finiteElementSpace
         self._sols = [(util.GridFunction(fes), util.GridFunction(fes), util.GridFunction(fes)) for n in range(nlog)]
         self._coefs = [[self[n][i].toNGSFunctions(model, "t"*i+"_n") for i in range(3)] for n in range(nlog)]
-        self._grads = [self.__toGrad(self[n][0]) for n in range(nlog)]
+        self._grads = [self[n][0].toGradFunctions(model, "_n") for n in range(nlog)]
         self._use_a = False
-
-    def __toGrad(self, x):
-        res = {}
-        n = 0
-        for v in self._model.variables:
-            if v.size == 1 and v.isScalar:
-                res[v.name] = util.NGSFunction(v.scale*ngsolve.grad(x.components[n]), name="grad("+v.name+"_n)", tdep=True)
-            else:
-                g = [ngsolve.grad(x.components[i]) for i in range(n,n+v.size)]
-                res[v.name] = util.NGSFunction(v.scale*CoefficientFunction(tuple(g), dims=(g[0].shape[0], v.size)).TensorTranspose((1,0)), name="grad("+v.name+"_n)", tdep=True)
-            n+=v.size           
-        return res
 
     def initialize(self):
         self.update(self._model.initialValue(self._use_a))
@@ -230,6 +218,7 @@ class SolverBase:
         return self.__calcDifference(self._sols.copy(), x0)
 
     def __calcDifference(self, x, x0):
+        # TODO: This should be based on solution?.
         if self._diff_expr is None:
             self._diff_expr = self._model.variables[0].name
         x, x0 = x.toNGSFunctions(self._model), x0.toNGSFunctions(self._model)
