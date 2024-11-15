@@ -25,16 +25,7 @@ class GeometryEditor(QtWidgets.QWidget):
         h.addWidget(QtWidgets.QPushButton("Update", clicked=self.showGeometry))
         h.addWidget(self._generateAll)
 
-        self._scale = ScientificSpinBox()
-        self._scale.setValue(self._obj.geometries.scale)
-        self._scale.valueChanged.connect(self.__setScale)
-
-        h2 = QtWidgets.QHBoxLayout()
-        h2.addWidget(QtWidgets.QLabel("Scale (m)"))
-        h2.addWidget(self._scale)
-
         self._tr.layout.insertLayout(1, h)
-        self._tr.layout.insertLayout(0, h2)
 
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -58,12 +49,8 @@ class GeometryEditor(QtWidgets.QWidget):
                 res = self._geom.generateGeometry(indexes[0].row())
         return res
     
-    def __setScale(self, scale):
-        self._obj.geometries.scale=scale
-
     def setGeometry(self, geom):
         self._geom = geom
-        self.__setScale(geom.scale)
         self._gt.setGeometry(geom)
 
 

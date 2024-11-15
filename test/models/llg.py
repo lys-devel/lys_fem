@@ -52,14 +52,6 @@ class LLG_test(FEMTestCase):
 
         # solution
         sol = FEMSolution()
-
-        import matplotlib.pyplot as plt
-        x = np.linspace(0,2e-6,100)
-        for i in range(0,min(300, sol.obj.maxIndex)):
-            m = sol.eval("m[2]", data_number=i, coords=x.tolist())
-            plt.plot(m)
-        plt.show()
-
         m = sol.eval("m[2]", data_number=0, coords=[0, 1e-6, 2e-6])
         self.assert_array_almost_equal(m, [1,0,-1])
 

@@ -9,9 +9,9 @@ gmsh.option.setNumber("General.Terminal", 0)
 
 
 class GeometryGenerator(FEMObject):
-    def __init__(self, order=None, scale=1):
+    def __init__(self, order=None, scale="auto"):
         super().__init__()
-        self.scale = scale
+        self._scale = scale
         if order is None:
             order = []
         self._order = []
@@ -84,11 +84,22 @@ class GeometryGenerator(FEMObject):
         return [tag for d, tag  in m.getPhysicalGroups(dim)]
 
     @property
+    def scale(self):
+        if self._scale == "auto":
+            return min([min([abs(cc) for cc in c.args if cc != 0]) for c in self.commands])
+        else:
+            return self._scale
+        
+    @scale.setter
+    def scale(self, value):
+        self._scale = value
+
+    @property
     def commands(self):
         return self._order
 
     def saveAsDictionary(self):
-        return {"geometries": [c.saveAsDictionary() for c in self.commands], "scale": self.scale}
+        return {"geometries": [c.saveAsDictionary() for c in self.commands], "scale": self._scale}
 
     @staticmethod
     def loadFromDictionary(d):
