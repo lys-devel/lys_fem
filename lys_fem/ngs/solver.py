@@ -30,10 +30,10 @@ class _Solution:
         n = 0
         for v in self._model.variables:
             if v.size == 1 and v.isScalar:
-                res[v.name] = util.NGSFunction(v.scale/util.xscale*ngsolve.grad(x.components[n]), name="grad("+v.name+"_n)", tdep=True)
+                res[v.name] = util.NGSFunction(v.scale*ngsolve.grad(x.components[n]), name="grad("+v.name+"_n)", tdep=True)
             else:
                 g = [ngsolve.grad(x.components[i]) for i in range(n,n+v.size)]
-                res[v.name] = util.NGSFunction(v.scale/util.xscale*CoefficientFunction(tuple(g), dims=(g[0].shape[0], v.size)).TensorTranspose((1,0)), name="grad("+v.name+"_n)", tdep=True)
+                res[v.name] = util.NGSFunction(v.scale*CoefficientFunction(tuple(g), dims=(g[0].shape[0], v.size)).TensorTranspose((1,0)), name="grad("+v.name+"_n)", tdep=True)
             n+=v.size           
         return res
 
