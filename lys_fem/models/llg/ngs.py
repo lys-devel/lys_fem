@@ -91,7 +91,7 @@ class NGSLLGModel(NGSModel):
 
             for sc in self._model.domainConditions.get(MagneticScalarPotential):
                 phi = mat[sc.values]
-                B = -mu0*grad(phi.value)
+                B = -mu0*grad(phi)
                 wf += -g*B.dot(test_v)*dx(sc.geometries)
 
         return wf
@@ -102,7 +102,7 @@ class NGSLLGModel(NGSModel):
             for v in self.variables:
                 if "_lam" in v.name:
                     continue
-                w = 1
+                w = 0
                 mn, gn = sols.X()[v.name], sols.grad()[v.name]
                 d = time.BackwardEuler.generateWeakforms(v, sols, dti)
                 d[v.trial.value] = (1-w)*v.trial + w*mn

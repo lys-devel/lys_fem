@@ -317,6 +317,8 @@ class RelaxationSolver(SolverBase):
                 return
             if dx != 0:
                 dt *= min(np.sqrt(dx_ref/dx), self._tSolver.maxStep)
+            if dt < self._tSolver.dt0:
+                dt = self._tSolver.dt0
             if dt > self._tSolver.dt0*10**self._tSolver.factor:
                 if self._tSolver.inf:
                     print("inf")
@@ -348,7 +350,7 @@ def newton(F, x, eps=1e-5, max_iter=30, gamma=1):
         dx.data *= gamma
         x -= dx
         R = np.sqrt(np.divide(dx.InnerProduct(dx), x.InnerProduct(x)))
-        #print("R =", R)
+        print("R =", R)
         if R < eps:
             if i!=0:
                 mpi.print_("[Newton solver] Converged in", i, "steps.")
