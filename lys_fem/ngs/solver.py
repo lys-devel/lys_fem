@@ -1,9 +1,7 @@
 import os
 import shutil
 import numpy as np
-
 import ngsolve
-from ngsolve import BilinearForm, LinearForm, CoefficientFunction, VectorH1, TaskManager
 
 from . import mpi, util
 
@@ -78,6 +76,17 @@ class _Solution:
     @property
     def finiteElementSpace(self):
         return self._model.finiteElementSpace
+    
+    @property
+    def replaceDict(self):
+        """
+        Returns a dictionary that replace trial functions with corresponding solutions.
+        """
+        sols = self[0][0].toNGSFunctions(self._model)
+        grads = self[0][0].toGradFunctions(self._model)
+        d = {v.trial: sols[v.name] for v in self._model.variables}
+        d.update({util.grad(v.trial): grads[v.name] for v in self._model.variables})
+        return d
 
 
 class _Operator:
@@ -89,7 +98,7 @@ class _Operator:
         self._fes = model.finiteElementSpace
         self.__setCoupling()
 
-        self._blf, self._lf = BilinearForm(self._fes, condense=self._cond), LinearForm(self._fes)
+        self._blf, self._lf = ngsolve.BilinearForm(self._fes, condense=self._cond), ngsolve.LinearForm(self._fes)
         lhs, rhs = wf.lhs, wf.rhs
         if lhs.valid:
             self._blf += lhs.eval()
@@ -180,7 +189,6 @@ class SolverBase:
         self._obj = obj
         self._mesh = mesh
         self._model = model
-        self._diff_expr = obj.diff_expr
         self._mat = model.materials
         self._mat.const.dti.tdep = variableStep
         if not load:
@@ -192,6 +200,7 @@ class SolverBase:
         self._ops = [_Operator(model, disc, self._sols, step.variables, solver=step.solver, prec=step.preconditioner) for step in obj.steps]
         util.stepn.set(-1)
         self._sols.initialize()
+        self._diff = self.__calcDiff(obj.diff_expr)
         if not load:
             self.exportSolution(0)
 
@@ -203,11 +212,12 @@ class SolverBase:
         self._mat.const.dti.set(dti)
         util.stepn.set(int(util.stepn.get() + 1))
 
-        x, x0 = self._sols.copy(), self._sols.copy()
+        E0 = self._diff.integrate(self._mesh)
+        x = self._sols.copy()
         for op, step in zip(self._ops, self._obj.steps):
             if step.deformation is not None:
                 deform = {v.name: xx for v, xx in zip(self._model.variables, self._sols.X())}[step.deformation]
-                space = VectorH1(self._mesh)
+                space = ngsolve.VectorH1(self._mesh)
                 gf = util.GridFunction(space, deform.eval())
                 self._mesh.SetDeformation(gf)
                 print("deformation set")
@@ -215,31 +225,14 @@ class SolverBase:
             x.vec.data = newton(op, x.vec.CreateVector(copy=True), eps=step.newton_eps, max_iter=step.newton_maxiter, gamma=step.newton_damping)
         self.__updateSolution(x)
         self.exportSolution(int(util.stepn.get()+1))
-        return self.__calcDifference(self._sols.copy(), x0)
+        E = self._diff.integrate(self._mesh)
+        return np.divide(np.linalg.norm(E-E0), np.linalg.norm(E))
 
-    def __calcDifference(self, x, x0):
-        # TODO: This should be based on solution?.
-        if self._diff_expr is None:
-            self._diff_expr = self._model.variables[0].name
-        x, x0 = x.toNGSFunctions(self._model), x0.toNGSFunctions(self._model)
-        xd, x0d = dict(self._mat), dict(self._mat)
-        xd.update({v.name: x[v.name] for v in self._model.variables})
-        x0d.update({v.name: x0[v.name] for v in self._model.variables})
-
-        x = util.eval(self._diff_expr, xd).eval()
-        x0 = util.eval(self._diff_expr, x0d).eval()
-        diff = ngsolve.Integrate(x-x0, self._mesh)
-        x = ngsolve.Integrate(x, self._mesh)
-        #x, x0 = self.__calcDiff(x), self.__calcDiff(x0)
-        return np.divide(np.linalg.norm(diff), np.linalg.norm(x))
-
-    def __calcDiff(self, x):
-        if self._diff_expr is None:
-            self._diff_expr = self._model.variables[0].name
-        x = x.toNGSFunctions(self._model)
-        d = {v.trial: x[v.name] for v in self._model.variables}
-        x = self._mat.eval(self._diff_expr).replace(d).eval()
-        return ngsolve.Integrate(x, self._mesh)
+    def __calcDiff(self, expr):
+        if expr is None:
+            expr = self._model.variables[0].name
+        d = self._sols.replaceDict
+        return self._mat.eval(expr).replace(d)
 
     def __prepareDirectory(self, dirname):
         self._dirname = "Solutions/" + dirname
@@ -343,7 +336,7 @@ def newton(F, x, eps=1e-5, max_iter=30, gamma=1):
         max_iter=1
     dx = x.CreateVector()
     for i in range(max_iter):
-        with TaskManager():
+        with ngsolve.TaskManager():
             dx.data = F.Jacobian(x)*F(x)
         dx.data *= gamma
         x -= dx

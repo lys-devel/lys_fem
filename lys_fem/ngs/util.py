@@ -178,6 +178,9 @@ class NGSFunction:
                 return self._mesh.MaterialCF(coefs, default=default)
             else:
                 return self._mesh.BoundaryCF(coefs, default=default)
+
+    def integrate(self, mesh):
+        return ngsolve.Integrate(self.eval(), mesh)
             
     def grad(self):
         if self._obj is None:

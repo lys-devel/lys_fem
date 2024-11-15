@@ -216,7 +216,7 @@ class LLG_test(FEMTestCase):
             self.assert_allclose(w.data, -solution(w.x[:,0],w.x[:,1],w.x[:,2], 0.8, 1), atol=0.002, rtol=0)
 
     def precession(self, lib, constraint="Projection", discretization="BackwardEuler"):
-        factor = 5
+        factor = 10
         p = FEMProject(1)
 
         # geometry
