@@ -6,6 +6,7 @@ from .mesh import generateMesh, exportMesh
 from .material import generateMaterial
 from .models import generateModel
 from .solver import generateSolver
+from .util import grad
 
 
 class NGSSolution:
@@ -25,7 +26,9 @@ class NGSSolution:
     def coef(self, expression, index=-1):
         self.update(index)
         sols = self._solvers[0].solutions[0][0].toNGSFunctions(self._model)
+        grads = self._solvers[0].solutions[0][0].toGradFunctions(self._model)
         d = {v.trial: sols[v.name] for v in self._model.variables}
+        d.update({grad(v.trial): grads[v.name] for v in self._model.variables})
         return self._mats.eval(expression).replace(d).eval()
 
     def update(self, index=-1):

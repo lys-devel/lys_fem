@@ -230,7 +230,16 @@ class SolverBase:
         x0 = util.eval(self._diff_expr, x0d).eval()
         diff = ngsolve.Integrate(x-x0, self._mesh)
         x = ngsolve.Integrate(x, self._mesh)
+        #x, x0 = self.__calcDiff(x), self.__calcDiff(x0)
         return np.divide(np.linalg.norm(diff), np.linalg.norm(x))
+
+    def __calcDiff(self, x):
+        if self._diff_expr is None:
+            self._diff_expr = self._model.variables[0].name
+        x = x.toNGSFunctions(self._model)
+        d = {v.trial: x[v.name] for v in self._model.variables}
+        x = self._mat.eval(self._diff_expr).replace(d).eval()
+        return ngsolve.Integrate(x, self._mesh)
 
     def __prepareDirectory(self, dirname):
         self._dirname = "Solutions/" + dirname
