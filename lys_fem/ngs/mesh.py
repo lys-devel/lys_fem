@@ -15,8 +15,7 @@ def loadMesh(fem, file):
     ngmesh = Mesh(dim=fem.dimension)
     ngmesh.Load(file)
     mesh = NGSMesh(ngmesh)
-    mesh._coords_global = np.array(ngmesh.Coordinates()) * fem.geometries.scale
-    mesh.scale = fem.geometries.scale
+    mesh._coords_global = np.array(ngmesh.Coordinates())
     return mesh
 
 
@@ -25,6 +24,7 @@ def generateMesh(fem, file="mesh.msh"):
         geom = fem.geometries.generateGeometry()
         fem.mesher.export(geom, file)
         gmesh, points = ReadGmsh(file, fem.dimension)
+        gmesh.Scale(fem.geometries.scale)
         if gmesh.dim == 1:
             _createBoundaryFor1D(gmesh, file, points)
         coords = np.array(gmesh.Coordinates())
@@ -33,18 +33,15 @@ def generateMesh(fem, file="mesh.msh"):
         from mpi4py import MPI
         if mpi.isRoot:
             mesh = NGSMesh(gmesh.Distribute(MPI.COMM_WORLD))
-            mesh._coords_global = coords * fem.geometries.scale
+            mesh._coords_global = coords
         else:
             mesh = NGSMesh(Mesh.Receive(MPI.COMM_WORLD))
         _createMapping(mesh)
     else:
         mesh = NGSMesh(gmesh)
-        mesh._coords_global = coords * fem.geometries.scale
-    mesh.scale = fem.geometries.scale
-    util.xscale = mesh.scale
+        mesh._coords_global = coords
     util.dimension = fem.dimension
     util.dx.setMesh(mesh)
-    util.dx.setScale(mesh.scale)
     util.ds.setMesh(mesh)
     return mesh
 

@@ -99,6 +99,18 @@ class GridFunction(ngsolve.GridFunction):
             n+=v.size
         return res
 
+    def toGradFunctions(self, model, pre=""):
+        res = {}
+        n = 0
+        for v in model.variables:
+            if v.size == 1 and v.isScalar:
+                res[v.name] = NGSFunction(v.scale*ngsolve.grad(self.components[n]), name="grad("+v.name+pre+")", tdep=True)
+            else:
+                g = [ngsolve.grad(self.components[i]) for i in range(n,n+v.size)]
+                res[v.name] = NGSFunction(v.scale*ngsolve.CoefficientFunction(tuple(g), dims=(g[0].shape[0], v.size)).TensorTranspose((1,0)), name="grad("+v.name+pre+")", tdep=True)
+            n+=v.size           
+        return res
+
 
 class NGSFunction:
     def __init__(self, obj=None, mesh=None, default=None, geomType="domain", name="Undefined", tdep=False):
@@ -172,8 +184,11 @@ class NGSFunction:
             return ngsolve.CoefficientFunction([0]*dimension)
         if isinstance(self._obj, ngsolve.CoefficientFunction):
             g = [self._obj.Diff(symbol) for symbol in [ngsolve.x, ngsolve.y, ngsolve.z][:dimension]]
-            return ngsolve.CoefficientFunction(tuple(g), dims=(dimension,))/xscale
+            return ngsolve.CoefficientFunction(tuple(g), dims=(dimension,))
         raise RuntimeError("grad not implemented")
+    
+    def replace(self, d):
+        return (1*self).replace(d)
 
     @property
     def hasTrial(self):
@@ -434,8 +449,6 @@ class _Mul(_Oper):
         if isinstance(x, ngsolve.CoefficientFunction) and isinstance(y, ngsolve.CoefficientFunction):
             if len(x.shape)!=0 and len(x.shape) == len(y.shape):
                 return ngsolve.CoefficientFunction(tuple([xi*yi for xi, yi in zip(x,y)]), dims=x.shape)
-        if isinstance(y, _DMul):
-            return y * x
         if isinstance(x, (ngsolve.la.DynamicVectorExpression, ngsolve.la.BaseVector)) and isinstance(y, (int, float, complex)):
             return y * x
         return x * y
@@ -898,8 +911,8 @@ class TrialFunction(NGSFunction):
         
     def grad(self):
         if isinstance(self._tris, list):
-            return self._scale/xscale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._tris]), dims=(ngsolve.grad(self._tris[0]).shape[0], len(self._tris))).TensorTranspose((1,0))
-        return self._scale/xscale * ngsolve.grad(super().eval())
+            return self._scale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._tris]), dims=(ngsolve.grad(self._tris[0]).shape[0], len(self._tris))).TensorTranspose((1,0))
+        return self._scale * ngsolve.grad(super().eval())
         
     @property
     def isNonlinear(self):
@@ -918,8 +931,8 @@ class TestFunction(NGSFunction):
         
     def grad(self):
         if isinstance(self._tests, list):
-            return self._scale/xscale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._tests]), dims=(ngsolve.grad(self._tests[0]).shape[0], len(self._obj))).TensorTranspose((1,0))
-        return self._scale/xscale * ngsolve.grad(self._tests)
+            return self._scale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._tests]), dims=(ngsolve.grad(self._tests[0]).shape[0], len(self._obj))).TensorTranspose((1,0))
+        return self._scale * ngsolve.grad(self._tests)
         
     def __hash__(self):
         return hash(self._name)
@@ -957,8 +970,8 @@ class TrialFunctionValue(NGSFunction):
 
     def grad(self):
         if isinstance(self._tris, list):
-            return 1/xscale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._tris]), dims=(ngsolve.grad(self._tris[0]).shape[0], len(self._tris))).TensorTranspose((1,0))
-        return 1/xscale * ngsolve.grad(super().eval())
+            return ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._tris]), dims=(ngsolve.grad(self._tris[0]).shape[0], len(self._tris))).TensorTranspose((1,0))
+        return ngsolve.grad(super().eval())
 
     @property
     def hasTrial(self):
@@ -978,18 +991,14 @@ class TrialFunctionValue(NGSFunction):
 
 
 class DifferentialSymbol(NGSFunction):
-    def __init__(self, obj, scale=1, **kwargs):
+    def __init__(self, obj, **kwargs):
         super().__init__(obj, **kwargs)
-        self._scale = scale
 
     def setMesh(self, mesh):
         self._mesh = mesh
 
-    def setScale(self, scale):
-        self._scale = scale
-
     def eval(self):
-        return _DMul(self._obj, self._scale)
+        return self._obj
     
     @property
     def valid(self):
@@ -1013,7 +1022,7 @@ class DifferentialSymbol(NGSFunction):
             d = self._mesh.Materials(geom)
         else:
             d = self._mesh.Boundaries(geom)
-        return DifferentialSymbol(self._obj(definedon=d), self._scale, name=str(self))
+        return DifferentialSymbol(self._obj(definedon=d), name=str(self))
 
 
 class Parameter(NGSFunction):
@@ -1043,18 +1052,8 @@ class SolutionFieldFunction(NGSFunction):
     pass
 
 
-class _DMul:
-    def __init__(self, obj, scale):
-        self._obj = obj
-        self._scale = scale
-
-    def __mul__(self, other):
-        return self._scale * other * self._obj
-
-
 dx = DifferentialSymbol(ngsolve.dx, name="dx")
 ds = DifferentialSymbol(ngsolve.ds, name="ds")
 t = Parameter("t", 0, tdep=True)
 stepn = Parameter("step", 0, tdep=True)
-xscale = 1
 dimension = 3

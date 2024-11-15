@@ -1,4 +1,4 @@
-import numpy as np
+import os
 import sympy as sp
 from lys.Qt import QtWidgets, QtCore, QtGui
 
@@ -203,7 +203,7 @@ class _SolutionFieldEditDialog(QtWidgets.QDialog):
         d = FEMFileDialog(self)
         ok = d.exec_()
         if ok:
-            self._path.setText(d.result)
+            self._path.setText(os.path.abspath("FEM/"+d.result))
 
     def result(self):
         return self._name.text(), self._type.currentText(), self._path.text(), self._expr.text()

@@ -69,6 +69,34 @@ class testProblems_test(FEMTestCase):
         c = np.array([0.5,0.6,0.7])
         assert_array_almost_equal(sol.eval("x", data_number=1, coords=c), np.sqrt(2*c))
 
+    def smallGeom(self, lib):
+        p = FEMProject(1)
+
+        # geometry
+        p.geometries.scale = 1e-9
+        p.geometries.add(geometry.Line(0, 0, 0, 1e-9, 0, 0))
+        p.geometries.add(geometry.Line(1e-9, 0, 0, 2e-9, 0, 0))
+
+        # model: boundary and initial conditions
+        model = test.LinearTestModel()
+        model.boundaryConditions.append(test.DirichletBoundary([True], geometries=[1, 3]))
+        model.initialConditions.append(test.InitialCondition(0.0, geometries=[1]))
+        model.initialConditions.append(test.InitialCondition(2.0, geometries=[2]))
+        p.models.append(model)
+
+        # solver
+        stationary = StationarySolver()
+        p.solvers.append(stationary)
+
+        # solve
+        lib.run(p)
+
+        # solution
+        sol = FEMSolution()
+        res = sol.eval("x", data_number=1)
+        for w in res:
+            self.assert_array_almost_equal(w.data*1e-9, w.x[:, 0])
+
     def twoVars1(self, lib):
         p = FEMProject(1)
 

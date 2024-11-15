@@ -16,7 +16,6 @@ class NGSSolution:
         self._mats = generateMaterial(fem, self._mesh)
         self._model = generateModel(fem, self._mesh, self._mats)
         self._solvers = generateSolver(fem, self._mesh, self._model, load=True)
-
         self._meshInfo = exportMesh(self._mesh)
 
     @property
@@ -25,13 +24,14 @@ class NGSSolution:
 
     def coef(self, expression, index=-1):
         self.update(index)
-        return self._mats.eval(expression).eval()
+        sols = self._solvers[0].solutions[0][0].toNGSFunctions(self._model)
+        d = {v.trial: sols[v.name] for v in self._model.variables}
+        return self._mats.eval(expression).replace(d).eval()
 
     def update(self, index=-1):
         if index < 0:
             index = self.maxIndex + index + 1
         self._solvers[0].importSolution(index, parallel=self._fem.parallel, dirname=self._dirname)
-        self._mats.update(self._solvers[0].solutions[0][0].toNGSFunctions(self._model))
         
     def eval(self, expression, index, coords=None):
         f = self.coef(expression, index)
@@ -39,15 +39,15 @@ class NGSSolution:
             return self.__getDomainValues(f)
         else:
             if not hasattr(coords, "__iter__"):
-                mip = self.__coordsToMIP(np.array([coords])/self._fem.geometries.scale)
+                mip = self.__coordsToMIP(np.array([coords]))
                 return np.array([f(mi) for mi in mip])[0]
             else:
-                mip = self.__coordsToMIP(np.array(coords)/self._fem.geometries.scale)
+                mip = self.__coordsToMIP(np.array(coords))
                 return np.array([f(mi) for mi in mip])
 
     def __getDomainValues(self, f):
         domains, coords = self._meshInfo
-        mip = [self._mesh(*c) for c in coords/self._fem.geometries.scale]
+        mip = [self._mesh(*c) for c in coords]
         data=np.array([f(mi) for mi in mip])
         res = []
         if coords.shape[1] < 3:

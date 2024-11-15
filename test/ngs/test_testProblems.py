@@ -8,6 +8,9 @@ class test(testProblems_test):
     def test_nonlinear(self):
         self.nonlinear(ngs)
 
+    def test_smallGeom(self):
+        self.smallGeom(ngs)
+
     def test_twoval(self):
         self.twoVars1(ngs)
 
