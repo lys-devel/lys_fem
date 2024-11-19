@@ -76,7 +76,7 @@ class GeometryGenerator(FEMObject):
         m = self.generateGeometry()
         result = {}
         for c in self.commands:
-            result.update(c.generateParameters(m, self.scale))
+            result.update(c.generateParameters(m, TransGeom(self.fem)))
         return result
 
     def geometryAttributes(self, dim):

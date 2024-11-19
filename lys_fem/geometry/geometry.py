@@ -92,8 +92,8 @@ class InfiniteVolume(FEMGeometry):
     def widget(self):
         return InfiniteVolumeGUI(self)
 
-    def generateParameters(self, model, scale):
-        a,b,c,A,B,C = np.array(self.args)
+    def generateParameters(self, model, trans):
+        a,b,c,A,B,C = trans(self.args, unit="m")
         ids = [-1, -1, -1, -1, -1, -1]
         for dim, grp in model.getPhysicalGroups(3):
             for tag in model.getEntitiesForPhysicalGroup(dim, grp):
@@ -115,7 +115,7 @@ class InfiniteVolume(FEMGeometry):
 
     def _constructJ(self, domain):
         a,b,c,A,B,C = np.array(self.args)
-        alpha = sp.Integer(1)
+        alpha = sp.Integer(2)
 
         Cx = np.array([0, b-a*(B-b)/(A-a), c-a*(C-c)/(A-a)])
         Cy = np.array([a-b*(A-a)/(B-b), 0, c-b*(C-c)/(B-b)])
@@ -220,8 +220,8 @@ class InfinitePlane(FEMGeometry):
         Quad((a,b,0), (a,-b,0), (A,-B,0),(A,B,0)).execute(model, trans)
         Quad((-a,b,0), (-a,-b,0), (-A,-B,0),(-A,B,0)).execute(model, trans)
 
-    def generateParameters(self, model, scale):
-        a,b,A,B = self.args
+    def generateParameters(self, model, trans):
+        a,b,A,B = trans(self.args)
         ids = [-1, -1, -1, -1]
         for dim, grp in model.getPhysicalGroups(2):
             for tag in model.getEntitiesForPhysicalGroup(dim, grp):
