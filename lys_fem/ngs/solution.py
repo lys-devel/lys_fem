@@ -44,6 +44,11 @@ class NGSSolution:
             else:
                 mip = self.__coordsToMIP(np.array(coords))
                 return np.array([f(mi) for mi in mip])
+            
+    def integrate(self, expression, index):
+        import ngsolve
+        f = self.coef(expression, index)
+        return ngsolve.Integrate(f, self._mesh)
 
     def __getDomainValues(self, f):
         domains, coords = self._meshInfo
