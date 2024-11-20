@@ -107,7 +107,7 @@ class GridFunction(ngsolve.GridFunction):
                 res[v.name] = NGSFunction(v.scale*ngsolve.grad(self.components[n]), name="grad("+v.name+pre+")", tdep=True)
             else:
                 g = [ngsolve.grad(self.components[i]) for i in range(n,n+v.size)]
-                res[v.name] = NGSFunction(v.scale*ngsolve.CoefficientFunction(tuple(g), dims=(g[0].shape[0], v.size)).TensorTranspose((1,0)), name="grad("+v.name+pre+")", tdep=True)
+                res[v.name] = NGSFunction(v.scale*ngsolve.CoefficientFunction(tuple(g), dims=(v.size, dimension)).TensorTranspose((1,0)), name="grad("+v.name+pre+")", tdep=True)
             n+=v.size           
         return res
 
@@ -398,7 +398,6 @@ class _Oper(NGSFunction):
             if type=="value" and isinstance(replaced, NGSFunction):
                 replaced = eval(str(replaced))
             objs.append(replaced)
-        #print(self, objs)
         return self(*objs)
     
     @property
@@ -559,9 +558,9 @@ class _TensorDot(_Oper):
     @property
     def shape(self):
         if self._axes == 1:
-            return tuple(list(self._obj[0].shape[:-2]) + list(self._obj[1].shape[1:]))
+            return tuple(list(self._obj[0].shape[:-1]) + list(self._obj[1].shape[1:]))
         elif self._axes == 2:
-            return tuple(list(self._obj[0].shape[:-3]) + list(self._obj[1].shape[2:]))
+            return tuple(list(self._obj[0].shape[:-2]) + list(self._obj[1].shape[2:]))
 
     @property
     def hasTrial(self):
@@ -606,6 +605,10 @@ class _Cross(_Oper):
     @property
     def hasTrial(self):
         return self._obj[0].hasTrial or self._obj[1].hasTrial
+    
+    @property
+    def shape(self):
+        return tuple(list(self._obj[0].shape[:-1]) + [3] + list(self._obj[1].shape[1:]))
 
     def eval(self):
         v1, v2 = self._obj[0].eval(), self._obj[1].eval()
@@ -792,7 +795,7 @@ class _Func(_Oper):
     @property
     def shape(self):
         if self._type == "grad":
-            return tuple(list(self._obj[0].shape)+[dimension])
+            return tuple([dimension]+list(self._obj[0].shape))
         else:
             return self._obj[0].shape
 
@@ -924,7 +927,7 @@ class TrialFunction(NGSFunction):
         
     def grad(self):
         if isinstance(self._tris, list):
-            return self._scale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._tris]), dims=(ngsolve.grad(self._tris[0]).shape[0], len(self._tris))).TensorTranspose((1,0))
+            return self._scale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._tris]), dims=(len(self._tris), dimension)).TensorTranspose((1,0))
         return self._scale * ngsolve.grad(self._tris)
         
     @property
@@ -944,7 +947,7 @@ class TestFunction(NGSFunction):
         
     def grad(self):
         if isinstance(self._tests, list):
-            return self._scale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._tests]), dims=(ngsolve.grad(self._tests[0]).shape[0], len(self._obj))).TensorTranspose((1,0))
+            return self._scale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._tests]), dims=(len(self._tests), dimension)).TensorTranspose((1,0))
         return self._scale * ngsolve.grad(self._tests)
         
     def __hash__(self):
