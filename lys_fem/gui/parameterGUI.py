@@ -99,7 +99,7 @@ class _ParametersWidget(QtWidgets.QTreeWidget):
 
 
 class _FieldWidget(QtWidgets.QTreeWidget):
-    _types = {"First": 0, "Last": 1, "Time-dependent": None}
+    _types = {"First": 0, "Last": -1, "Time-dependent": None}
 
     def __init__(self, fem):
         super().__init__()

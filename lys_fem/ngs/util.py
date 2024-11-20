@@ -95,7 +95,7 @@ class GridFunction(ngsolve.GridFunction):
             if v.size == 1 and v.isScalar:
                 res[v.name] = NGSFunction(v.scale*self.components[n], name=v.name+pre, tdep=True)
             else:
-                res[v.name] = NGSFunction(v.scale*ngsolve.CoefficientFunction(tuple(self.components[n:n+v.size])), name=v.name+pre, tdep=True)
+                res[v.name] = NGSFunction(v.scale*ngsolve.CoefficientFunction(tuple(self.components[n:n+v.size]), dims=(v.size,)), name=v.name+pre, tdep=True)
             n+=v.size
         return res
 
@@ -452,6 +452,8 @@ class _Mul(_Oper):
         if isinstance(x, ngsolve.CoefficientFunction) and isinstance(y, ngsolve.CoefficientFunction):
             if len(x.shape)!=0 and len(x.shape) == len(y.shape):
                 return ngsolve.CoefficientFunction(tuple([xi*yi for xi, yi in zip(x,y)]), dims=x.shape)
+            if (len(x.shape) == 0 and y.shape == (1,)) or (x.shape==(1,) and len(y.shape)==0):
+                return ngsolve.CoefficientFunction(x*y, dims=(1,))
         if isinstance(x, (ngsolve.la.DynamicVectorExpression, ngsolve.la.BaseVector)) and isinstance(y, (int, float, complex)):
             return y * x
         return x * y
@@ -553,6 +555,13 @@ class _TensorDot(_Oper):
             return a.dot(b)
         else:
             return a.ddot(b)
+        
+    @property
+    def shape(self):
+        if self._axes == 1:
+            return tuple(list(self._obj[0].shape[:-2]) + list(self._obj[1].shape[1:]))
+        elif self._axes == 2:
+            return tuple(list(self._obj[0].shape[:-3]) + list(self._obj[1].shape[2:]))
 
     @property
     def hasTrial(self):
@@ -560,13 +569,13 @@ class _TensorDot(_Oper):
 
     @printError
     def eval(self):
-        if self._axes == 1:
+        if self._obj[0].shape == self._obj[1].shape == ():
             return self._obj[0].eval() * self._obj[1].eval()
-        else:
-            v1, v2 = self._obj[0].eval(), self._obj[1].eval()
-            sym1, sym2 = "abcdef"[0:len(v1.shape)-2]+"ij", "ij"+"mnopqr"[0:len(v2.shape)-2]
-            expr = sym1+","+sym2+"->"+sym1[0:-2]+sym2[2:]
-            return ngsolve.fem.Einsum(expr, v1, v2)
+        s = self._axes
+        v1, v2 = self._obj[0].eval(), self._obj[1].eval()
+        sym1, sym2 = "abcdef"[0:len(v1.shape)-s]+"ijklmn"[:s], "ijklmn"[:s]+"opqrst"[0:len(v2.shape)-s]
+        expr = sym1+","+sym2+"->"+sym1[0:-s]+sym2[s:]
+        return ngsolve.fem.Einsum(expr, v1, v2)
 
     def __str__(self):
         if self._axes == 1:
@@ -588,6 +597,7 @@ class _TensorDot(_Oper):
             return True
         else:
             return super().isNonlinear
+
 
 class _Cross(_Oper):
     def __call__(self, v1, v2):
@@ -915,7 +925,7 @@ class TrialFunction(NGSFunction):
     def grad(self):
         if isinstance(self._tris, list):
             return self._scale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._tris]), dims=(ngsolve.grad(self._tris[0]).shape[0], len(self._tris))).TensorTranspose((1,0))
-        return self._scale * ngsolve.grad(super().eval())
+        return self._scale * ngsolve.grad(self._tris)
         
     @property
     def isNonlinear(self):

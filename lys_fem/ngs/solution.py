@@ -6,7 +6,6 @@ from .mesh import generateMesh, exportMesh
 from .material import generateMaterial
 from .models import generateModel
 from .solver import generateSolver
-from .util import grad
 
 
 class NGSSolution:
@@ -40,10 +39,10 @@ class NGSSolution:
         else:
             if not hasattr(coords, "__iter__"):
                 mip = self.__coordsToMIP(np.array([coords]))
-                return np.array([f(mi) for mi in mip])[0]
+                return np.array([f(mi) for mi in mip])[0].squeeze()
             else:
                 mip = self.__coordsToMIP(np.array(coords))
-                return np.array([f(mi) for mi in mip])
+                return np.array([f(mi) for mi in mip]).squeeze()
             
     def integrate(self, expression, index):
         import ngsolve
@@ -60,7 +59,7 @@ class NGSSolution:
         for domain in domains:
             nodes = np.unique([n for n in domain.values()])
             elems = {elem: np.searchsorted(nodes, n) for elem, n in domain.items()}
-            res.append(Wave(data[nodes-1], coords[nodes-1], elements=elems))
+            res.append(Wave(data[nodes-1].squeeze(), coords[nodes-1], elements=elems))
         return res
     
     def __coordsToMIP(self, coords):

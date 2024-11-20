@@ -115,7 +115,7 @@ class InfiniteVolume(FEMGeometry):
 
     def _constructJ(self, domain):
         a,b,c,A,B,C = np.array(self.args)
-        alpha = sp.Integer(2)
+        alpha = sp.Integer(1)
 
         Cx = np.array([0, b-a*(B-b)/(A-a), c-a*(C-c)/(A-a)])
         Cy = np.array([a-b*(A-a)/(B-b), 0, c-b*(C-c)/(B-b)])

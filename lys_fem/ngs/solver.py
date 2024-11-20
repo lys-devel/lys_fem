@@ -307,7 +307,7 @@ class RelaxationSolver(SolverBase):
             if dt == np.inf:
                 return
             if dx != 0:
-                dt *= min(np.sqrt(dx_ref/dx), self._tSolver.maxStep)
+                dt *= min(np.sqrt(dx_ref/abs(dx)), self._tSolver.maxStep)
             if dt < self._tSolver.dt0:
                 dt = self._tSolver.dt0
             if dt > self._tSolver.dt0*10**self._tSolver.factor:
