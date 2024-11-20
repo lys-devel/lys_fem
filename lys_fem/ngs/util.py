@@ -497,6 +497,10 @@ class _Mul(_Oper):
 
 class _Div(_Oper):
     def __call__(self, x, y):
+        if isinstance(x, ngsolve.CoefficientFunction) and isinstance(y, ngsolve.CoefficientFunction):
+            if (len(x.shape) == 0 and y.shape == (1,)) or (x.shape==(1,) and len(y.shape)==0):
+                return ngsolve.CoefficientFunction(x/y, dims=(1,))
+
         if isinstance(x, ngsolve.la.DynamicVectorExpression) and isinstance(y, (int, float, complex)):
             return 1 / y * x
         return x / y

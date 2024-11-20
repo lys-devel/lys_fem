@@ -34,7 +34,7 @@ class NGSLLGModel(NGSModel):
 
             # Left-hand side, normalization, exchange term
             wf += m.t.dot(test_m)*dx
-            wf += -A * m0.cross(grad(m)).ddot(grad(test_m))*dx
+            wf += A * grad(m).cross(m0).ddot(grad(test_m))*dx
             wf += -alpha * m0.cross(m.t).dot(test_m)*dx
 
             if self._model.constraint == "Lagrange":
@@ -93,6 +93,12 @@ class NGSLLGModel(NGSModel):
                 phi = mat[sc.values]
                 B = -mu0*grad(phi)
                 wf += -g*B.dot(test_v)*dx(sc.geometries)
+
+            for st in self._model.domainConditions.get(SpinTransferTorque):
+                beta = mat["beta_st"]
+                u = -mu_B/e/Ms*mat[st.values]/(1+beta**2)
+                w = u.dot(grad(m))
+                wf += -(m.cross(w) + beta*w).dot(test_v)*dx(st.geometries)
 
         return wf
 
