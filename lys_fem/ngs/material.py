@@ -27,9 +27,7 @@ class NGSParams(dict):
             self[key] = _generateCoefficient(value, mesh, name=key, dic=self)
 
     def __getitem__(self, expr):
-        if isinstance(expr, str):
-            expr = sp.parsing.sympy_parser.parse_expr(expr)
-        return _generateCoefficient(expr, self._mesh, dic=self)
+        return _generateCoefficient(expr, self._mesh, dic=dict(self))
 
     def eval(self, expr):
         d = dict(self._const)
@@ -83,7 +81,7 @@ def _generateCoefficient(coef, mesh=None, name="Undefined", dic={}):
         return util.NGSFunction([_generateCoefficient(c, dic=dic) for c in coef], name=name)
     elif isinstance(coef, (int, float, sp.Integer, sp.Float, ngsolve.CoefficientFunction)):
         return util.NGSFunction(coef, name=name)
-    elif isinstance(coef, sp.Basic):
-        return sp.lambdify(sp.symbols(list(dic.keys())), coef, modules=[util])(**dic)
+    elif isinstance(coef, str):
+        return eval(coef, dic)
     else:
         print("error")

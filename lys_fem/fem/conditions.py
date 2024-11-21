@@ -1,6 +1,5 @@
 import numpy as np
-import sympy as sp
-from .base import FEMObject, FEMObjectList, FEMCoefficient, strToExpr, exprToStr
+from .base import FEMObject, FEMObjectList, FEMCoefficient
 from .geometry import GeometrySelection
 
 
@@ -74,7 +73,7 @@ class ConditionBase(FEMObject):
 
     The condition (Domain, Boundary, and Initial conditions) in FEM is defined as values defined on geometries.
 
-    As values, general sympy expression or sequence of expression is acceptable.
+    As values, general string expression or sequence of string expression is acceptable.
     Even if the single condition requires several parameters (such as temperature and electric field), it is recommended to put all these values into single vector.
     """
 
@@ -87,10 +86,8 @@ class ConditionBase(FEMObject):
     def __parseValues(self, value):
         if isinstance(value, (list, tuple, np.ndarray)):
             return [self.__parseValues(v) for v in value]
-        elif isinstance(value, str):
-            return sp.parsing.sympy_parser.parse_expr(value)
         else:
-            return value
+            return str(value)
 
     @property
     def geometries(self):
@@ -109,13 +106,12 @@ class ConditionBase(FEMObject):
         self._values = values
 
     def saveAsDictionary(self):
-        return {"type": self.className, "objName": self.objName, "values": exprToStr(self.values), "geometries": self.geometries.saveAsDictionary()}
+        return {"type": self.className, "objName": self.objName, "values": self.values, "geometries": self.geometries.saveAsDictionary()}
 
     @classmethod
     def loadFromDictionary(cls, d):
         geometries = GeometrySelection.loadFromDictionary(d["geometries"])
-        values = strToExpr(d["values"])
-        return cls(values = values, geometries=geometries, objName=d["objName"])
+        return cls(values = d["values"], geometries=geometries, objName=d["objName"])
 
     @classmethod
     def default(cls, model):

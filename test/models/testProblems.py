@@ -369,11 +369,10 @@ class testProblems_test(FEMTestCase):
         p.mesher.setRefinement(2)
 
         # model: boundary and initial conditions
-        x = sp.Symbol("x")
         model = test.ScaleTestModel()
         model.boundaryConditions.append(test.DirichletBoundary([True], geometries=[1, 3]))
-        model.initialConditions.append(test.InitialCondition(x, geometries=[1]))
-        model.initialConditions.append(test.InitialCondition(x, geometries=[2]))
+        model.initialConditions.append(test.InitialCondition("x", geometries=[1]))
+        model.initialConditions.append(test.InitialCondition("x", geometries=[2]))
         p.models.append(model)
 
         # solver

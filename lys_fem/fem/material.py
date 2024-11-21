@@ -1,6 +1,6 @@
 import numpy as np
 
-from .base import FEMObject, FEMObjectList, FEMCoefficient, exprToStr, strToExpr
+from .base import FEMObject, FEMObjectList, FEMCoefficient
 from .geometry import GeometrySelection
 
 materialParameters = {}
@@ -106,8 +106,9 @@ class FEMParameter:
 
     def saveAsDictionary(self):
         d = dict(vars(self))
-        for key, value in d.items():
-            d[key] = exprToStr(value)
+        for key, item in d.items():
+            if isinstance(item, np.ndarray):
+                d[key] = item.tolist()
         d["paramsName"] = self.name
         return d
 
@@ -122,8 +123,6 @@ class FEMParameter:
         d = dict(d)
         cls = cls_dict[d["paramsName"]]
         del d["paramsName"]
-        for key, value in d.items():
-            d[key] = strToExpr(value)
         return cls(**d)
 
     def widget(self, name):
