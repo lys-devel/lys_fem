@@ -4,7 +4,6 @@ import ngsolve
 
 from lys_fem.fem import FEMCoefficient
 from . import util
-from .util import *
 
 
 def generateMaterial(fem, mesh):
@@ -27,15 +26,9 @@ class NGSParams(dict):
             self[key] = _generateCoefficient(value, mesh, name=key, dic=self)
 
     def __getitem__(self, expr):
-        return _generateCoefficient(expr, self._mesh, dic=dict(self))
-
-    def eval(self, expr):
         d = dict(self._const)
         d.update(self)
-        res = eval(str(expr), d)
-        if not isinstance(res, NGSFunction):
-            res = NGSFunction(res)
-        return res
+        return _generateCoefficient(expr, self._mesh, dic=d)
 
     def updateSolutionFields(self, step):
         for key, f in self.items():
@@ -82,6 +75,6 @@ def _generateCoefficient(coef, mesh=None, name="Undefined", dic={}):
     elif isinstance(coef, (int, float, sp.Integer, sp.Float, ngsolve.CoefficientFunction)):
         return util.NGSFunction(coef, name=name)
     elif isinstance(coef, str):
-        return eval(coef, dic)
+        return util.eval(coef, dic)
     else:
         print("error")

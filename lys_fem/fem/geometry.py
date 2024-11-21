@@ -2,7 +2,7 @@ import weakref
 import gmsh
 import numpy as np
 import sympy as sp
-from .base import FEMObject, strToExpr
+from .base import FEMObject
 
 gmsh.initialize()
 gmsh.option.setNumber("General.Terminal", 0)
@@ -143,13 +143,13 @@ class FEMGeometry(object):
         self._parent = weakref.ref(parent)
 
     def saveAsDictionary(self):
-        return {"type": self.type, "args": str(self.args)}
+        return {"type": self.type, "args": self.args}
 
     @staticmethod
     def loadFromDictionary(d):
         for t in sum(geometryCommands.values(), []):
             if t.type == d["type"]:
-                return t(*strToExpr(d["args"]))
+                return t(*d["args"])
 
     def generateParameters(self, model, scale):
         return {}

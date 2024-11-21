@@ -232,7 +232,7 @@ class SolverBase:
         if expr is None:
             expr = self._model.variables[0].name
         d = self._sols.replaceDict
-        return self._mat.eval(expr).replace(d)
+        return self._mat[expr].replace(d)
 
     def __prepareDirectory(self, dirname):
         self._dirname = "Solutions/" + dirname

@@ -3,7 +3,6 @@ from lys.Qt import QtCore, QtWidgets, QtGui
 from lys.decorators import avoidCircularReference
 from .dataView import FEMFileDialog
 from ..fem import SolutionField
-from ..fem.base import strToExpr
 
 
 class ScalarFunctionWidget(QtWidgets.QWidget):
@@ -32,10 +31,7 @@ class ScalarFunctionWidget(QtWidgets.QWidget):
         self.valueChanged.emit(self.value())
 
     def value(self):
-        try:
-            self._val = strToExpr(self._value.text())
-        except:
-            pass
+        self._val = self._value.text()
         return self._val
 
 
@@ -68,11 +64,9 @@ class VectorFunctionWidget(QtWidgets.QWidget):
         self.valueChanged.emit(self.value())
 
     def value(self):
-        try:
-            self._val = [strToExpr(v.text()) for v in self._value]
-        except:
-            pass
+        self._val = [v.text() for v in self._value]
         return self._val
+
 
 class MatrixFunctionWidget(QtWidgets.QWidget):
     valueChanged = QtCore.pyqtSignal(object)
@@ -155,10 +149,7 @@ class MatrixFunctionWidget(QtWidgets.QWidget):
         self.valueChanged.emit(self.value())
 
     def value(self):
-        try:
-            self._val = [[strToExpr(w.text()) for w in ws] for ws in self._value]
-        except:
-            pass
+        self._val = [[w.text() for w in ws] for ws in self._value]
         return self._val
 
 

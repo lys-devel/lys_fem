@@ -6,6 +6,7 @@ from .geometryGUI import BoxGUI, SphereGUI, RectGUI, LineGUI, DiskGUI, RectFrust
 
 
 class Box(FEMGeometry):
+    type = "box"
     def __init__(self, x=0, y=0, z=0, dx=1, dy=1, dz=1):
         super().__init__([x, y, z, dx, dy, dz])
 
@@ -13,16 +14,12 @@ class Box(FEMGeometry):
         args = trans(self.args, unit="m")
         model.occ.addBox(*args)
 
-    @classmethod
-    @property
-    def type(cls):
-        return "box"
-
     def widget(self):
         return BoxGUI(self)
 
 
 class Sphere(FEMGeometry):
+    type = "sphere"
     def __init__(self, x=0, y=0, z=0, r=1):
         super().__init__([x, y, z, r])
 
@@ -37,16 +34,12 @@ class Sphere(FEMGeometry):
         model.occ.addSphere(*args, angle1=0, angle3=3*np.pi/2)
         model.occ.addSphere(*args, angle1=0, angle3=2*np.pi)
 
-    @classmethod
-    @property
-    def type(cls):
-        return "sphere"
-
     def widget(self):
         return SphereGUI(self)
     
 
 class RectFrustum(FEMGeometry):
+    type = "rectngular frustum"
     def __init__(self, v1=(0,0,0), v2=(1,0,0), v3=(1,1,0), v4=(0,1,0), v5=(0,0,1), v6=(1,0,1), v7=(1,1,1), v8=(0,1,1)):
         super().__init__([v1, v2, v3, v4, v5, v6, v7, v8])
 
@@ -65,11 +58,6 @@ class RectFrustum(FEMGeometry):
         s6 = model.occ.addSurfaceFilling(model.occ.addCurveLoop([lines[3], lines[11], lines[7], lines[8]]))
         
         model.occ.addVolume([model.occ.addSurfaceLoop([s1, s3, s4, s5, s6, s2])])
-
-    @classmethod
-    @property
-    def type(cls):
-        return "rectngular frustum"
 
     def widget(self):
         return RectFrustumGUI(self)
@@ -157,6 +145,7 @@ class InfiniteVolume(FEMGeometry):
     
 
 class Rect(FEMGeometry):
+    type = "rectangle"
     def __init__(self, x=0, y=0, z=0, dx=1, dy=1):
         super().__init__([x, y, z, dx, dy])
 
@@ -164,16 +153,12 @@ class Rect(FEMGeometry):
         args = trans(self.args, unit="m")
         model.occ.addRectangle(*args)
 
-    @classmethod
-    @property
-    def type(cls):
-        return "rectangle"
-
     def widget(self):
         return RectGUI(self)
 
 
 class Disk(FEMGeometry):
+    type = "disk"
     def __init__(self, x=0, y=0, z=0, rx=1, ry=1):
         super().__init__([x, y, z, rx, ry])
 
@@ -181,16 +166,12 @@ class Disk(FEMGeometry):
         args = trans(self.args, unit="m")
         model.occ.addDisk(*args)
 
-    @classmethod
-    @property
-    def type(cls):
-        return "disk"
-
     def widget(self):
         return DiskGUI(self)
 
 
 class Quad(FEMGeometry):
+    type = "quad"
     def __init__(self, v1=(0,0,0), v2=(1,0,0), v3=(1,1,0), v4=(0,1,0)):
         super().__init__([v1, v2 ,v3, v4])
 
@@ -198,11 +179,6 @@ class Quad(FEMGeometry):
         pts = [model.occ.addPoint(*trans(v, unit="m")) for v in self.args]
         lines = [model.occ.addLine(pts[0], pts[1]), model.occ.addLine(pts[1], pts[2]), model.occ.addLine(pts[2], pts[3]), model.occ.addLine(pts[3], pts[0])]
         model.occ.addSurfaceFilling(model.occ.addCurveLoop([lines[0], lines[1], lines[2], lines[3]]))
-
-    @classmethod
-    @property
-    def type(cls):
-        return "quad"
 
     def widget(self):
         return QuadGUI(self)
@@ -268,6 +244,7 @@ class InfinitePlane(FEMGeometry):
     
 
 class Line(FEMGeometry):
+    type = "line"
     def __init__(self, x1=0, y1=0, z1=0, x2=1, y2=0, z2=0):
         super().__init__([x1, y1, z1, x2, y2, z2])
 
@@ -277,11 +254,6 @@ class Line(FEMGeometry):
         p1t = model.occ.addPoint(*arg1)
         p2t = model.occ.addPoint(*arg2)
         model.occ.addLine(p1t, p2t)
-
-    @classmethod
-    @property
-    def type(cls):
-        return "line"
 
     def widget(self):
         return LineGUI(self)

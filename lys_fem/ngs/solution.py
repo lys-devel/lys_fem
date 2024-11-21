@@ -25,7 +25,7 @@ class NGSSolution:
     def coef(self, expression, index=-1):
         self.update(index)
         d = self._solvers[0].solutions.replaceDict
-        return self._mats.eval(expression).replace(d).eval()
+        return self._mats[expression].replace(d).eval()
 
     def update(self, index=-1):
         if index < 0:

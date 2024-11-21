@@ -89,20 +89,3 @@ class FEMCoefficient:
             return FEMCoefficient({key: value[index] for key, value in self._value.items()}, geomType=self._type)
         return FEMCoefficient(self.value[index], geomType=self._type)
       
-
-def strToExpr(x):
-    if x.startswith("[String]"):
-        return x.replace("[String]","")
-    try:
-        res = eval(x,{})
-    except:
-        res = sp.parsing.sympy_parser.parse_expr(x)
-    return res
-
-
-def exprToStr(x):
-    if isinstance(x, str):
-        return "[String]"+x
-    if isinstance(x, np.ndarray):
-        x = x.tolist()
-    return str(x)
