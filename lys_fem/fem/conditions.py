@@ -86,6 +86,8 @@ class ConditionBase(FEMObject):
     def __parseValues(self, value):
         if isinstance(value, (list, tuple, np.ndarray)):
             return [self.__parseValues(v) for v in value]
+        if isinstance(value, (bool, int, float, complex)):
+            return value
         else:
             return str(value)
 

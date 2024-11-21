@@ -153,7 +153,7 @@ class InfiniteVolume(FEMGeometry):
             [m[1,1]*m[2,2]-m[1,2]*m[2,1], m[0,2]*m[2,1]-m[0,1]*m[2,2], m[0,1]*m[1,2]-m[0,2]*m[1,1]],
             [m[1,2]*m[2,0]-m[1,0]*m[2,2], m[0,0]*m[2,2]-m[0,2]*m[2,0], m[0,2]*m[1,0]-m[0,0]*m[1,2]],
             [m[1,0]*m[2,1]-m[1,1]*m[2,0], m[0,1]*m[2,0]-m[0,0]*m[2,1], m[0,0]*m[1,1]-m[0,1]*m[1,0]]])/det
-        return [[J[i,j] for j in range(3)] for i in range(3)]
+        return [[str(J[i,j]) for j in range(3)] for i in range(3)]
     
 
 class Rect(FEMGeometry):
@@ -261,7 +261,7 @@ class InfinitePlane(FEMGeometry):
         m = np.array([[X.diff(x), Y.diff(x)],[X.diff(y), Y.diff(y)]])
         det = m[0,0]*m[1,1]-m[0,1]*m[1,0]
         J = sp.Matrix([[m[1,1], -m[0,1]], [-m[1,0], m[0,0]]])/det
-        return [[J[i,j] for j in range(2)] for i in range(2)]
+        return [[str(J[i,j]) for j in range(2)] for i in range(2)]
 
     def widget(self):
         return InfinitePlaneGUI(self)
