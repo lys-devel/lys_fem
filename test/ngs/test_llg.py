@@ -9,23 +9,23 @@ class ngs_LLG_test(LLG_test):
         self.precession(ngs, constraint="Lagrange")
 
     def test_precession3(self):
-        self.precession(ngs, constraint="Alouges", discretization="Alouges theta")
+        self.precession(ngs, constraint="Alouges")
 
     def test_anisU(self):
         self.anisU(ngs)
 
     def test_anisU2(self):
-        self.anisU(ngs, constraint="Alouges", discretization="Alouges theta")
+        self.anisU(ngs, constraint="Alouges")
 
     def test_DW(self):
         self.domainWall(ngs)
 
     def test_DW2(self):
-        self.domainWall(ngs, constraint="Alouges", discretization="Alouges theta")
+        self.domainWall(ngs, constraint="Alouges")
 
     def test_DW_3d(self):
         return
-        self.domainWall_3d(ngs, constraint="Alouges", discretization="Alouges theta")
+        self.domainWall_3d(ngs, constraint="Alouges")
 
     def test_deform(self):
         return

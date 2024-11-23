@@ -14,7 +14,7 @@ class ExternalMagneticField(DomainCondition):
     className = "External Magnetic Field"
 
     @classmethod
-    def default(cls, model):
+    def default(cls, fem, model):
         return ExternalMagneticField([0,0,0])
 
     def widget(self, fem, canvas):
@@ -29,7 +29,7 @@ class MagneticScalarPotential(DomainCondition):
     className = "MagneticScalarPotential"
 
     @classmethod
-    def default(cls, model):
+    def default(cls, fem, model):
         return MagneticScalarPotential(0)
 
     def widget(self, fem, canvas):
@@ -40,8 +40,8 @@ class SpinTransferTorque(DomainCondition):
     className = "SpinTransferTorque"
 
     @classmethod
-    def default(cls, model):
-        return cls([0,0,0])
+    def default(cls, fem, model):
+        return cls([0]*fem.dimension)
 
     def widget(self, fem, canvas):
         return super().widget(fem, canvas, title="Spin polarized current (A/m^2)")
@@ -59,7 +59,7 @@ class LLGModel(FEMFixedModel):
 
     @property
     def discretizationTypes(self):
-        return ["LLG Asym", "Alouges theta"] + super().discretizationTypes
+        return ["LLG Asym"] + super().discretizationTypes
 
     @property
     def constraint(self):

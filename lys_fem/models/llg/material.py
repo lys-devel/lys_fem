@@ -24,7 +24,7 @@ class LLGParameters(FEMParameter):
         if self.Ku is not None:
             res["Ku"] = self.Ku
         if self.u_Ku is not None:
-            res["u_Ku"] = self.u_Ku/np.linalg.norm(self.u_Ku)
+            res["u_Ku"] = self.u_Ku
         if self.beta_st is not None:
             res["beta_st"] = self.beta_st
         return res

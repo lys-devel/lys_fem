@@ -84,7 +84,7 @@ class _DomainGUI(FEMTreeItem):
         self._model = model
 
     def append(self, type):
-        cond = type.default(self._model)
+        cond = type.default(self.fem(), self._model)
         self._model.domainConditions.append(cond)
         super().append(_DomainCondition(cond, self))
 
@@ -110,7 +110,7 @@ class _BoundaryGUI(FEMTreeItem):
         self._model = model
 
     def append(self, type):
-        cond = type.default(self._model)
+        cond = type.default(self.fem(), self._model)
         self._model.boundaryConditions.append(cond)
         super().append(_BoundaryCondition(cond, self))
 
@@ -136,7 +136,7 @@ class _InitialConditionGUI(FEMTreeItem):
         self._model = model
 
     def append(self, type):
-        cond = type.default(self._model)
+        cond = type.default(self.fem(), self._model)
         self._model.initialConditions.append(cond)
         super().append(_InitialCondition(cond, self))
 

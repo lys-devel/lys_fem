@@ -6,6 +6,7 @@ import ngsolve
 def eval(expr, dic={}):
     return builtins.eval(expr, globals(), dic)
 
+
 def prod(args):
     res = args[0]
     for arg in args[1:]:
@@ -119,7 +120,10 @@ class NGSFunction:
             self._name = "0"
         elif isinstance(obj, (int, float, complex, sp.Integer, sp.Float)):
             self._obj = ngsolve.CoefficientFunction(obj)
-            self._name = str(obj)
+            if name is "Undefined":
+                self._name = str(obj)
+            else:
+                self._name = name
             self._tdep = False
         elif isinstance(obj, (list, tuple, np.ndarray)):
             self._obj = [value if isinstance(value, NGSFunction) else NGSFunction(value) for value in obj]
@@ -191,7 +195,16 @@ class NGSFunction:
         raise RuntimeError("grad not implemented")
     
     def replace(self, d):
-        return (1*self).replace(d)
+        if self._obj is None:
+            return self
+        elif isinstance(self._obj, ngsolve.CoefficientFunction):
+            return d.get(self, self)
+        elif isinstance(self._obj, list):
+            return NGSFunction([obj.replace(d) obj in self._obj], name=name)
+        elif isinstance(self._obj, dict):
+            return NGSFunction({key: value.replace(d) for key, value in self._obj.items()}, name=self._name, mesh = self._mesh, default=self._default.replace(d), geomType=self._geom)
+        else:
+            raise RuntimeError("Error")
 
     @property
     def hasTrial(self):
@@ -383,20 +396,18 @@ class _Oper(NGSFunction):
             obj2 = NGSFunction(obj2, str(obj2))
         super().__init__([obj1, obj2])
 
-    def replace(self, d, type="NGS"):
+    def replace(self, d):
         if self in d:
             return d.get(self)
         objs = []
         for i in range(2):
             obj = self._obj[i]
             if isinstance(obj, _Oper):
-                replaced = obj.replace(d, type)
+                replaced = obj.replace(d)
             else:
                 replaced = d.get(obj, obj)
-            if replaced == 0 and type=="NGS":
+            if replaced == 0:
                 replaced = NGSFunction()
-            if type=="value" and isinstance(replaced, NGSFunction):
-                replaced = eval(str(replaced))
             objs.append(replaced)
         return self(*objs)
     

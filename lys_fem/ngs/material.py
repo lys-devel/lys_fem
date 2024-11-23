@@ -7,28 +7,26 @@ from . import util
 
 
 def generateMaterial(fem, mesh):
-    sols = {"x": util.NGSFunction(ngsolve.x, name="x"), "y": util.NGSFunction(ngsolve.y, name="y"), "z": util.NGSFunction(ngsolve.z, name="z"), "t": util.t}
-    sols.update({str(key): util.NGSFunction(value) for key, value in fem.parameters.getSolved().items()})
+    sols = {str(key): util.NGSFunction(value) for key, value in fem.parameters.getSolved().items()}
     sols.update({key: util.SolutionFieldFunction(coef.get(), tdep=coef.index is None) for key, coef in fem.solutionFields.items()})
-
-    mats = fem.materials.materialDict(mesh.dim)
-    mats.update(fem.geometries.geometryParameters())
-    return NGSParams(fem, mats, mesh, sols)
+    return NGSParams(fem, mesh, sols)
 
 
 class NGSParams(dict):
-    def __init__(self, fem, dic, mesh, sols):
+    def __init__(self, fem, mesh, sols):
         super().__init__(sols)
         self._fem = fem
         self._mesh = mesh
         self._const = NGSConstants()
-        for key, value in dic.items():
+        for key, value in fem.materials.materialDict(mesh.dim).items():
+            self[key] = _generateCoefficient(value, mesh, name=key, dic=self)
+        for key, value in fem.geometries.geometryParameters().items():
             self[key] = _generateCoefficient(value, mesh, name=key, dic=self)
 
     def __getitem__(self, expr):
         d = dict(self._const)
         d.update(self)
-        return _generateCoefficient(expr, self._mesh, dic=d)
+        return _generateCoefficient(expr, self._mesh, dic=d, name=str(expr))
 
     def updateSolutionFields(self, step):
         for key, f in self.items():
@@ -42,6 +40,11 @@ class NGSParams(dict):
 
 class NGSConstants(dict):
     def __init__(self):
+        self["x"] = util.NGSFunction(ngsolve.x, name="x")
+        self["y"] = util.NGSFunction(ngsolve.y, name="y")
+        self["z"] = util.NGSFunction(ngsolve.z, name="z")
+        self["t"] = util.t
+
         self["c"] = util.NGSFunction(2.99792458e8, name="c")
         self["e"] = util.NGSFunction(-1.602176634e-19, name="e")
         self["pi"] = util.NGSFunction(np.pi, name="pi")

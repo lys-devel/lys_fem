@@ -48,7 +48,7 @@ class NGSLLGModel(NGSModel):
                 wf += g*m.cross(B).dot(test_m)*dx(ex.geometries)
             
             for uni in self._model.domainConditions.get(UniaxialAnisotropy):
-                u, Ku = mat["u_Ku"], mat["Ku"]
+                u, Ku = mat["u_Ku/norm(u_Ku)"], mat["Ku"]
                 B = 2*Ku/Ms*m0.dot(u)*u
                 wf += g*m.cross(B).dot(test_m)*dx(uni.geometries)
 
@@ -82,10 +82,11 @@ class NGSLLGModel(NGSModel):
 
             for ex in self._model.domainConditions.get(ExternalMagneticField):
                 B = mat[ex.values]
+                print(ex.values, type(ex.values))
                 wf += -g*B.dot(test_v)*dx(ex.geometries)
 
             for uni in self._model.domainConditions.get(UniaxialAnisotropy):
-                u, Ku = mat["u_Ku"], mat["Ku"]
+                u, Ku = mat["u_Ku/norm(u_Ku)"], mat["Ku"]
                 B = 2*Ku/Ms*m.dot(u)*u
                 wf += -g*B.dot(test_v)*dx(uni.geometries)
 
@@ -113,15 +114,6 @@ class NGSLLGModel(NGSModel):
                 d = time.BackwardEuler.generateWeakforms(v, sols, dti)
                 d[v.trial.value] = (1-w)*v.trial + w*mn
                 d[grad(v.trial)] = (1-w)*grad(v.trial) + w*gn
-            return d
-        
-        if self._model.discretization == "Alouges theta":
-            d = {}
-            for v in self.variables:
-                if "_lam" in v.name or "_v" in v.name:
-                    continue
-                mn, gn = sols.X()[v.name], sols.grad()[v.name]
-                d[grad(v.trial)] = gn
             return d
         return super().discretize(sols, dti)
 

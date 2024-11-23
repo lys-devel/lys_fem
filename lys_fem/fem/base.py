@@ -58,7 +58,7 @@ class FEMObjectList(list, FEMObject):
 
 class FEMCoefficient:
     """
-    Sympy-based coefficient object for FEM.
+    String expression coefficient object for FEM.
     value is string expression, list of string expression, or dict of them.
     """
     def __init__(self, value=0, geomType="Domain"):

@@ -116,7 +116,7 @@ class ConditionBase(FEMObject):
         return cls(values = d["values"], geometries=geometries, objName=d["objName"])
 
     @classmethod
-    def default(cls, model):
+    def default(cls, fem, model):
         return cls()
 
     def widget(self, fem, canvas, title="Value", shape=None):
@@ -140,7 +140,7 @@ class InitialCondition(ConditionBase):
         super().__init__("Domain", *args, **kwargs)
 
     @classmethod
-    def default(cls, model):
+    def default(cls, fem, model):
         return InitialCondition([0]*model.variableDimension())
 
     def widget(self, fem, canvas, title="Initial Value"):

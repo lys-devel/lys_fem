@@ -24,7 +24,7 @@ class _Solution:
         self._use_a = False
 
     def initialize(self):
-        self.update(self._model.initialValue(self._use_a))
+        self.update(self._model.initialValue(self._use_a and False))
 
     def reset(self):
         for i in range(self.nlog):
@@ -114,6 +114,7 @@ class _Operator:
     def __prepareWeakform(self, model, diff, sols, symbols):
         wf = model.weakforms()
         d = dict(diff)
+        print("before", wf)
         if symbols is not None:
             X, V, A, G = sols.X(), sols.V(), sols.A(), sols.grad()
             for v in model.variables:
@@ -121,11 +122,11 @@ class _Operator:
                     d[v.trial] = X[v.name]
                     d[v.trial.t] = V[v.name]
                     d[v.trial.tt] = A[v.name]
-                    if util.grad(v.trial) not in d:
-                        d[util.grad(v.trial)] = G[v.name]
+                    d[util.grad(v.trial)] = G[v.name]
                     d[v.test] = 0
                     d[util.grad(v.test)] = 0
         wf = wf.replace(d)
+        print("after", wf)
         return wf
 
     def __call__(self, x):
@@ -310,6 +311,8 @@ class RelaxationSolver(SolverBase):
                 dt *= min(np.sqrt(dx_ref/abs(dx)), self._tSolver.maxStep)
             if dt < self._tSolver.dt0:
                 dt = self._tSolver.dt0
+            if dt > 1e-9:
+                dt = 1e-9
             if dt > self._tSolver.dt0*10**self._tSolver.factor:
                 if self._tSolver.inf:
                     print("inf")
