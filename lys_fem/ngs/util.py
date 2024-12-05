@@ -120,7 +120,7 @@ class NGSFunction:
             self._name = "0"
         elif isinstance(obj, (int, float, complex, sp.Integer, sp.Float)):
             self._obj = ngsolve.CoefficientFunction(obj)
-            if name is "Undefined":
+            if name == "Undefined":
                 self._name = str(obj)
             else:
                 self._name = name
@@ -197,14 +197,16 @@ class NGSFunction:
     def replace(self, d):
         if self._obj is None:
             return self
-        elif isinstance(self._obj, ngsolve.CoefficientFunction):
-            return d.get(self, self)
         elif isinstance(self._obj, list):
-            return NGSFunction([obj.replace(d) obj in self._obj], name=name)
+            return NGSFunction([obj.replace(d) for obj in self._obj], name=self._name)
         elif isinstance(self._obj, dict):
-            return NGSFunction({key: value.replace(d) for key, value in self._obj.items()}, name=self._name, mesh = self._mesh, default=self._default.replace(d), geomType=self._geom)
+            if self._default is None:
+                default = None
+            else:
+                default = self._default.replace(d)
+            return NGSFunction({key: value.replace(d) for key, value in self._obj.items()}, name=self._name, mesh = self._mesh, default=default, geomType=self._geom)
         else:
-            raise RuntimeError("Error")
+            return d.get(self, self)
 
     @property
     def hasTrial(self):
@@ -402,10 +404,7 @@ class _Oper(NGSFunction):
         objs = []
         for i in range(2):
             obj = self._obj[i]
-            if isinstance(obj, _Oper):
-                replaced = obj.replace(d)
-            else:
-                replaced = d.get(obj, obj)
+            replaced = obj.replace(d)
             if replaced == 0:
                 replaced = NGSFunction()
             objs.append(replaced)
@@ -948,6 +947,9 @@ class TrialFunction(NGSFunction):
     @property
     def isNonlinear(self):
         return False
+
+    def replace(self, d):
+        return d.get(self, self)
         
 
 class TestFunction(NGSFunction):
@@ -982,7 +984,10 @@ class TestFunction(NGSFunction):
     @property
     def isNonlinear(self):
         return False
-     
+
+    def replace(self, d):
+        return d.get(self, self)
+
 
 class TrialFunctionValue(NGSFunction):
     def __init__(self, obj, name):
@@ -1020,6 +1025,9 @@ class TrialFunctionValue(NGSFunction):
     def rhs(self):
         return NGSFunction()
 
+    def replace(self, d):
+        return d.get(self, self)
+        
 
 class DifferentialSymbol(NGSFunction):
     def __init__(self, obj, **kwargs):

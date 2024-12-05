@@ -82,7 +82,6 @@ class NGSLLGModel(NGSModel):
 
             for ex in self._model.domainConditions.get(ExternalMagneticField):
                 B = mat[ex.values]
-                print(ex.values, type(ex.values))
                 wf += -g*B.dot(test_v)*dx(ex.geometries)
 
             for uni in self._model.domainConditions.get(UniaxialAnisotropy):

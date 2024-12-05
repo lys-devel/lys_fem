@@ -114,7 +114,6 @@ class _Operator:
     def __prepareWeakform(self, model, diff, sols, symbols):
         wf = model.weakforms()
         d = dict(diff)
-        print("before", wf)
         if symbols is not None:
             X, V, A, G = sols.X(), sols.V(), sols.A(), sols.grad()
             for v in model.variables:
@@ -126,7 +125,6 @@ class _Operator:
                     d[v.test] = 0
                     d[util.grad(v.test)] = 0
         wf = wf.replace(d)
-        print("after", wf)
         return wf
 
     def __call__(self, x):
