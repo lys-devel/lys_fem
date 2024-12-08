@@ -238,6 +238,7 @@ class _InitialCondition(FEMTreeItem):
 class FEMModelWidget(QtWidgets.QWidget):
     def __init__(self, model):
         super().__init__()
+        self.__model = model
         self.__initlayout(model)
 
     def __initlayout(self, model):
@@ -261,10 +262,10 @@ class FEMModelWidget(QtWidgets.QWidget):
         self.setLayout(layout)
 
     def __changeDim(self, value):
-        self._model.setVariableDimension(self._dim.value())
+        self.__model.setVariableDimension(self._dim.value())
 
     def __change(self):
-        self._model.order = self._order.value()
+        self.__model.order = self._order.value()
 
 
 class FEMFixedModelWidget(QtWidgets.QWidget):
