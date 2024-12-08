@@ -1,5 +1,5 @@
 from lys_fem.ngs import NGSModel, grad, dx, util, time
-from . import ExternalMagneticField, UniaxialAnisotropy, MagneticScalarPotential, SpinTransferTorque
+from . import ExternalMagneticField, UniaxialAnisotropy, CubicAnisotropy, MagneticScalarPotential, SpinTransferTorque
 
 class NGSLLGModel(NGSModel):
     def __init__(self, model, mesh, vars):
@@ -69,30 +69,45 @@ class NGSLLGModel(NGSModel):
         alpha = mat["alpha"]
 
         wf = 0
+        theta = 1
         for eq in self._model.equations:
             m, test_m = vars[eq.variableName]
             v, test_v = vars[eq.variableName+"_v"]
             lam, test_lam = vars[eq.variableName+"_lam"]
 
-            # Left-hand side, normalization, exchange term
+            # Left-hand side, normalization term
             wf += m.cross(v).dot(test_v)*dx + alpha*v.dot(test_v)*dx
             wf += (lam*m.dot(test_v) + v.dot(m)*test_lam)*dx
+
+            # Exchange term
             wf += A*grad(m).ddot(grad(test_v))*dx
-            wf += A*grad(v).ddot(grad(test_v))/dti*dx
+            wf += A*grad(v).ddot(grad(test_v))*theta/dti*dx
+            wf += A*grad(m).ddot(grad(m))*v.dot(test_v)*theta/dti*dx
 
             for ex in self._model.domainConditions.get(ExternalMagneticField):
                 B = mat[ex.values]
                 wf += -g*B.dot(test_v)*dx(ex.geometries)
+                wf += g*m.dot(B)*v.dot(test_v)*theta/dti*dx(ex.geometries)
 
             for uni in self._model.domainConditions.get(UniaxialAnisotropy):
                 u, Ku = mat["u_Ku/norm(u_Ku)"], mat["Ku"]
                 B = 2*Ku/Ms*m.dot(u)*u
                 wf += -g*B.dot(test_v)*dx(uni.geometries)
+                wf += g*m.dot(B)*v.dot(test_v)*theta/dti*dx(uni.geometries)
+
+            for cu in self._model.domainConditions.get(CubicAnisotropy):
+                c1, c2, c3, Kc = mat["u_Kc[0]/norm(u_Kc[0])"], mat["u_Kc[1]/norm(u_Kc[1])"], mat["u_Kc[2]/norm(u_Kc[2])"], mat["Kc"]
+                B =  -2*Kc/Ms*(c2.dot(m)**2+c3.dot(m)**2)*c1.dot(m)*c1
+                B += -2*Kc/Ms*(c3.dot(m)**2+c1.dot(m)**2)*c2.dot(m)*c2
+                B += -2*Kc/Ms*(c1.dot(m)**2+c2.dot(m)**2)*c3.dot(m)*c3
+                wf += -g*B.dot(test_v)*dx(cu.geometries)
+                wf += g*m.dot(B)*v.dot(test_v)*theta/dti*dx(cu.geometries)
 
             for sc in self._model.domainConditions.get(MagneticScalarPotential):
                 phi = mat[sc.values]
                 B = -mu0*grad(phi)
                 wf += -g*B.dot(test_v)*dx(sc.geometries)
+                wf += g*m.dot(B)*v.dot(test_v)*theta/dti*dx(sc.geometries)
 
             for st in self._model.domainConditions.get(SpinTransferTorque):
                 beta = mat["beta_st"]

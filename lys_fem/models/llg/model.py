@@ -25,6 +25,10 @@ class UniaxialAnisotropy(DomainCondition):
     className = "UniaxialAnisotropy"
 
 
+class CubicAnisotropy(DomainCondition):
+    className = "CubicAnisotropy"
+
+
 class MagneticScalarPotential(DomainCondition):
     className = "MagneticScalarPotential"
 
@@ -50,7 +54,7 @@ class SpinTransferTorque(DomainCondition):
 class LLGModel(FEMFixedModel):
     className = "LLG"
     equationTypes = [LLGEquation]
-    domainConditionTypes = [ExternalMagneticField, UniaxialAnisotropy, MagneticScalarPotential, SpinTransferTorque]
+    domainConditionTypes = [ExternalMagneticField, UniaxialAnisotropy, CubicAnisotropy, MagneticScalarPotential, SpinTransferTorque]
     boundaryConditionTypes = [DirichletBoundary]
 
     def __init__(self, *args, discretization="LLG Asym", constraint="Lagrange", order=2, **kwargs):

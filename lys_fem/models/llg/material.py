@@ -5,12 +5,14 @@ from lys_fem import FEMParameter
 class LLGParameters(FEMParameter):
     name = "LLG"
 
-    def __init__(self, Ms=1e6, Aex=1e-11, alpha=0, Ku=None, u_Ku=None, beta_st=None):
+    def __init__(self, Ms=1e6, Aex=1e-11, alpha=0, Ku=None, u_Ku=None, Kc=None, u_Kc=None, beta_st=None):
         self.alpha = alpha
         self.Ms = Ms
         self.Aex = Aex
         self.Ku = Ku
         self.u_Ku = u_Ku
+        self.Kc = Kc
+        self.u_Kc = u_Kc
         self.beta_st = beta_st
 
     def getParameters(self, dim):
@@ -25,6 +27,10 @@ class LLGParameters(FEMParameter):
             res["Ku"] = self.Ku
         if self.u_Ku is not None:
             res["u_Ku"] = self.u_Ku
+        if self.Kc is not None:
+            res["Kc"] = self.Kc
+        if self.u_Kc is not None:
+            res["u_Kc"] = self.u_Kc
         if self.beta_st is not None:
             res["beta_st"] = self.beta_st
         return res
@@ -37,6 +43,8 @@ class LLGParameters(FEMParameter):
             "alpha": "Gilbert damping const.",
             "Ku": "Uniaxial anisotropy (J/m^3)",
             "u_Ku": "Uniaxial anisotropy direction",
+            "Kc": "Cubic anisotropy (J/m^3)",
+            "u_Kc": "Cubic anisotropy directions",
             "beta_st": "Nonadiabasity of spin-transfer torque",
         }
 
@@ -48,5 +56,7 @@ class LLGParameters(FEMParameter):
             "alpha": 0,
             "Ku": 1e3,
             "u_Ku": [0,0,1],
+            "Kc": 100,
+            "u_Kc": [[1,0,0], [0,1,0], [0,1,0]],
             "beta_st": 0.1,
         }
