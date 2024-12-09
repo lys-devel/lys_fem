@@ -23,7 +23,7 @@ class FEMProject:
         self._models = FEMObjectList(self)
         self._solvers = FEMObjectList(self)
         self._solutions = SolutionFields()
-        self._submit = {}
+        self._submit = {"nthreads": 4}
 
     def saveAsDictionary(self, parallel=False):
         d = {"dimension": self._dim, "parallel": parallel}

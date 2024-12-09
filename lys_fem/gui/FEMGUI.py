@@ -123,11 +123,11 @@ class FEMGUI(LysSubWindow):
             self.__save()
             self.__save(path=path + "/input.dic", parallel=sub["type"] != "Serial")
             ncore = 1 if sub["type"] == "Serial" else sub["ncore"]
+            command = "python -m lys_fem.ngs -nt "+str(sub["nthreads"])
             if sub["type"] in ["Serial", "Parallel"]:
-                qsub.execute("python -m lys_fem.ngs", path, ncore=ncore)
+                qsub.execute(command, path, ncore=ncore)
             elif sub["type"] == "qsub":
-                command = "python -m lys_fem.ngs"
-                qsub.submit(command, path=path, ncore=ncore, nodes=sub["nnodes"], name="mfem", queue=sub["queue"])
+                qsub.submit(command, path=path, ncore=ncore, nodes=sub["nnodes"], name="ngs", queue=sub["queue"])
 
     def __loadProj(self):
         d = FEMFileDialog(self)
@@ -149,10 +149,12 @@ class _SubmitDialog(QtWidgets.QDialog):
         self._view = FEMFileSystemView(filter=False)
         self._name = QtWidgets.QLineEdit()
         self._type = QtWidgets.QComboBox()
-        self._type.addItems(["Serial", "Parallel", "qsub"])
+        self._type.addItems(["Serial", "Screen", "Parallel", "qsub"])
         self._np = QtWidgets.QSpinBox()
         self._np.setRange(1, 100000000)
         self._np.setEnabled(False)
+        self._threads = QtWidgets.QSpinBox()
+        self._threads.setRange(1,1000000)
         self._nodes = QtWidgets.QSpinBox()
         self._nodes.setRange(1, 100000000)
         self._nodes.setEnabled(False)
@@ -165,12 +167,14 @@ class _SubmitDialog(QtWidgets.QDialog):
         grid.addWidget(self._name, 0, 1)
         grid.addWidget(QtWidgets.QLabel("Type"), 1, 0)
         grid.addWidget(self._type, 1, 1)
-        grid.addWidget(QtWidgets.QLabel("Number of cores"), 2, 0)
-        grid.addWidget(self._np, 2, 1)
-        grid.addWidget(QtWidgets.QLabel("Number of nodes"), 3, 0)
-        grid.addWidget(self._nodes, 3, 1)
-        grid.addWidget(QtWidgets.QLabel("Queue name"), 4, 0)
-        grid.addWidget(self._queue, 4, 1)
+        grid.addWidget(QtWidgets.QLabel("Number of threads"), 2, 0)
+        grid.addWidget(self._threads, 2, 1)
+        grid.addWidget(QtWidgets.QLabel("Number of cores"), 3, 0)
+        grid.addWidget(self._np, 3, 1)
+        grid.addWidget(QtWidgets.QLabel("Number of nodes"), 4, 0)
+        grid.addWidget(self._nodes, 4, 1)
+        grid.addWidget(QtWidgets.QLabel("Queue name"), 5, 0)
+        grid.addWidget(self._queue, 5, 1)
 
         h1 = QtWidgets.QHBoxLayout()
         h1.addWidget(QtWidgets.QPushButton('O K', clicked=self.accept))
@@ -205,7 +209,7 @@ class _SubmitDialog(QtWidgets.QDialog):
         return "FEM/" + self._view.getCurrentPath() + "/" + self._name.text()
 
     def getSettingDict(self):
-        return {"name": self._name.text(), "type": self._type.currentText(), "ncore": self._np.value(), "nnodes": self._nodes.value(), "queue": self._queue.text()}
+        return {"name": self._name.text(), "type": self._type.currentText(), "ncore": self._np.value(), "nnodes": self._nodes.value(), "queue": self._queue.text(), "nthreads": self._threads.value()}
 
     def setSettingDict(self, d):
         if "name" in d:
@@ -218,3 +222,5 @@ class _SubmitDialog(QtWidgets.QDialog):
             self._nodes.setValue(d["nnodes"])
         if "queue" in d:
             self._queue.setText(d["queue"])
+        if "nthreads" in d:
+            self._threads.setValue(d["nthreads"])

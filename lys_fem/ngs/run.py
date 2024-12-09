@@ -1,4 +1,5 @@
 import time
+import ngsolve
 from .mpi import print_, info, isParallel, wait
 from .mesh import generateMesh
 from .material import generateMaterial
@@ -6,7 +7,7 @@ from .models import generateModel
 from .solver import generateSolver
 
 
-def run(fem, run=True, save=True):
+def run(fem, run=True, save=True, nthreads=4):
     print_("\n----------------------------NGS started ---------------------------")
     print_()
     info()
@@ -15,6 +16,10 @@ def run(fem, run=True, save=True):
         d = fem.saveAsDictionary(parallel=isParallel())
         with open("input.dic", "w") as f:
             f.write(str(d))
+
+    ngsolve.SetNumThreads(nthreads)
+    print_("Number of threads:", nthreads)
+    print_()
 
     start = time.time()
     mesh = generateMesh(fem)
