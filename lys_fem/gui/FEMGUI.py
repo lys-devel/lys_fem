@@ -149,7 +149,7 @@ class _SubmitDialog(QtWidgets.QDialog):
         self._view = FEMFileSystemView(filter=False)
         self._name = QtWidgets.QLineEdit()
         self._type = QtWidgets.QComboBox()
-        self._type.addItems(["Serial", "Screen", "Parallel", "qsub"])
+        self._type.addItems(["Serial", "Parallel", "qsub"])
         self._np = QtWidgets.QSpinBox()
         self._np.setRange(1, 100000000)
         self._np.setEnabled(False)

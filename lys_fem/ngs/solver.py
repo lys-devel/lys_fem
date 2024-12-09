@@ -342,7 +342,7 @@ def newton(F, x, eps=1e-5, max_iter=30, gamma=1):
         dx.data *= gamma
         x -= dx
         R = np.sqrt(np.divide(dx.InnerProduct(dx), x.InnerProduct(x)))
-        print("R =", R)
+        mpi.print_("R =", R)
         if R < eps:
             if i!=0:
                 mpi.print_("[Newton solver] Converged in", i, "steps.")

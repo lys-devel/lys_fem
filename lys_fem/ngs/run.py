@@ -35,7 +35,7 @@ def run(fem, run=True, save=True, nthreads=4):
     start = time.time()
     model = generateModel(fem, mesh, mats)
     print_("NGS Models generated in ", '{:.2f}'.format(time.time()-start), "seconds :")
-    print("\tTodal degree of freedom:", model.finiteElementSpace.ndof)
+    print_("\tTodal degree of freedom:", model.finiteElementSpace.ndof)
     for m in model.models:
         print_("\t"+m.name+":", {v.name: v.size for v in m.variables}, "Discretization:", m.discretization)
     print_()

@@ -1,7 +1,6 @@
 import numpy as np
 from scipy.spatial import KDTree
 
-import gmsh
 import ngsolve
 from netgen.meshing import Mesh, Element0D, Element1D, Element2D, Element3D, FaceDescriptor, Pnt, MeshPoint
 
@@ -23,19 +22,17 @@ def generateMesh(fem, file="mesh.msh"):
     if mpi.isRoot:
         geom = fem.geometries.generateGeometry()
         fem.mesher.export(geom, file)
-        gmesh, points = ReadGmsh(file, fem.dimension)
+        gmesh = ReadGmsh(file, fem.dimension)
         gmesh.Scale(fem.geometries.scale)
-        if gmesh.dim == 1:
-            _createBoundaryFor1D(gmesh, file, points)
         coords = np.array(gmesh.Coordinates())
 
     if mpi.isParallel():
-        from mpi4py import MPI
+        comm = ngsolve.MPI_Init()
         if mpi.isRoot:
-            mesh = NGSMesh(gmesh.Distribute(MPI.COMM_WORLD))
+            mesh = NGSMesh(gmesh.Distribute(comm))
             mesh._coords_global = coords
         else:
-            mesh = NGSMesh(Mesh.Receive(MPI.COMM_WORLD))
+            mesh = NGSMesh(Mesh.Receive(comm))
         _createMapping(mesh)
     else:
         mesh = NGSMesh(gmesh)
@@ -44,21 +41,6 @@ def generateMesh(fem, file="mesh.msh"):
     util.dx.setMesh(mesh)
     util.ds.setMesh(mesh)
     return mesh
-
-def _createBoundaryFor1D(gmesh, file, points):
-    # Load file by gmsh
-    model = gmsh.model()
-    model.add("Default")
-    model.setCurrent("Default")
-    gmsh.merge(file)
-
-    # Get all boundary nodes
-    tags = [tag for dim, tag in model.getEntities(0)]
-
-    # Set the boundary nodes to mesh object.
-    for t in tags:
-        gmesh.Add(Element0D(points[t], index=t))
-        gmesh.SetBCName(t-1, "boundary"+str(t))
 
 
 def _createMapping(mesh):
@@ -176,7 +158,7 @@ def ReadGmsh(filename, meshdim): #from netgen.read_gmsh import ReadGmsh
 
                 elem_dim = 0 if elmtype==point else (1 if elmtype in [segm, segm3] else (2 if elmtype in [trig, trig6, quad, quad8] else 3))
 
-                if elem_dim == 0:
+                if elem_dim == 0 and meshdim != 1:
                     continue
 
                 if elem_dim == meshdim:
@@ -206,6 +188,8 @@ def ReadGmsh(filename, meshdim): #from netgen.read_gmsh import ReadGmsh
                         mesh.SetCD2Name(index, "edge" + str(group))
                         bbcmap[id] = index
 
+                if elem_dim == 0:
+                    mesh.Add(Element0D(pointmap[index], index))
                 if elem_dim == 1:
                     mesh.Add(Element1D(index=index, vertices=nodenums))
                 elif elem_dim==2:
@@ -213,4 +197,4 @@ def ReadGmsh(filename, meshdim): #from netgen.read_gmsh import ReadGmsh
                 elif elem_dim==3:
                     mesh.Add(Element3D(index, nodenums))
 
-    return mesh, pointmap
+    return mesh
