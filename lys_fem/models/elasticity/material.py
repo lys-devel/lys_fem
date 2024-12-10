@@ -1,9 +1,7 @@
 import itertools
 import numpy as np
 
-from lys.Qt import QtWidgets
 from lys_fem import FEMParameter
-from lys_fem.widgets import ScalarFunctionWidget
 
 
 class ElasticParameters(FEMParameter):
@@ -53,8 +51,9 @@ class ElasticParameters(FEMParameter):
         }
 
     def widget(self, name):
+        from .widgets import ElasticConstWidget
         if name=="C":
-            return _ElasticConstWidget(self)
+            return ElasticConstWidget(self)
         else:
             return super().widget(name)
 
@@ -98,63 +97,3 @@ class ElasticParameters(FEMParameter):
                 res += mu
         return res
 
-
-class _ElasticConstWidget(QtWidgets.QWidget):
-    def __init__(self, param):
-        super().__init__()
-        self._param = param
-        self.__initlayout()
-
-    def __initlayout(self):
-        d = {"lame": "Lamé", "yound": "Young", "isotropic": "Isotropic"}
-        self._type = QtWidgets.QComboBox()
-        self._type.addItems(d.values())
-        self._type.setCurrentText(d[self._param.type])
-        self._type.currentTextChanged.connect(self.__changeMode)
-
-        self._lamb = ScalarFunctionWidget("Lamé const. lambda (Pa)", self._param.C[0], valueChanged=self.__set)
-        self._mu = ScalarFunctionWidget("Lamé const. mu (Pa)", self._param.C[1], valueChanged=self.__set)
-
-        self._E = ScalarFunctionWidget("Young modulus E (Pa)", self._param.C[0], valueChanged=self.__set)
-        self._v = ScalarFunctionWidget("Poisson ratio v (Pa)", self._param.C[1], valueChanged=self.__set)
-
-        self._C1 = ScalarFunctionWidget("Elastic const. C11 (Pa)", self._param.C[0], valueChanged=self.__set)
-        self._C2 = ScalarFunctionWidget("Elastic const. C12 (Pa)", self._param.C[1], valueChanged=self.__set)
-
-        self._widgets = [self._lamb, self._mu, self._E, self._v, self._C1, self._C2]
-
-        layout = QtWidgets.QVBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self._type)
-        layout.addWidget(self._lamb)
-        layout.addWidget(self._mu)
-        layout.addWidget(self._E)
-        layout.addWidget(self._v)
-        layout.addWidget(self._C1)
-        layout.addWidget(self._C2)
-        self.setLayout(layout)
-        self.__changeMode()
-
-    def __changeMode(self):
-        for w in self._widgets:
-            w.hide()
-        if self._type.currentText() == "Lamé":
-            self._lamb.show()
-            self._mu.show()
-        if self._type.currentText() == "Young":
-            self._E.show()
-            self._v.show()
-        if self._type.currentText() == "Isotropic":
-            self._C1.show()
-            self._C2.show()
-
-    def __set(self):
-        if self._type.currentText() == "Lamé":
-            self._param.type = "lame"
-            self._param.C = [self._lamb.value(), self._mu.value()]
-        if self._type.currentText() == "Young":
-            self._param.type = "young"
-            self._param.C = [self._E.value(), self._v.value()]
-        if self._type.currentText() == "Isotropic":
-            self._param.type = "isotropic"
-            self._param.C = [self._C1.value(), self._C2.value()]

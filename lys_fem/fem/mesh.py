@@ -2,7 +2,6 @@ import itertools
 import numpy as np
 
 import gmsh
-from lys import Wave
 from .base import FEMObject, FEMObjectList
 from .geometry import GeometrySelection
 
@@ -155,6 +154,7 @@ class OccMesher(FEMObject):
         return lc
 
     def getMeshWave(self, model, dim=3):
+        from lys import Wave
         self._generate(model)
         result = []
         for dim, grp in model.getPhysicalGroups(dim):

@@ -1,7 +1,6 @@
 import glob
 import numpy as np
 
-from lys import Wave
 from .mesh import generateMesh, exportMesh
 from .material import generateMaterial
 from .models import generateModel
@@ -50,6 +49,7 @@ class NGSSolution:
         return ngsolve.Integrate(f, self._mesh)
 
     def __getDomainValues(self, f):
+        from lys import Wave
         domains, coords = self._meshInfo
         mip = [self._mesh(*c) for c in coords]
         data=np.array([f(mi) for mi in mip])

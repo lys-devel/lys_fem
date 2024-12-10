@@ -2,7 +2,6 @@ import numpy as np
 import sympy as sp
 from lys_fem import addGeometry, FEMGeometry
 from lys_fem.fem import FEMCoefficient
-from .geometryGUI import BoxGUI, SphereGUI, RectGUI, LineGUI, DiskGUI, RectFrustumGUI, InfiniteVolumeGUI, QuadGUI, InfinitePlaneGUI
 
 
 class Box(FEMGeometry):
@@ -15,6 +14,7 @@ class Box(FEMGeometry):
         model.occ.addBox(*args)
 
     def widget(self):
+        from .geometryGUI import BoxGUI
         return BoxGUI(self)
 
 
@@ -35,6 +35,7 @@ class Sphere(FEMGeometry):
         model.occ.addSphere(*args, angle1=0, angle3=2*np.pi)
 
     def widget(self):
+        from .geometryGUI import SphereGUI
         return SphereGUI(self)
     
 
@@ -60,6 +61,7 @@ class RectFrustum(FEMGeometry):
         model.occ.addVolume([model.occ.addSurfaceLoop([s1, s3, s4, s5, s6, s2])])
 
     def widget(self):
+        from .geometryGUI import RectFrustumGUI
         return RectFrustumGUI(self)
     
 
@@ -78,6 +80,7 @@ class InfiniteVolume(FEMGeometry):
         RectFrustum((-a,b,c), (-a,-b,c), (-a,-b,-c),(-a,b,-c),(-A,B,C), (-A,-B,C), (-A,-B,-C),(-A,B,-C)).execute(model, trans)
 
     def widget(self):
+        from .geometryGUI import InfiniteVolumeGUI
         return InfiniteVolumeGUI(self)
 
     def generateParameters(self, model, trans):
@@ -154,6 +157,7 @@ class Rect(FEMGeometry):
         model.occ.addRectangle(*args)
 
     def widget(self):
+        from .geometryGUI import RectGUI
         return RectGUI(self)
 
 
@@ -167,6 +171,7 @@ class Disk(FEMGeometry):
         model.occ.addDisk(*args)
 
     def widget(self):
+        from .geometryGUI import DiskGUI
         return DiskGUI(self)
 
 
@@ -181,6 +186,7 @@ class Quad(FEMGeometry):
         model.occ.addSurfaceFilling(model.occ.addCurveLoop([lines[0], lines[1], lines[2], lines[3]]))
 
     def widget(self):
+        from .geometryGUI import QuadGUI
         return QuadGUI(self)
 
 
@@ -240,6 +246,7 @@ class InfinitePlane(FEMGeometry):
         return [[str(J[i,j]) for j in range(2)] for i in range(2)]
 
     def widget(self):
+        from .geometryGUI import InfinitePlaneGUI
         return InfinitePlaneGUI(self)
     
 
@@ -256,6 +263,7 @@ class Line(FEMGeometry):
         model.occ.addLine(p1t, p2t)
 
     def widget(self):
+        from .geometryGUI import LineGUI
         return LineGUI(self)
 
 

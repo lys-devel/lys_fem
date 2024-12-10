@@ -1,4 +1,3 @@
-import numpy as np
 from lys_fem import FEMParameter
 
 
