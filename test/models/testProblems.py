@@ -135,7 +135,7 @@ class testProblems_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        steps = [SolverStep(["x"]), SolverStep(["y"])]
+        steps = [SolverStep(["x"]), SolverStep(["y"], solver="CG", prec="local")]
         stationary = TimeDependentSolver(0.001, 0.1, steps=steps)
         p.solvers.append(stationary)
 

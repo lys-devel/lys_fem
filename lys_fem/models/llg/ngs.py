@@ -54,7 +54,7 @@ class NGSLLGModel(NGSModel):
 
             for sc in self._model.domainConditions.get(MagneticScalarPotential):
                 phi = mat[sc.values]
-                wf += g*m0.cross(-mu0*grad(phi.value)).dot(test_m)*dx(sc.geometries)
+                wf += g*m0.cross(-mu0*grad(phi)).dot(test_m)*dx(sc.geometries)
 
             for st in self._model.domainConditions.get(SpinTransferTorque):
                 beta = mat["beta_st"]
@@ -117,29 +117,29 @@ class NGSLLGModel(NGSModel):
 
         return wf
 
-    def discretize(self, sols, dti):
+    def discretize(self, tnt, sols, dti):
         if self._model.discretization == "LLG Asym":
             d = {}
-            for v in self.variables:
+            for v, (trial, test) in tnt.items():
                 if "_lam" in v.name:
                     continue
                 w = 0
                 mn, gn = sols.X()[v.name], sols.grad()[v.name]
-                d = time.BackwardEuler.generateWeakforms(v, sols, dti)
-                d[v.trial.value] = (1-w)*v.trial + w*mn
-                d[grad(v.trial)] = (1-w)*grad(v.trial) + w*gn
+                d = time.BackwardEuler.generateWeakforms(v, trial, sols, dti)
+                d[trial.value] = (1-w)*trial + w*mn
+                d[grad(trial)] = (1-w)*grad(trial) + w*gn
             return d
-        return super().discretize(sols, dti)
+        return super().discretize(tnt, sols, dti)
 
-    def updater(self, sols, dti):
-        d = super().updater(sols, dti)
+    def updater(self, tnt, sols, dti):
+        d = super().updater(tnt, sols, dti)
         if self._model.constraint == "Projection":
-            for v in self.variables:
-                d[v.trial] = v.trial/util.norm(v.trial)
+            for v, (trial, test) in tnt.items():
+                d[trial] = trial/util.norm(trial)
         elif self._model.constraint == "Alouges":
-            for v in self.variables:
+            for v, (trial, test) in tnt.items():
                 if "_lam" in v.name or "_v" in v.name:
                     continue
-                vel = [vv for vv in self.variables if vv.name==v.name+"_v"][0]
-                d[v.trial] = (v.trial + vel.trial/dti)/util.norm(v.trial + vel.trial/dti)
+                vel = [trial_v for vv, (trial_v, test_v) in tnt.items() if vv.name==v.name+"_v"][0]
+                d[trial] = (trial + vel/dti)/util.norm(trial + vel/dti)
         return d

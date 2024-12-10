@@ -82,23 +82,23 @@ class _Solution:
         """
         Returns a dictionary that replace trial functions with corresponding solutions.
         """
+        tnt = self._model.TnT
         sols = self[0][0].toNGSFunctions(self._model)
         grads = self[0][0].toGradFunctions(self._model)
-        d = {v.trial: sols[v.name] for v in self._model.variables}
-        d.update({util.grad(v.trial): grads[v.name] for v in self._model.variables})
+        d = {trial: sols[v.name] for v, (trial, test) in tnt.items()}
+        d.update({util.grad(trial): grads[v.name] for v, (trial, test) in tnt.items()})
         return d
 
 
 class _Operator:
-    def __init__(self, model, diff, sols, symbols, solver="pardiso", prec=None):
-        wf = self.__prepareWeakform(model, diff, sols, symbols)
+    def __init__(self, model, sols, symbols, solver="pardiso", prec=None):
         self._model = model
         self._symbols = symbols
         self._solver = solver
-        self._fes = model.finiteElementSpace
-        self.__setCoupling()
+        self._fes = self.__setCoupling(model.finiteElementSpace, symbols)
 
         self._blf, self._lf = ngsolve.BilinearForm(self._fes, condense=self._cond), ngsolve.LinearForm(self._fes)
+        wf = self.__prepareWeakform(model, sols, symbols)
         lhs, rhs = wf.lhs, wf.rhs
         if lhs.valid:
             self._blf += lhs.eval()
@@ -111,19 +111,20 @@ class _Operator:
         self._tdep_rhs = rhs.isTimeDependent
         self._init  = False
 
-    def __prepareWeakform(self, model, diff, sols, symbols):
-        wf = model.weakforms()
-        d = dict(diff)
+    def __prepareWeakform(self, model, sols, symbols):
+        tnt = util.TnT_dict(self._model.variables, self._fes)
+        wf = model.weakforms(tnt)
+        d = dict(model.discretize(tnt, sols))
         if symbols is not None:
             X, V, A, G = sols.X(), sols.V(), sols.A(), sols.grad()
-            for v in model.variables:
+            for v, (trial, test) in tnt.items():
                 if v.name not in symbols:
-                    d[v.trial] = X[v.name]
-                    d[v.trial.t] = V[v.name]
-                    d[v.trial.tt] = A[v.name]
-                    d[util.grad(v.trial)] = G[v.name]
-                    d[v.test] = 0
-                    d[util.grad(v.test)] = 0
+                    d[trial] = X[v.name]
+                    d[trial.t] = V[v.name]
+                    d[trial.tt] = A[v.name]
+                    d[util.grad(trial)] = G[v.name]
+                    d[test] = 0
+                    d[util.grad(test)] = 0
         wf = wf.replace(d)
         return wf
 
@@ -150,7 +151,7 @@ class _Operator:
 
     def __inverse(self, mat):
         if self._solver in ["pardiso", "pardisospd", "mumps", "sparsecholesky", "masterinverse", "umfpack"]:
-            inv = mat.Inverse(self._dofs, self._solver)
+            inv = mat.Inverse(self._fes.FreeDofs(self._cond), self._solver)
             if self._cond:
                 ext = ngsolve.IdentityMatrix() + self._blf.harmonic_extension
                 extT = ngsolve.IdentityMatrix() + self._blf.harmonic_extension_trans
@@ -161,27 +162,45 @@ class _Operator:
         if self._solver == "GMRES":
             return ngsolve.GMRESSolver(mat, self._prec.mat)
 
-    def __setCoupling(self):
-        if isinstance(self._fes, ngsolve.ProductSpace):
-            self._cond = any([isinstance(c, ngsolve.L2) for c in self._fes.components]) and self._symbols is None
+    def __setCoupling(self, fes, symbols):
+        if isinstance(fes, ngsolve.ProductSpace):
+            self._cond = any([isinstance(c, ngsolve.L2) for c in fes.components]) and symbols is None
         else:
             self._cond = False
 
-        self._dofs = ngsolve.BitArray(self._fes.FreeDofs(coupling=self._cond))
-        if self._symbols is None:
-            return
+        if symbols is None:
+            return fes
+
+        dofs = ngsolve.BitArray(fes.FreeDofs())
         n = 0
         for v in self._model.variables:
-            if v.name not in self._symbols:
+            if v.name not in symbols:
                 for j in range(n, n+v.size):
-                    self._dofs[self._fes.Range(j)]=False
+                    dofs[fes.Range(j)]=False
             n += v.size
-        return
+        self._mask = dofs
+        return ngsolve.Compress(fes, dofs)
 
     @property
     def isNonlinear(self):
         return self._nl
-    
+
+    @property
+    def finiteElementSpace(self):
+        return self._fes
+
+    def syncGridFunction(self, glb, direction, loc):
+        if self._symbols is None:
+            if direction == "->":
+                loc.vec.data = glb.vec
+            elif direction == "<-":
+                glb.vec.data = loc.vec
+        else:
+            if direction == "->":
+                loc.vec.FV().NumPy()[:] = glb.vec.FV().NumPy()[self._mask]
+            elif direction == "<-":
+                glb.vec.FV().NumPy()[self._mask] = loc.vec.FV().NumPy()
+\
 
 class SolverBase:
     def __init__(self, obj, mesh, model, dirname, variableStep=False, load=False):
@@ -194,9 +213,7 @@ class SolverBase:
             self.__prepareDirectory(dirname)
 
         self._sols = _Solution(model)
-        disc = model.discretize(self._sols, self._mat.const.dti)
-        self._tdep = model.updater(self._sols, self._mat.const.dti)
-        self._ops = [_Operator(model, disc, self._sols, step.variables, solver=step.solver, prec=step.preconditioner) for step in obj.steps]
+        self._ops = [_Operator(model, self._sols, step.variables, solver=step.solver, prec=step.preconditioner) for step in obj.steps]
         util.stepn.set(-1)
         self._sols.initialize()
         self._diff = self.__calcDiff(obj.diff_expr)
@@ -221,14 +238,17 @@ class SolverBase:
                 self._mesh.SetDeformation(gf)
                 print("deformation set")
             op.update()
-            x.vec.data = newton(op, x.vec.CreateVector(copy=True), eps=step.newton_eps, max_iter=step.newton_maxiter, gamma=step.newton_damping)
+            g = util.GridFunction(op.finiteElementSpace)
+            op.syncGridFunction(x, "->", g)
+            g.vec.data = newton(op, g.vec.CreateVector(copy=True), eps=step.newton_eps, max_iter=step.newton_maxiter, gamma=step.newton_damping)
+            op.syncGridFunction(x, "<-", g)
         self.__updateSolution(x)
         self.exportSolution(int(util.stepn.get()+1))
         E = self._diff.integrate(self._mesh)
         return np.divide(np.linalg.norm(E-E0), np.linalg.norm(E))
 
     def __calcDiff(self, expr):
-        if expr is None:
+        if expr is None or expr=="":
             expr = self._model.variables[0].name
         d = self._sols.replaceDict
         return self._mat[expr].replace(d)
@@ -241,23 +261,27 @@ class SolverBase:
         os.makedirs(self._dirname, exist_ok=True)
 
     def __updateSolution(self, x0):
-        x = util.GridFunction(self._model.finiteElementSpace)
-        v = util.GridFunction(self._model.finiteElementSpace)
-        a = util.GridFunction(self._model.finiteElementSpace)
+        fes = self._model.finiteElementSpace
+        tnt = self._model.TnT
+        self._tdep = self._model.updater(tnt, self._sols)
+
+        x = util.GridFunction(fes)
+        v = util.GridFunction(fes)
+        a = util.GridFunction(fes)
         x.vec.data = x0.vec
 
         fs = x0.toNGSFunctions(self._model, "_new")
-        d = {v.trial: fs[v.name] for v in self._model.variables}
+        d = {trial: fs[v.name] for v, (trial, test) in tnt.items()}
 
-        for var in self._model.variables:
-            if var.trial in self._tdep:
-                x.setComponent(var, self._tdep[var.trial].replace(d).eval(), self._model)
-        for var in self._model.variables:
-            if var.trial.t in self._tdep:
-                v.setComponent(var, self._tdep[var.trial.t].replace(d).eval(), self._model)
-        for var in self._model.variables:
-            if var.trial.tt in self._tdep:
-                a.setComponent(var, self._tdep[var.trial.tt].replace(d).eval(), self._model)
+        for var, (trial, test) in tnt.items():
+            if trial in self._tdep:
+                x.setComponent(var, self._tdep[trial].replace(d).eval(), self._model)
+        for var, (trial, test) in tnt.items():
+            if trial.t in self._tdep:
+                v.setComponent(var, self._tdep[trial.t].replace(d).eval(), self._model)
+        for var, (trial, test) in tnt.items():
+            if trial.tt in self._tdep:
+                a.setComponent(var, self._tdep[trial.tt].replace(d).eval(), self._model)
 
         self._sols.update((x,v,a))
 

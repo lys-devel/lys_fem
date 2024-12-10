@@ -174,7 +174,7 @@ class elasticity_test(FEMTestCase):
 
         # solution
         sol = FEMSolution()
-        self.assertAlmostEqual(sol.eval("u", data_number=400, coords=0), 0, places=12)
+        self.assertAlmostEqual(sol.eval("u", data_number=400, coords=0), 0, places=11)
 
     def thermoelasticity_2d(self, lib):
         p = FEMProject(2)

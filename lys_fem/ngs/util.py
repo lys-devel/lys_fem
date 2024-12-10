@@ -53,6 +53,24 @@ def max(x,y):
     return _MinMax(x, y, "max")
 
 
+def TnT_dict(vars, fes):
+    if isinstance(fes, (ngsolve.ProductSpace, ngsolve.comp.Compress)):
+        trials, tests = fes.TnT()
+    else:
+        trials, tests = [[t] for t in fes.TnT()]
+
+    n = 0
+    res = {}
+    for var in vars:
+        if var.size==1 and var._isScalar:
+            trial, test = trials[n], tests[n]
+        else:
+            trial, test = trials[n:n+var.size], tests[n:n+var.size]
+        res[var] = (TrialFunction(var.name, trial, scale=var._scale), TestFunction(test, name=var.name, scale=var._residualScale))
+        n+=var.size
+    return res
+
+
 class GridFunction(ngsolve.GridFunction):
     def __init__(self, fes, value=None):
         super().__init__(fes)
@@ -963,6 +981,7 @@ class TestFunction(NGSFunction):
         return self._scale*super().eval()
         
     def grad(self):
+        print(self._tests)
         if isinstance(self._tests, list):
             return self._scale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._tests]), dims=(len(self._tests), dimension)).TensorTranspose((1,0))
         return self._scale * ngsolve.grad(self._tests)

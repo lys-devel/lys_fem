@@ -38,8 +38,8 @@ class NGSTwoVariableTestModel(NGSModel):
             dirichlet = ["auto", "auto"]
 
         for eq in model.equations:
-            self.addVariable("x", 1, dirichlet[0], init[0], region = eq.geometries, order=1)
-            self.addVariable("y", 1, dirichlet[1], init[1], region = eq.geometries, order=1)
+            self.addVariable("x", 1, dirichlet[0], init[0], region = eq.geometries, order=1, isScalar=True)
+            self.addVariable("y", 1, dirichlet[1], init[1], region = eq.geometries, order=1, isScalar=True)
 
     def weakform(self, vars, mat):
         wf = 0

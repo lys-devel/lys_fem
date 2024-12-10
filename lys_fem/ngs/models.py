@@ -69,21 +69,6 @@ class NGSVariable:
         else:
             return [coef[i] for i in range(coef.shape[0])]
 
-    def setTnT(self, trial, test):
-        if self.size==1 and self._isScalar:
-            trial, test = trial[0], test[0]
-        self._trial = util.TrialFunction(self.name, trial, scale=self._scale)
-        self._test = util.TestFunction(test, name=self.name, scale=self._residualScale)
-        return self._trial, self._test
-
-    @property
-    def trial(self):
-        return self._trial
-
-    @property
-    def test(self):
-        return self._test
-
 
 class NGSModel:
     def __init__(self, model, mesh, vars, addVariables=False):
@@ -153,29 +138,29 @@ class NGSModel:
             init.value.update(self._model.initialConditions.coef(type).value)
         return init
     
-    def discretize(self, sols, dti):
+    def discretize(self, tnt, sols, dti):
         d = {}
-        for v in self.variables:
+        for v, (trial, test) in tnt.items():
             if self._model.discretization == "ForwardEuler":
-                d.update(time.BackwardEuler.generateWeakforms(v, sols, dti))
+                d.update(time.BackwardEuler.generateWeakforms(v, trial, sols, dti))
             elif self._model.discretization == "BackwardEuler":
-                d.update(time.BackwardEuler.generateWeakforms(v, sols, dti))
+                d.update(time.BackwardEuler.generateWeakforms(v, trial, sols, dti))
             elif self._model.discretization == "BDF2":
-                d.update(time.BDF2.generateWeakforms(v, sols, dti))
+                d.update(time.BDF2.generateWeakforms(v, trial, sols, dti))
             elif self._model.discretization == "NewmarkBeta":
-                d.update(time.NewmarkBeta.generateWeakforms(v, sols, dti))
+                d.update(time.NewmarkBeta.generateWeakforms(v, trial, sols, dti))
             else:
                 raise RuntimeError("Unknown discretization: "+self._model.discretization)
         return d
 
-    def updater(self, sols, dti):
-        d = self.discretize(sols, dti)
+    def updater(self, tnt, sols, dti):
+        d = self.discretize(tnt, sols, dti)
         res = {}
-        for v in self.variables:
-            if v.trial.t in d:
-                res[v.trial.t] = d[v.trial.t]
-            if v.trial.tt in d:
-                res[v.trial.tt] = d[v.trial.tt]
+        for name, (trial, test) in tnt.items():
+            if trial.t in d:
+                res[trial.t] = d[trial.t]
+            if trial.tt in d:
+                res[trial.tt] = d[trial.tt]
         return res
 
     @property
@@ -205,34 +190,22 @@ class CompositeModel:
         self._models = models
         self._mat = mat
         self._fes = util.prod([v.finiteElementSpace for v in self.variables])
-        self.coupling = [self._fes.CouplingType(i) for i in range(self._fes.ndof)]
-        self.__initTnT()
 
-    def __initTnT(self):
-        if not isinstance(self._fes, ngsolve.ProductSpace):
-            trial, test = [[t] for t in self._fes.TnT()]
-        else:
-            trial, test = self._fes.TnT()
-        n = 0
-        for var in self.variables:
-            var.setTnT(trial[n:n+var.size], test[n:n+var.size])
-            n+=var.size
-
-    def weakforms(self):
-        tnt = {var.name: (var.trial, var.test) for var in self.variables}   # trial and test functions
-        self._mat.update({v.name: v.trial for v in self.variables})         # update variable dictionary
+    def weakforms(self, tnt):
+        tnt = {v.name: tnt for v, tnt in tnt.items()}         # update variable dictionary
+        self._mat.update({v: trial for v, (trial, test) in tnt.items()})         # update variable dictionary
         return sum([model.weakform(tnt, self._mat) for model in self._models])
     
-    def discretize(self, sols, dti):
+    def discretize(self, tnt, sols):
         d = {}
         for m in self._models:
-            d.update(m.discretize(sols, dti))
+            d.update(m.discretize(tnt, sols, self._mat.const.dti))
         return d
 
-    def updater(self, sols, dti):
+    def updater(self, tnt, sols):
         d = {}
         for m in self._models:
-            d.update(m.updater(sols, dti))
+            d.update(m.updater(tnt, sols, self._mat.const.dti))
         return d
 
     def initialValue(self, use_a=True):
@@ -306,3 +279,6 @@ class CompositeModel:
     def variables(self):
         return sum([m.variables for m in self._models], [])
     
+    @property
+    def TnT(self):
+        return util.TnT_dict(self.variables, self._fes)
