@@ -152,19 +152,15 @@ class _Operator:
     def __inverse(self, mat):
         if self._solver in ["pardiso", "pardisospd", "mumps", "sparsecholesky", "masterinverse", "umfpack"]:
             inv = mat.Inverse(self._fes.FreeDofs(self._cond), self._solver)
-            if self._cond:
-                ext = ngsolve.IdentityMatrix() + self._blf.harmonic_extension
-                extT = ngsolve.IdentityMatrix() + self._blf.harmonic_extension_trans
-                inv =  ext @ inv @ extT + self._blf.inner_solve
-            return inv
         if self._solver == "CG":
-            return ngsolve.CGSolver(mat, self._prec.mat)
+            inv = ngsolve.CGSolver(mat, self._prec.mat)
         if self._solver == "GMRES":
-            return ngsolve.GMRESSolver(mat, self._prec.mat)
+            inv = ngsolve.GMRESSolver(mat, self._prec.mat)
+        return _Inv(inv, self._blf, self._cond)
 
     def __setCoupling(self, fes, symbols):
         if isinstance(fes, ngsolve.ProductSpace):
-            self._cond = any([isinstance(c, ngsolve.L2) for c in fes.components]) and symbols is None
+            self._cond = any([isinstance(c, ngsolve.L2) for c in fes.components]) #and symbols is None
         else:
             self._cond = False
 
@@ -200,7 +196,23 @@ class _Operator:
                 loc.vec.FV().NumPy()[:] = glb.vec.FV().NumPy()[self._mask]
             elif direction == "<-":
                 glb.vec.FV().NumPy()[self._mask] = loc.vec.FV().NumPy()
-\
+
+
+class _Inv:
+    def __init__(self, inv, blf, condense):
+        self._inv = inv
+        self._blf = blf
+        self._cond = condense
+
+    def __mul__(self, other):
+        if self._cond:
+            ext = ngsolve.IdentityMatrix() + self._blf.harmonic_extension
+            extT = ngsolve.IdentityMatrix() + self._blf.harmonic_extension_trans
+            inv =  ext @ self._inv @ extT + self._blf.inner_solve
+            return inv*other
+        else:
+            return self._inv * other
+
 
 class SolverBase:
     def __init__(self, obj, mesh, model, dirname, variableStep=False, load=False):

@@ -981,7 +981,6 @@ class TestFunction(NGSFunction):
         return self._scale*super().eval()
         
     def grad(self):
-        print(self._tests)
         if isinstance(self._tests, list):
             return self._scale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._tests]), dims=(len(self._tests), dimension)).TensorTranspose((1,0))
         return self._scale * ngsolve.grad(self._tests)
