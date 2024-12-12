@@ -7,7 +7,6 @@ class NGSLLGModel(NGSModel):
         self._model = model
 
         for eq in model.equations:
-
             if self._model.constraint == "Alouges":
                 self.addVariable(eq.variableName, 3, region = eq.geometries, order=model.order, type="v")
                 self.addVariable(eq.variableName+"_lam", 1, initialValue=None, dirichlet=None, region=eq.geometries, order=0, isScalar=True, L2=True)
@@ -122,9 +121,10 @@ class NGSLLGModel(NGSModel):
     def discretize(self, tnt, sols, dti):
         if self._model.discretization == "LLG Asym":
             d = {}
-            for v, (trial, test) in tnt.items():
+            for v in self.variables:
                 if "_lam" in v.name:
                     continue
+                trial, _ = tnt[v]
                 w = 0
                 mn, gn = sols.X(v), sols.grad(v)
                 d = time.BackwardEuler.generateWeakforms(v, trial, sols, dti)
@@ -133,13 +133,15 @@ class NGSLLGModel(NGSModel):
             return d
         if self._model.constraint == "Alouges":
             d = {}
-            for v, (trial, test) in tnt.items():
+            for v in self.variables:
                 if "_lam" in v.name:
                     continue
+                trial, _ = tnt[v]
                 mn, gn = sols.X(v), sols.grad(v)
                 d[trial] = mn
                 d[grad(trial)] = gn
                 d[trial.t] = trial
+                d[grad(trial.t)] = grad(trial)
             return d
             
         return super().discretize(tnt, sols, dti)
@@ -147,12 +149,14 @@ class NGSLLGModel(NGSModel):
     def updater(self, tnt, sols, dti):
         d = super().updater(tnt, sols, dti)
         if self._model.constraint == "Projection":
-            for v, (trial, test) in tnt.items():
+            for v in self.variables:
+                trial, _ = tnt[v]
                 d[trial] = trial/util.norm(trial)
         elif self._model.constraint == "Alouges":
-            for v, (trial, test) in tnt.items():
+            for v in self.variables:
                 if "_lam" in v.name:
                     continue
+                trial, _ = tnt[v]
                 m = sols.X(v) + trial/dti
                 d[trial] = m/util.norm(m)
                 d[trial.t] = trial

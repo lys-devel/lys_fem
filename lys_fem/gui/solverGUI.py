@@ -246,11 +246,20 @@ class _SolverStepWidget(QtWidgets.QWidget):
             self._prec.setCurrentText(step.preconditioner)
         self._prec.currentTextChanged.connect(self.__changeSolvers)
 
+        self._sym = QtWidgets.QCheckBox("Symmetric")
+        self._sym.setChecked(step.symmetric)
+        self._sym.toggled.connect(self.__changeSolvers)
+        self._cond = QtWidgets.QCheckBox("Static condensation")
+        self._cond.setChecked(step.condensation)
+        self._cond.toggled.connect(self.__changeSolvers)
+
         g = QtWidgets.QGridLayout()
         g.addWidget(QtWidgets.QLabel("Linear solver"), 0, 0)
         g.addWidget(self._solver, 0, 1)
         g.addWidget(QtWidgets.QLabel("Preconditioner"), 1, 0)
         g.addWidget(self._prec, 1, 1)
+        g.addWidget(self._sym, 2, 0)
+        g.addWidget(self._cond, 2, 1)
 
         g1 = QtWidgets.QGroupBox("Solvers")
         g1.setLayout(g)
@@ -262,6 +271,8 @@ class _SolverStepWidget(QtWidgets.QWidget):
             self._step._prec = None
         else:
             self._step._prec = self._prec.currentText()
+        self._step._sym = self._sym.isChecked()
+        self._step._cond = self._cond.isChecked()
 
     def __initVars(self, step):
         self._varType = QtWidgets.QComboBox()
