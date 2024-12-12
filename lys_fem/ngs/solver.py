@@ -100,7 +100,7 @@ class _Operator:
         self._solver = solver
         self._fes = self.__compressed_fes(model.finiteElementSpace, symbols)
 
-        self._blf, self._lf = ngsolve.BilinearForm(self._fes, condense=cond, symmetric=sym, symmetric_storage=sym), ngsolve.LinearForm(self._fes)
+        self._blf, self._lf = ngsolve.BilinearForm(self._fes, condense=cond, symmetric=sym), ngsolve.LinearForm(self._fes)
         wf = self.__prepareWeakform(model, sols, symbols)
         lhs, rhs = wf.lhs, wf.rhs
         if lhs.valid:
