@@ -91,13 +91,19 @@ class _Solution:
 
 
 class _Operator:
-    def __init__(self, model, sols, symbols, solver="pardiso", prec=None):
+    def __init__(self, model, sols, symbols, solver="pardiso", prec=None, cond=False, sym=False):
         self._model = model
         self._symbols = symbols
         self._solver = solver
-        self._fes = self.__setCoupling(model.finiteElementSpace, symbols)
 
-        self._blf, self._lf = ngsolve.BilinearForm(self._fes, condense=self._cond), ngsolve.LinearForm(self._fes)
+        self._fes = self.__compressed_fes(model.finiteElementSpace, symbols)
+        #for i in range(model.finiteElementSpace.ndof):
+        #    print(i, model.finiteElementSpace.CouplingType(i))
+        #print(self._fes.ndof, self._fes.FreeDofs())
+        #for i in range(self._fes.ndof):
+        #    print(i, self._fes.CouplingType(i))
+
+        self._blf, self._lf = ngsolve.BilinearForm(self._fes, condense=cond, symmetric=sym), ngsolve.LinearForm(self._fes)
         wf = self.__prepareWeakform(model, sols, symbols)
         lhs, rhs = wf.lhs, wf.rhs
         if lhs.valid:
@@ -110,6 +116,20 @@ class _Operator:
         self._tdep_lhs = lhs.isTimeDependent
         self._tdep_rhs = rhs.isTimeDependent
         self._init  = False
+
+    def __compressed_fes(self, fes, symbols):
+        #print(fes.ndof, fes.FreeDofs())
+        if symbols is None:
+            return fes
+
+        dofs = ngsolve.BitArray(fes.FreeDofs())
+        n = 0
+        for v in self._model.variables:
+            for j in range(n, n+v.size):
+                dofs[fes.Range(j)]=v.name in symbols
+            n += v.size
+        self._mask = dofs
+        return ngsolve.Compress(fes, active_dofs=dofs)
 
     def __prepareWeakform(self, model, sols, symbols):
         tnt = util.TnT_dict(self._model.variables, self._fes)
@@ -151,31 +171,12 @@ class _Operator:
 
     def __inverse(self, mat):
         if self._solver in ["pardiso", "pardisospd", "mumps", "sparsecholesky", "masterinverse", "umfpack"]:
-            inv = mat.Inverse(self._fes.FreeDofs(self._cond), self._solver)
+            inv = mat.Inverse(self._fes.FreeDofs(self._blf.condense), self._solver)
         if self._solver == "CG":
             inv = ngsolve.CGSolver(mat, self._prec.mat)
         if self._solver == "GMRES":
             inv = ngsolve.GMRESSolver(mat, self._prec.mat)
-        return _Inv(inv, self._blf, self._cond)
-
-    def __setCoupling(self, fes, symbols):
-        if isinstance(fes, ngsolve.ProductSpace):
-            self._cond = any([isinstance(c, ngsolve.L2) for c in fes.components]) and symbols is None
-        else:
-            self._cond = False
-
-        if symbols is None:
-            return fes
-
-        dofs = ngsolve.BitArray(fes.FreeDofs())
-        n = 0
-        for v in self._model.variables:
-            if v.name not in symbols:
-                for j in range(n, n+v.size):
-                    dofs[fes.Range(j)]=False
-            n += v.size
-        self._mask = dofs
-        return ngsolve.Compress(fes, dofs)
+        return _Inv(inv, self._blf)
 
     @property
     def isNonlinear(self):
@@ -199,16 +200,15 @@ class _Operator:
 
 
 class _Inv:
-    def __init__(self, inv, blf, condense):
+    def __init__(self, inv, blf):
         self._inv = inv
         self._blf = blf
-        self._cond = condense
 
     def __mul__(self, other):
-        if self._cond:
+        if self._blf.condense:
             ext = ngsolve.IdentityMatrix() + self._blf.harmonic_extension
             extT = ngsolve.IdentityMatrix() + self._blf.harmonic_extension_trans
-            inv =  ext @ self._inv @ extT + self._blf.inner_solve
+            inv =  ext @ (self._inv + self._blf.inner_solve) @ extT
             return inv*other
         else:
             return self._inv * other
@@ -225,7 +225,7 @@ class SolverBase:
             self.__prepareDirectory(dirname)
 
         self._sols = _Solution(model)
-        self._ops = [_Operator(model, self._sols, step.variables, solver=step.solver, prec=step.preconditioner) for step in obj.steps]
+        self._ops = [_Operator(model, self._sols, step.variables, solver=step.solver, prec=step.preconditioner, cond = step.condensation, sym=step.symmetric) for step in obj.steps]
         util.stepn.set(-1)
         self._sols.initialize()
         self._diff = self.__calcDiff(obj.diff_expr)

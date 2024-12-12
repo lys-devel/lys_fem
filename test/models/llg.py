@@ -38,10 +38,7 @@ class LLG_test(FEMTestCase):
 
         # solver
         if constraint == "Alouges":
-            solver = RelaxationSolver(dt0=1e-12, dx=0.2, maxiter=300, factor=6, diff_expr="m", maxStep=10, steps=[SolverStep(solver="pardiso", vars=["m_v", "m_lam"])])
-            #solver = RelaxationSolver(dt0=1e-12, dx=0.2, maxiter=300, factor=6, diff_expr="m", maxStep=10, steps=[SolverStep(solver="sparsecholesky", vars=["m_v", "m_lam"])])
-            #solver = RelaxationSolver(dt0=1e-12, dx=0.2, maxiter=300, factor=6, diff_expr="m", maxStep=10, steps=[SolverStep(solver="CG", prec="local", vars=["m_v", "m_lam"])])
-            #solver = RelaxationSolver(dt0=1e-12, dx=0.2, maxiter=300, factor=6, diff_expr="m", maxStep=10, steps=[SolverStep(solver="GMRES", prec="local", vars=["m_v", "m_lam"])])
+            solver = RelaxationSolver(dt0=1e-12, dx=0.2, maxiter=300, factor=6, diff_expr="m", maxStep=10, steps=[SolverStep(solver="CG", prec="local", vars=["m_v", "m_lam"], condensation=False)])
         else:
             solver = RelaxationSolver(dt0=1e-12, dx=0.2, damping=0.99, maxiter=300, factor=6, diff_expr="m")
         

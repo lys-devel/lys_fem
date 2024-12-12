@@ -26,7 +26,34 @@ class testProblems_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        stationary = StationarySolver()
+        stationary = StationarySolver(steps=[SolverStep()])
+        p.solvers.append(stationary)
+
+        # solve
+        lib.run(p)
+
+        # solution
+        sol = FEMSolution()
+        res = sol.eval("x", data_number=1)
+        for w in res:
+            self.assert_array_almost_equal(w.data, w.x[:, 0])
+
+    def cond(self, lib):
+        p = FEMProject(1)
+
+        # geometry
+        p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
+        p.geometries.add(geometry.Line(1, 0, 0, 2, 0, 0))
+
+        # model: boundary and initial conditions
+        model = test.LinearTestModel(order=2)
+        model.boundaryConditions.append(test.DirichletBoundary([True], geometries=[1, 3]))
+        model.initialConditions.append(test.InitialCondition(0.0, geometries=[1]))
+        model.initialConditions.append(test.InitialCondition(2.0, geometries=[2]))
+        p.models.append(model)
+
+        # solver
+        stationary = StationarySolver(steps=[SolverStep(condensation=True, symmetric=True)])
         p.solvers.append(stationary)
 
         # solve

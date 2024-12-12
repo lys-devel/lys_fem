@@ -5,6 +5,9 @@ class test(testProblems_test):
     def test_linear(self):
         self.linear(ngs)
 
+    def test_condensation(self):
+        self.cond(ngs)
+
     def test_nonlinear(self):
         self.nonlinear(ngs)
 
