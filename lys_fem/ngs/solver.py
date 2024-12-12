@@ -95,13 +95,7 @@ class _Operator:
         self._model = model
         self._symbols = symbols
         self._solver = solver
-
         self._fes = self.__compressed_fes(model.finiteElementSpace, symbols)
-        #for i in range(model.finiteElementSpace.ndof):
-        #    print(i, model.finiteElementSpace.CouplingType(i))
-        #print(self._fes.ndof, self._fes.FreeDofs())
-        #for i in range(self._fes.ndof):
-        #    print(i, self._fes.CouplingType(i))
 
         self._blf, self._lf = ngsolve.BilinearForm(self._fes, condense=cond, symmetric=sym), ngsolve.LinearForm(self._fes)
         wf = self.__prepareWeakform(model, sols, symbols)
@@ -118,7 +112,6 @@ class _Operator:
         self._init  = False
 
     def __compressed_fes(self, fes, symbols):
-        #print(fes.ndof, fes.FreeDofs())
         if symbols is None:
             return fes
 
@@ -129,14 +122,18 @@ class _Operator:
                 dofs[fes.Range(j)]=v.name in symbols
             n += v.size
         self._mask = dofs
-        return ngsolve.Compress(fes, active_dofs=dofs)
+        return util.prod([v.finiteElementSpace for v in self._model.variables if v.name in symbols])
 
     def __prepareWeakform(self, model, sols, symbols):
-        tnt = util.TnT_dict(self._model.variables, self._fes)
-        wf = model.weakforms(tnt)
-        d = dict(model.discretize(tnt, sols))
+        wf = model.weakforms()
+        wf = self.__discretize(model, wf, symbols, sols)
+        wf = self.__replaceTnT(model, wf, symbols)
+        return wf
+    
+    def __discretize(self, model, wf, symbols, sols):
+        d = dict(model.discretize(sols))
         if symbols is not None:
-            for v, (trial, test) in tnt.items():
+            for v, (trial, test) in model.TnT.items():
                 if v.name not in symbols:
                     d[trial] = sols.X(v)
                     d[trial.t] = sols.V(v)
@@ -145,8 +142,24 @@ class _Operator:
                     d[util.grad(trial)] = sols.grad(v)
                     d[test] = 0
                     d[util.grad(test)] = 0
-        wf = wf.replace(d)
-        return wf
+        return wf.replace(d)
+    
+    def __replaceTnT(self, model, wf, symbols):
+        if symbols is None:
+            return wf
+
+        tnt = util.TnT_dict([v for v in self._model.variables if v.name in symbols], self._fes)
+        d = {}
+        for v, (trial, test) in model.TnT.items():
+            if v.name in symbols:
+                trial_loc, test_loc = tnt[v]
+                d[trial] = trial_loc
+                d[trial.t] = trial_loc.t
+                d[trial.tt] = trial_loc.tt
+                d[util.grad(trial)] = util.grad(trial_loc)
+                d[test] = test_loc
+                d[util.grad(test)] = util.grad(test_loc)
+        return wf.replace(d)
 
     def __call__(self, x):
         if self.isNonlinear:
@@ -273,16 +286,14 @@ class SolverBase:
         os.makedirs(self._dirname, exist_ok=True)
 
     def __updateSolution(self, x0):
-        fes = self._model.finiteElementSpace
-        tnt = self._model.TnT
-        self._tdep = self._model.updater(tnt, self._sols)
+        self._tdep = self._model.updater(self._sols)
 
-        x = util.GridFunction(fes)
-        v = util.GridFunction(fes)
-        a = util.GridFunction(fes)
+        fes = self._model.finiteElementSpace
+        x, v, a = util.GridFunction(fes), util.GridFunction(fes), util.GridFunction(fes)
         x.vec.data = x0.vec
 
         fs = x0.toNGSFunctions(self._model, "_new")
+        tnt = self._model.TnT
         d = {trial: fs[v.name] for v, (trial, test) in tnt.items()}
 
         for var, (trial, test) in tnt.items():

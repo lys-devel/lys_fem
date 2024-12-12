@@ -191,21 +191,21 @@ class CompositeModel:
         self._mat = mat
         self._fes = util.prod([v.finiteElementSpace for v in self.variables])
 
-    def weakforms(self, tnt):
-        tnt = {v.name: tnt for v, tnt in tnt.items()}         # update variable dictionary
+    def weakforms(self):
+        tnt = {v.name: tnt for v, tnt in self.TnT.items()}         # update variable dictionary
         self._mat.update({v: trial for v, (trial, test) in tnt.items()})         # update variable dictionary
         return sum([model.weakform(tnt, self._mat) for model in self._models])
     
-    def discretize(self, tnt, sols):
+    def discretize(self, sols):
         d = {}
         for m in self._models:
-            d.update(m.discretize(tnt, sols, self._mat.const.dti))
+            d.update(m.discretize(self.TnT, sols, self._mat.const.dti))
         return d
 
-    def updater(self, tnt, sols):
+    def updater(self, sols):
         d = {}
         for m in self._models:
-            d.update(m.updater(tnt, sols, self._mat.const.dti))
+            d.update(m.updater(self.TnT, sols, self._mat.const.dti))
         return d
 
     def initialValue(self, use_a=True):
@@ -215,7 +215,7 @@ class CompositeModel:
         if use_a:
             fes = self.finiteElementSpace
             tnt = self.TnT
-            wf = self.weakforms(tnt)
+            wf = self.weakforms()
 
             d = {}
             for var, (trial, test) in tnt.items():
