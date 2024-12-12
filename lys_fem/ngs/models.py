@@ -214,43 +214,44 @@ class CompositeModel:
         a = None
         if use_a:
             fes = self.finiteElementSpace
-            wf = self.weakforms()
+            tnt = self.TnT
+            wf = self.weakforms(tnt)
 
             d = {}
-            for var in self.variables:
-                d[var.trial.t] = 0
-                d[var.trial.tt] = 0
+            for var, (trial, test) in tnt.items():
+                d[trial.t] = 0
+                d[trial.tt] = 0
             wf_K = wf.replace(d).lhs
             K = ngsolve.BilinearForm(fes)
             if wf_K.valid:
                 K += wf_K.eval()
 
             d = {}
-            for var in self.variables:
-                d[util.grad(var.trial)] = 0
-                d[var.trial] = 0
-                d[var.trial.t] = var.trial
-                d[var.trial.tt] = 0
+            for var, (trial, test) in tnt.items():
+                d[util.grad(trial)] = 0
+                d[trial] = 0
+                d[trial.t] = trial
+                d[trial.tt] = 0
             wf_C = wf.replace(d).lhs
             C = ngsolve.BilinearForm(fes)
             if wf_C.valid:
                 C += wf_C.eval()
 
             d = {}
-            for var in self.variables:
-                d[util.grad(var.trial)] = 0
-                d[var.trial] = 0
-                d[var.trial.t] = 0
-                d[var.trial.tt] = var.trial
+            for var, (trial, test) in tnt.items():
+                d[util.grad(trial)] = 0
+                d[trial] = 0
+                d[trial.t] = 0
+                d[trial.tt] = trial
             wf_M = wf.replace(d).lhs
             M = ngsolve.BilinearForm(fes)
             if wf_M.valid:
                 M += wf_M.eval()
 
             d = {}
-            for var in self.variables:
-                d[var.trial.t] = var.trial
-                d[var.trial.tt] = var.trial
+            for var, (trial, test) in tnt.items():
+                d[trial.t] = trial
+                d[trial.tt] = trial
             wf_F = wf.replace(d).rhs
             F = ngsolve.LinearForm(fes)
             if wf_F.valid:

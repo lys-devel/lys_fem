@@ -77,7 +77,7 @@ class NGSLLGModel(NGSModel):
 
             # Left-hand side, normalization term
             wf += m.cross(v).dot(test_v)*dx + alpha*v.dot(test_v)*dx
-            wf += (lam*m.dot(test_v) + v.dot(m)*test_lam)*dx
+            wf += 0*lam*test_lam*dx+(lam*m.dot(test_v) + v.dot(m)*test_lam)*dx
 
             # Exchange term
             wf += A*grad(m).ddot(grad(test_v))*dx
@@ -124,7 +124,7 @@ class NGSLLGModel(NGSModel):
                 if "_lam" in v.name:
                     continue
                 w = 0
-                mn, gn = sols.X()[v.name], sols.grad()[v.name]
+                mn, gn = sols.X(v), sols.grad(v)
                 d = time.BackwardEuler.generateWeakforms(v, trial, sols, dti)
                 d[trial.value] = (1-w)*trial + w*mn
                 d[grad(trial)] = (1-w)*grad(trial) + w*gn

@@ -226,6 +226,17 @@ class NGSFunction:
         else:
             return d.get(self, self)
 
+    def __contains__(self, item):
+        if self._obj is None:
+            return False
+        elif isinstance(self._obj, list):
+            return any([item in obj for obj in self._obj])
+        elif isinstance(self._obj, dict):
+            default = False if self._default is None else item in self._default
+            return any([item in obj for obj in self._obj.values()]+[default])
+        else:
+            return False
+
     @property
     def hasTrial(self):
         if self._obj is None:
@@ -428,6 +439,9 @@ class _Oper(NGSFunction):
             objs.append(replaced)
         return self(*objs)
     
+    def __contains__(self, item):
+        return any([item in self._obj[i] for i in range(2)])
+
     @property
     def isNonlinear(self):
         return self._obj[0].isNonlinear or self._obj[1].isNonlinear
@@ -968,6 +982,9 @@ class TrialFunction(NGSFunction):
 
     def replace(self, d):
         return d.get(self, self)
+    
+    def __contains__(self, item):
+        return self == item
         
 
 class TestFunction(NGSFunction):
@@ -1005,6 +1022,9 @@ class TestFunction(NGSFunction):
 
     def replace(self, d):
         return d.get(self, self)
+
+    def __contains__(self, item):
+        return self == item
 
 
 class TrialFunctionValue(NGSFunction):
@@ -1046,6 +1066,9 @@ class TrialFunctionValue(NGSFunction):
     def replace(self, d):
         return d.get(self, self)
         
+    def __contains__(self, item):
+        return self == item
+
 
 class DifferentialSymbol(NGSFunction):
     def __init__(self, obj, **kwargs):

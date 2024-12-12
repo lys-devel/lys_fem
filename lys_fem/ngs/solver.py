@@ -24,7 +24,7 @@ class _Solution:
         self._use_a = False
 
     def initialize(self):
-        self.update(self._model.initialValue(self._use_a and False))
+        self.update(self._model.initialValue(self._use_a))
 
     def reset(self):
         for i in range(self.nlog):
@@ -56,18 +56,18 @@ class _Solution:
     def load(self, path, parallel):
         self._sols[0][0].Load(path, parallel = parallel)
 
-    def X(self, n=0):
-        return self._coefs[n][0]
+    def X(self, var, n=0):
+        return self._coefs[n][0][var.name]
 
-    def V(self, n=0):
-        return self._coefs[n][1]
+    def V(self, var, n=0):
+        return self._coefs[n][1][var.name]
 
-    def A(self, n=0):
+    def A(self, var, n=0):
         self._use_a=True
-        return self._coefs[n][2]
+        return self._coefs[n][2][var.name]
     
-    def grad(self, n=0):
-        return self._grads[n]
+    def grad(self, var, n=0):
+        return self._grads[n][var.name]
 
     @property
     def nlog(self):
@@ -116,13 +116,13 @@ class _Operator:
         wf = model.weakforms(tnt)
         d = dict(model.discretize(tnt, sols))
         if symbols is not None:
-            X, V, A, G = sols.X(), sols.V(), sols.A(), sols.grad()
             for v, (trial, test) in tnt.items():
                 if v.name not in symbols:
-                    d[trial] = X[v.name]
-                    d[trial.t] = V[v.name]
-                    d[trial.tt] = A[v.name]
-                    d[util.grad(trial)] = G[v.name]
+                    d[trial] = sols.X(v)
+                    d[trial.t] = sols.V(v)
+                    if trial.tt in wf:
+                        d[trial.tt] = sols.A(v)
+                    d[util.grad(trial)] = sols.grad(v)
                     d[test] = 0
                     d[util.grad(test)] = 0
         wf = wf.replace(d)
@@ -160,7 +160,7 @@ class _Operator:
 
     def __setCoupling(self, fes, symbols):
         if isinstance(fes, ngsolve.ProductSpace):
-            self._cond = any([isinstance(c, ngsolve.L2) for c in fes.components]) #and symbols is None
+            self._cond = any([isinstance(c, ngsolve.L2) for c in fes.components]) and symbols is None
         else:
             self._cond = False
 
