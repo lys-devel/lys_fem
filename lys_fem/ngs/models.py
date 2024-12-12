@@ -145,7 +145,8 @@ class NGSModel:
     
     def discretize(self, tnt, sols, dti):
         d = {}
-        for v, (trial, test) in tnt.items():
+        for v in self.variables:
+            trial = tnt[v][0]
             if self._model.discretization == "ForwardEuler":
                 d.update(time.BackwardEuler.generateWeakforms(v, trial, sols, dti))
             elif self._model.discretization == "BackwardEuler":
@@ -161,7 +162,8 @@ class NGSModel:
     def updater(self, tnt, sols, dti):
         d = self.discretize(tnt, sols, dti)
         res = {}
-        for name, (trial, test) in tnt.items():
+        for v in self.variables:
+            trial = tnt[v][0]
             if trial.t in d:
                 res[trial.t] = d[trial.t]
             if trial.tt in d:
