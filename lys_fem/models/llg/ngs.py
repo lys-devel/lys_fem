@@ -10,7 +10,6 @@ class NGSLLGModel(NGSModel):
             self.addVariable(eq.variableName, 3, region = eq.geometries, order=model.order)
 
             if self._model.constraint == "Alouges":
-                self.addVariable(eq.variableName+"_v", 3, initialValue=None, region = eq.geometries, order=model.order)
                 self.addVariable(eq.variableName+"_lam", 1, initialValue=None, dirichlet=None, region=eq.geometries, order=0, isScalar=True, L2=True)
 
             if self._model.constraint == "Lagrange":
@@ -72,48 +71,47 @@ class NGSLLGModel(NGSModel):
         theta = 1
         for eq in self._model.equations:
             m, test_m = vars[eq.variableName]
-            v, test_v = vars[eq.variableName+"_v"]
             lam, test_lam = vars[eq.variableName+"_lam"]
 
             # Left-hand side, normalization term
-            wf += m.cross(v).dot(test_v)*dx + alpha*v.dot(test_v)*dx
-            wf += 1e-5*lam*test_lam*dx+(lam*m.dot(test_v) + v.dot(m)*test_lam)*dx
+            wf += m.cross(m.t).dot(test_m)*dx + alpha*m.t.dot(test_m)*dx
+            wf += 1e-5*lam*test_lam*dx+(lam*m.dot(test_m) + m.t.dot(m)*test_lam)*dx
 
             # Exchange term
-            wf += A*grad(m).ddot(grad(test_v))*dx
-            wf += A*grad(v).ddot(grad(test_v))*theta/dti*dx
-            wf += A*grad(m).ddot(grad(m))*v.dot(test_v)*theta/dti*dx
+            wf += A*grad(m).ddot(grad(test_m))*dx
+            wf += A*grad(m.t).ddot(grad(test_m))*theta/dti*dx
+            wf += A*grad(m).ddot(grad(m))*m.t.dot(test_m)*theta/dti*dx
 
             for ex in self._model.domainConditions.get(ExternalMagneticField):
                 B = mat[ex.values]
-                wf += -g*B.dot(test_v)*dx(ex.geometries)
-                wf += g*m.dot(B)*v.dot(test_v)*theta/dti*dx(ex.geometries)
+                wf += -g*B.dot(test_m)*dx(ex.geometries)
+                wf += g*m.dot(B)*m.t.dot(test_m)*theta/dti*dx(ex.geometries)
 
             for uni in self._model.domainConditions.get(UniaxialAnisotropy):
                 u, Ku = mat["u_Ku/norm(u_Ku)"], mat["Ku"]
                 B = 2*Ku/Ms*m.dot(u)*u
-                wf += -g*B.dot(test_v)*dx(uni.geometries)
-                wf += g*m.dot(B)*v.dot(test_v)*theta/dti*dx(uni.geometries)
+                wf += -g*B.dot(test_m)*dx(uni.geometries)
+                wf += g*m.dot(B)*m.t.dot(test_m)*theta/dti*dx(uni.geometries)
 
             for cu in self._model.domainConditions.get(CubicAnisotropy):
                 c1, c2, c3, Kc = mat["u_Kc[0]/norm(u_Kc[0])"], mat["u_Kc[1]/norm(u_Kc[1])"], mat["u_Kc[2]/norm(u_Kc[2])"], mat["Kc"]
                 B =  -2*Kc/Ms*(c2.dot(m)**2+c3.dot(m)**2)*c1.dot(m)*c1
                 B += -2*Kc/Ms*(c3.dot(m)**2+c1.dot(m)**2)*c2.dot(m)*c2
                 B += -2*Kc/Ms*(c1.dot(m)**2+c2.dot(m)**2)*c3.dot(m)*c3
-                wf += -g*B.dot(test_v)*dx(cu.geometries)
-                wf += g*m.dot(B)*v.dot(test_v)*theta/dti*dx(cu.geometries)
+                wf += -g*B.dot(test_m)*dx(cu.geometries)
+                wf += g*m.dot(B)*m.t.dot(test_m)*theta/dti*dx(cu.geometries)
 
             for sc in self._model.domainConditions.get(MagneticScalarPotential):
                 phi = mat[sc.values]
                 B = -mu0*grad(phi)
-                wf += -g*B.dot(test_v)*dx(sc.geometries)
-                wf += g*m.dot(B)*v.dot(test_v)*theta/dti*dx(sc.geometries)
+                wf += -g*B.dot(test_m)*dx(sc.geometries)
+                wf += g*m.dot(B)*m.t.dot(test_m)*theta/dti*dx(sc.geometries)
 
             for st in self._model.domainConditions.get(SpinTransferTorque):
                 beta = mat["beta_st"]
                 u = -mu_B/e/Ms*mat[st.values]/(1+beta**2)
                 w = u.dot(grad(m))
-                wf += -(m.cross(w) + beta*w).dot(test_v)*dx(st.geometries)
+                wf += -(m.cross(w) + beta*w).dot(test_m)*dx(st.geometries)
 
         return wf
 
@@ -129,6 +127,17 @@ class NGSLLGModel(NGSModel):
                 d[trial.value] = (1-w)*trial + w*mn
                 d[grad(trial)] = (1-w)*grad(trial) + w*gn
             return d
+        if self._model.constraint == "Alouges":
+            d = {}
+            for v, (trial, test) in tnt.items():
+                if "_lam" in v.name:
+                    continue
+                mn, gn = sols.X(v), sols.grad(v)
+                d[trial] = mn
+                d[grad(trial)] = gn
+                d[trial.t] = trial
+            return d
+            
         return super().discretize(tnt, sols, dti)
 
     def updater(self, tnt, sols, dti):
@@ -138,8 +147,9 @@ class NGSLLGModel(NGSModel):
                 d[trial] = trial/util.norm(trial)
         elif self._model.constraint == "Alouges":
             for v, (trial, test) in tnt.items():
-                if "_lam" in v.name or "_v" in v.name:
+                if "_lam" in v.name:
                     continue
-                vel = [trial_v for vv, (trial_v, test_v) in tnt.items() if vv.name==v.name+"_v"][0]
-                d[trial] = (trial + vel/dti)/util.norm(trial + vel/dti)
+                m = sols.X(v) + trial/dti
+                d[trial] = m/util.norm(m)
+                d[trial.t] = trial
         return d

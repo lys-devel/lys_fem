@@ -38,7 +38,7 @@ class LLG_test(FEMTestCase):
 
         # solver
         if constraint == "Alouges":
-            solver = RelaxationSolver(dt0=1e-12, dx=0.2, maxiter=300, factor=6, diff_expr="m", maxStep=10, steps=[SolverStep(solver="CG", prec="local", vars=["m_v", "m_lam"], condensation=False)])
+            solver = RelaxationSolver(dt0=1e-12, dx=0.2, maxiter=300, factor=6, diff_expr="m", maxStep=10, steps=[SolverStep(solver="CG", prec="local", condensation=True)])
         else:
             solver = RelaxationSolver(dt0=1e-12, dx=0.2, damping=0.99, maxiter=300, factor=6, diff_expr="m")
         
@@ -138,7 +138,7 @@ class LLG_test(FEMTestCase):
 
         # solver
         if constraint == "Alouges":
-            solver = TimeDependentSolver(T/10, T*10, steps=[SolverStep(solver="pardiso", vars=["m_v", "m_lam"])])
+            solver = TimeDependentSolver(T/10, T*10, steps=[SolverStep(solver="pardiso", vars=["m", "m_lam"])])
         else:
             solver = TimeDependentSolver(T/10, T*10)
         p.solvers.append(solver)
@@ -216,7 +216,7 @@ class LLG_test(FEMTestCase):
             self.assert_allclose(w.data, -solution(w.x[:,0],w.x[:,1],w.x[:,2], 0.8, 1), atol=0.002, rtol=0)
 
     def precession(self, lib, constraint="Projection", discretization="BackwardEuler"):
-        factor = 10
+        factor = 20
         p = FEMProject(1)
 
         # geometry
@@ -237,7 +237,7 @@ class LLG_test(FEMTestCase):
 
         # solver
         if constraint == "Alouges":
-            solver = TimeDependentSolver(T/100/factor, T/2, steps=[SolverStep(solver="pardiso", vars=["m_v", "m_lam"])])
+            solver = TimeDependentSolver(T/100/factor, T/2, steps=[SolverStep(solver="pardiso")])
         else:
             solver = TimeDependentSolver(T/100/factor, T/2, steps=[SolverStep(solver="sparsecholesky")])
         p.solvers.append(solver)
