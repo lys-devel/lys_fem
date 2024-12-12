@@ -19,8 +19,8 @@ class _Solution:
         self._model = model
         fes = model.finiteElementSpace
         self._sols = [(util.GridFunction(fes), util.GridFunction(fes), util.GridFunction(fes)) for n in range(nlog)]
-        self._coefs = [[self[n][i].toNGSFunctions(model, "t"*i+"_n") for i in range(3)] for n in range(nlog)]
-        self._grads = [self[n][0].toGradFunctions(model, "_n") for n in range(nlog)]
+        self._coefs = [[self._sols[n][i].toNGSFunctions(model, "t"*i+"_n") for i in range(3)] for n in range(nlog)]
+        self._grads = [self._sols[n][0].toGradFunctions(model, "_n") for n in range(nlog)]
         self._use_a = False
 
     def initialize(self):
@@ -42,12 +42,15 @@ class _Solution:
             else:
                 xi.vec.data *= 0
 
-    def __getitem__(self, n):
-        return self._sols[n]
-
     def copy(self):
         g = util.GridFunction(self._model.finiteElementSpace)
-        g.vec.data = self._sols[0][0].vec
+        for v in self._model.variables:
+            if v.type == "x":
+                g.setComponent(v, self.X(v).eval()/v.scale, self._model)
+            if v.type == "v":
+                g.setComponent(v, self.V(v).eval()/v.scale, self._model)
+            if v.type == "a":
+                g.setComponent(v, self.A(v).eval()/v.scale, self._model)
         return g
     
     def save(self, path):
@@ -83,8 +86,8 @@ class _Solution:
         Returns a dictionary that replace trial functions with corresponding solutions.
         """
         tnt = self._model.TnT
-        sols = self[0][0].toNGSFunctions(self._model)
-        grads = self[0][0].toGradFunctions(self._model)
+        sols = self._sols[0][0].toNGSFunctions(self._model)
+        grads = self._sols[0][0].toGradFunctions(self._model)
         d = {trial: sols[v.name] for v, (trial, test) in tnt.items()}
         d.update({util.grad(trial): grads[v.name] for v, (trial, test) in tnt.items()})
         return d

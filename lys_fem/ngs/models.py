@@ -16,7 +16,7 @@ def generateModel(fem, mesh, mat):
 
 
 class NGSVariable:
-    def __init__(self, name, fes, scale, residualScale, initialValue, initialVelocity, isScalar):
+    def __init__(self, name, fes, scale, residualScale, initialValue, initialVelocity, isScalar, type):
         self._name = name
         self._fes = fes
         self._scale = scale
@@ -24,6 +24,7 @@ class NGSVariable:
         self._init = initialValue
         self._vel = initialVelocity
         self._isScalar = isScalar
+        self._type = type
 
     @property
     def name(self):
@@ -32,6 +33,10 @@ class NGSVariable:
     @property
     def size(self):
         return len(self._fes)
+    
+    @property
+    def type(self):
+        return self._type
 
     @property
     def isScalar(self):
@@ -81,7 +86,7 @@ class NGSModel:
             for eq in model.equations:
                 self.addVariable(eq.variableName, eq.variableDimension, region=eq.geometries, order=model.order, isScalar=eq.isScalar)
 
-    def addVariable(self, name, vdim, dirichlet="auto", initialValue="auto", initialVelocity=None, region=None, order=1, isScalar=False, scale=None, residualScale=None, L2=False):
+    def addVariable(self, name, vdim, dirichlet="auto", initialValue="auto", initialVelocity=None, region=None, order=1, isScalar=False, type="x", scale=None, residualScale=None, L2=False):
         initialValue = self._funcs[self.__initialValue(vdim, initialValue)]
         if initialValue is None:
             raise RuntimeError("Invalid initial value for " + str(name))
@@ -113,7 +118,7 @@ class NGSModel:
         if residualScale is None:
             residualScale = self.residualScale
 
-        self._vars.append(NGSVariable(name, fess, scale, residualScale, initialValue, initialVelocity, isScalar=isScalar))
+        self._vars.append(NGSVariable(name, fess, scale, residualScale, initialValue, initialVelocity, isScalar=isScalar, type=type))
 
     def __dirichlet(self, coef, vdim):
         bdr_dir = [[] for _ in range(vdim)] 

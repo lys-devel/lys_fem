@@ -7,13 +7,17 @@ class NGSLLGModel(NGSModel):
         self._model = model
 
         for eq in model.equations:
-            self.addVariable(eq.variableName, 3, region = eq.geometries, order=model.order)
 
             if self._model.constraint == "Alouges":
+                self.addVariable(eq.variableName, 3, region = eq.geometries, order=model.order, type="v")
                 self.addVariable(eq.variableName+"_lam", 1, initialValue=None, dirichlet=None, region=eq.geometries, order=0, isScalar=True, L2=True)
 
-            if self._model.constraint == "Lagrange":
+            elif self._model.constraint == "Lagrange":
+                self.addVariable(eq.variableName, 3, region = eq.geometries, order=model.order)
                 self.addVariable(eq.variableName+"_lam", 1, initialValue=None, dirichlet=None, region=eq.geometries, order=0, isScalar=True, L2=True)
+            
+            else:
+                self.addVariable(eq.variableName, 3, region = eq.geometries, order=model.order)
 
     def weakform(self, vars, mat):
         if self._model.constraint == "Alouges":

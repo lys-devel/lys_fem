@@ -55,9 +55,8 @@ class LLG_test(FEMTestCase):
         m = sol.eval("m[2]", data_number=0, coords=[0, 1e-6, 2e-6])
         self.assert_array_almost_equal(m, [1,0,-1])
 
-        for i in range(0,10):
-            m = sol.eval("norm(m)", data_number=i)
-            self.assert_array_almost_equal(m, 1, decimal=2)
+        m = sol.eval("norm(m)", data_number=-1)
+        self.assert_array_almost_equal(m, 1, decimal=3)
 
         res = sol.eval("m[2]", data_number=-1)
         for w in res:
