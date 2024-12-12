@@ -189,7 +189,11 @@ class _Operator:
         if self._solver in ["pardiso", "pardisospd", "mumps", "sparsecholesky", "masterinverse", "umfpack"]:
             inv = mat.Inverse(self._fes.FreeDofs(self._blf.condense), self._solver)
         if self._solver == "CG":
-            inv = ngsolve.CGSolver(mat, self._prec.mat)
+            inv = ngsolve.CGSolver(mat, self._prec.mat, printrates=mpi.isRoot)
+        if self._solver == "MINRES":
+            inv = ngsolve.krylovspace.MinResSolver(mat, self._prec.mat)
+        if self._solver == "QMR":
+            inv = ngsolve.la.QMRSolver(mat, self._prec.mat)
         if self._solver == "GMRES":
             inv = ngsolve.GMRESSolver(mat, self._prec.mat)
         return _Inv(inv, self._blf)

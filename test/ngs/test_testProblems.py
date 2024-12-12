@@ -51,4 +51,6 @@ class test(testProblems_test):
         self.solver(ngs, "CG", "direct")
         self.solver(ngs, "CG", "h1amg")
         self.solver(ngs, "CG", "bddc")
+        self.solver(ngs, "MINRES", "local")
+        self.solver(ngs, "QMR", "local")
         self.solver(ngs, "GMRES", "local")
