@@ -10,7 +10,7 @@ class SolverStep:
         vars(list of str): The name of variables that is solved in this step.
         deformation(str): The name of a variable that is used for deformation of mesh.
     """
-    def __init__(self, vars=None, solver="pardiso", prec=None, maxiter=30, damping=1, eps=1e-5, deformation=None):
+    def __init__(self, vars=None, solver="pardiso", prec=None, maxiter=30, damping=1, eps=1e-5, deformation=None,**kwargs):
         self._vars = vars
         self._deform = deformation
         self._solver = solver
