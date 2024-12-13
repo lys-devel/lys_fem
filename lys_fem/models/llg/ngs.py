@@ -78,7 +78,7 @@ class NGSLLGModel(NGSModel):
 
             # Left-hand side, normalization term
             wf += m.cross(m.t).dot(test_m)*dx + alpha*m.t.dot(test_m)*dx
-            wf += 1e-5*lam*test_lam*dx+(lam*m.dot(test_m) + m.t.dot(m)*test_lam)*dx
+            wf += (lam*m.dot(test_m) + m.t.dot(m)*test_lam)*dx
 
             # Exchange term
             wf += A*grad(m).ddot(grad(test_m))*dx
