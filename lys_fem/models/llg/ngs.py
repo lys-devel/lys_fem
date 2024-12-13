@@ -124,7 +124,7 @@ class NGSLLGModel(NGSModel):
             for v in self.variables:
                 if "_lam" in v.name:
                     continue
-                trial, _ = tnt[v]
+                trial = tnt[v][0]
                 w = 0
                 mn, gn = sols.X(v), sols.grad(v)
                 d = time.BackwardEuler.generateWeakforms(v, trial, sols, dti)
@@ -156,7 +156,7 @@ class NGSLLGModel(NGSModel):
             for v in self.variables:
                 if "_lam" in v.name:
                     continue
-                trial, _ = tnt[v]
+                trial = tnt[v][0]
                 m = sols.X(v) + trial/dti
                 d[trial] = m/util.norm(m)
                 d[trial.t] = trial
