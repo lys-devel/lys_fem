@@ -120,9 +120,10 @@ class NGSLLGModel(NGSModel):
     def discretize(self, tnt, sols, dti):
         if self._model.discretization == "LLG Asym":
             d = {}
-            for v, (trial, test) in tnt.items():
+            for v in self.variables:
                 if "_lam" in v.name:
                     continue
+                trial = tnt[v][0]
                 w = 0
                 mn, gn = sols.X(v), sols.grad(v)
                 d = time.BackwardEuler.generateWeakforms(v, trial, sols, dti)
@@ -137,9 +138,10 @@ class NGSLLGModel(NGSModel):
             for v, (trial, test) in tnt.items():
                 d[trial] = trial/util.norm(trial)
         elif self._model.constraint == "Alouges":
-            for v, (trial, test) in tnt.items():
+            for v in self.variables:
                 if "_lam" in v.name or "_v" in v.name:
                     continue
+                trial = tnt[v][0]
                 vel = [trial_v for vv, (trial_v, test_v) in tnt.items() if vv.name==v.name+"_v"][0]
                 d[trial] = (trial + vel/dti)/util.norm(trial + vel/dti)
         return d
