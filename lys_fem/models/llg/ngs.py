@@ -9,7 +9,7 @@ class NGSLLGModel(NGSModel):
         for eq in model.equations:
             if self._model.constraint == "Alouges":
                 self.addVariable(eq.variableName, 3, region = eq.geometries, order=model.order, type="v")
-                self.addVariable(eq.variableName+"_lam", 1, initialValue=None, dirichlet=None, region=eq.geometries, order=0, isScalar=True, L2=True)
+                self.addVariable(eq.variableName+"_lam", 1, initialValue=None, dirichlet=None, region=eq.geometries, order=model.order, isScalar=True, L2=False)
 
             elif self._model.constraint == "Lagrange":
                 self.addVariable(eq.variableName, 3, region = eq.geometries, order=model.order)

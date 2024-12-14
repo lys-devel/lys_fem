@@ -41,16 +41,26 @@ class test(testProblems_test):
     def test_twoval_grad(self):
         self.twoVars_grad(ngs)
 
-    def test_solvers(self):
+    def test_direct_solvers(self):
         self.solver(ngs, "pardiso", None)
+        self.solver(ngs, "pardiso", None, cond=True)
         self.solver(ngs, "pardisospd", None)
         self.solver(ngs, "sparsecholesky", None)
         self.solver(ngs, "masterinverse", None)
         self.solver(ngs, "umfpack", None)
-        self.solver(ngs, "CG", "local")
-        self.solver(ngs, "CG", "direct")
-        self.solver(ngs, "CG", "h1amg")
-        self.solver(ngs, "CG", "bddc")
-        self.solver(ngs, "MINRES", "local")
-        self.solver(ngs, "QMR", "local")
-        self.solver(ngs, "GMRES", "local")
+
+    def test_iterative_solvers(self):
+        self.solver(ngs, "cg", "gamg")
+        self.solver(ngs, "cg", "gamg", cond=True)
+        self.solver(ngs, "minres", "gamg")
+        self.solver(ngs, "symmlq", "gamg")
+        self.solver(ngs, "gmres", "gamg")
+        self.solver(ngs, "bcgs", "gamg")
+
+    def test_preconditioners(self):
+        self.solver(ngs, "cg", "jacobi")
+        self.solver(ngs, "cg", "bjacobi")
+        self.solver(ngs, "cg", "ilu")
+        self.solver(ngs, "cg", "icc")
+        self.solver(ngs, "cg", "gamg")
+        self.solver(ngs, "cg", "sor")

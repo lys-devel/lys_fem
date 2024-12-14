@@ -162,7 +162,7 @@ class testProblems_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        steps = [SolverStep(["x"]), SolverStep(["y"], solver="CG", prec="local")]
+        steps = [SolverStep(["x"]), SolverStep(["y"], solver="cg", prec="gamg")]
         stationary = TimeDependentSolver(0.001, 0.1, steps=steps)
         p.solvers.append(stationary)
 
@@ -442,7 +442,7 @@ class testProblems_test(FEMTestCase):
         y = [sol.eval("Y", coords=0.5, data_number=i) for i in range(101)]
         self.assert_array_almost_equal(y, -t, decimal=4)
 
-    def solver(self, lib, solver, prec):
+    def solver(self, lib, solver, prec, cond=False):
         p = FEMProject(1)
 
         # geometry
@@ -451,14 +451,14 @@ class testProblems_test(FEMTestCase):
         p.mesher.setRefinement(2)
 
         # model: boundary and initial conditions
-        model = test.LinearTestModel()
+        model = test.LinearTestModel(order=2)
         model.boundaryConditions.append(test.DirichletBoundary([True], geometries=[1, 3]))
         model.initialConditions.append(test.InitialCondition(0.0, geometries=[1]))
         model.initialConditions.append(test.InitialCondition(2.0, geometries=[2]))
         p.models.append(model)
 
         # solver
-        stationary = StationarySolver(steps=[SolverStep(solver=solver, prec=prec)])
+        stationary = StationarySolver(steps=[SolverStep(solver=solver, prec=prec, condensation=cond)])
         p.solvers.append(stationary)
 
         # solve

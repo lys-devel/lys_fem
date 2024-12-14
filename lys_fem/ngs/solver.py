@@ -2,6 +2,8 @@ import os
 import shutil
 import numpy as np
 import ngsolve
+import ngsolve.ngs2petsc as n2p
+import petsc4py.PETSc as psc
 
 from . import mpi, util
 
@@ -98,6 +100,7 @@ class _Operator:
         self._model = model
         self._symbols = symbols
         self._solver = solver
+        self._prec = prec
         self._fes = self.__compressed_fes(model.finiteElementSpace, symbols)
 
         self._blf, self._lf = ngsolve.BilinearForm(self._fes, condense=cond, symmetric=sym), ngsolve.LinearForm(self._fes)
@@ -107,8 +110,6 @@ class _Operator:
             self._blf += lhs.eval()
         if rhs.valid:
             self._lf += rhs.eval()
-        if prec is not None:
-            self._prec = ngsolve.Preconditioner(self._blf, prec)
         self._nl = lhs.isNonlinear
         self._tdep_lhs = lhs.isTimeDependent
         self._tdep_rhs = rhs.isTimeDependent
@@ -186,16 +187,10 @@ class _Operator:
         self._init = True
 
     def __inverse(self, mat):
-        if self._solver in ["pardiso", "pardisospd", "mumps", "sparsecholesky", "masterinverse", "umfpack"]:
+        if self._solver in ["pardiso", "mumps", "umfpack", "pardisospd", "sparsecholesky", "masterinverse"]:
             inv = mat.Inverse(self._fes.FreeDofs(self._blf.condense), self._solver)
-        if self._solver == "CG":
-            inv = ngsolve.CGSolver(mat, self._prec.mat, printrates=mpi.isRoot)
-        if self._solver == "MINRES":
-            inv = ngsolve.krylovspace.MinResSolver(mat, self._prec.mat)
-        if self._solver == "QMR":
-            inv = ngsolve.la.QMRSolver(mat, self._prec.mat)
-        if self._solver == "GMRES":
-            inv = ngsolve.GMRESSolver(mat, self._prec.mat)
+        else:
+            inv = _petsc(self._fes, mat, self._solver, self._prec)
         return _Inv(inv, self._blf)
 
     @property
@@ -219,6 +214,41 @@ class _Operator:
                 glb.vec.FV().NumPy()[self._mask] = loc.vec.FV().NumPy()
 
 
+class _petsc:
+    def __init__(self, fes, mat, solver, prec):
+        self._fes = fes
+        self.__initialize(mat, solver, prec)
+
+    def __initialize(self, mat, solver, prec):
+        self._psc_mat = n2p.CreatePETScMatrix(mat, self._fes.FreeDofs())
+        if mpi.isParallel():
+            self._vecmap = n2p.VectorMapping(mat.row_pardofs, self._fes.FreeDofs())
+
+        ksp = psc.KSP()
+        ksp.create()
+        ksp.setOperators(self._psc_mat)
+        ksp.setType(solver)
+        #ksp.setNormType(psc.KSP.NormType.NORM_NATURAL)
+        ksp.getPC().setType(prec)
+        ksp.setTolerances(rtol=1e-6, atol=0, divtol=1e16, max_it=400)
+        self._ksp = ksp
+
+    def __mul__(self, other):
+        psc_f, psc_u = self._psc_mat.createVecs()        
+        gfu = util.GridFunction(self._fes)
+        gfu.vec.data = other
+        if mpi.isParallel():
+            self._vecmap.N2P(gfu.vec, psc_f)
+        else:
+            psc_f.getArray()[:] = gfu.vec.FV().NumPy()[self._fes.FreeDofs()]
+        self._ksp.solve(psc_f, psc_u)
+        if mpi.isParallel():
+            self._vecmap.P2N(psc_u, gfu.vec)
+        else:
+            gfu.vec.FV().NumPy()[self._fes.FreeDofs()] = psc_u.getArray()
+        return gfu.vec
+
+
 class _Inv:
     def __init__(self, inv, blf):
         self._inv = inv
@@ -228,8 +258,7 @@ class _Inv:
         if self._blf.condense:
             ext = ngsolve.IdentityMatrix() + self._blf.harmonic_extension
             extT = ngsolve.IdentityMatrix() + self._blf.harmonic_extension_trans
-            inv =  ext @ (self._inv + self._blf.inner_solve) @ extT
-            return inv*other
+            return ext * (self._inv * (extT * other)) + self._blf.inner_solve * other
         else:
             return self._inv * other
 

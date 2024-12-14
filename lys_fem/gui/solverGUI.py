@@ -186,6 +186,10 @@ class TimeDependentSolverWidget(QtWidgets.QWidget):
 
 
 class _SolverStepWidget(QtWidgets.QWidget):
+    _dirs = {"PARDISO": "pardiso", "Sparse cholesky": "sparsecholesky", "Master inverse": "masterinverse", "UMFPACK": "umfpack", "MUMPS": "mumps"}
+    _iters = {"GMRES: General minimal residual": "gmres", "CG: Conjugate gradient": "cg", "MINRES: Minimal residual": "minres", "SYMMLQ: Sparse Symmetric Equations": "symmlq", "BCGS: BiCGStab": "bcgs"}
+    _precs = {"Jacobi": "jacobi", "Block Jacobi": "bjacobi", "ILU: Incomplete LU (Serial only)": "ilu", "ICC: Incomplete Cholesky (Serial only)": "icc", "GAMG: Geometric algebraic multigrid": "gamg", "GS: Gauss-Seidel": "sor"}
+
     def __init__(self, step):
         super().__init__()
         self._step = step
@@ -235,15 +239,24 @@ class _SolverStepWidget(QtWidgets.QWidget):
         self._step._maxiter = self._maxiter.value()
 
     def __initSolvers(self, step):
-        self._solver = QtWidgets.QComboBox()
-        self._solver.addItems(["pardiso", "pardisospd", "masterinverse", "sparsecholesky", "umfpack", "CG", "MINRES", "QMR", "GMRES"])
-        self._solver.setCurrentText(step.solver)
-        self._solver.currentTextChanged.connect(self.__changeSolvers)
-
         self._prec = QtWidgets.QComboBox()
-        self._prec.addItems(["None", "local", "direct", "h1amg", "bddc"])
-        if step.preconditioner is not None:
-            self._prec.setCurrentText(step.preconditioner)
+        self._prec.addItems(self._precs.keys())
+        for key, item in self._precs.items():
+            if step.preconditioner == item:
+                self._prec.setCurrentText(key)
+
+        self._sol = QtWidgets.QComboBox()
+        self._sol.addItems(self._dirs.keys())
+        self._sol.addItems(self._iters.keys())
+        for key, item in self._dirs.items():
+            if step.solver == item:
+                self._sol.setCurrentText(key)
+                self._prec.setEnabled(False)
+        for key, item in self._iters.items():
+            if step.solver == item:
+                self._sol.setCurrentText(key)
+                self._prec.setEnabled(True)
+        self._sol.currentTextChanged.connect(self.__changeSolvers)        
         self._prec.currentTextChanged.connect(self.__changeSolvers)
 
         self._sym = QtWidgets.QCheckBox("Symmetric")
@@ -254,23 +267,26 @@ class _SolverStepWidget(QtWidgets.QWidget):
         self._cond.toggled.connect(self.__changeSolvers)
 
         g = QtWidgets.QGridLayout()
-        g.addWidget(QtWidgets.QLabel("Linear solver"), 0, 0)
-        g.addWidget(self._solver, 0, 1)
-        g.addWidget(QtWidgets.QLabel("Preconditioner"), 1, 0)
-        g.addWidget(self._prec, 1, 1)
-        g.addWidget(self._sym, 2, 0)
-        g.addWidget(self._cond, 2, 1)
+        g.addWidget(self._sym, 0, 0)
+        g.addWidget(self._cond, 0, 1)
+        g.addWidget(QtWidgets.QLabel("Linear solver"), 1, 0)
+        g.addWidget(QtWidgets.QLabel("Preconditioner"), 2, 0)
+        g.addWidget(self._sol, 1, 1)
+        g.addWidget(self._prec, 2, 1)
 
         g1 = QtWidgets.QGroupBox("Solvers")
         g1.setLayout(g)
         return g1
 
     def __changeSolvers(self):
-        self._step._solver = self._solver.currentText()
-        if self._prec.currentText() == "None":
+        if self._sol.currentText() in self._dirs.keys():
+            self._step._solver = self._dirs[self._sol.currentText()]
             self._step._prec = None
+            self._prec.setEnabled(False)
         else:
-            self._step._prec = self._prec.currentText()
+            self._step._solver = self._iters[self._sol.currentText()]
+            self._step._prec = self._precs[self._prec.currentText()]
+            self._prec.setEnabled(True)
         self._step._sym = self._sym.isChecked()
         self._step._cond = self._cond.isChecked()
 
