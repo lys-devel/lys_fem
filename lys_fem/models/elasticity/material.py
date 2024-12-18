@@ -69,7 +69,7 @@ class ElasticParameters(FEMParameter):
                 C1, C2 = float(self.C[0]), float(self.C[1])
                 lam, mu = C2, (C1-C2)/2
             return [[self._lame(i, j, lam, mu) for j in range(6)] for i in range(6)]
-        elif self.type == "general":
+        elif self.type in ["monoclinic", "triclinic", "general"]:
             return self.C
 
     def __getC(self, dim, C):

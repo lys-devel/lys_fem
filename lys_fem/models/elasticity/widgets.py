@@ -10,7 +10,7 @@ class ElasticConstWidget(QtWidgets.QWidget):
         self.__initlayout()
 
     def __initlayout(self):
-        d = {"lame": "Lamé", "young": "Young", "isotropic": "Isotropic", "monoclinic": "Monoclinic", "triclinic": "Triclinic"}
+        d = {"lame": "Lamé", "young": "Young", "isotropic": "Isotropic", "monoclinic": "Monoclinic", "triclinic": "Triclinic", "general": "Triclinic"}
         self._type = QtWidgets.QComboBox()
         self._type.addItems(d.values())
         self._type.setCurrentText(d[self._param.type])
@@ -72,10 +72,10 @@ class ElasticConstWidget(QtWidgets.QWidget):
             self._param.type = "isotropic"
             self._param.C = [self._C1.value(), self._C2.value()]
         if self._type.currentText() == "Monoclinic":
-            self._param.type = "general"
+            self._param.type = "monoclinic"
             self._param.C = self._mon.value()
         if self._type.currentText() == "Triclinic":
-            self._param.type = "general"
+            self._param.type = "triclinic"
             self._param.C = self._p.value()
 
 
@@ -92,7 +92,7 @@ class _ElasticConstMatrix(MatrixFunctionWidget):
                 self._value[i][j].setEnabled(False)
                 self._value[i][j].setText("0")
                 self._value[j][i].setText("0")
-                
+
 
 class ThermoelasticWidget(QtWidgets.QWidget):
     def __init__(self, cond, fem, canvas, title):
