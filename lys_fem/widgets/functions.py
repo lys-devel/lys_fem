@@ -113,9 +113,9 @@ class MatrixFunctionWidget(QtWidgets.QWidget):
 
     @avoidCircularReference
     def __typeChanged(self, *args):
-        self.__changeType()
+        self._changeType()
 
-    def __changeType(self):
+    def _changeType(self):
         t = self._combo.currentText()
         for i, ws in enumerate(self._value):
             for j, w in enumerate(ws):
@@ -145,7 +145,7 @@ class MatrixFunctionWidget(QtWidgets.QWidget):
 
     @avoidCircularReference
     def __valueChanged(self, *args):
-        self.__changeType()
+        self._changeType()
         self.valueChanged.emit(self.value())
 
     def value(self):

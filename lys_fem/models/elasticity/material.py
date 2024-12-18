@@ -34,7 +34,7 @@ class ElasticParameters(FEMParameter):
     def description(self):
         return {
             "rho": "Density (kg/m^3)",
-            "C": "Elastic constant (GPa)",
+            "C": "Elastic constant (Pa)",
             "alpha": "Thermal expansion coef. (1/K)",
             "d_e": "DP coef. for electron (eV)",
             "d_h": "DP coef. for hole (eV)"
@@ -61,14 +61,16 @@ class ElasticParameters(FEMParameter):
     def _constructC(self):
         if self.type in ["lame", "young", "isotropic"]:
             if self.type == "lame":
-                lam, mu = self.C
+                lam, mu = float(self.C[0]), float(self.C[1])
             elif self.type == "young":
-                E, v = self.C
+                E, v = float(self.C[0]), float(self.C[1])
                 lam, mu = E*v/(1+v)/(1-2*v), E/((1+v)*2)
             elif self.type == "isotropic":
                 C1, C2 = float(self.C[0]), float(self.C[1])
                 lam, mu = C2, (C1-C2)/2
             return [[self._lame(i, j, lam, mu) for j in range(6)] for i in range(6)]
+        elif self.type == "general":
+            return self.C
 
     def __getC(self, dim, C):
         res = np.zeros((dim,dim,dim,dim)).tolist()

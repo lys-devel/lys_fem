@@ -257,7 +257,7 @@ class FEMModelWidget(QtWidgets.QWidget):
         layout.addWidget(QtWidgets.QLabel("Element Order"), 1, 0)
         layout.addWidget(QtWidgets.QLabel("Discretization"), 2, 0)
         layout.addWidget(self._dim, 0, 1)
-        layout.addWidget(self._order, 0, 1)
+        layout.addWidget(self._order, 1, 1)
         layout.addWidget(self._method, 2, 1)
         self.setLayout(layout)
 
