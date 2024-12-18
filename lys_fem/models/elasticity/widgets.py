@@ -10,7 +10,7 @@ class ElasticConstWidget(QtWidgets.QWidget):
         self.__initlayout()
 
     def __initlayout(self):
-        d = {"lame": "Lamé", "young": "Young", "isotropic": "Isotropic", "monoclinic": "Monoclinic"}
+        d = {"lame": "Lamé", "young": "Young", "isotropic": "Isotropic", "monoclinic": "Monoclinic", "triclinic": "Triclinic"}
         self._type = QtWidgets.QComboBox()
         self._type.addItems(d.values())
         self._type.setCurrentText(d[self._param.type])
@@ -26,8 +26,9 @@ class ElasticConstWidget(QtWidgets.QWidget):
         self._C2 = ScalarFunctionWidget("Elastic const. C12 (Pa)", self._param.C[1], valueChanged=self.__set)
 
         self._mon = _ElasticConstMatrix("Elastic const. (Pa)", "Monoclinic", self._param.C, valueChanged=self.__set)
+        self._p = _ElasticConstMatrix("Elastic const. (Pa)", "Triclinic", self._param.C, valueChanged=self.__set)
 
-        self._widgets = [self._lamb, self._mu, self._E, self._v, self._C1, self._C2, self._mon]
+        self._widgets = [self._lamb, self._mu, self._E, self._v, self._C1, self._C2, self._mon, self._p]
 
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -39,6 +40,7 @@ class ElasticConstWidget(QtWidgets.QWidget):
         layout.addWidget(self._C1)
         layout.addWidget(self._C2)
         layout.addWidget(self._mon)
+        layout.addWidget(self._p)
         self.setLayout(layout)
         self.__changeMode()
 
@@ -56,6 +58,8 @@ class ElasticConstWidget(QtWidgets.QWidget):
             self._C2.show()
         if self._type.currentText() == "Monoclinic":
             self._mon.show()
+        if self._type.currentText() == "Triclinic":
+            self._p.show()
 
     def __set(self):
         if self._type.currentText() == "Lamé":
@@ -69,8 +73,10 @@ class ElasticConstWidget(QtWidgets.QWidget):
             self._param.C = [self._C1.value(), self._C2.value()]
         if self._type.currentText() == "Monoclinic":
             self._param.type = "general"
-            print(self._mon.value())
             self._param.C = self._mon.value()
+        if self._type.currentText() == "Triclinic":
+            self._param.type = "general"
+            self._param.C = self._p.value()
 
 
 class _ElasticConstMatrix(MatrixFunctionWidget):
@@ -86,7 +92,7 @@ class _ElasticConstMatrix(MatrixFunctionWidget):
                 self._value[i][j].setEnabled(False)
                 self._value[i][j].setText("0")
                 self._value[j][i].setText("0")
-
+                
 
 class ThermoelasticWidget(QtWidgets.QWidget):
     def __init__(self, cond, fem, canvas, title):
