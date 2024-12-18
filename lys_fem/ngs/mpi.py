@@ -35,9 +35,21 @@ def gatherArray(arr, dtype=float, test=False):
         return None
     return [r[:s] for r, s in zip(result, sizes)]
 
+
+file = None
+
+def setOutputFile(path):
+    global file
+    file = open(path, "w")
+
+    
 def print_(*args, **kwargs):
+    global file
     if isRoot:
         print(*args, **kwargs)
+        if file is not None:
+           print(*args, file=file, flush=True, **kwargs)
+        
 
 def info():
     if isParallel():
