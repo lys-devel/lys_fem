@@ -1,4 +1,5 @@
 import os
+import time
 import shutil
 import numpy as np
 import ngsolve
@@ -188,7 +189,9 @@ class _Operator:
 
     def __inverse(self, mat):
         if self._solver in ["pardiso", "mumps", "umfpack", "pardisospd", "sparsecholesky", "masterinverse"]:
+            start = time.time()
             inv = mat.Inverse(self._fes.FreeDofs(self._blf.condense), self._solver)
+            mpi.print_("\t[Direct solver] Time =", time.time()-start)
         else:
             inv = _petsc(self._fes, mat, self._solver, self._prec, self._blf.condense)
         return _Inv(inv, self._blf)
@@ -226,10 +229,11 @@ class _Operator:
         return res
 
 
-
 class _petsc:
-    def __init__(self, fes, mat, solver, prec, cond):
+    def __init__(self, fes, mat, solver, prec, cond, iter=4000, tol=1e-6):
         self._fes = fes
+        self._iter=iter
+        self._tol = tol
         self.__initialize(mat, solver, prec, cond)
 
     def __initialize(self, mat, solver, prec, cond):
@@ -243,10 +247,11 @@ class _petsc:
         ksp.setOperators(self._psc_mat)
         ksp.setType(solver)
         ksp.getPC().setType(prec)
-        ksp.setTolerances(rtol=1e-7, atol=0, divtol=1e16, max_it=4000)
+        ksp.setTolerances(rtol=self._tol, atol=0, divtol=1e16, max_it=self._iter)
         self._ksp = ksp
 
     def __mul__(self, other):
+        start = time.time()
         psc_f, psc_u = self._psc_mat.createVecs()        
         gfu = util.GridFunction(self._fes)
         gfu.vec.data = other
@@ -255,12 +260,15 @@ class _petsc:
         else:
             psc_f.getArray()[:] = gfu.vec.FV().NumPy()[self._dofs]
         self._ksp.solve(psc_f, psc_u)
-        mpi.print_("itertion:", self._ksp.its)
         gfu.vec.FV().NumPy()[:] = 0
         if mpi.isParallel():
             self._vecmap.P2N(psc_u, gfu.vec)
         else:
             gfu.vec.FV().NumPy()[self._dofs] = psc_u.getArray()
+        mpi.print_("\t[Iterative solver] Iteration =", self._ksp.its, ", Time =", (time.time()-start))
+        if self._ksp.its == self._iter:
+            mpi.print_("[Iterative solver] Not converged!")
+            raise RuntimeError("[Iterative solver] Not converged!")
         return gfu.vec
 
 
@@ -306,7 +314,8 @@ class SolverBase:
 
         E0 = self._diff.integrate(self._mesh)
         x = self._sols.copy()
-        for op, step in zip(self._ops, self._obj.steps):
+        for i, (op, step) in enumerate(zip(self._ops, self._obj.steps)):
+            mpi.print_("\t=======Solver step", i+1, "=======")
             if step.deformation is not None:
                 deform = {v.name: xx for v, xx in zip(self._model.variables, self._sols.X())}[step.deformation]
                 space = ngsolve.VectorH1(self._mesh)
@@ -433,8 +442,8 @@ class TimeDependentSolver(SolverBase):
         for i, dt in enumerate(self._tSolver.getStepList()):
             util.t.set(t)
             dx = self.solve(1/dt)
-            mpi.print_("Timestep", i, ", t = {:3e}".format(t), ", dx = {:3e}".format(dx))
             t = t + dt
+            mpi.print_("Timestep", i, ", t = {:3e}".format(t), ", dx = {:3e}".format(dx))
 
 
 def newton(F, x, eps=1e-5, max_iter=30, gamma=1):
@@ -447,11 +456,12 @@ def newton(F, x, eps=1e-5, max_iter=30, gamma=1):
         dx.data *= gamma
         x -= dx
         R = np.sqrt(np.divide(dx.InnerProduct(dx), x.InnerProduct(x)))
-        mpi.print_("R =", R)
+        mpi.print_("\tResidual R =", R)
         if R < eps:
             if i!=0:
                 mpi.print_("[Newton solver] Converged in", i, "steps.")
             return x
     if max_iter !=1:
+        mpi._print_("[Newton solver] NOT Converged in " + str(i) + " steps.")
         raise RuntimeError("[Newton solver] NOT Converged in " + str(i) + " steps.")
     return x
