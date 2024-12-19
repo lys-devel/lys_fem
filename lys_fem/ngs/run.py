@@ -38,7 +38,6 @@ def run(fem, run=True, save=True, output=True, nthreads=4):
     start = time.time()
     model = generateModel(fem, mesh, mats)
     print_("NGS Models generated in ", '{:.2f}'.format(time.time()-start), "seconds :")
-    print_("\tTodal degree of freedom:", model.finiteElementSpace.ndof)
     for m in model.models:
         print_("\t"+m.name+":", {v.name: v.size for v in m.variables}, "Discretization:", m.discretization)
     print_()
@@ -47,9 +46,8 @@ def run(fem, run=True, save=True, output=True, nthreads=4):
     solvers = generateSolver(fem, mesh, model)
     print_("NGS Solvers generated in ", '{:.2f}'.format(time.time()-start), "seconds :")
     for i, s in enumerate(solvers):
-        print_("\tSolver", i, ":", s.name)
-        for j, step in enumerate(s.obj.steps):
-            print_("\tStep", j, ":", step)
+        print_("\tSolver", i+1, "(",s.name,"):")
+        print_(s)
     print_()
  
     if run:

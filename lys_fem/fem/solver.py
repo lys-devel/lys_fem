@@ -64,15 +64,6 @@ class SolverStep:
     def newton_eps(self):
         return self._eps
     
-    def __str__(self):
-        if self._vars is not None:
-            "Variables = " + str(self._vars) + ", "
-        res = "LinearSolver = " + self._solver
-        if self._prec is not None:
-            ", Preconditioner = " + self._prec
-        if self._damping != 1:
-            res += ", Newton damping = " + str(self._damping)
-        return res
     
     def saveAsDictionary(self):
         return {"vars": self._vars, "deformation": self._deform, "solver": self._solver, "prec": self._prec, "symmetric": self._sym, "condensation": self._cond, "eps": self._eps, "damping": self._damping, "maxiter": self._maxiter}

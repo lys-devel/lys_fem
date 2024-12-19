@@ -53,7 +53,7 @@ class testProblems_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        stationary = StationarySolver(steps=[SolverStep(condensation=True, symmetric=True)])
+        stationary = StationarySolver(steps=[SolverStep(solver="cg", prec="gamg", condensation=True, symmetric=True)])
         p.solvers.append(stationary)
 
         # solve

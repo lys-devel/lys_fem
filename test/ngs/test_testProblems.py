@@ -64,3 +64,6 @@ class test(testProblems_test):
         self.solver(ngs, "cg", "icc")
         self.solver(ngs, "cg", "gamg")
         self.solver(ngs, "cg", "sor")
+
+    def test_condensation(self):
+        self.cond(ngs)

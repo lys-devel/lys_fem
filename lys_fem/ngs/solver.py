@@ -190,7 +190,7 @@ class _Operator:
         if self._solver in ["pardiso", "mumps", "umfpack", "pardisospd", "sparsecholesky", "masterinverse"]:
             inv = mat.Inverse(self._fes.FreeDofs(self._blf.condense), self._solver)
         else:
-            inv = _petsc(self._fes, mat, self._solver, self._prec)
+            inv = _petsc(self._fes, mat, self._solver, self._prec, self._blf.condense)
         return _Inv(inv, self._blf)
 
     @property
@@ -213,24 +213,37 @@ class _Operator:
             elif direction == "<-":
                 glb.vec.FV().NumPy()[self._mask] = loc.vec.FV().NumPy()
 
+    def __str__(self):
+        res = ""
+        if self._symbols is not None:
+            res += "\t\tSymbols: " + str(self._symbols) + "\n"
+        res += "\t\tSolver: " + str(self._solver) + "\n"
+        if self._prec is not None:
+            res += "\t\tPreconditioner: " + str(self._prec) + "\n"
+        res += "\t\tStatic condensation: " + str(self._blf.condense) + "\n"
+        res += "\t\tTotal degree of freedoms: " + str(len(self._fes.FreeDofs())) + "\n"
+        res += "\t\tFree degree of freedoms: " + str(sum(self._fes.FreeDofs(self._blf.condense))) + "\n"
+        return res
+
+
 
 class _petsc:
-    def __init__(self, fes, mat, solver, prec):
+    def __init__(self, fes, mat, solver, prec, cond):
         self._fes = fes
-        self.__initialize(mat, solver, prec)
+        self.__initialize(mat, solver, prec, cond)
 
-    def __initialize(self, mat, solver, prec):
-        self._psc_mat = n2p.CreatePETScMatrix(mat, self._fes.FreeDofs())
+    def __initialize(self, mat, solver, prec, cond):
+        self._dofs = self._fes.FreeDofs()
+        self._psc_mat = n2p.CreatePETScMatrix(mat, self._dofs)
         if mpi.isParallel():
-            self._vecmap = n2p.VectorMapping(mat.row_pardofs, self._fes.FreeDofs())
+            self._vecmap = n2p.VectorMapping(mat.row_pardofs, self._dofs)
 
         ksp = psc.KSP()
         ksp.create()
         ksp.setOperators(self._psc_mat)
         ksp.setType(solver)
-        #ksp.setNormType(psc.KSP.NormType.NORM_NATURAL)
         ksp.getPC().setType(prec)
-        ksp.setTolerances(rtol=1e-6, atol=0, divtol=1e16, max_it=400)
+        ksp.setTolerances(rtol=1e-7, atol=0, divtol=1e16, max_it=4000)
         self._ksp = ksp
 
     def __mul__(self, other):
@@ -240,12 +253,14 @@ class _petsc:
         if mpi.isParallel():
             self._vecmap.N2P(gfu.vec, psc_f)
         else:
-            psc_f.getArray()[:] = gfu.vec.FV().NumPy()[self._fes.FreeDofs()]
+            psc_f.getArray()[:] = gfu.vec.FV().NumPy()[self._dofs]
         self._ksp.solve(psc_f, psc_u)
+        mpi.print_("itertion:", self._ksp.its)
+        gfu.vec.FV().NumPy()[:] = 0
         if mpi.isParallel():
             self._vecmap.P2N(psc_u, gfu.vec)
         else:
-            gfu.vec.FV().NumPy()[self._fes.FreeDofs()] = psc_u.getArray()
+            gfu.vec.FV().NumPy()[self._dofs] = psc_u.getArray()
         return gfu.vec
 
 
@@ -366,6 +381,13 @@ class SolverBase:
     @property
     def obj(self):
         return self._obj
+    
+    def __str__(self):
+        res = ""
+        for i, op in enumerate(self._ops):
+            res += "\tStep " + str(1+i) + "\n"
+            res += str(op)
+        return res
 
 
 class StationarySolver(SolverBase):
