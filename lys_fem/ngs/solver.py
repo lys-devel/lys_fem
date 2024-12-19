@@ -97,15 +97,16 @@ class _Solution:
 
 
 class _Operator:
-    def __init__(self, model, sols, symbols, solver="pardiso", prec=None, cond=False, sym=False):
+    def __init__(self, model, sols, step):
         self._model = model
-        self._symbols = symbols
-        self._solver = solver
-        self._prec = prec
-        self._fes = self.__compressed_fes(model.finiteElementSpace, symbols)
+        self._symbols = step.variables
+        self._solver = step.solver
+        self._prec = step.preconditioner
+        self._step = step
+        self._fes = self.__compressed_fes(model.finiteElementSpace, self._symbols)
 
-        self._blf, self._lf = ngsolve.BilinearForm(self._fes, condense=cond, symmetric=sym), ngsolve.LinearForm(self._fes)
-        wf = self.__prepareWeakform(model, sols, symbols)
+        self._blf, self._lf = ngsolve.BilinearForm(self._fes, condense=step.condensation, symmetric=step.symmetric), ngsolve.LinearForm(self._fes)
+        wf = self.__prepareWeakform(model, sols, self._symbols)
         lhs, rhs = wf.lhs, wf.rhs
         if lhs.valid:
             self._blf += lhs.eval()
@@ -175,9 +176,8 @@ class _Operator:
     def Jacobian(self, x):
         if self.isNonlinear:
             self._blf.AssembleLinearization(x)
-            return self.__inverse(self._blf.mat)
-        else:
-            return self._inv
+            self._inv = self.__inverse(self._blf.mat)
+        return self._inv
         
     def update(self):
         if (self._tdep_rhs or not self._init):
@@ -191,9 +191,9 @@ class _Operator:
         if self._solver in ["pardiso", "mumps", "umfpack", "pardisospd", "sparsecholesky", "masterinverse"]:
             start = time.time()
             inv = mat.Inverse(self._fes.FreeDofs(self._blf.condense), self._solver)
-            mpi.print_("\t[Direct solver] Time =", time.time()-start)
+            mpi.print_("\t[Direct solver] Time = {:.2f}".format(time.time()-start))
         else:
-            inv = _petsc(self._fes, mat, self._solver, self._prec, self._blf.condense)
+            inv = _petsc(self._fes, mat, self._solver, self._prec, self._blf.condense, iter=self._step.linear_maxiter, tol=self._step.linear_rtol)
         return _Inv(inv, self._blf)
 
     @property
@@ -218,19 +218,20 @@ class _Operator:
 
     def __str__(self):
         res = ""
+        res += "\t\tTotal degree of freedoms: " + str(self._fes.ndofglobal) + "\n"
+        res += "\t\tStatic condensation: " + str(self._blf.condense) + "\n"
         if self._symbols is not None:
             res += "\t\tSymbols: " + str(self._symbols) + "\n"
         res += "\t\tSolver: " + str(self._solver) + "\n"
         if self._prec is not None:
             res += "\t\tPreconditioner: " + str(self._prec) + "\n"
-        res += "\t\tStatic condensation: " + str(self._blf.condense) + "\n"
-        res += "\t\tTotal degree of freedoms: " + str(len(self._fes.FreeDofs())) + "\n"
-        res += "\t\tFree degree of freedoms: " + str(sum(self._fes.FreeDofs(self._blf.condense))) + "\n"
+            res += "\t\tMax iteration:" + str(self._step.linear_maxiter) + "\n"
+            res += "\t\tRelative tolerance:" + str(self._step.linear_rtol) + "\n"
         return res
 
 
 class _petsc:
-    def __init__(self, fes, mat, solver, prec, cond, iter=4000, tol=1e-6):
+    def __init__(self, fes, mat, solver, prec, cond, iter=10000, tol=1e-9):
         self._fes = fes
         self._iter=iter
         self._tol = tol
@@ -252,20 +253,20 @@ class _petsc:
 
     def __mul__(self, other):
         start = time.time()
-        psc_f, psc_u = self._psc_mat.createVecs()        
+        f, u = self._psc_mat.createVecs()
         gfu = util.GridFunction(self._fes)
         gfu.vec.data = other
         if mpi.isParallel():
-            self._vecmap.N2P(gfu.vec, psc_f)
+            self._vecmap.N2P(gfu.vec, f)
         else:
-            psc_f.getArray()[:] = gfu.vec.FV().NumPy()[self._dofs]
-        self._ksp.solve(psc_f, psc_u)
+            f.getArray()[:] = gfu.vec.FV().NumPy()[self._dofs]
+        self._ksp.solve(f, u)
         gfu.vec.FV().NumPy()[:] = 0
         if mpi.isParallel():
-            self._vecmap.P2N(psc_u, gfu.vec)
+            self._vecmap.P2N(u, gfu.vec)
         else:
-            gfu.vec.FV().NumPy()[self._dofs] = psc_u.getArray()
-        mpi.print_("\t[Iterative solver] Iteration =", self._ksp.its, ", Time =", (time.time()-start))
+            gfu.vec.FV().NumPy()[self._dofs] = u.getArray()
+        mpi.print_("\t[Iterative solver] Iter =", self._ksp.its, ", Time = {:.2f}".format(time.time()-start))
         if self._ksp.its == self._iter:
             mpi.print_("[Iterative solver] Not converged!")
             raise RuntimeError("[Iterative solver] Not converged!")
@@ -297,7 +298,7 @@ class SolverBase:
             self.__prepareDirectory(dirname)
 
         self._sols = _Solution(model)
-        self._ops = [_Operator(model, self._sols, step.variables, solver=step.solver, prec=step.preconditioner, cond = step.condensation, sym=step.symmetric) for step in obj.steps]
+        self._ops = [_Operator(model, self._sols, step) for step in obj.steps]
         util.stepn.set(-1)
         self._sols.initialize()
         self._diff = self.__calcDiff(obj.diff_expr)
@@ -327,6 +328,7 @@ class SolverBase:
             op.syncGridFunction(x, "->", g)
             g.vec.data = newton(op, g.vec.CreateVector(copy=True), eps=step.newton_eps, max_iter=step.newton_maxiter, gamma=step.newton_damping)
             op.syncGridFunction(x, "<-", g)
+            mpi.print_()
         self.__updateSolution(x)
         self.exportSolution(int(util.stepn.get()+1))
         E = self._diff.integrate(self._mesh)

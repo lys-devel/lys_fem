@@ -202,8 +202,8 @@ class _SolverStepWidget(QtWidgets.QWidget):
         g3 = self.__initDeform(step)
 
         layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(g0)
         layout.addWidget(g1)
+        layout.addWidget(g0)
         layout.addWidget(g2)
         layout.addWidget(g3)
 
@@ -245,6 +245,12 @@ class _SolverStepWidget(QtWidgets.QWidget):
             if step.preconditioner == item:
                 self._prec.setCurrentText(key)
 
+        self._rtol = ScientificSpinBox()
+        self._rtol.setValue(1e-6)
+        self._iter = QtWidgets.QSpinBox()
+        self._iter.setRange(1,10000000)
+        self._iter.setValue(5000)
+
         self._sol = QtWidgets.QComboBox()
         self._sol.addItems(self._dirs.keys())
         self._sol.addItems(self._iters.keys())
@@ -252,10 +258,14 @@ class _SolverStepWidget(QtWidgets.QWidget):
             if step.solver == item:
                 self._sol.setCurrentText(key)
                 self._prec.setEnabled(False)
+                self._rtol.setEnabled(False)
+                self._iter.setEnabled(False)
         for key, item in self._iters.items():
             if step.solver == item:
                 self._sol.setCurrentText(key)
                 self._prec.setEnabled(True)
+                self._rtol.setEnabled(True)
+                self._iter.setEnabled(True)
         self._sol.currentTextChanged.connect(self.__changeSolvers)        
         self._prec.currentTextChanged.connect(self.__changeSolvers)
 
@@ -271,10 +281,14 @@ class _SolverStepWidget(QtWidgets.QWidget):
         g.addWidget(self._cond, 0, 1)
         g.addWidget(QtWidgets.QLabel("Linear solver"), 1, 0)
         g.addWidget(QtWidgets.QLabel("Preconditioner"), 2, 0)
+        g.addWidget(QtWidgets.QLabel("Max iteration"), 3, 0)
+        g.addWidget(QtWidgets.QLabel("Relative torelance"), 4, 0)
         g.addWidget(self._sol, 1, 1)
         g.addWidget(self._prec, 2, 1)
+        g.addWidget(self._iter, 3, 1)
+        g.addWidget(self._rtol, 4, 1)
 
-        g1 = QtWidgets.QGroupBox("Solvers")
+        g1 = QtWidgets.QGroupBox("Linear solver")
         g1.setLayout(g)
         return g1
 
@@ -283,12 +297,18 @@ class _SolverStepWidget(QtWidgets.QWidget):
             self._step._solver = self._dirs[self._sol.currentText()]
             self._step._prec = None
             self._prec.setEnabled(False)
+            self._iter.setEnabled(False)
+            self._rtol.setEnabled(False)
         else:
             self._step._solver = self._iters[self._sol.currentText()]
             self._step._prec = self._precs[self._prec.currentText()]
             self._prec.setEnabled(True)
+            self._iter.setEnabled(True)
+            self._rtol.setEnabled(True)
         self._step._sym = self._sym.isChecked()
         self._step._cond = self._cond.isChecked()
+        self._step._rtol = self._rtol.value()
+        self._step._iter = self._iter.value()
 
     def __initVars(self, step):
         self._varType = QtWidgets.QComboBox()

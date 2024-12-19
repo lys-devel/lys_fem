@@ -12,12 +12,14 @@ class SolverStep:
         prec(str): The name of the preconditioner. It is used only for iterative solvers.
         symmetric(bool): If true, the linear solver assume that the stiffness matrix to be symmetric.
         condensation(bool): If true, static condensation will be applied.
+        rtol(float): The tolerance for iterative solvers. It will be neglected if the linear solver is direct.
+        iter(int): The maximum iteration for iterative solver. It will be neglected if the linear solver is direct.
         maxiter(int): The maximum iteration for nonlinear newton solver. It will be negrected if the problem is linear.
         damping(float): The damping factor for newton solver.
         eps(float): The convergence criteria for newton solver.
         deformation(str): The name of a variable that is used for deformation of mesh.
     """
-    def __init__(self, vars=None, solver="pardiso", prec=None, symmetric=False, condensation=False, maxiter=30, damping=1, eps=1e-5, deformation=None):
+    def __init__(self, vars=None, solver="pardiso", prec=None, symmetric=False, condensation=False, rtol=1e-6, iter=5000, maxiter=30, damping=1, eps=1e-5, deformation=None):
         self._vars = vars
         self._deform = deformation
         self._solver = solver
@@ -27,6 +29,8 @@ class SolverStep:
         self._maxiter = maxiter
         self._damping = damping
         self._eps = eps
+        self._iter = iter
+        self._rtol = rtol
 
     @property
     def variables(self):
@@ -64,9 +68,18 @@ class SolverStep:
     def newton_eps(self):
         return self._eps
     
+    @property
+    def linear_maxiter(self):
+        return self._iter
+
+    @property 
+    def linear_rtol(self):
+        return self._rtol
+    
     
     def saveAsDictionary(self):
-        return {"vars": self._vars, "deformation": self._deform, "solver": self._solver, "prec": self._prec, "symmetric": self._sym, "condensation": self._cond, "eps": self._eps, "damping": self._damping, "maxiter": self._maxiter}
+        return {"vars": self._vars, "deformation": self._deform, "solver": self._solver, "prec": self._prec, "symmetric": self._sym, 
+                "condensation": self._cond, "eps": self._eps, "damping": self._damping, "maxiter": self._maxiter, "iter": self._iter, "rtol": self._rtol}
     
     @classmethod
     def loadFromDictionary(cls, d):
