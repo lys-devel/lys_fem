@@ -1,6 +1,6 @@
 import time
 import ngsolve
-from .mpi import print_, info, isParallel, wait, setOutputFile
+from . import mpi
 from .mesh import generateMesh
 from .material import generateMaterial
 from .models import generateModel
@@ -8,61 +8,61 @@ from .solver import generateSolver
 
 
 def run(fem, run=True, save=True, output=True, nthreads=16):
-    print_("\n----------------------------NGS started ---------------------------")
-    print_()
-    info()
+    mpi.print_("\n----------------------------NGS started ---------------------------")
+    mpi.print_()
+    mpi.info()
 
     first = time.time()
 
     if save:
-        d = fem.saveAsDictionary(parallel=isParallel())
+        d = fem.saveAsDictionary(parallel=mpi.isParallel())
         with open("input.dic", "w") as f:
             f.write(str(d))
 
     if output:
-        setOutputFile("output")
+        mpi.setOutputFile("output")
 
     ngsolve.SetNumThreads(nthreads)
-    print_("Number of threads:", nthreads)
-    print_()
+    mpi.print_("Number of threads:", nthreads)
+    mpi.print_()
 
     start = time.time()
     mesh = generateMesh(fem)
-    print_("NGS Mesh generated in", '{:.2f}'.format(time.time()-start) ,"seconds : ", mesh.ne, "elements, ", mesh.nv, "nodes,", len(mesh.GetMaterials()), "domains, ", len(mesh.GetBoundaries()), "boundaries.")
-    print_()
+    mpi.print_("NGS Mesh generated in", '{:.2f}'.format(time.time()-start) ,"seconds : ", mesh.ne, "elements, ", mesh.nv, "nodes,", len(mesh.GetMaterials()), "domains, ", len(mesh.GetBoundaries()), "boundaries.")
+    mpi.print_()
 
     start = time.time()
     mats = generateMaterial(fem, mesh)
-    print_("NGS Variables generated in", '{:.2f}'.format(time.time()-start), "seconds :")
-    print_("\tParameters:", {key: value.shape if len(value.shape)>0 else "scalar" for key, value in mats.items()})
-    print_()
+    mpi.print_("NGS Variables generated in", '{:.2f}'.format(time.time()-start), "seconds :")
+    mpi.print_("\tParameters:", {key: value.shape if len(value.shape)>0 else "scalar" for key, value in mats.items()})
+    mpi.print_()
 
     start = time.time()
     model = generateModel(fem, mesh, mats)
-    print_("NGS Models generated in ", '{:.2f}'.format(time.time()-start), "seconds :")
+    mpi.print_("NGS Models generated in ", '{:.2f}'.format(time.time()-start), "seconds :")
     for m in model.models:
-        print_("\t"+m.name+":", {v.name: v.size for v in m.variables}, "Discretization:", m.discretization)
-    print_()
+        mpi.print_("\t"+m.name+":", {v.name: v.size for v in m.variables}, "Discretization:", m.discretization)
+    mpi.print_()
 
     start = time.time()
     solvers = generateSolver(fem, mesh, model)
-    print_("NGS Solvers generated in ", '{:.2f}'.format(time.time()-start), "seconds :")
+    mpi.print_("NGS Solvers generated in ", '{:.2f}'.format(time.time()-start), "seconds :")
     for i, s in enumerate(solvers):
-        print_("\tSolver", i+1, "(",s.name,"):")
-        print_(s)
-    print_()
+        mpi.print_("\tSolver", i+1, "(",s.name,"):")
+        mpi.print_(s)
+    mpi.print_()
  
     if run:
         for i, s in enumerate(solvers):
-            print_("------------Solver " + str(i+1) + ": " + s.name + " started --------------------")
+            mpi.print_("------------Solver " + str(i+1) + ": " + s.name + " started --------------------")
             start = time.time()
             if i > 0:
                 s.solution.update(solvers[i].solution[0])
             with ngsolve.TaskManager():
                 s.execute()
-            print_("\tCalc. time for Solver", str(i+1), ":{:.2f}".format(time.time()-start), " seconds")
-            print_()
+            mpi.print_("\tCalc. time for Solver", str(i+1), ":{:.2f}".format(time.time()-start), " seconds")
+            mpi.print_()
     else:
         return mesh, mats, model, solvers
     print("Total calculation time: {:.2f}".format(time.time()-first), " seconds")
-    wait()
+    mpi.wait()

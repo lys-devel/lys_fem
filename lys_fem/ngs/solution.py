@@ -15,7 +15,7 @@ class NGSSolution:
         self._mats = generateMaterial(fem, self._mesh)
         self._model = generateModel(fem, self._mesh, self._mats)
         self._solvers = generateSolver(fem, self._mesh, self._model, load=True)
-        self._meshInfo = exportMesh(self._mesh)
+        self._meshInfo = None
 
     @property
     def maxIndex(self):
@@ -49,7 +49,12 @@ class NGSSolution:
         return ngsolve.Integrate(f, self._mesh)
 
     def __getDomainValues(self, f):
+        from . import mpi
+        mpi.print_("get domain values")
         from lys import Wave
+        if self._meshInfo is None:
+            self._meshInfo = exportMesh(self._mesh)
+        mpi.print_("debug001")
         domains, coords = self._meshInfo
         mip = [self._mesh(*c) for c in coords]
         data=np.array([f(mi) for mi in mip])
