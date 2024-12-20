@@ -10,8 +10,8 @@ class Box(FEMGeometry):
         super().__init__([x, y, z, dx, dy, dz])
 
     def execute(self, model, trans):
-        args = trans(self.args, unit="m")
-        model.occ.addBox(*args)
+        x,y,z,dx,dy,dz = self.args
+        return RectFrustum((x,y,z), (x+dx,y,z), (x+dx,y+dy,z), (x,y+dy,z), (x,y,z+dz), (x+dx,y,z+dz), (x+dx, y+dy, z+dz), (x,y+dy, z+dz)).execute(model, trans)
 
     def widget(self):
         from .geometryGUI import BoxGUI
@@ -24,15 +24,40 @@ class Sphere(FEMGeometry):
         super().__init__([x, y, z, r])
 
     def execute(self, model, trans):
-        args = trans(self.args, unit="m")
-        model.occ.addSphere(*args, angle2=0, angle3=np.pi/2)
-        model.occ.addSphere(*args, angle2=0, angle3=np.pi)
-        model.occ.addSphere(*args, angle2=0, angle3=3*np.pi/2)
-        model.occ.addSphere(*args, angle2=0, angle3=2*np.pi)
-        model.occ.addSphere(*args, angle1=0, angle3=np.pi/2)
-        model.occ.addSphere(*args, angle1=0, angle3=np.pi)
-        model.occ.addSphere(*args, angle1=0, angle3=3*np.pi/2)
-        model.occ.addSphere(*args, angle1=0, angle3=2*np.pi)
+        x,y,z,r = trans(self.args, unit="m")
+
+        p1 = model.geo.addPoint(x, y, z)
+        p2 = model.geo.addPoint(x + r, y, z)
+        p3 = model.geo.addPoint(x, y + r, z)
+        p4 = model.geo.addPoint(x, y, z + r)
+        p5 = model.geo.addPoint(x - r, y, z)
+        p6 = model.geo.addPoint(x, y - r, z)
+        p7 = model.geo.addPoint(x, y, z - r)
+
+        c1 = model.geo.addCircleArc(p2, p1, p7)
+        c2 = model.geo.addCircleArc(p7, p1, p5)
+        c3 = model.geo.addCircleArc(p5, p1, p4)
+        c4 = model.geo.addCircleArc(p4, p1, p2)
+        c5 = model.geo.addCircleArc(p2, p1, p3)
+        c6 = model.geo.addCircleArc(p3, p1, p5)
+        c7 = model.geo.addCircleArc(p5, p1, p6)
+        c8 = model.geo.addCircleArc(p6, p1, p2)
+        c9 = model.geo.addCircleArc(p7, p1, p3)
+        c10 =model.geo.addCircleArc(p3, p1, p4)
+        c11 =model.geo.addCircleArc(p4, p1, p6)
+        c12 =model.geo.addCircleArc(p6, p1, p7)
+    
+        s1 = model.geo.addSurfaceFilling([model.geo.addCurveLoop([c5, c10, c4])])
+        s2 = model.geo.addSurfaceFilling([model.geo.addCurveLoop([c9, -c5, c1])])
+        s3 = model.geo.addSurfaceFilling([model.geo.addCurveLoop([c12, -c8, -c1])])
+        s4 = model.geo.addSurfaceFilling([model.geo.addCurveLoop([c8, -c4, c11])])
+        s5 = model.geo.addSurfaceFilling([model.geo.addCurveLoop([-c10, c6, c3])])
+        s6 = model.geo.addSurfaceFilling([model.geo.addCurveLoop([-c11, -c3, c7])])
+        s7 = model.geo.addSurfaceFilling([model.geo.addCurveLoop([-c2, -c7, -c12])])
+        s8 = model.geo.addSurfaceFilling([model.geo.addCurveLoop([-c6, -c9, c2])])
+
+        sl = model.geo.addSurfaceLoop([s1, s2, s3, s4, s5, s6, s7, s8])
+        return model.geo.addVolume([sl])
 
     def widget(self):
         from .geometryGUI import SphereGUI
@@ -45,20 +70,15 @@ class RectFrustum(FEMGeometry):
         super().__init__([v1, v2, v3, v4, v5, v6, v7, v8])
 
     def execute(self, model, trans):
-        pts = [model.occ.addPoint(*trans(v, unit="m")) for v in self.args]
-
-        lines = [model.occ.addLine(pts[0], pts[1]), model.occ.addLine(pts[1], pts[2]), model.occ.addLine(pts[2], pts[3]), model.occ.addLine(pts[3], pts[0])]
-        lines.extend([model.occ.addLine(pts[4], pts[5]), model.occ.addLine(pts[5], pts[6]), model.occ.addLine(pts[6], pts[7]), model.occ.addLine(pts[7], pts[4])])      
-        lines.extend([model.occ.addLine(pts[0], pts[4]), model.occ.addLine(pts[1], pts[5]), model.occ.addLine(pts[2], pts[6]), model.occ.addLine(pts[3], pts[7])])  
-
-        s1 = model.occ.addSurfaceFilling(model.occ.addCurveLoop([lines[0], lines[1], lines[2], lines[3]]))
-        s2 = model.occ.addSurfaceFilling(model.occ.addCurveLoop([lines[4], lines[5], lines[6], lines[7]]))
-        s3 = model.occ.addSurfaceFilling(model.occ.addCurveLoop([lines[0], lines[8], lines[4], lines[9]]))
-        s4 = model.occ.addSurfaceFilling(model.occ.addCurveLoop([lines[1], lines[9], lines[5], lines[10]]))
-        s5 = model.occ.addSurfaceFilling(model.occ.addCurveLoop([lines[2], lines[10], lines[6], lines[11]]))
-        s6 = model.occ.addSurfaceFilling(model.occ.addCurveLoop([lines[3], lines[11], lines[7], lines[8]]))
+        v = self.args
+        s1 = Quad(v[0],v[1],v[2],v[3]).execute(model, trans)
+        s2 = Quad(v[4],v[5],v[6],v[7]).execute(model, trans)
+        s3 = Quad(v[0],v[1],v[5],v[4]).execute(model, trans)
+        s4 = Quad(v[1],v[2],v[6],v[5]).execute(model, trans)
+        s5 = Quad(v[2],v[3],v[7],v[6]).execute(model, trans)
+        s6 = Quad(v[3],v[0],v[4],v[7]).execute(model, trans)
         
-        model.occ.addVolume([model.occ.addSurfaceLoop([s1, s3, s4, s5, s6, s2])])
+        return model.geo.addVolume([model.geo.addSurfaceLoop([s1, s3, s4, s5, s6, s2])])
 
     def widget(self):
         from .geometryGUI import RectFrustumGUI
@@ -153,8 +173,8 @@ class Rect(FEMGeometry):
         super().__init__([x, y, z, dx, dy])
 
     def execute(self, model, trans):
-        args = trans(self.args, unit="m")
-        model.occ.addRectangle(*args)
+        x,y,z,dx,dy = self.args
+        return Quad((x,y,z), (x+dx,y,z), (x+dx,y+dy,z), (x,y+dy,z)).execute(model, trans)
 
     def widget(self):
         from .geometryGUI import RectGUI
@@ -167,8 +187,20 @@ class Disk(FEMGeometry):
         super().__init__([x, y, z, rx, ry])
 
     def execute(self, model, trans):
-        args = trans(self.args, unit="m")
-        model.occ.addDisk(*args)
+        x,y,z,rx, ry = trans(self.args, unit="m")
+
+        p1 = model.geo.addPoint(x, y, z)
+        p2 = model.geo.addPoint(x + rx, y, z)
+        p3 = model.geo.addPoint(x, y + ry, z)
+        p4 = model.geo.addPoint(x - rx, y, z)
+        p5 = model.geo.addPoint(x, y - ry, z)
+
+        c1 = model.geo.addEllipseArc(p2, p1, p2 if rx > ry else p3, p3)
+        c2 = model.geo.addEllipseArc(p3, p1, p4 if rx > ry else p3, p4)
+        c3 = model.geo.addEllipseArc(p4, p1, p4 if rx > ry else p5, p5)
+        c4 = model.geo.addEllipseArc(p5, p1, p2 if rx > ry else p5, p2)
+    
+        return model.geo.addSurfaceFilling([model.geo.addCurveLoop([c1, c2, c3, c4])])
 
     def widget(self):
         from .geometryGUI import DiskGUI
@@ -181,9 +213,9 @@ class Quad(FEMGeometry):
         super().__init__([v1, v2 ,v3, v4])
 
     def execute(self, model, trans):
-        pts = [model.occ.addPoint(*trans(v, unit="m")) for v in self.args]
-        lines = [model.occ.addLine(pts[0], pts[1]), model.occ.addLine(pts[1], pts[2]), model.occ.addLine(pts[2], pts[3]), model.occ.addLine(pts[3], pts[0])]
-        model.occ.addSurfaceFilling(model.occ.addCurveLoop([lines[0], lines[1], lines[2], lines[3]]))
+        pts = [model.geo.addPoint(*trans(v, unit="m")) for v in self.args]
+        lines = [model.geo.addLine(pts[0], pts[1]), model.geo.addLine(pts[1], pts[2]), model.geo.addLine(pts[2], pts[3]), model.geo.addLine(pts[3], pts[0])]
+        return model.geo.addPlaneSurface([model.geo.addCurveLoop([lines[0], lines[1], lines[2], lines[3]], reorient=True)])
 
     def widget(self):
         from .geometryGUI import QuadGUI
@@ -258,9 +290,9 @@ class Line(FEMGeometry):
     def execute(self, model, trans):
         arg1 = trans(self.args[:3], unit="m")
         arg2 = trans(self.args[3:], unit="m")
-        p1t = model.occ.addPoint(*arg1)
-        p2t = model.occ.addPoint(*arg2)
-        model.occ.addLine(p1t, p2t)
+        p1t = model.geo.addPoint(*arg1)
+        p2t = model.geo.addPoint(*arg2)
+        return model.geo.addLine(p1t, p2t)
 
     def widget(self):
         from .geometryGUI import LineGUI

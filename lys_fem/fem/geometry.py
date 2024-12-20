@@ -40,8 +40,8 @@ class GeometryGenerator(FEMObject):
         scale = TransGeom(self.fem)
         for order in self._order if n is None else self._order[0:n + 1]:
             order.execute(model, scale)
-        model.occ.removeAllDuplicates()
-        model.occ.synchronize()
+        model.geo.removeAllDuplicates()
+        model.geo.synchronize()
         for i in [1,2,3]:
             if len(model.getEntities(i))!=0:
                 dim = i
