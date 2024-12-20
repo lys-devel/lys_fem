@@ -79,12 +79,7 @@ class magnetostatistics_test(FEMTestCase):
             r = np.sqrt(x**2+y**2+z**2)-1e-16
             return np.where(r<=a, Ms/3*z, np.nan)
 
-        import time
-        start = time.time()
         sol = FEMSolution()
-        print(time.time()-start)
         res = sol.eval("phi", data_number=1)
-        print(time.time()-start)
         for w in [res[0]]:
             self.assert_allclose(w.data, solution(w.x[:,0],w.x[:,1],w.x[:,2], 0.8, 1), atol=0.02, rtol=0)
-        print(time.time()-start)

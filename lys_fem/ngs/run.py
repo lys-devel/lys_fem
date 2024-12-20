@@ -28,7 +28,7 @@ def run(fem, run=True, save=True, output=True, nthreads=16):
 
     start = time.time()
     mesh = generateMesh(fem)
-    mpi.print_("NGS Mesh generated in", '{:.2f}'.format(time.time()-start) ,"seconds : ", mesh.ne, "elements, ", mesh.nv, "nodes,", len(mesh.GetMaterials()), "domains, ", len(mesh.GetBoundaries()), "boundaries.")
+    mpi.print_("NGS Mesh generated in", '{:.2f}'.format(time.time()-start) ,"seconds : ", mesh.ns[0], "elements, ", mesh.ns[1], "nodes,", len(mesh.GetMaterials()), "domains, ", len(mesh.GetBoundaries()), "boundaries.")
     mpi.print_()
 
     start = time.time()
@@ -64,5 +64,5 @@ def run(fem, run=True, save=True, output=True, nthreads=16):
             mpi.print_()
     else:
         return mesh, mats, model, solvers
-    print("Total calculation time: {:.2f}".format(time.time()-first), " seconds")
+    mpi.print_("Total calculation time: {:.2f}".format(time.time()-first), " seconds")
     mpi.wait()

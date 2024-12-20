@@ -9,7 +9,10 @@ def generateMesh(fem, file="mesh.msh"):
         geom = fem.geometries.generateGeometry()
         fem.mesher.export(geom, file)
         gmesh = ReadGmsh(file, fem.dimension)
+        ne, nv = gmesh.ne, len(gmesh.Points())
         gmesh.Scale(fem.geometries.scale)
+    else:
+        ne, nv = 0, 0
 
     if mpi.isParallel():
         comm = ngsolve.MPI_Init()
@@ -19,6 +22,7 @@ def generateMesh(fem, file="mesh.msh"):
             mesh = ngsolve.Mesh(Mesh.Receive(comm))
     else:
         mesh = ngsolve.Mesh(gmesh)
+    mesh.ns = ne, nv
     util.dimension = fem.dimension
     util.dx.setMesh(mesh)
     util.ds.setMesh(mesh)
