@@ -120,9 +120,9 @@ class FEMGUI(LysSubWindow):
             self._obj.submitSetting.update(sub)
             path = d.getPath()
             os.makedirs(path, exist_ok=True)
-            self.__save()
-            self.__save(path=path + "/input.dic", parallel=sub["type"] != "Serial")
             ncore = 1 if sub["type"] == "Serial" else sub["ncore"]
+            self.__save()
+            self.__save(path=path + "/input.dic", parallel=ncore==1)
             command = "python -m lys_fem.ngs -nt "+str(sub["nthreads"])
             if sub["type"] in ["Serial", "Parallel"]:
                 qsub.execute(command, path, ncore=ncore)
