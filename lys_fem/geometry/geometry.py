@@ -51,12 +51,12 @@ class RectFrustum(FEMGeometry):
         lines.extend([model.occ.addLine(pts[4], pts[5]), model.occ.addLine(pts[5], pts[6]), model.occ.addLine(pts[6], pts[7]), model.occ.addLine(pts[7], pts[4])])      
         lines.extend([model.occ.addLine(pts[0], pts[4]), model.occ.addLine(pts[1], pts[5]), model.occ.addLine(pts[2], pts[6]), model.occ.addLine(pts[3], pts[7])])  
 
-        s1 = model.occ.addSurfaceFilling(model.occ.addCurveLoop([lines[0], lines[1], lines[2], lines[3]]))
-        s2 = model.occ.addSurfaceFilling(model.occ.addCurveLoop([lines[4], lines[5], lines[6], lines[7]]))
-        s3 = model.occ.addSurfaceFilling(model.occ.addCurveLoop([lines[0], lines[8], lines[4], lines[9]]))
-        s4 = model.occ.addSurfaceFilling(model.occ.addCurveLoop([lines[1], lines[9], lines[5], lines[10]]))
-        s5 = model.occ.addSurfaceFilling(model.occ.addCurveLoop([lines[2], lines[10], lines[6], lines[11]]))
-        s6 = model.occ.addSurfaceFilling(model.occ.addCurveLoop([lines[3], lines[11], lines[7], lines[8]]))
+        s1 = model.occ.addPlaneSurface([model.occ.addCurveLoop([lines[0], lines[1], lines[2], lines[3]])])
+        s2 = model.occ.addPlaneSurface([model.occ.addCurveLoop([lines[4], lines[5], lines[6], lines[7]])])
+        s3 = model.occ.addPlaneSurface([model.occ.addCurveLoop([lines[0], lines[8], lines[4], lines[9]])])
+        s4 = model.occ.addPlaneSurface([model.occ.addCurveLoop([lines[1], lines[9], lines[5], lines[10]])])
+        s5 = model.occ.addPlaneSurface([model.occ.addCurveLoop([lines[2], lines[10], lines[6], lines[11]])])
+        s6 = model.occ.addPlaneSurface([model.occ.addCurveLoop([lines[3], lines[11], lines[7], lines[8]])])
         
         model.occ.addVolume([model.occ.addSurfaceLoop([s1, s3, s4, s5, s6, s2])])
 
@@ -183,7 +183,7 @@ class Quad(FEMGeometry):
     def execute(self, model, trans):
         pts = [model.occ.addPoint(*trans(v, unit="m")) for v in self.args]
         lines = [model.occ.addLine(pts[0], pts[1]), model.occ.addLine(pts[1], pts[2]), model.occ.addLine(pts[2], pts[3]), model.occ.addLine(pts[3], pts[0])]
-        model.occ.addSurfaceFilling(model.occ.addCurveLoop([lines[0], lines[1], lines[2], lines[3]]))
+        model.occ.addPlaneSurface([model.occ.addCurveLoop([lines[0], lines[1], lines[2], lines[3]])])
 
     def widget(self):
         from .geometryGUI import QuadGUI
