@@ -1,7 +1,7 @@
 from scipy import special
 import numpy as np
 import sympy as sp
-
+import lys
 
 from lys_fem import geometry, ngs
 

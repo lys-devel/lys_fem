@@ -183,7 +183,9 @@ class _Operator:
         if (self._tdep_rhs or not self._init):
             self._lf.Assemble()
         if (self._tdep_lhs or not self._init) and not self.isNonlinear:
+            start = time.time()
             self._blf.Assemble()
+            mpi.print_("\t[Assemble] Time = {:.2f}".format(time.time()-start))
             self._inv = self.__inverse(self._blf.mat)
         self._init = True
 
@@ -453,8 +455,7 @@ def newton(F, x, eps=1e-5, max_iter=30, gamma=1):
         max_iter=1
     dx = x.CreateVector()
     for i in range(max_iter):
-        with ngsolve.TaskManager():
-            dx.data = F.Jacobian(x)*F(x)
+        dx.data = F.Jacobian(x)*F(x)
         dx.data *= gamma
         x -= dx
         R = np.sqrt(np.divide(dx.InnerProduct(dx), x.InnerProduct(x)))

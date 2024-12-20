@@ -7,10 +7,12 @@ from .models import generateModel
 from .solver import generateSolver
 
 
-def run(fem, run=True, save=True, output=True, nthreads=4):
+def run(fem, run=True, save=True, output=True, nthreads=16):
     print_("\n----------------------------NGS started ---------------------------")
     print_()
     info()
+
+    first = time.time()
 
     if save:
         d = fem.saveAsDictionary(parallel=isParallel())
@@ -52,14 +54,15 @@ def run(fem, run=True, save=True, output=True, nthreads=4):
  
     if run:
         for i, s in enumerate(solvers):
-            print_("------------Solver " + str(i) + ": " + s.name + " started --------------------")
+            print_("------------Solver " + str(i+1) + ": " + s.name + " started --------------------")
             start = time.time()
             if i > 0:
                 s.solution.update(solvers[i].solution[0])
-            s.execute()
-            print_()
-            print_("Total calculation time: ", time.time()-start, " seconds")
+            with ngsolve.TaskManager():
+                s.execute()
+            print_("\tCalc. time for Solver", str(i+1), ":{:.2f}".format(time.time()-start), " seconds")
             print_()
     else:
         return mesh, mats, model, solvers
+    print("Total calculation time: {:.2f}".format(time.time()-first), " seconds")
     wait()
