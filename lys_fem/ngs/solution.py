@@ -1,7 +1,9 @@
 import glob
 import numpy as np
+import ngsolve
 
-from .mesh import generateMesh, exportMesh
+from . import mpi
+from .mesh import generateMesh
 from .material import generateMaterial
 from .models import generateModel
 from .solver import generateSolver
@@ -44,17 +46,16 @@ class NGSSolution:
                 return np.array([f(mi) for mi in mip]).squeeze()
             
     def integrate(self, expression, index):
-        import ngsolve
         f = self.coef(expression, index)
         return ngsolve.Integrate(f, self._mesh)
 
     def __getDomainValues(self, f):
-        from . import mpi
-        mpi.print_("get domain values")
+        if mpi.isParallel():
+            raise RuntimeError("Evaluation of solution on full mesh is only available for serial mode.")
         from lys import Wave
+
         if self._meshInfo is None:
-            self._meshInfo = exportMesh(self._mesh)
-        mpi.print_("debug001")
+            self._meshInfo = self.__exportMesh(self._mesh)
         domains, coords = self._meshInfo
         mip = [self._mesh(*c) for c in coords]
         data=np.array([f(mi) for mi in mip])
@@ -67,6 +68,29 @@ class NGSSolution:
             res.append(Wave(data[nodes-1].squeeze(), coords[nodes-1], elements=elems))
         return res
     
+    def __exportMesh(self, mesh):
+        gmesh = mesh.ngmesh
+
+        if gmesh.dim == 1:
+            elems, types = gmesh.Elements1D(), {2: "line"}
+        if gmesh.dim == 2:
+            elems, types = gmesh.Elements2D(), {4: "quad", 3: "triangle"}
+        if gmesh.dim == 3:
+            elems, types = gmesh.Elements3D(), {4: "tetra", 5: "pyramid", 6: "prism", 8:"hexa"}
+
+        result = []
+        for mat in range(1, 1+ len(mesh.GetMaterials())):
+            elements = {}
+            for e in elems:
+                if mat == e.index:
+                    t = types[len(e.vertices)]
+                    if t not in elements:
+                        elements[t] = []
+                    elements[t].append(tuple([v.nr for v in e.vertices]))
+            result.append(elements)
+
+        return result, np.array(gmesh.Coordinates())
+
     def __coordsToMIP(self, coords):
         dim = 0 if self._fem.dimension == 1 else 1
         if len(coords.shape) > dim:
