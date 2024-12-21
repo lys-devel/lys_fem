@@ -60,7 +60,7 @@ def run(fem, run=True, save=True, output=True, nthreads=16):
                 s.solution.update(solvers[i].solution[0])
             with ngsolve.TaskManager():
                 s.execute()
-            mpi.print_("\tCalc. time for Solver", str(i+1), ":{:.2f}".format(time.time()-start), " seconds")
+            mpi.print_("Calc. time for Solver", str(i+1), ":{:.2f}".format(time.time()-start), " seconds")
             mpi.print_()
     else:
         return mesh, mats, model, solvers

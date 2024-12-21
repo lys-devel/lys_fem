@@ -272,8 +272,7 @@ class _petsc:
             gfu.vec.FV().NumPy()[self._dofs] = u.getArray()
         mpi.print_("\t[Iterative solver] Iter =", self._ksp.its, ", Time = {:.2f}".format(time.time()-start))
         if self._ksp.its == self._iter:
-            mpi.print_("[Iterative solver] Not converged!")
-            raise RuntimeError("[Iterative solver] Not converged!")
+            raise ConvergenceError("[Iterative solver] NOT converged.")
         return gfu.vec
 
 
@@ -321,10 +320,21 @@ class SolverBase:
         if dti==0:
             self._sols.reset()
         self._mat.updateSolutionFields(int(util.stepn.get()))
-        self._mat.const.dti.set(dti)
         util.stepn.set(int(util.stepn.get() + 1))
-
         E0 = self._diff.integrate(self._mesh)
+        try:
+            self._step(dti)
+        except ConvergenceError as e:
+            util.stepn.set(int(util.stepn.get()-1))
+            raise e
+        self.exportSolution(int(util.stepn.get()+1))
+        E = self._diff.integrate(self._mesh)
+        mpi.print_("\tTotal step time: {:.2f}".format(time.time()-start))
+        mpi.print_()
+        return np.divide(np.linalg.norm(E-E0), np.linalg.norm(E))
+
+    def _step(self, dti):
+        self._mat.const.dti.set(dti)
         x = self._sols.copy()
         for i, (op, xi, step) in enumerate(zip(self._ops, self._xis, self._obj.steps)):
             mpi.print_("\t=======Solver step", i+1, "=======")
@@ -341,11 +351,6 @@ class SolverBase:
             op.syncGridFunction(x, "<-", xi)
             mpi.print_()
         self.__updateSolution(x)
-        self.exportSolution(int(util.stepn.get()+1))
-        E = self._diff.integrate(self._mesh)
-        mpi.print_("\tTotal step time: {:.2f}".format(time.time()-start))
-        mpi.print_()
-        return np.divide(np.linalg.norm(E-E0), np.linalg.norm(E))
 
     def __calcDiff(self, expr):
         if expr is None or expr=="":
@@ -429,23 +434,25 @@ class RelaxationSolver(SolverBase):
         dt, dx_ref = self._tSolver.dt0, self._tSolver.dx
         for i in range(1,self._tSolver.maxiter):
             util.t.set(t)
-            dx = self.solve(1/dt)
+            dx, dt = self._solve(dt)
             t = t + dt
             mpi.print_("Step", i, ", t = {:3e}".format(t), ", dt = {:3e}".format(dt), ", dx = {:3e}".format(dx))
-            if dt == np.inf:
-                return
             if dx != 0:
                 dt *= min(np.sqrt(dx_ref/abs(dx)), self._tSolver.maxStep)
             if dt < self._tSolver.dt0:
                 dt = self._tSolver.dt0
-            if dt > 30e-12:
-                dt = 30e-12
-            if dt > self._tSolver.dt0*10**self._tSolver.factor:
-                if self._tSolver.inf:
-                    print("inf")
-                    dt = np.inf
-                else:
-                    return
+            if dt > self._tSolver.dt_max:
+                dt = self._tSolver.dt_max
+            if dt == self._tSolver.dt_max and dx < self._tSolver.tolerance:
+                mpi.print_("[Relaxation solver] Converged in", i, "steps")
+                return
+                
+    def _solve(self, dt):
+        try:
+            return self.solve(1/dt), dt
+        except ConvergenceError:
+            mpi.print_("Convergence problem detected. Time step is changed to " + str(dt/2))
+            return self._solve(dt/2)
 
 class TimeDependentSolver(SolverBase):
     def __init__(self, obj, mesh, model, **kwargs):
@@ -473,9 +480,14 @@ def newton(F, x, eps=1e-5, max_iter=30, gamma=1):
         mpi.print_("\tResidual R =", R)
         if R < eps:
             if i!=0:
-                mpi.print_("[Newton solver] Converged in", i, "steps.")
+                mpi.print_("\t[Newton solver] Converged in", i, "steps.")
             return x
     if max_iter !=1:
-        mpi._print_("[Newton solver] NOT Converged in " + str(i) + " steps.")
-        raise RuntimeError("[Newton solver] NOT Converged in " + str(i) + " steps.")
+        raise ConvergenceError("[Newton solver] NOT Converged in " + str(i) + " steps.")
     return x
+
+
+class ConvergenceError(RuntimeError):
+    def __init__(self, msg):
+        mpi.print_(msg)
+        super().__init__(msg)

@@ -127,14 +127,14 @@ class StationarySolver(FEMSolver):
 class RelaxationSolver(FEMSolver):
     className = "Relaxation Solver"
 
-    def __init__(self, dt0 = 1e-9, dx = 1e-1, factor=5, maxiter=100, maxStep=2, inf=False, **kwargs):
+    def __init__(self, dt0 = 1e-9, dx = 1e-1, dt_max=1e-7, maxiter=100, maxStep=2, tolerance=1e-5, **kwargs):
         super().__init__(**kwargs)
         self._dt0 = dt0
         self._dx = dx
-        self._factor = factor
+        self._dt_max = dt_max
         self._maxStep = maxStep
         self._maxiter = maxiter
-        self._inf = inf
+        self._tolerance = tolerance
 
     @property
     def dt0(self):
@@ -145,8 +145,8 @@ class RelaxationSolver(FEMSolver):
         return self._dx
     
     @property
-    def factor(self):
-        return self._factor
+    def tolerance(self):
+        return self._tolerance
 
     @property
     def maxiter(self):
@@ -157,8 +157,8 @@ class RelaxationSolver(FEMSolver):
         return self._maxStep
 
     @property
-    def inf(self):
-        return self._inf
+    def dt_max(self):
+        return self._dt_max
 
     def widget(self, fem):
         from ..gui import RelaxationSolverWidget
@@ -168,10 +168,10 @@ class RelaxationSolver(FEMSolver):
         d = super().saveAsDictionary()
         d["dt0"] = self._dt0
         d["dx"] = self._dx
-        d["factor"] = self._factor
+        d["dt_max"] = self._dt_max
         d["maxiter"] = self._maxiter
         d["maxStep"] = self._maxStep
-        d["inf"] = self._inf
+        d["tolerance"] = self._tolerance
         return d
 
 

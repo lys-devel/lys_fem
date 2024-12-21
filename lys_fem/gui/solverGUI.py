@@ -114,6 +114,10 @@ class RelaxationSolverWidget(QtWidgets.QWidget):
         self._dx.setValue(self._solver._dx)
         self._dx.valueChanged.connect(self.__change)
 
+        self._tol = ScientificSpinBox()
+        self._tol.setValue(self._solver._tolerance)
+        self._tol.valueChanged.connect(self.__change)
+
         self._dt0 = ScientificSpinBox()
         self._dt0.setValue(self._solver._dt0)
         self._dt0.valueChanged.connect(self.__change)
@@ -122,10 +126,9 @@ class RelaxationSolverWidget(QtWidgets.QWidget):
         self._maxstep.setValue(self._solver._maxStep)
         self._maxstep.valueChanged.connect(self.__change)
 
-        self._factor = QtWidgets.QSpinBox()
-        self._factor.setRange(1,1000)
-        self._factor.setValue(self._solver._factor)
-        self._factor.valueChanged.connect(self.__change)
+        self._dt_max = ScientificSpinBox()
+        self._dt_max.setValue(self._solver._dt_max)
+        self._dt_max.valueChanged.connect(self.__change)
 
         self._maxiter = QtWidgets.QSpinBox()
         self._maxiter.setRange(1,1000)
@@ -134,25 +137,28 @@ class RelaxationSolverWidget(QtWidgets.QWidget):
 
         grid = QtWidgets.QGridLayout()
         grid.addWidget(QtWidgets.QLabel("Expression of x"), 0, 0)
-        grid.addWidget(QtWidgets.QLabel("Target dx"), 1, 0)
-        grid.addWidget(QtWidgets.QLabel("Initial step (s)"), 2, 0)
-        grid.addWidget(QtWidgets.QLabel("Max step factor"), 3, 0)
-        grid.addWidget(QtWidgets.QLabel("Stop Factor"), 4, 0)
-        grid.addWidget(QtWidgets.QLabel("Max Iteration"), 5, 0)
+        grid.addWidget(QtWidgets.QLabel("Target (dx/x)"), 1, 0)
+        grid.addWidget(QtWidgets.QLabel("Tolerance (dx/x)"), 2, 0)
+        grid.addWidget(QtWidgets.QLabel("Initial step (s)"), 3, 0)
+        grid.addWidget(QtWidgets.QLabel("Final step (s)"), 4, 0)
+        grid.addWidget(QtWidgets.QLabel("Max step factor"), 5, 0)
+        grid.addWidget(QtWidgets.QLabel("Max Iteration"), 6, 0)
         grid.addWidget(self._expr, 0, 1)
         grid.addWidget(self._dx, 1, 1)
-        grid.addWidget(self._dt0, 2, 1)
-        grid.addWidget(self._maxstep, 3, 1)
-        grid.addWidget(self._factor, 4, 1)
-        grid.addWidget(self._maxiter, 5, 1)
+        grid.addWidget(self._tol, 2, 1)
+        grid.addWidget(self._dt0, 3, 1)
+        grid.addWidget(self._dt_max, 4, 1)
+        grid.addWidget(self._maxstep, 5, 1)
+        grid.addWidget(self._maxiter, 6, 1)
 
         self.setLayout(grid)
 
     def __change(self):
         self._solver._diff_expr = self._expr.text()
         self._solver._dt0 = self._dt0.value()
+        self._solver._dt_max = self._dt_max.value()
         self._solver._dx = self._dx.value()
-        self._solver._factor = self._factor.value()
+        self._solver._tolerance = self._tol.value()
         self._solver._maxStep = self._maxstep.value()
         self._solver._maxiter = self._maxiter.value()
 

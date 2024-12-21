@@ -38,9 +38,9 @@ class LLG_test(FEMTestCase):
 
         # solver
         if constraint == "Alouges":
-            solver = RelaxationSolver(dt0=1e-12, dx=0.2, maxiter=300, factor=6, diff_expr="m", maxStep=10, steps=[SolverStep(solver="pardiso", symmetric=True)])
+            solver = RelaxationSolver(dt0=1e-12, dt_max=1e-8, dx=0.2, diff_expr="m", solver="pardiso")
         else:
-            solver = RelaxationSolver(dt0=1e-12, dx=0.2, damping=0.99, maxiter=300, factor=6, diff_expr="m")
+            solver = RelaxationSolver(dt0=1e-12, dt_max=1e-8, dx=0.2, damping=0.99, maxiter=300, diff_expr="m")
         
         p.solvers.append(solver)
 
@@ -91,9 +91,9 @@ class LLG_test(FEMTestCase):
         # solver
         #solver = StationarySolver()
         if constraint=="Alouges":
-            solver = RelaxationSolver(dt0=1e-11, dx=0.05, factor=5, steps=[SolverStep(solver="pardiso", vars=["m_v", "m_lam"])])
+            solver = RelaxationSolver(dt0=1e-11, dt_max=1e-8, dx=0.05, steps=[SolverStep(solver="pardiso", vars=["m_v", "m_lam"])])
         else:
-            solver = RelaxationSolver(dt0=1e-13, dx=0.05, factor=5)
+            solver = RelaxationSolver(dt0=1e-13, dt_max=1e-9, dx=0.05)
         #solver = TimeDependentSolver(1e-10, 1e-7)
         
         p.solvers.append(solver)
