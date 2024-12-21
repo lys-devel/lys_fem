@@ -185,8 +185,8 @@ class _Operator:
         if (self._tdep_lhs or not self._init) and not self.isNonlinear:
             start = time.time()
             self._blf.Assemble()
-            mpi.print_("\t[Assemble] Time = {:.2f}".format(time.time()-start))
             self._inv = self.__inverse(self._blf.mat)
+            mpi.print_("\t[Assemble] Time = {:.2f}".format(time.time()-start))
         self._init = True
 
     def __inverse(self, mat):
@@ -221,6 +221,8 @@ class _Operator:
     def __str__(self):
         res = ""
         res += "\t\tTotal degree of freedoms: " + str(self._fes.ndofglobal) + "\n"
+        res += "\t\tNonlinear: " + str(self.isNonlinear) + "\n"
+        res += "\t\tTime dependent: LHS = " + str(self._tdep_lhs) + ", RHS = " + str(self._tdep_rhs) + "\n" 
         res += "\t\tStatic condensation: " + str(self._blf.condense) + "\n"
         if self._symbols is not None:
             res += "\t\tSymbols: " + str(self._symbols) + "\n"
@@ -240,7 +242,7 @@ class _petsc:
         self.__initialize(mat, solver, prec, cond)
 
     def __initialize(self, mat, solver, prec, cond):
-        self._dofs = self._fes.FreeDofs()
+        self._dofs = self._fes.FreeDofs(cond)
         self._psc_mat = n2p.CreatePETScMatrix(mat, self._dofs)
         if mpi.isParallel():
             self._vecmap = n2p.VectorMapping(mat.row_pardofs, self._dofs)
@@ -279,14 +281,19 @@ class _Inv:
     def __init__(self, inv, blf):
         self._inv = inv
         self._blf = blf
+        self._res = util.GridFunction(self._blf.space)
 
     def __mul__(self, other):
+        start = time.time()
         if self._blf.condense:
             ext = ngsolve.IdentityMatrix() + self._blf.harmonic_extension
             extT = ngsolve.IdentityMatrix() + self._blf.harmonic_extension_trans
-            return ext * (self._inv * (extT * other)) + self._blf.inner_solve * other
+            self._res.vec.data = ext * (self._inv * (extT * other)) + self._blf.inner_solve * other
         else:
-            return self._inv * other
+            self._res.vec.data = self._inv * other
+        if not isinstance(self._inv, _petsc):
+            mpi.print_("\t[Direct Inv. Mult] Time = {:.2f}".format(time.time()-start))
+        return self._res.vec
 
 
 class SolverBase:
@@ -301,6 +308,7 @@ class SolverBase:
 
         self._sols = _Solution(model)
         self._ops = [_Operator(model, self._sols, step) for step in obj.steps]
+        self._xis = [util.GridFunction(op.finiteElementSpace) for op in self._ops]
         util.stepn.set(-1)
         self._sols.initialize()
         self._diff = self.__calcDiff(obj.diff_expr)
@@ -309,6 +317,7 @@ class SolverBase:
 
     @np.errstate(divide='ignore', invalid="ignore")
     def solve(self, dti=0):
+        start = time.time()
         if dti==0:
             self._sols.reset()
         self._mat.updateSolutionFields(int(util.stepn.get()))
@@ -317,23 +326,25 @@ class SolverBase:
 
         E0 = self._diff.integrate(self._mesh)
         x = self._sols.copy()
-        for i, (op, step) in enumerate(zip(self._ops, self._obj.steps)):
+        for i, (op, xi, step) in enumerate(zip(self._ops, self._xis, self._obj.steps)):
             mpi.print_("\t=======Solver step", i+1, "=======")
             if step.deformation is not None:
                 deform = {v.name: xx for v, xx in zip(self._model.variables, self._sols.X())}[step.deformation]
                 space = ngsolve.VectorH1(self._mesh)
                 gf = util.GridFunction(space, deform.eval())
                 self._mesh.SetDeformation(gf)
-                print("deformation set")
+                mpi.print_("deformation set")
+
             op.update()
-            g = util.GridFunction(op.finiteElementSpace)
-            op.syncGridFunction(x, "->", g)
-            g.vec.data = newton(op, g.vec.CreateVector(copy=True), eps=step.newton_eps, max_iter=step.newton_maxiter, gamma=step.newton_damping)
-            op.syncGridFunction(x, "<-", g)
+            op.syncGridFunction(x, "->", xi)
+            xi.vec.data = newton(op, xi.vec.CreateVector(copy=True), eps=step.newton_eps, max_iter=step.newton_maxiter, gamma=step.newton_damping)
+            op.syncGridFunction(x, "<-", xi)
             mpi.print_()
         self.__updateSolution(x)
         self.exportSolution(int(util.stepn.get()+1))
         E = self._diff.integrate(self._mesh)
+        mpi.print_("\tTotal step time: {:.2f}".format(time.time()-start))
+        mpi.print_()
         return np.divide(np.linalg.norm(E-E0), np.linalg.norm(E))
 
     def __calcDiff(self, expr):
@@ -427,8 +438,8 @@ class RelaxationSolver(SolverBase):
                 dt *= min(np.sqrt(dx_ref/abs(dx)), self._tSolver.maxStep)
             if dt < self._tSolver.dt0:
                 dt = self._tSolver.dt0
-            if dt > 1e-9:
-                dt = 1e-9
+            if dt > 30e-12:
+                dt = 30e-12
             if dt > self._tSolver.dt0*10**self._tSolver.factor:
                 if self._tSolver.inf:
                     print("inf")

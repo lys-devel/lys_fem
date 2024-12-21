@@ -246,10 +246,12 @@ class _SolverStepWidget(QtWidgets.QWidget):
                 self._prec.setCurrentText(key)
 
         self._rtol = ScientificSpinBox()
-        self._rtol.setValue(1e-6)
+        self._rtol.setValue(step.linear_rtol)
+        self._rtol.valueChanged.connect(self.__changeSolvers)
         self._iter = QtWidgets.QSpinBox()
         self._iter.setRange(1,10000000)
-        self._iter.setValue(5000)
+        self._iter.setValue(step.linear_maxiter)
+        self._iter.valueChanged.connect(self.__changeSolvers)
 
         self._sol = QtWidgets.QComboBox()
         self._sol.addItems(self._dirs.keys())
