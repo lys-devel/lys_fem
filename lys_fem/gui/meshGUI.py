@@ -1,4 +1,7 @@
+import numpy as np
+
 from lys.Qt import QtWidgets
+from lys.widgets import ScientificSpinBox
 
 from ..fem import GeometrySelection
 from ..widgets import FEMTreeItem, GeometrySelector, TreeStyleEditor
@@ -54,10 +57,23 @@ class MeshTree(FEMTreeItem):
         super().append(_TransfiniteGroupGUI(self._mesher, self))
         super().append(_PeriodicPairsGUI(self._mesher, self))
 
+    @ property
+    def menu(self):
+        self._menu = QtWidgets.QMenu()
+        self._menu.addAction(QtWidgets.QAction("Export as .msh", self.treeWidget(), triggered=self.__export))
+        return self._menu
+
+    def __export(self):
+        path, type = QtWidgets.QFileDialog.getSaveFileName(self.treeWidget(), "Export mesh", filter="gmsh (*.msh);;All files (*.*)")
+        if path:
+            if not path.endswith(".msh"):
+                path = path + ".msh"
+            self._mesher.export(self.fem().geometries.generateGeometry(), path)
+
 
 class _RefineGUI(FEMTreeItem):
     def __init__(self, mesher, parent):
-        super().__init__(parent, children=[_PartialRefineGUI(p, self) for p in mesher.partialRefinement])
+        super().__init__(parent, children=[_SizeConstraintGUI(p, self) for p in mesher.sizeConstraint])
         self._mesher = mesher
 
     @property
@@ -69,34 +85,35 @@ class _RefineGUI(FEMTreeItem):
         return _RefineWidget(self.canvas(), self.fem(), self._mesher)
 
     def _append(self, type):
-        geom = self._mesher.addPartialRefinement(type)
-        super().append(_PartialRefineGUI(geom, self))
+        geom = self._mesher.addSizeConstraint(type)
+        super().append(_SizeConstraintGUI(geom, self))
 
     def remove(self, init):
         i = super().remove(init)
-        self._mesher.partialRefinement.remove(self._mesher.partialRefinement[i])
+        self._mesher.sizeConstraint.remove(self._mesher.sizeConstraint[i])
 
     @ property
     def menu(self):
         self._menu = QtWidgets.QMenu()
-        self._menu.addAction(QtWidgets.QAction("Add Volume Refinement", self.treeWidget(), triggered=lambda: self._append("Volume")))
-        self._menu.addAction(QtWidgets.QAction("Add Surface Refinement", self.treeWidget(), triggered=lambda: self._append("Surface")))
-        self._menu.addAction(QtWidgets.QAction("Add Edge Refinement", self.treeWidget(), triggered=lambda: self._append("Edge")))
+        self._menu.addAction(QtWidgets.QAction("Add Volume Constraint", self.treeWidget(), triggered=lambda: self._append("Volume")))
+        self._menu.addAction(QtWidgets.QAction("Add Surface Constraint", self.treeWidget(), triggered=lambda: self._append("Surface")))
+        self._menu.addAction(QtWidgets.QAction("Add Edge Constraint", self.treeWidget(), triggered=lambda: self._append("Edge")))
+        self._menu.addAction(QtWidgets.QAction("Add Point Constraint", self.treeWidget(), triggered=lambda: self._append("Point")))
         return self._menu
 
 
-class _PartialRefineGUI(FEMTreeItem):
+class _SizeConstraintGUI(FEMTreeItem):
     def __init__(self, geom, parent):
         super().__init__(parent)
         self._geom = geom
 
     @property
     def name(self):
-        return self._geom.geometryType+" Refinement"
+        return self._geom.geometryType+" Size Constraint"
 
     @property
     def widget(self):
-        return _PartialRefineWidget(self.canvas(), self.fem(), self._geom)
+        return _SizeConstraintWidget(self.canvas(), self.fem(), self._geom)
 
     @property
     def menu(self):
@@ -124,29 +141,29 @@ class _RefineWidget(QtWidgets.QWidget):
         self.setLayout(layout)
 
 
-class _PartialRefineWidget(QtWidgets.QWidget):
+class _SizeConstraintWidget(QtWidgets.QWidget):
     def __init__(self, canvas, fem, geom):
         super().__init__()
         self._geom = geom
         self.__initlayout(canvas, fem, geom)
 
     def __initlayout(self, canvas, fem, geom):
-        self._refine = QtWidgets.QSpinBox()
-        self._refine.setRange(1, 100000000)
-        self._refine.setValue(geom.factor)
+        self._refine = ScientificSpinBox()
+        self._refine.setRange(0, np.inf)
+        self._refine.setValue(geom.size)
         self._refine.valueChanged.connect(self._setFactor)
 
         self._sel = GeometrySelector(canvas, fem, geom)
 
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(QtWidgets.QLabel("Refinement factor"))
+        layout.addWidget(QtWidgets.QLabel("Size"))
         layout.addWidget(self._refine)
         layout.addWidget(self._sel)
         self.setLayout(layout)
 
     def _setFactor(self, v):
-        self._geom.factor=v
+        self._geom.size=v
 
 
 class _TransfiniteGroupGUI(FEMTreeItem):

@@ -9,7 +9,7 @@ from .geometry import GeometrySelection
 class OccMesher(FEMObject):
     _keys = {15: "point", 1: "line", 2: "triangle", 3: "quad", 4: "tetra", 5: "hexa", 6: "prism", 7: "pyramid"}
 
-    def __init__(self, parent=None, refinement=0, partialRefine=None, transfinite=None, periodicity=None):
+    def __init__(self, parent=None, refinement=0, partialRefine=None, transfinite=None, periodicity=None, size=None, file=None):
         super().__init__()
         if parent is not None:
             self.setParent(parent)
@@ -20,9 +20,13 @@ class OccMesher(FEMObject):
         if transfinite is None:
             transfinite=[]
         self._transfinite = FEMObjectList(self, transfinite)
+        if size is None:
+            size = []
+        self._size = FEMObjectList(self, size)
         if periodicity is None:
             periodicity = []
         self._periodicity = periodicity
+        self._file = file
 
     def addTransfinite(self, geomType="Volume", geometries=[]):
         geom = GeometrySelection(geometryType=geomType, selection=geometries)
@@ -35,6 +39,14 @@ class OccMesher(FEMObject):
 
     def setPartialRefinement(self, dim, tag, factor):
         self._partialRefine[(dim, tag)] = factor
+
+    @property
+    def file(self):
+        return self._file
+
+    @file.setter
+    def file(self, value):
+        self._file = value
 
     @property
     def refinement(self):
@@ -66,14 +78,43 @@ class OccMesher(FEMObject):
         return geom
 
     @property
+    def sizeConstraint(self):
+        return self._size
+
+    def addSizeConstraint(self, geomType="Volume", geometries=[], size=1):
+        geom = GeometrySelection(geometryType=geomType, selection=geometries)
+        geom.size = size
+        self._size.append(geom)
+        return geom
+
+    @property
     def periodicPairs(self):
         return self._periodicity
 
     def _generate(self, model):
+        #model.setCurrent("Default")
         model.mesh.clear()
+        #model.mesh.generate()
+        #nodes, _, _ = model.mesh.getNodes()
+
+        #view = gmsh.view.add("refinement")
+        #value = [[0.3] for n in nodes]
+        #value[0] = [0.01]
+        #gmsh.view.addModelData(view, 0, "Default", "NodeData", nodes, value)
+
+        #model.setCurrent("Refined")
+        #field = model.mesh.field.add("PostView")
+        #model.mesh.field.setNumber(field, "ViewTag", view)
+        #model.mesh.field.setAsBackgroundMesh(field)
+
+        if self._file is not None:
+            gmsh.merge(self._file)
+            return
+   
         self.__setTransfinite(model)
         self.__setPeriodicity(model)
         self.__partialRefine(model)
+        self.__setSize(model)
 
         model.mesh.generate()
         for _ in range(self._refine):
@@ -153,6 +194,17 @@ class OccMesher(FEMObject):
                     lc = lc / (factor+1)
         return lc
 
+    def __setSize(self, model):
+        # size constraint
+        for geom in sorted(self._size, key=lambda x: 1/x.size):
+            dim = {"Volume": 3, "Surface": 2, "Edge": 1, "Point": 0}[geom.geometryType]
+            for tag in geom:
+                if dim == 0:
+                    model.mesh.setSize((dim, tag), geom.size)
+                else:
+                    ents = [(dim, t) for t in model.getEntitiesForPhysicalGroup(dim, tag)]
+                    model.mesh.setSize(model.getBoundary(ents, recursive=True), geom.size/self.fem.geometries.scale)
+
     def getMeshWave(self, model, dim=3):
         from lys import Wave
         self._generate(model)
@@ -194,8 +246,9 @@ class OccMesher(FEMObject):
     def saveAsDictionary(self):
         pairs = [(p[0].saveAsDictionary(), p[1].saveAsDictionary()) for p in self._periodicity]
         partial = [{"factor": p.factor, "geometries": p.saveAsDictionary()} for p in self._partialRefine]
+        size = [{"size": p.size, "geometries": p.saveAsDictionary()} for p in self._size]
         trans = [t.saveAsDictionary() for t in self._transfinite]
-        return {"refine": self.refinement, "partial": partial, "periodicity": pairs, "transfinite": trans}
+        return {"refine": self.refinement, "partial": partial, "periodicity": pairs, "transfinite": trans, "size": size, "file": self._file}
 
     @classmethod
     def loadFromDictionary(cls, d):
@@ -205,8 +258,13 @@ class OccMesher(FEMObject):
             g = GeometrySelection.loadFromDictionary(p["geometries"])
             g.factor = p["factor"]
             partial.append(g)
+        size = []
+        for p in d.get("size", []):
+            g = GeometrySelection.loadFromDictionary(p["geometries"])
+            g.size = p["size"]
+            size.append(g)
         transfinite=[]
         for p in d.get("transfinite", []):
             g = GeometrySelection.loadFromDictionary(p)
             transfinite.append(g)
-        return OccMesher(refinement=d["refine"], partialRefine=partial, transfinite=transfinite, periodicity=pairs)
+        return OccMesher(refinement=d["refine"], partialRefine=partial, transfinite=transfinite, periodicity=pairs, size=size, file=d.get("file", None))

@@ -37,6 +37,12 @@ class GeometryGenerator(FEMObject):
         model = gmsh.model()
         model.add("Default")
         model.setCurrent("Default")
+        self.__createModel(model, n)
+        self._model = model
+        self._updated=False
+        return self._model
+    
+    def __createModel(self, model, n):
         scale = TransGeom(self.fem)
         for order in self._order if n is None else self._order[0:n + 1]:
             order.execute(model, scale)
@@ -68,9 +74,6 @@ class GeometryGenerator(FEMObject):
                 model.setPhysicalName(dim=0, tag=i+1, name="boundary" + str(i+1))
             else:
                 model.setPhysicalName(dim=0, tag=i+1, name="point" + str(i+1))
-        self._model = model
-        self._updated=False
-        return self._model
 
     def geometryParameters(self):
         m = self.generateGeometry()
