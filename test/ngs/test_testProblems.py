@@ -67,3 +67,6 @@ class test(testProblems_test):
 
     def test_condensation(self):
         self.cond(ngs)
+
+    def test_error(self):
+        self.error(ngs)

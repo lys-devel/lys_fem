@@ -13,11 +13,16 @@ def generateSolver(fem, mesh, model, load=False):
     result = []
     for i, s in enumerate(fem.solvers):
         sol = solvers[s.className]
-        result.append(sol(s, mesh, model, dirname="Solver" + str(i), load=load))
+        solver = sol(s, mesh, model, dirname="Solver" + str(i), load=load)
+        solver.fem = fem
+        result.append(solver)
     return result
 
 
 class _Solution:
+    """
+    Solution class stores the solutions and the time derivatives.
+    """
     def __init__(self, model, nlog=2):
         self._model = model
         fes = model.finiteElementSpace
@@ -74,6 +79,13 @@ class _Solution:
     
     def grad(self, var, n=0):
         return self._grads[n][var.name]
+
+    def error(self, var):
+        val = self.grad(var)
+        g = util.GridFunction(self._model.finiteElementSpace)
+        g.setComponent(var, val.eval(), self._model)
+        g = g.toNGSFunctions(self._model, pre="_g")[var.name]
+        return ngsolve.Integrate(((g-val)**2).eval(), var.finiteElementSpace.mesh, ngsolve.VOL, element_wise=True)
 
     @property
     def nlog(self):
@@ -302,13 +314,15 @@ class SolverBase:
         self._model = model
         self._mat = model.materials
         self._mat.const.dti.tdep = variableStep
+        self._dirname = "Solutions/" + dirname
         if not load:
             self.__prepareDirectory(dirname)
 
         self._sols = _Solution(model)
         self._ops = [_Operator(model, self._sols, step) for step in obj.steps]
         self._xis = [util.GridFunction(op.finiteElementSpace) for op in self._ops]
-        util.stepn.set(-1)
+        if not load:
+            util.stepn.set(-1)
         self._sols.initialize()
         self._diff = self.__calcDiff(obj.diff_expr)
         if not load:
@@ -359,7 +373,6 @@ class SolverBase:
         return self._mat[expr].replace(d)
 
     def __prepareDirectory(self, dirname):
-        self._dirname = "Solutions/" + dirname
         if mpi.isRoot:
             if os.path.exists(self._dirname):
                 shutil.rmtree(self._dirname)
@@ -398,6 +411,13 @@ class SolverBase:
         if dirname is None:
             dirname=self._dirname
         self._sols.load((dirname + "/ngs" + str(index)), parallel)
+
+    def exportRefinedMesh(self):
+        err = self.solutions.error([v for v in self._model.variables if v.name=="x"][0])
+        size = np.array([[0.02] for e in err])
+        file = self._dirname + "/mesh"+str(int(util.stepn.get()+2))+".msh"
+        self.fem.mesher.exportRefinedMesh(self.fem.geometries.generateGeometry(), self._mesh.tags, size, file)
+        return file
 
     @property
     def solutions(self):
@@ -453,6 +473,7 @@ class RelaxationSolver(SolverBase):
         except ConvergenceError:
             mpi.print_("Convergence problem detected. Time step is changed to " + str(dt/2))
             return self._solve(dt/2)
+
 
 class TimeDependentSolver(SolverBase):
     def __init__(self, obj, mesh, model, **kwargs):

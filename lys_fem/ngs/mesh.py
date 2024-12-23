@@ -8,7 +8,7 @@ def generateMesh(fem, file="mesh.msh"):
     if mpi.isRoot:
         geom = fem.geometries.generateGeometry()
         fem.mesher.export(geom, file)
-        gmesh = ReadGmsh(file, fem.dimension)
+        gmesh, tags = ReadGmsh(file, fem.dimension)
         ne, nv = gmesh.ne, len(gmesh.Points())
         gmesh.Scale(fem.geometries.scale)
     else:
@@ -22,6 +22,8 @@ def generateMesh(fem, file="mesh.msh"):
             mesh = ngsolve.Mesh(Mesh.Receive(comm))
     else:
         mesh = ngsolve.Mesh(gmesh)
+    if mpi.isRoot:
+        mesh.tags = tags
     mesh.ns = ne, nv
     util.dimension = fem.dimension
     util.dx.setMesh(mesh)
@@ -36,6 +38,7 @@ def ReadGmsh(filename, meshdim): #from netgen.read_gmsh import ReadGmsh
     f = open(filename, 'r')
     mesh = Mesh(dim=meshdim)
 
+    tags = []
     pointmap, facedescriptormap, materialmap, bbcmap = {}, {}, {}, {}
 
     point, segm, trig, quad, tet, hex, prism, pyramid = 15, 1, 2, 3, 4, 5, 6, 7
@@ -65,7 +68,7 @@ def ReadGmsh(filename, meshdim): #from netgen.read_gmsh import ReadGmsh
         if line.split()[0] == "$Elements":
             for _ in range(int(f.readline().split()[0])):
                 line = f.readline().split()
-                elmtype, numtags, group, id = int(line[1]), int(line[2]), int(line[3]), int(line[4])
+                tag, elmtype, numtags, group, id = int(line[0]), int(line[1]), int(line[2]), int(line[3]), int(line[4])
                 # the first tag is the physical group nr, the second tag is the group nr of the dim
 
                 if elmtype not in num_nodes_map:
@@ -115,5 +118,7 @@ def ReadGmsh(filename, meshdim): #from netgen.read_gmsh import ReadGmsh
                     mesh.Add(Element2D(index, nodenums))
                 elif elem_dim==3:
                     mesh.Add(Element3D(index, nodenums))
+                if elem_dim == meshdim:
+                    tags.append(tag)
 
-    return mesh
+    return mesh, tags

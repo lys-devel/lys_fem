@@ -92,21 +92,8 @@ class OccMesher(FEMObject):
         return self._periodicity
 
     def _generate(self, model):
-        #model.setCurrent("Default")
         model.mesh.clear()
-        #model.mesh.generate()
-        #nodes, _, _ = model.mesh.getNodes()
-
-        #view = gmsh.view.add("refinement")
-        #value = [[0.3] for n in nodes]
-        #value[0] = [0.01]
-        #gmsh.view.addModelData(view, 0, "Default", "NodeData", nodes, value)
-
-        #model.setCurrent("Refined")
-        #field = model.mesh.field.add("PostView")
-        #model.mesh.field.setNumber(field, "ViewTag", view)
-        #model.mesh.field.setAsBackgroundMesh(field)
-
+        
         if self._file is not None:
             gmsh.merge(self._file)
             return
@@ -240,6 +227,20 @@ class OccMesher(FEMObject):
 
     def export(self, model, file):
         self._generate(model)
+        gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
+        gmsh.write(file)
+
+    def exportRefinedMesh(self, model, elems, size, file):
+        model.setCurrent("Default")
+        view = gmsh.view.add("refinement")
+        gmsh.view.addModelData(view, 0, "Default", "ElementData", elems, size)
+
+        model.setCurrent("Refined")
+        field = model.mesh.field.add("PostView")
+        model.mesh.field.setNumber(field, "ViewTag", view)
+        model.mesh.field.setAsBackgroundMesh(field)
+        model.mesh.generate()
+
         gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
         gmsh.write(file)
 

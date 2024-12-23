@@ -38,6 +38,10 @@ class GeometryGenerator(FEMObject):
         model.add("Default")
         model.setCurrent("Default")
         self.__createModel(model, n)
+        model.add("Refined")
+        model.setCurrent("Refined")
+        self.__createModel(model, n)
+        model.setCurrent("Default")
         self._model = model
         self._updated=False
         return self._model

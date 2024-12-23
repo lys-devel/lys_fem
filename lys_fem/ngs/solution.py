@@ -1,4 +1,5 @@
 import glob
+import os
 import numpy as np
 import ngsolve
 
@@ -13,11 +14,7 @@ class NGSSolution:
     def __init__(self, fem, dirname):
         self._fem = fem
         self._dirname = dirname
-        self._mesh = generateMesh(fem)
-        self._mats = generateMaterial(fem, self._mesh)
-        self._model = generateModel(fem, self._mesh, self._mats)
-        self._solvers = generateSolver(fem, self._mesh, self._model, load=True)
-        self._meshInfo = None
+        self._index = None
 
     @property
     def maxIndex(self):
@@ -31,7 +28,22 @@ class NGSSolution:
     def update(self, index=-1):
         if index < 0:
             index = self.maxIndex + index + 1
+        if os.path.exists(self._dirname+"/mesh"+str(index)+".msh"):
+            if index!=self._index:
+                self._fem.mesher.file = self._dirname+"/mesh"+str(index)+".msh"
+                self.__generate()
+        else:
+            if self._index is None:
+                self.__generate()
+        self._index = index
+        self._meshInfo = None
         self._solvers[0].importSolution(index, parallel=self._fem.parallel, dirname=self._dirname)
+
+    def __generate(self):
+        self._mesh = generateMesh(self._fem)
+        self._mats = generateMaterial(self._fem, self._mesh)
+        model = generateModel(self._fem, self._mesh, self._mats)
+        self._solvers = generateSolver(self._fem, self._mesh, model, load=True)
         
     def eval(self, expression, index, coords=None):
         f = self.coef(expression, index)
