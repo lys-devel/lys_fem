@@ -24,7 +24,7 @@ def run(fem, run=True, save=True, output=True, nthreads=16):
                     meshfile = s.exportRefinedMesh()
                     fem.mesher.file=meshfile
                     solvers = createSolver(fem, load=True, print=False)
-                    #solvers[i].importSolution(int(util.stepn.get()+1), mpi.isParallel())
+                    #solvers[i].load(int(util.stepn.get()+1))
                     solvers[i].execute()
             mpi.print_("Calc. time for Solver", str(i+1), ":{:.2f}".format(time.time()-start), " seconds")
             mpi.print_()

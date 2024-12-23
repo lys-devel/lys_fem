@@ -21,9 +21,10 @@ def generateSolver(fem, mesh, model, load=False):
 
 class _Solution:
     """
-    Solution class stores the solutions and the time derivatives.
+    Solution class stores the solutions and the time derivatives as grid function.
+    The NGSFunctions based on the grid function is also provided by this class.
     """
-    def __init__(self, model, nlog=2):
+    def __init__(self, model, dirname=None, nlog=2):
         self._model = model
         fes = model.finiteElementSpace
         self._sols = [(util.GridFunction(fes), util.GridFunction(fes), util.GridFunction(fes)) for n in range(nlog)]
@@ -31,14 +32,50 @@ class _Solution:
         self._grads = [self._sols[n][0].toGradFunctions(model, "_n") for n in range(nlog)]
         self._use_a = False
 
+        if dirname is not None:
+            self._dirname = "Solutions/" + dirname
+        else:
+            self._dirname = None
+
     def initialize(self):
-        self.update(self._model.initialValue(self._use_a))
+        self.__update(self._model.initialValue(self._use_a))
+        if mpi.isRoot and self._dirname is not None:
+            if os.path.exists(self._dirname):
+                shutil.rmtree(self._dirname)
+            os.makedirs(self._dirname, exist_ok=True)
+            self.save(0)
 
     def reset(self):
-        for i in range(self.nlog):
-            self.update((self._sols[0][0], None, None))
+        for i in range(len(self._sols)):
+            self.__update((self._sols[0][0], None, None))
 
-    def update(self, xva):
+    def updateSolution(self, x0, saveIndex=None):
+        tdep = self._model.updater(self)
+
+        fes = self._model.finiteElementSpace
+        x, v, a = util.GridFunction(fes), util.GridFunction(fes), util.GridFunction(fes)
+        x.vec.data = x0.vec
+
+        fs = x0.toNGSFunctions(self._model, "_new")
+        tnt = self._model.TnT
+        d = {trial: fs[v.name] for v, (trial, test) in tnt.items()}
+
+        for var, (trial, test) in tnt.items():
+            if trial in tdep:
+                x.setComponent(var, tdep[trial].replace(d).eval(), self._model)
+        for var, (trial, test) in tnt.items():
+            if trial.t in tdep:
+                v.setComponent(var, tdep[trial.t].replace(d).eval(), self._model)
+        for var, (trial, test) in tnt.items():
+            if trial.tt in tdep:
+                a.setComponent(var, tdep[trial.tt].replace(d).eval(), self._model)
+
+        self.__update((x,v,a))
+
+        if self._dirname is not None and saveIndex is not None:
+            self.save(saveIndex)
+
+    def __update(self, xva):
         # Store old data
         for j in range(3):
             for n in range(1, len(self._sols)):
@@ -60,12 +97,18 @@ class _Solution:
             if v.type == "a":
                 g.setComponent(v, self.A(v).eval()/v.scale, self._model)
         return g
-    
-    def save(self, path):
+
+    def save(self, index):
+        path = self._dirname + "/ngs" + str(index)
         self._sols[0][0].Save(path, parallel=mpi.isParallel())
 
-    def load(self, path, parallel):
-        self._sols[0][0].Load(path, parallel = parallel)
+    def load(self, index, dirname=None, parallel=None):
+        if dirname is None:
+            dirname=self._dirname
+        if parallel is None:
+            parallel = mpi.isParallel()
+        path = dirname + "/ngs" + str(index)
+        self._sols[0][0].Load(path, parallel)
 
     def X(self, var, n=0):
         return self._coefs[n][0][var.name]
@@ -86,14 +129,6 @@ class _Solution:
         g.setComponent(var, val.eval(), self._model)
         g = g.toNGSFunctions(self._model, pre="_g")[var.name]
         return ngsolve.Integrate(((g-val)**2).eval(), var.finiteElementSpace.mesh, ngsolve.VOL, element_wise=True)
-
-    @property
-    def nlog(self):
-        return len(self._sols)
-
-    @property
-    def finiteElementSpace(self):
-        return self._model.finiteElementSpace
     
     @property
     def replaceDict(self):
@@ -190,7 +225,7 @@ class _Operator:
             self._blf.AssembleLinearization(x)
             self._inv = self.__inverse(self._blf.mat)
         return self._inv
-        
+
     def update(self):
         if (self._tdep_rhs or not self._init):
             self._lf.Assemble()
@@ -315,18 +350,14 @@ class SolverBase:
         self._mat = model.materials
         self._mat.const.dti.tdep = variableStep
         self._dirname = "Solutions/" + dirname
-        if not load:
-            self.__prepareDirectory(dirname)
 
-        self._sols = _Solution(model)
+        self._sols = _Solution(model, dirname)
         self._ops = [_Operator(model, self._sols, step) for step in obj.steps]
         self._xis = [util.GridFunction(op.finiteElementSpace) for op in self._ops]
-        if not load:
-            util.stepn.set(-1)
-        self._sols.initialize()
         self._diff = self.__calcDiff(obj.diff_expr)
         if not load:
-            self.exportSolution(0)
+            util.stepn.set(-1)
+            self._sols.initialize()
 
     @np.errstate(divide='ignore', invalid="ignore")
     def solve(self, dti=0):
@@ -334,83 +365,41 @@ class SolverBase:
         if dti==0:
             self._sols.reset()
         self._mat.updateSolutionFields(int(util.stepn.get()))
+        self._mat.const.dti.set(dti)
         util.stepn.set(int(util.stepn.get() + 1))
+
         E0 = self._diff.integrate(self._mesh)
-        try:
-            self._step(dti)
-        except ConvergenceError as e:
-            util.stepn.set(int(util.stepn.get()-1))
-            raise e
-        self.exportSolution(int(util.stepn.get()+1))
+        self._step()
         E = self._diff.integrate(self._mesh)
         mpi.print_("\tTotal step time: {:.2f}".format(time.time()-start))
         mpi.print_()
         return np.divide(np.linalg.norm(E-E0), np.linalg.norm(E))
 
-    def _step(self, dti):
-        self._mat.const.dti.set(dti)
+    def _step(self):
         x = self._sols.copy()
         for i, (op, xi, step) in enumerate(zip(self._ops, self._xis, self._obj.steps)):
             mpi.print_("\t=======Solver step", i+1, "=======")
             if step.deformation is not None:
-                deform = {v.name: xx for v, xx in zip(self._model.variables, self._sols.X())}[step.deformation]
-                space = ngsolve.VectorH1(self._mesh)
-                gf = util.GridFunction(space, deform.eval())
-                self._mesh.SetDeformation(gf)
-                mpi.print_("deformation set")
-
+                self.__applyDeformation(step)
             op.update()
             op.syncGridFunction(x, "->", xi)
             xi.vec.data = newton(op, xi.vec.CreateVector(copy=True), eps=step.newton_eps, max_iter=step.newton_maxiter, gamma=step.newton_damping)
             op.syncGridFunction(x, "<-", xi)
             mpi.print_()
-        self.__updateSolution(x)
+        self.solutions.updateSolution(x, saveIndex=int(util.stepn.get()+1))
+
+    def __applyDeformation(self, step):
+        deform = {v.name: xx for v, xx in zip(self._model.variables, self._sols.X())}[step.deformation]
+        space = ngsolve.VectorH1(self._mesh)
+        gf = util.GridFunction(space, deform.eval())
+        self._mesh.SetDeformation(gf)
+        mpi.print_("deformation set")
 
     def __calcDiff(self, expr):
         if expr is None or expr=="":
             expr = self._model.variables[0].name
         d = self._sols.replaceDict
         return self._mat[expr].replace(d)
-
-    def __prepareDirectory(self, dirname):
-        if mpi.isRoot:
-            if os.path.exists(self._dirname):
-                shutil.rmtree(self._dirname)
-        os.makedirs(self._dirname, exist_ok=True)
-
-    def __updateSolution(self, x0):
-        self._tdep = self._model.updater(self._sols)
-
-        fes = self._model.finiteElementSpace
-        x, v, a = util.GridFunction(fes), util.GridFunction(fes), util.GridFunction(fes)
-        x.vec.data = x0.vec
-
-        fs = x0.toNGSFunctions(self._model, "_new")
-        tnt = self._model.TnT
-        d = {trial: fs[v.name] for v, (trial, test) in tnt.items()}
-
-        for var, (trial, test) in tnt.items():
-            if trial in self._tdep:
-                x.setComponent(var, self._tdep[trial].replace(d).eval(), self._model)
-        for var, (trial, test) in tnt.items():
-            if trial.t in self._tdep:
-                v.setComponent(var, self._tdep[trial.t].replace(d).eval(), self._model)
-        for var, (trial, test) in tnt.items():
-            if trial.tt in self._tdep:
-                a.setComponent(var, self._tdep[trial.tt].replace(d).eval(), self._model)
-
-        self._sols.update((x,v,a))
-
-    def exportMesh(self, m):
-        m.ngmesh.Save(self._dirname + "/mesh0.vol")
-
-    def exportSolution(self, index):
-        self._sols.save(self._dirname + "/ngs" + str(index))
-
-    def importSolution(self, index, parallel, dirname=None):
-        if dirname is None:
-            dirname=self._dirname
-        self._sols.load((dirname + "/ngs" + str(index)), parallel)
 
     def exportRefinedMesh(self):
         err = self.solutions.error([v for v in self._model.variables if v.name=="x"][0])
@@ -472,6 +461,7 @@ class RelaxationSolver(SolverBase):
             return self.solve(1/dt), dt
         except ConvergenceError:
             mpi.print_("Convergence problem detected. Time step is changed to " + str(dt/2))
+            util.stepn.set(int(util.stepn.get()-1))
             return self._solve(dt/2)
 
 

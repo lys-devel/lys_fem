@@ -37,7 +37,7 @@ class NGSSolution:
                 self.__generate()
         self._index = index
         self._meshInfo = None
-        self._solvers[0].importSolution(index, parallel=self._fem.parallel, dirname=self._dirname)
+        self._solvers[0].solutions.load(index, parallel=self._fem.parallel, dirname=self._dirname)
 
     def __generate(self):
         self._mesh = generateMesh(self._fem)
