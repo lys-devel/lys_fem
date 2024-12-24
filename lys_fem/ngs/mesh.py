@@ -48,8 +48,6 @@ def generateMesh(fem, file=None):
     mesh = NGSMesh(mesh)
     mesh.ns = ne, nv
     util.dimension = fem.dimension
-    util.dx.setMesh(mesh)
-    util.ds.setMesh(mesh)
     return mesh
 
 

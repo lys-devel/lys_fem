@@ -1,13 +1,14 @@
 import ngsolve
 from netgen.geom2d import unit_square
 
-from lys_fem.ngs import util
+from lys_fem.ngs import util, mesh
 from ..base import FEMTestCase
 
 class test_util(FEMTestCase):     
     def test_NGSFunction(self):
-        mesh = ngsolve.Mesh(unit_square.GenerateMesh(maxh=0.2))
-        mp = mesh(0,0)
+        m = ngsolve.Mesh(unit_square.GenerateMesh(maxh=0.2))
+        ngsMesh = mesh.NGSMesh(m)
+        mp = m(0,0)
         util.dimension = 2
 
         f = util.NGSFunction(1)
@@ -16,9 +17,9 @@ class test_util(FEMTestCase):
         self.assertFalse(f.hasTrial)
         self.assertFalse(f.isNonlinear)
         self.assertFalse(f.isTimeDependent)
-        self.assertAlmostEqual(f.eval()(mp), 1)
-        self.assertEqual(f.grad()(mp), (0,0))
-        self.assertEqual(f.replace({}).eval()(mp), 1)
-        self.assertEqual(f.rhs.eval()(mp), 1)
-        self.assertEqual(f.lhs.eval()(mp), 0)
+        self.assertAlmostEqual(f.eval(ngsMesh)(mp), 1)
+        self.assertEqual(f.grad(ngsMesh)(mp), (0,0))
+        self.assertEqual(f.replace({}).eval(ngsMesh)(mp), 1)
+        self.assertEqual(f.rhs.eval(ngsMesh)(mp), 1)
+        self.assertEqual(f.lhs.eval(ngsMesh)(mp), 0)
 

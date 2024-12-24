@@ -24,7 +24,8 @@ class _Solution:
     Solution class stores the solutions and the time derivatives as grid function.
     The NGSFunctions based on the grid function is also provided by this class.
     """
-    def __init__(self, model, dirname=None, nlog=2):
+    def __init__(self, mesh, model, dirname=None, nlog=2):
+        self._mesh = mesh
         self._model = model
         fes = model.finiteElementSpace
         self._sols = [(util.GridFunction(fes), util.GridFunction(fes), util.GridFunction(fes)) for n in range(nlog)]
@@ -36,7 +37,7 @@ class _Solution:
             self._dirname = None
 
     def initialize(self):
-        self.__update(self._model.initialValue(self._use_a))
+        self.__update(self._model.initialValue(self._mesh, self._use_a))
         if mpi.isRoot and self._dirname is not None:
             if os.path.exists(self._dirname):
                 shutil.rmtree(self._dirname)
@@ -61,13 +62,13 @@ class _Solution:
 
         for var, (trial, test) in tnt.items():
             if trial in tdep:
-                x.setComponent(var, tdep[trial].replace(d).eval(), self._model)
+                x.setComponent(var, tdep[trial].replace(d).eval(self._mesh), self._model)
         for var, (trial, test) in tnt.items():
             if trial.t in tdep:
-                v.setComponent(var, tdep[trial.t].replace(d).eval(), self._model)
+                v.setComponent(var, tdep[trial.t].replace(d).eval(self._mesh), self._model)
         for var, (trial, test) in tnt.items():
             if trial.tt in tdep:
-                a.setComponent(var, tdep[trial.tt].replace(d).eval(), self._model)
+                a.setComponent(var, tdep[trial.tt].replace(d).eval(self._mesh), self._model)
 
         self.__update((x,v,a))
 
@@ -90,11 +91,11 @@ class _Solution:
         g = util.GridFunction(self._model.finiteElementSpace)
         for v in self._model.variables:
             if v.type == "x":
-                g.setComponent(v, self.X(v).eval()/v.scale, self._model)
+                g.setComponent(v, self.X(v).eval(self._mesh)/v.scale, self._model)
             if v.type == "v":
-                g.setComponent(v, self.V(v).eval()/v.scale, self._model)
+                g.setComponent(v, self.V(v).eval(self._mesh)/v.scale, self._model)
             if v.type == "a":
-                g.setComponent(v, self.A(v).eval()/v.scale, self._model)
+                g.setComponent(v, self.A(v).eval(self._mesh)/v.scale, self._model)
         return g
 
     def save(self, index):
@@ -135,7 +136,8 @@ class _Solution:
 
 
 class _Operator:
-    def __init__(self, model, sols, step):
+    def __init__(self, mesh, model, sols, step):
+        self._mesh = mesh
         self._model = model
         self._symbols = step.variables
         self._solver = step.solver
@@ -156,11 +158,12 @@ class _Operator:
         if bilinear:
             self._blf = ngsolve.BilinearForm(self._fes, condense=self._step.condensation, symmetric=self._step.symmetric)
             if self._lhs.valid:
-                self._blf += self._lhs.eval()
+                print(self._lhs)
+                self._blf += self._lhs.eval(self._mesh)
         if linear:
             self._lf = ngsolve.LinearForm(self._fes)
             if self._rhs.valid:
-                self._lf += self._rhs.eval()
+                self._lf += self._rhs.eval(self._mesh)
 
     def __compressed_fes(self, fes, symbols):
         if symbols is None:
@@ -348,8 +351,8 @@ class SolverBase:
         self._mat.const.dti.tdep = variableStep
         self._dirname = "Solutions/" + dirname
 
-        self._sols = _Solution(model, "Solutions/" + dirname)
-        self._ops = [_Operator(model, self._sols, step) for step in obj.steps]
+        self._sols = _Solution(mesh, model, "Solutions/" + dirname)
+        self._ops = [_Operator(mesh, model, self._sols, step) for step in obj.steps]
         self._xis = [util.GridFunction(op.finiteElementSpace) for op in self._ops]
         self._diff = self.__calcDiff(obj.diff_expr)
         if not load:

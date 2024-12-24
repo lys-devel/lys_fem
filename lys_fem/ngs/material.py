@@ -6,27 +6,26 @@ from lys_fem.fem import FEMCoefficient
 from . import util
 
 
-def generateMaterial(fem, mesh):
+def generateMaterial(fem):
     sols = {str(key): util.NGSFunction(value) for key, value in fem.parameters.getSolved().items()}
     sols.update({key: util.SolutionFieldFunction(coef.get(), tdep=coef.index is None) for key, coef in fem.solutionFields.items()})
-    return NGSParams(fem, mesh, sols)
+    return NGSParams(fem, sols)
 
 
 class NGSParams(dict):
-    def __init__(self, fem, mesh, sols):
+    def __init__(self, fem, sols):
         super().__init__(sols)
         self._fem = fem
-        self._mesh = mesh
         self._const = NGSConstants()
         for key, value in fem.materials.materialDict(fem.dimension).items():
-            self[key] = _generateCoefficient(value, mesh, name=key, dic=self)
+            self[key] = _generateCoefficient(value, name=key, dic=self)
         for key, value in fem.geometries.geometryParameters().items():
-            self[key] = _generateCoefficient(value, mesh, name=key, dic=self)
+            self[key] = _generateCoefficient(value, name=key, dic=self)
 
     def __getitem__(self, expr):
         d = dict(self._const)
         d.update(self)
-        return _generateCoefficient(expr, self._mesh, dic=d, name=str(expr))
+        return _generateCoefficient(expr, dic=d, name=str(expr))
 
     def updateSolutionFields(self, step):
         for key, f in self.items():
@@ -62,7 +61,7 @@ class NGSConstants(dict):
             super().__getattr__(key)
 
 
-def _generateCoefficient(coef, mesh=None, name="Undefined", dic={}):
+def _generateCoefficient(coef, name="Undefined", dic={}):
     if isinstance(coef, FEMCoefficient):
         geom = coef.geometryType.lower()
         if geom == "const":
@@ -72,7 +71,7 @@ def _generateCoefficient(coef, mesh=None, name="Undefined", dic={}):
             default = _generateCoefficient(coef.default, dic=dic)
         else:
             default = None
-        return util.NGSFunction(coefs, mesh, geomType=geom, default=default, name=name)
+        return util.NGSFunction(coefs, geomType=geom, default=default, name=name)
     elif isinstance(coef, (list, tuple, np.ndarray)):
         return util.NGSFunction([_generateCoefficient(c, dic=dic) for c in coef], name=name)
     elif isinstance(coef, (int, float, sp.Integer, sp.Float, ngsolve.CoefficientFunction)):

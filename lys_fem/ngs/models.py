@@ -50,11 +50,10 @@ class NGSVariable:
     def scale(self):
         return self._scale
     
-    @property
-    def value(self):
+    def value(self, mesh):
         coef = self._init/self._scale
         if coef.valid:
-            coef = coef.eval()
+            coef = coef.eval(mesh)
         else:
             coef = ngsolve.CoefficientFunction(tuple([0] * self.size))
         if self.size == 1:
@@ -62,11 +61,10 @@ class NGSVariable:
         else:
             return [coef[i] for i in range(coef.shape[0])]
     
-    @property
-    def velocity(self):
+    def velocity(self, mesh):
         coef = self._vel/self._scale
         if coef.valid:
-            coef = coef.eval()
+            coef = coef.eval(mesh)
         else:
             coef = ngsolve.CoefficientFunction(tuple([0] * self.size))
         if self.size == 1:
@@ -230,10 +228,10 @@ class CompositeModel:
             d.update(m.updater(self.TnT, sols, self._mat.const.dti))
         return d
 
-    def initialValue(self, use_a=True):
+    def initialValue(self, mesh, use_a=True):
         fes = self.finiteElementSpace
-        x = util.GridFunction(fes, [c for v in self.variables for c in v.value])
-        v = util.GridFunction(fes, [c for v in self.variables for c in v.velocity])
+        x = util.GridFunction(fes, [c for v in self.variables for c in v.value(mesh)])
+        v = util.GridFunction(fes, [c for v in self.variables for c in v.velocity(mesh)])
         a = util.GridFunction(fes)
         if use_a:
             tnt = self.TnT
@@ -246,7 +244,7 @@ class CompositeModel:
             wf_K = wf.replace(d).lhs
             K = ngsolve.BilinearForm(fes)
             if wf_K.valid:
-                K += wf_K.eval()
+                K += wf_K.eval(mesh)
 
             d = {}
             for var, (trial, test) in tnt.items():
@@ -257,7 +255,7 @@ class CompositeModel:
             wf_C = wf.replace(d).lhs
             C = ngsolve.BilinearForm(fes)
             if wf_C.valid:
-                C += wf_C.eval()
+                C += wf_C.eval(mesh)
 
             d = {}
             for var, (trial, test) in tnt.items():
@@ -268,7 +266,7 @@ class CompositeModel:
             wf_M = wf.replace(d).lhs
             M = ngsolve.BilinearForm(fes)
             if wf_M.valid:
-                M += wf_M.eval()
+                M += wf_M.eval(mesh)
 
             d = {}
             for var, (trial, test) in tnt.items():
@@ -277,7 +275,7 @@ class CompositeModel:
             wf_F = wf.replace(d).rhs
             F = ngsolve.LinearForm(fes)
             if wf_F.valid:
-                F += wf_F.eval()
+                F += wf_F.eval(mesh)
 
             rhs = - F.vec - K.Apply(x.vec) - C.Apply(v.vec)
             M.AssembleLinearization(x.vec)

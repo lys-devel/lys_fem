@@ -23,7 +23,7 @@ class NGSSolution:
     def coef(self, expression, index=-1):
         self.update(index)
         d = self._sol.replaceDict
-        return self._mats[expression].replace(d).eval()
+        return self._mats[expression].replace(d).eval(self._mesh)
 
     def update(self, index=-1):
         if index < 0:
@@ -41,9 +41,9 @@ class NGSSolution:
 
     def __generate(self):
         self._mesh = generateMesh(self._fem)
-        self._mats = generateMaterial(self._fem, self._mesh)
+        self._mats = generateMaterial(self._fem)
         model = generateModel(self._fem, self._mesh, self._mats)
-        self._sol = _Solution(model, self._dirname)
+        self._sol = _Solution(self._mesh, model, self._dirname)
         
     def eval(self, expression, index, coords=None):
         f = self.coef(expression, index)

@@ -59,7 +59,7 @@ def createSolver(fem, load=False, print=True):
     mpi.print_()
 
     start = time.time()
-    mats = generateMaterial(fem, mesh)
+    mats = generateMaterial(fem)
     if print:
         mpi.print_("NGS Variables generated in", '{:.2f}'.format(time.time()-start), "seconds :")
         mpi.print_("\tParameters:", {key: value.shape if len(value.shape)>0 else "scalar" for key, value in mats.items()})
