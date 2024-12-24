@@ -12,7 +12,7 @@ def addNGSModel(name, model):
 
 
 def generateModel(fem, mesh, mat):
-    return CompositeModel([modelList[m.className](m, mesh, mat) for m in fem.models], mat)
+    return CompositeModel(mesh, [modelList[m.className](m, mat) for m in fem.models], mat)
 
 
 class NGSVariable:
@@ -42,9 +42,8 @@ class NGSVariable:
     def isScalar(self):
         return self._isScalar
 
-    @property
-    def finiteElementSpace(self):
-        return util.prod([fes.eval() for fes in self._fes])
+    def finiteElementSpace(self, mesh):
+        return util.prod([fes.eval(mesh) for fes in self._fes])
     
     @property
     def scale(self):
@@ -74,22 +73,20 @@ class NGSVariable:
 
 
 class _FESpace:
-    def __init__(self, type, mesh, kwargs):
+    def __init__(self, type, kwargs):
         self._type = type
-        self._mesh = mesh
         self._kwargs = dict(kwargs)
 
-    def eval(self):
+    def eval(self, mesh):
         if self._type == "H1":
-            return ngsolve.H1(self._mesh.eval(), **self._kwargs)
+            return ngsolve.H1(mesh.eval(), **self._kwargs)
         if self._type == "L2":
-            return ngsolve.L2(self._mesh.eval(), **self._kwargs)
+            return ngsolve.L2(mesh.eval(), **self._kwargs)
 
 
 class NGSModel:
-    def __init__(self, model, mesh, vars, addVariables=False):
+    def __init__(self, model, vars, addVariables=False):
         self._model = model
-        self._mesh = mesh
         self._funcs = vars
         self._vars = []
 
@@ -119,9 +116,9 @@ class NGSModel:
             if dirichlet is not None:
                 kwargs["dirichlet"] = "|".join(["boundary" + str(item) for item in dirichlet[i]])
             if L2:
-                fess.append(_FESpace("L2", self._mesh, kwargs))
+                fess.append(_FESpace("L2", kwargs))
             else:
-                fess.append(_FESpace("H1", self._mesh, kwargs))
+                fess.append(_FESpace("H1", kwargs))
         
         if scale is None:
             scale = self.scale
@@ -203,13 +200,13 @@ class NGSModel:
 
 
 class CompositeModel:
-    def __init__(self, models, mat):
+    def __init__(self, mesh, models, mat):
         self._models = models
         self._mat = mat
-        self.update()
+        self.update(mesh)
 
-    def update(self):
-        self._fes = util.prod([v.finiteElementSpace for v in self.variables])
+    def update(self, mesh):
+        self._fes = util.prod([v.finiteElementSpace(mesh) for v in self.variables])
         self._mat.update({v.name: trial for v, (trial, test) in self.TnT.items()})
 
     def weakforms(self):

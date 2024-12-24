@@ -3,8 +3,8 @@ from . import ThermoelasticStress, DeformationPotential
 
 
 class NGSElasticModel(NGSModel):
-    def __init__(self, model, mesh, vars):
-        super().__init__(model, mesh, vars, addVariables=True)
+    def __init__(self, model, vars):
+        super().__init__(model, vars, addVariables=True)
         self._model = model
 
     def weakform(self, vars, mat):

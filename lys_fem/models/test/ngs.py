@@ -2,8 +2,8 @@ from lys_fem.ngs import NGSModel, grad, dx
 from . import DirichletBoundary, InitialCondition
 
 class NGSLinearTestModel(NGSModel):
-    def __init__(self, model, mesh, vars):
-        super().__init__(model, mesh, vars, addVariables=True)
+    def __init__(self, model, vars):
+        super().__init__(model, vars, addVariables=True)
         self._model = model
 
     def weakform(self, vars, mat):
@@ -15,8 +15,8 @@ class NGSLinearTestModel(NGSModel):
 
 
 class NGSNonlinearTestModel(NGSModel):
-    def __init__(self, model, mesh, vars):
-        super().__init__(model, mesh, vars, addVariables=True)
+    def __init__(self, model, vars):
+        super().__init__(model, vars, addVariables=True)
         self._model = model
 
     def weakform(self, vars, mat):
@@ -28,8 +28,8 @@ class NGSNonlinearTestModel(NGSModel):
     
 
 class NGSTwoVariableTestModel(NGSModel):
-    def __init__(self, model, mesh, vars):
-        super().__init__(model, mesh, vars)
+    def __init__(self, model, vars):
+        super().__init__(model, vars)
         self._model = model
 
         init = self._model.initialConditions.coef(InitialCondition)
@@ -52,8 +52,8 @@ class NGSTwoVariableTestModel(NGSModel):
 
 
 class NGSExpTestModel(NGSModel):
-    def __init__(self, model, mesh, vars):
-        super().__init__(model, mesh, vars, addVariables=True)
+    def __init__(self, model, vars):
+        super().__init__(model, vars, addVariables=True)
         self._model = model
 
     def weakform(self, vars, mat):
@@ -65,8 +65,8 @@ class NGSExpTestModel(NGSModel):
 
 
 class NGSTdepFieldTestModel(NGSModel):
-    def __init__(self, model, mesh, vars):
-        super().__init__(model, mesh, vars, addVariables=True)
+    def __init__(self, model, vars):
+        super().__init__(model, vars, addVariables=True)
         self._model = model
 
     def weakform(self, vars, mat):
@@ -78,8 +78,8 @@ class NGSTdepFieldTestModel(NGSModel):
     
 
 class NGSScaleTestModel(NGSModel):
-    def __init__(self, model, mesh, vars):
-        super().__init__(model, mesh, vars, addVariables=True)
+    def __init__(self, model, vars):
+        super().__init__(model, vars, addVariables=True)
         self._model = model
 
     def weakform(self, vars, mat):
@@ -99,8 +99,8 @@ class NGSScaleTestModel(NGSModel):
 
 
 class NGSTwoVarGradTestModel(NGSModel):
-    def __init__(self, model, mesh, vars):
-        super().__init__(model, mesh, vars)
+    def __init__(self, model, vars):
+        super().__init__(model, vars)
         self._model = model
 
         init = self._model.initialConditions.coef(InitialCondition)

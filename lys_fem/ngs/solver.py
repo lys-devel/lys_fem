@@ -27,8 +27,8 @@ class _Solution:
     def __init__(self, mesh, model, dirname=None, nlog=2):
         self._mesh = mesh
         self._model = model
-        fes = model.finiteElementSpace
-        self._sols = [(util.GridFunction(fes), util.GridFunction(fes), util.GridFunction(fes)) for n in range(nlog)]
+        self._fes = model.finiteElementSpace
+        self._sols = [(util.GridFunction(self._fes), util.GridFunction(self._fes), util.GridFunction(self._fes)) for n in range(nlog)]
         self._use_a = False
 
         if dirname is not None:
@@ -45,14 +45,14 @@ class _Solution:
             self.save(0)
 
     def reset(self):
-        zero = util.GridFunction(self._model.finiteElementSpace)
+        zero = util.GridFunction(self._fes)
         for _ in range(len(self._sols)):
             self.__update((self._sols[0][0], zero, zero))
 
     def updateSolution(self, x0, saveIndex=None):
         tdep = self._model.updater(self)
 
-        fes = self._model.finiteElementSpace
+        fes = self._fes
         x, v, a = util.GridFunction(fes), util.GridFunction(fes), util.GridFunction(fes)
         x.vec.data = x0.vec
 
@@ -88,7 +88,7 @@ class _Solution:
                 xi.vec.data *= 0
 
     def copy(self):
-        g = util.GridFunction(self._model.finiteElementSpace)
+        g = util.GridFunction(self._fes)
         for v in self._model.variables:
             if v.type == "x":
                 g.setComponent(v, self.X(v).eval(self._mesh)/v.scale, self._model)
@@ -122,10 +122,10 @@ class _Solution:
 
     def error(self, var):
         val = self.grad(var)
-        g = util.GridFunction(self._model.finiteElementSpace)
+        g = util.GridFunction(self._fes)
         g.setComponent(var, val.eval(), self._model)
         g = g.toNGSFunctions(self._model, pre="_g")[var.name]
-        return ngsolve.Integrate(((g-val)**2).eval(), var.finiteElementSpace.mesh, ngsolve.VOL, element_wise=True)
+        return ngsolve.Integrate(((g-val)**2).eval(), self._mesh, ngsolve.VOL, element_wise=True)
     
     @property
     def replaceDict(self):
@@ -158,7 +158,6 @@ class _Operator:
         if bilinear:
             self._blf = ngsolve.BilinearForm(self._fes, condense=self._step.condensation, symmetric=self._step.symmetric)
             if self._lhs.valid:
-                print(self._lhs)
                 self._blf += self._lhs.eval(self._mesh)
         if linear:
             self._lf = ngsolve.LinearForm(self._fes)
@@ -176,7 +175,7 @@ class _Operator:
                 dofs[fes.Range(j)]=v.name in symbols
             n += v.size
         self._mask = dofs
-        return util.prod([v.finiteElementSpace for v in self._model.variables if v.name in symbols])
+        return util.prod([v.finiteElementSpace(self._mesh) for v in self._model.variables if v.name in symbols])
 
     def __prepareWeakform(self, model, sols, symbols):
         wf = model.weakforms()
