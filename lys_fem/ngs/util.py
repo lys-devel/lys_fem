@@ -118,18 +118,6 @@ class GridFunction(ngsolve.GridFunction):
             n+=v.size
         return res
 
-    def toGradFunctions(self, model, pre=""):
-        res = {}
-        n = 0
-        for v in model.variables:
-            if v.size == 1 and v.isScalar:
-                res[v.name] = NGSFunction(v.scale*ngsolve.grad(self.components[n]), name="grad("+v.name+pre+")", tdep=True)
-            else:
-                g = [ngsolve.grad(self.components[i]) for i in range(n,n+v.size)]
-                res[v.name] = NGSFunction(v.scale*ngsolve.CoefficientFunction(tuple(g), dims=(v.size, dimension)).TensorTranspose((1,0)), name="grad("+v.name+pre+")", tdep=True)
-            n+=v.size           
-        return res
-
 
 class NGSFunction:
     def __init__(self, obj=None, mesh=None, default=None, geomType="domain", name="Undefined", tdep=False):
@@ -1069,6 +1057,89 @@ class TrialFunctionValue(NGSFunction):
     def __contains__(self, item):
         return self == item
 
+
+class SolutionFunction(NGSFunction):
+    """
+    NGSFunction that provide the access to the present solution.
+    Args:
+        name(str): The symbol name
+        sol(Solution): The solution object
+        type(int): The type of the solution. 0:x, 1:x.t, 2:x.tt
+        index(int): The index of the solution. 0: present, 1: last, ...
+    """
+    def __init__(self, var, model, sol, type, index):
+        self._sol = sol
+        self._var = var
+        self._type = type
+        self._index = index
+        n = 0
+        for v in model.variables:
+            if v == var:
+                self._n = n
+            n += v.size
+
+    @property
+    def shape(self):
+        if self._var.isScalar:
+            return ()
+        else:
+            return (self._var.size,)
+
+    @property
+    def valid(self):
+        return True
+
+    def eval(self):
+        v = self._var
+        g = self._sol._sols[self._index][self._type]
+        if v.isScalar:
+            return v.scale*ngsolve.CoefficientFunction(g.components[self._n])
+        else:
+            return v.scale*ngsolve.CoefficientFunction(tuple(g.components[self._n:self._n+v.size]), dims=(v.size,))
+            
+    def grad(self):
+        v = self._var
+        g = self._sol._sols[self._index][self._type]
+
+        if v.isScalar:
+            return v.scale*ngsolve.grad(g.components[self._n])
+        else:
+            g = [ngsolve.grad(g.components[i]) for i in range(self._n,self._n+v.size)]
+            return v.scale*ngsolve.CoefficientFunction(tuple(g), dims=(v.size, dimension)).TensorTranspose((1,0))
+    
+    def replace(self, d):
+        return d.get(self, self)
+
+    def __contains__(self, item):
+        return self == item
+
+    @property
+    def hasTrial(self):
+        return False
+    
+    @property
+    def rhs(self):
+        return self
+
+    @property
+    def lhs(self):
+        return NGSFunction()
+        
+    @property
+    def isNonlinear(self):
+        return False
+        
+    @property
+    def isTimeDependent(self):
+        return True
+        
+    @property
+    def value(self):
+        return self
+
+    def __str__(self):
+        return self._name
+        
 
 class DifferentialSymbol(NGSFunction):
     def __init__(self, obj, **kwargs):

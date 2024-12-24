@@ -28,8 +28,6 @@ class _Solution:
         self._model = model
         fes = model.finiteElementSpace
         self._sols = [(util.GridFunction(fes), util.GridFunction(fes), util.GridFunction(fes)) for n in range(nlog)]
-        self._coefs = [[self._sols[n][i].toNGSFunctions(model, "t"*i+"_n") for i in range(3)] for n in range(nlog)]
-        self._grads = [self._sols[n][0].toGradFunctions(model, "_n") for n in range(nlog)]
         self._use_a = False
 
         if dirname is not None:
@@ -46,8 +44,9 @@ class _Solution:
             self.save(0)
 
     def reset(self):
-        for i in range(len(self._sols)):
-            self.__update((self._sols[0][0], None, None))
+        zero = util.GridFunction(self._model.finiteElementSpace)
+        for _ in range(len(self._sols)):
+            self.__update((self._sols[0][0], zero, zero))
 
     def updateSolution(self, x0, saveIndex=None):
         tdep = self._model.updater(self)
@@ -111,17 +110,14 @@ class _Solution:
         self._sols[0][0].Load(path, parallel)
 
     def X(self, var, n=0):
-        return self._coefs[n][0][var.name]
+        return util.SolutionFunction(var, self._model, self, 0, n)
 
     def V(self, var, n=0):
-        return self._coefs[n][1][var.name]
+        return util.SolutionFunction(var, self._model, self, 1, n)
 
     def A(self, var, n=0):
         self._use_a=True
-        return self._coefs[n][2][var.name]
-    
-    def grad(self, var, n=0):
-        return self._grads[n][var.name]
+        return util.SolutionFunction(var, self._model, self, 2, n)
 
     def error(self, var):
         val = self.grad(var)
@@ -135,12 +131,7 @@ class _Solution:
         """
         Returns a dictionary that replace trial functions with corresponding solutions.
         """
-        tnt = self._model.TnT
-        sols = self._sols[0][0].toNGSFunctions(self._model)
-        grads = self._sols[0][0].toGradFunctions(self._model)
-        d = {trial: sols[v.name] for v, (trial, test) in tnt.items()}
-        d.update({util.grad(trial): grads[v.name] for v, (trial, test) in tnt.items()})
-        return d
+        return {trial: self.X(v) for v, (trial, test) in self._model.TnT.items()}
 
 
 class _Operator:
@@ -152,17 +143,24 @@ class _Operator:
         self._step = step
         self._fes = self.__compressed_fes(model.finiteElementSpace, self._symbols)
 
-        self._blf, self._lf = ngsolve.BilinearForm(self._fes, condense=step.condensation, symmetric=step.symmetric), ngsolve.LinearForm(self._fes)
         wf = self.__prepareWeakform(model, sols, self._symbols)
-        lhs, rhs = wf.lhs, wf.rhs
-        if lhs.valid:
-            self._blf += lhs.eval()
-        if rhs.valid:
-            self._lf += rhs.eval()
-        self._nl = lhs.isNonlinear
-        self._tdep_lhs = lhs.isTimeDependent
-        self._tdep_rhs = rhs.isTimeDependent
+        self._lhs, self._rhs = wf.lhs, wf.rhs
+        self.__update()
+
+        self._nl = self._lhs.isNonlinear
+        self._tdep_lhs = self._lhs.isTimeDependent
+        self._tdep_rhs = self._rhs.isTimeDependent
         self._init  = False
+
+    def __update(self, bilinear=True, linear=True):
+        if bilinear:
+            self._blf = ngsolve.BilinearForm(self._fes, condense=self._step.condensation, symmetric=self._step.symmetric)
+            if self._lhs.valid:
+                self._blf += self._lhs.eval()
+        if linear:
+            self._lf = ngsolve.LinearForm(self._fes)
+            if self._rhs.valid:
+                self._lf += self._rhs.eval()
 
     def __compressed_fes(self, fes, symbols):
         if symbols is None:
@@ -192,7 +190,6 @@ class _Operator:
                     d[trial.t] = sols.V(v)
                     if trial.tt in wf:
                         d[trial.tt] = sols.A(v)
-                    d[util.grad(trial)] = sols.grad(v)
                     d[test] = 0
                     d[util.grad(test)] = 0
         return wf.replace(d)
@@ -270,7 +267,7 @@ class _Operator:
         res += "\t\tTotal degree of freedoms: " + str(self._fes.ndofglobal) + "\n"
         res += "\t\tNonlinear: " + str(self.isNonlinear) + "\n"
         res += "\t\tTime dependent: LHS = " + str(self._tdep_lhs) + ", RHS = " + str(self._tdep_rhs) + "\n" 
-        res += "\t\tStatic condensation: " + str(self._blf.condense) + "\n"
+        res += "\t\tStatic condensation: " + str(self._step.condensation) + "\n"
         if self._symbols is not None:
             res += "\t\tSymbols: " + str(self._symbols) + "\n"
         res += "\t\tSolver: " + str(self._solver) + "\n"

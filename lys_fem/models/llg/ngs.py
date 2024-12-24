@@ -126,10 +126,10 @@ class NGSLLGModel(NGSModel):
                     continue
                 trial = tnt[v][0]
                 w = 0
-                mn, gn = sols.X(v), sols.grad(v)
+                mn = sols.X(v)
                 d = time.BackwardEuler.generateWeakforms(v, trial, sols, dti)
                 d[trial.value] = (1-w)*trial + w*mn
-                d[grad(trial)] = (1-w)*grad(trial) + w*gn
+                d[grad(trial)] = (1-w)*grad(trial) + w*grad(mn)
             return d
         if self._model.constraint == "Alouges":
             d = {}
@@ -137,11 +137,9 @@ class NGSLLGModel(NGSModel):
                 if "_lam" in v.name:
                     continue
                 trial, _ = tnt[v]
-                mn, gn = sols.X(v), sols.grad(v)
+                mn = sols.X(v)
                 d[trial] = mn
-                d[grad(trial)] = gn
                 d[trial.t] = trial
-                d[grad(trial.t)] = grad(trial)
             return d
             
         return super().discretize(tnt, sols, dti)

@@ -234,7 +234,7 @@ class CompositeModel:
         fes = self.finiteElementSpace
         x = util.GridFunction(fes, [c for v in self.variables for c in v.value])
         v = util.GridFunction(fes, [c for v in self.variables for c in v.velocity])
-        a = None
+        a = util.GridFunction(fes)
         if use_a:
             tnt = self.TnT
             wf = self.weakforms()
@@ -282,7 +282,6 @@ class CompositeModel:
             rhs = - F.vec - K.Apply(x.vec) - C.Apply(v.vec)
             M.AssembleLinearization(x.vec)
 
-            a = util.GridFunction(fes)
             a.vec.data  = M.mat.Inverse(fes.FreeDofs(), "pardiso") * rhs
         return x, v, a
 
