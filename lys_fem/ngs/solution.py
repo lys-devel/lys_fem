@@ -59,7 +59,7 @@ class NGSSolution:
             
     def integrate(self, expression, index):
         f = self.coef(expression, index)
-        return ngsolve.Integrate(f, self._mesh)
+        return ngsolve.Integrate(f, self._mesh.eval())
 
     def __getDomainValues(self, f):
         if mpi.isParallel():

@@ -23,10 +23,12 @@ class NGSMesh:
         return self._mesh.GetBoundaries()
 
 
-def generateMesh(fem, file="mesh.msh"):
+def generateMesh(fem, file=None):
     if mpi.isRoot:
-        geom = fem.geometries.generateGeometry()
-        fem.mesher.export(geom, file)
+        if file is None:
+            file = "mesh.msh"
+            geom = fem.geometries.generateGeometry()
+            fem.mesher.export(geom, file)
         gmesh, tags = ReadGmsh(file, fem.dimension)
         ne, nv = gmesh.ne, len(gmesh.Points())
         gmesh.Scale(fem.geometries.scale)
