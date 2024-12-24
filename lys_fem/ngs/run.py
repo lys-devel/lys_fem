@@ -66,7 +66,7 @@ def createSolver(fem, load=False, print=True):
         mpi.print_()
 
     start = time.time()
-    model = generateModel(fem, mesh, mats)
+    model = generateModel(fem, mats)
     if print:
         mpi.print_("NGS Models generated in ", '{:.2f}'.format(time.time()-start), "seconds :")
         for m in model.models:

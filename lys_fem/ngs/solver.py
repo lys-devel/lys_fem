@@ -7,7 +7,6 @@ import ngsolve.ngs2petsc as n2p
 import petsc4py.PETSc as psc
 
 from . import mpi, util
-from .models import FiniteElementSpace
 
 def generateSolver(fem, mesh, model, load=False):
     solvers = {"Stationary Solver": StationarySolver, "Relaxation Solver": RelaxationSolver, "Time Dependent Solver": TimeDependentSolver}
@@ -28,9 +27,8 @@ class _Solution:
     def __init__(self, mesh, model, dirname=None, nlog=2):
         self._mesh = mesh
         self._model = model
-        self._fes_glb = FiniteElementSpace(model, mesh)
-        self._fes = model.finiteElementSpace
-        self._sols = [(util.GridFunction(self._fes), util.GridFunction(self._fes), util.GridFunction(self._fes)) for n in range(nlog)]
+        self._fes = util.FiniteElementSpace(model, mesh)
+        self._sols = [(self._fes.gridFunction(), self._fes.gridFunction(), self._fes.gridFunction()) for n in range(nlog)]
         self._use_a = False
 
         if dirname is not None:
@@ -39,7 +37,7 @@ class _Solution:
             self._dirname = None
 
     def initialize(self):
-        self.__update(self._model.initialValue(self._mesh, self._use_a))
+        self.__update(self._model.initialValue(self._fes, self._use_a))
         if mpi.isRoot and self._dirname is not None:
             if os.path.exists(self._dirname):
                 shutil.rmtree(self._dirname)
@@ -47,15 +45,14 @@ class _Solution:
             self.save(0)
 
     def reset(self):
-        zero = util.GridFunction(self._fes)
+        zero = self._fes.gridFunction()
         for _ in range(len(self._sols)):
             self.__update((self._sols[0][0], zero, zero))
 
     def updateSolution(self, x0, saveIndex=None):
         tdep = self._model.updater(self)
 
-        fes = self._fes
-        x, v, a = util.GridFunction(fes), util.GridFunction(fes), util.GridFunction(fes)
+        x, v, a = self._fes.gridFunction(), self._fes.gridFunction(), self._fes.gridFunction()
         x.vec.data = x0.vec
 
         fs = x0.toNGSFunctions(self._model, "_new")
@@ -64,13 +61,13 @@ class _Solution:
 
         for var, (trial, test) in tnt.items():
             if trial in tdep:
-                x.setComponent(var, tdep[trial].replace(d).eval(self._fes_glb), self._model)
+                x.setComponent(var, tdep[trial].replace(d).eval(self._fes), self._model)
         for var, (trial, test) in tnt.items():
             if trial.t in tdep:
-                v.setComponent(var, tdep[trial.t].replace(d).eval(self._fes_glb), self._model)
+                v.setComponent(var, tdep[trial.t].replace(d).eval(self._fes), self._model)
         for var, (trial, test) in tnt.items():
             if trial.tt in tdep:
-                a.setComponent(var, tdep[trial.tt].replace(d).eval(self._fes_glb), self._model)
+                a.setComponent(var, tdep[trial.tt].replace(d).eval(self._fes), self._model)
 
         self.__update((x,v,a))
 
@@ -90,14 +87,14 @@ class _Solution:
                 xi.vec.data *= 0
 
     def copy(self):
-        g = util.GridFunction(self._fes)
+        g = self._fes.gridFunction()
         for v in self._model.variables:
             if v.type == "x":
-                g.setComponent(v, self.X(v).eval(self._fes_glb)/v.scale, self._model)
+                g.setComponent(v, self.X(v).eval(self._fes)/v.scale, self._model)
             if v.type == "v":
-                g.setComponent(v, self.V(v).eval(self._fes_glb)/v.scale, self._model)
+                g.setComponent(v, self.V(v).eval(self._fes)/v.scale, self._model)
             if v.type == "a":
-                g.setComponent(v, self.A(v).eval(self._fes_glb)/v.scale, self._model)
+                g.setComponent(v, self.A(v).eval(self._fes)/v.scale, self._model)
         return g
 
     def save(self, index):
@@ -124,7 +121,7 @@ class _Solution:
 
     def error(self, var):
         val = self.grad(var)
-        g = util.GridFunction(self._fes)
+        g = self._fes.gridFunction()
         g.setComponent(var, val.eval(), self._model)
         g = g.toNGSFunctions(self._model, pre="_g")[var.name]
         return ngsolve.Integrate(((g-val)**2).eval(), self._mesh, ngsolve.VOL, element_wise=True)
@@ -139,16 +136,11 @@ class _Solution:
 
 class _Operator:
     def __init__(self, mesh, model, sols, step):
-        self._fes_glb = FiniteElementSpace(model, mesh)
-        self._mesh = mesh
-        self._model = model
+        self._fes = util.FiniteElementSpace(model, mesh, step.variables, symmetric=step.symmetric, condense=step.condensation)
         self._symbols = step.variables
-        self._solver = step.solver
-        self._prec = step.preconditioner
         self._step = step
-        self._fes = self.__compressed_fes(model.finiteElementSpace, self._symbols)
 
-        wf = self.__prepareWeakform(model, sols, self._symbols)
+        wf = self.__prepareWeakform(model, sols, step.variables)
         self._lhs, self._rhs = wf.lhs, wf.rhs
         self.__update()
 
@@ -159,31 +151,17 @@ class _Operator:
 
     def __update(self, bilinear=True, linear=True):
         if bilinear:
-            self._blf = ngsolve.BilinearForm(self._fes, condense=self._step.condensation, symmetric=self._step.symmetric)
+            self._blf = self._fes.BilinearForm()
             if self._lhs.valid:
-                self._blf += self._lhs.eval(self._fes_glb)
+                self._blf += self._lhs.eval(self._fes)
         if linear:
-            self._lf = ngsolve.LinearForm(self._fes)
+            self._lf = self._fes.LinearForm()
             if self._rhs.valid:
-                self._lf += self._rhs.eval(self._fes_glb)
-
-    def __compressed_fes(self, fes, symbols):
-        if symbols is None:
-            return fes
-
-        dofs = ngsolve.BitArray(fes.FreeDofs())
-        n = 0
-        for v in self._model.variables:
-            for j in range(n, n+v.size):
-                dofs[fes.Range(j)]=v.name in symbols
-            n += v.size
-        self._mask = dofs
-        return util.prod([v.finiteElementSpace(self._mesh) for v in self._model.variables if v.name in symbols])
+                self._lf += self._rhs.eval(self._fes)
 
     def __prepareWeakform(self, model, sols, symbols):
         wf = model.weakforms()
         wf = self.__discretize(model, wf, symbols, sols)
-        wf = self.__replaceTnT(model, wf, symbols)
         return wf
     
     def __discretize(self, model, wf, symbols, sols):
@@ -199,23 +177,6 @@ class _Operator:
                     d[util.grad(test)] = 0
         return wf.replace(d)
     
-    def __replaceTnT(self, model, wf, symbols):
-        if symbols is None:
-            return wf
-
-        tnt = util.TnT_dict([v for v in self._model.variables if v.name in symbols], self._fes)
-        d = {}
-        for v, (trial, test) in model.TnT.items():
-            if v.name in symbols:
-                trial_loc, test_loc = tnt[v]
-                d[trial] = trial_loc
-                d[trial.t] = trial_loc.t
-                d[trial.tt] = trial_loc.tt
-                d[util.grad(trial)] = util.grad(trial_loc)
-                d[test] = test_loc
-                d[util.grad(test)] = util.grad(test_loc)
-        return wf.replace(d)
-
     def __call__(self, x):
         if self.isNonlinear:
             return self._blf.Apply(x) + self._lf.vec
@@ -239,12 +200,12 @@ class _Operator:
         self._init = True
 
     def __inverse(self, mat):
-        if self._solver in ["pardiso", "mumps", "umfpack", "pardisospd", "sparsecholesky", "masterinverse"]:
+        if self._step.solver in ["pardiso", "mumps", "umfpack", "pardisospd", "sparsecholesky", "masterinverse"]:
             start = time.time()
-            inv = mat.Inverse(self._fes.FreeDofs(self._blf.condense), self._solver)
+            inv = mat.Inverse(self._fes.FreeDofs(), self._step.solver)
             mpi.print_("\t[Direct solver] Time = {:.2f}".format(time.time()-start))
         else:
-            inv = _petsc(self._fes, mat, self._solver, self._prec, self._blf.condense, iter=self._step.linear_maxiter, tol=self._step.linear_rtol)
+            inv = _petsc(self._fes, mat, self._step.solver, self._step.preconditioner, iter=self._step.linear_maxiter, tol=self._step.linear_rtol)
         return _Inv(inv, self._blf)
 
     @property
@@ -263,35 +224,35 @@ class _Operator:
                 glb.vec.data = loc.vec
         else:
             if direction == "->":
-                loc.vec.FV().NumPy()[:] = glb.vec.FV().NumPy()[self._mask]
+                loc.vec.FV().NumPy()[:] = glb.vec.FV().NumPy()[self._fes.mask]
             elif direction == "<-":
-                glb.vec.FV().NumPy()[self._mask] = loc.vec.FV().NumPy()
+                glb.vec.FV().NumPy()[self._fes.mask] = loc.vec.FV().NumPy()
 
     def __str__(self):
         res = ""
-        res += "\t\tTotal degree of freedoms: " + str(self._fes.ndofglobal) + "\n"
+        res += "\t\tTotal degree of freedoms: " + str(self._fes.ndof) + "\n"
         res += "\t\tNonlinear: " + str(self.isNonlinear) + "\n"
         res += "\t\tTime dependent: LHS = " + str(self._tdep_lhs) + ", RHS = " + str(self._tdep_rhs) + "\n" 
         res += "\t\tStatic condensation: " + str(self._step.condensation) + "\n"
-        if self._symbols is not None:
-            res += "\t\tSymbols: " + str(self._symbols) + "\n"
-        res += "\t\tSolver: " + str(self._solver) + "\n"
-        if self._prec is not None:
-            res += "\t\tPreconditioner: " + str(self._prec) + "\n"
+        if self._step.variables is not None:
+            res += "\t\tSymbols: " + str(self._step.variables) + "\n"
+        res += "\t\tSolver: " + str(self._step.solver) + "\n"
+        if self._step.preconditioner is not None:
+            res += "\t\tPreconditioner: " + str(self._step.preconditioner) + "\n"
             res += "\t\tMax iteration:" + str(self._step.linear_maxiter) + "\n"
             res += "\t\tRelative tolerance:" + str(self._step.linear_rtol) + "\n"
         return res
 
 
 class _petsc:
-    def __init__(self, fes, mat, solver, prec, cond, iter=10000, tol=1e-9):
+    def __init__(self, fes, mat, solver, prec, iter=10000, tol=1e-9):
         self._fes = fes
         self._iter=iter
         self._tol = tol
-        self.__initialize(mat, solver, prec, cond)
+        self.__initialize(mat, solver, prec)
 
-    def __initialize(self, mat, solver, prec, cond):
-        self._dofs = self._fes.FreeDofs(cond)
+    def __initialize(self, mat, solver, prec):
+        self._dofs = self._fes.FreeDofs()
         self._psc_mat = n2p.CreatePETScMatrix(mat, self._dofs)
         if mpi.isParallel():
             self._vecmap = n2p.VectorMapping(mat.row_pardofs, self._dofs)
@@ -307,7 +268,7 @@ class _petsc:
     def __mul__(self, other):
         start = time.time()
         f, u = self._psc_mat.createVecs()
-        gfu = util.GridFunction(self._fes)
+        gfu = self._fes.gridFunction()
         gfu.vec.data = other
         if mpi.isParallel():
             self._vecmap.N2P(gfu.vec, f)
@@ -348,7 +309,7 @@ class SolverBase:
     def __init__(self, obj, mesh, model, dirname, variableStep=False, load=False):
         self._obj = obj
         self._mesh = mesh
-        self._fes = FiniteElementSpace(model, mesh)
+        self._fes = util.FiniteElementSpace(model, mesh)
         self._model = model
         self._mat = model.materials
         self._mat.const.dti.tdep = variableStep
@@ -356,7 +317,7 @@ class SolverBase:
 
         self._sols = _Solution(mesh, model, "Solutions/" + dirname)
         self._ops = [_Operator(mesh, model, self._sols, step) for step in obj.steps]
-        self._xis = [util.GridFunction(op.finiteElementSpace) for op in self._ops]
+        self._xis = [op.finiteElementSpace.gridFunction() for op in self._ops]
         self._diff = self.__calcDiff(obj.diff_expr)
         if not load:
             util.stepn.set(-1)

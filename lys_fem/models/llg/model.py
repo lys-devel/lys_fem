@@ -56,8 +56,8 @@ class LLGModel(FEMFixedModel):
     domainConditionTypes = [ExternalMagneticField, UniaxialAnisotropy, CubicAnisotropy, MagneticScalarPotential, SpinTransferTorque]
     boundaryConditionTypes = [DirichletBoundary]
 
-    def __init__(self, *args, discretization="LLG Asym", constraint="Lagrange", order=2, **kwargs):
-        super().__init__(3, discretization=discretization, order=order, *args, **kwargs)
+    def __init__(self, *args, constraint="Lagrange", order=2, **kwargs):
+        super().__init__(3, order=order, *args, **kwargs)
         self._constraint = constraint
 
     @property

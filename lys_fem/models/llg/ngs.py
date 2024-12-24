@@ -32,18 +32,17 @@ class NGSLLGModel(NGSModel):
         wf = 0
         for eq in self._model.equations:
             m, test_m = vars[eq.variableName]
-            m0 = m.value
 
             # Left-hand side, normalization, exchange term
             wf += m.t.dot(test_m)*dx
-            wf += A * grad(m).cross(m0).ddot(grad(test_m))*dx
-            wf += -alpha * m0.cross(m.t).dot(test_m)*dx
+            wf += A * grad(m).cross(m).ddot(grad(test_m))*dx
+            wf += -alpha * m.cross(m.t).dot(test_m)*dx
 
             if self._model.constraint == "Lagrange":
                 lam, test_lam = vars[eq.variableName+"_lam"]
                 scale = util.max(mat.const.dti, 1)#1e11
-                wf += 2*lam*m0.dot(test_m)*scale*dx
-                wf += (-1e-5*lam + (m0.dot(m0)-1))*test_lam*scale*dx
+                wf += 2*lam*m.dot(test_m)*scale*dx
+                wf += (-1e-5*lam + (m.dot(m)-1))*test_lam*scale*dx
 
             for ex in self._model.domainConditions.get(ExternalMagneticField):
                 B = mat[ex.values]
@@ -51,12 +50,12 @@ class NGSLLGModel(NGSModel):
             
             for uni in self._model.domainConditions.get(UniaxialAnisotropy):
                 u, Ku = mat["u_Ku/norm(u_Ku)"], mat["Ku"]
-                B = 2*Ku/Ms*m0.dot(u)*u
+                B = 2*Ku/Ms*m.dot(u)*u
                 wf += g*m.cross(B).dot(test_m)*dx(uni.geometries)
 
             for sc in self._model.domainConditions.get(MagneticScalarPotential):
                 phi = mat[sc.values]
-                wf += g*m0.cross(-mu0*grad(phi)).dot(test_m)*dx(sc.geometries)
+                wf += g*m.cross(-mu0*grad(phi)).dot(test_m)*dx(sc.geometries)
 
             for st in self._model.domainConditions.get(SpinTransferTorque):
                 beta = mat["beta_st"]
@@ -119,18 +118,6 @@ class NGSLLGModel(NGSModel):
         return wf
 
     def discretize(self, tnt, sols, dti):
-        if self._model.discretization == "LLG Asym":
-            d = {}
-            for v in self.variables:
-                if "_lam" in v.name:
-                    continue
-                trial = tnt[v][0]
-                w = 0
-                mn = sols.X(v)
-                d = time.BackwardEuler.generateWeakforms(v, trial, sols, dti)
-                d[trial.value] = (1-w)*trial + w*mn
-                d[grad(trial)] = (1-w)*grad(trial) + w*grad(mn)
-            return d
         if self._model.constraint == "Alouges":
             d = {}
             for v in self.variables:

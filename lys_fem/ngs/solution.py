@@ -3,10 +3,10 @@ import os
 import numpy as np
 import ngsolve
 
-from . import mpi
+from . import mpi, util
 from .mesh import generateMesh
 from .material import generateMaterial
-from .models import generateModel, FiniteElementSpace
+from .models import generateModel
 from .solver import _Solution
 
 
@@ -42,8 +42,8 @@ class NGSSolution:
     def __generate(self):
         self._mesh = generateMesh(self._fem)
         self._mats = generateMaterial(self._fem)
-        model = generateModel(self._fem, self._mesh, self._mats)
-        self._fes = FiniteElementSpace(model, self._mesh)
+        model = generateModel(self._fem, self._mats)
+        self._fes = util.FiniteElementSpace(model, self._mesh)
         self._sol = _Solution(self._mesh, model, self._dirname)
         
     def eval(self, expression, index, coords=None):

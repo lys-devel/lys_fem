@@ -28,12 +28,12 @@ class NGSSemiconductorModel(NGSModel):
             if eq.tempName is None:
                 T = mat["T"]
             else:
-                T = vars[eq.tempName][0].value
+                T = vars[eq.tempName][0]
             D_n, D_p = mu_n*kB*T/q, mu_p*kB*T/q
 
             # lhs, drift current, diffusion current terms
             wf += (n.t.dot(test_n) + p.t.dot(test_p))*dx
-            wf += grad(phi).dot(-n.value*mu_n*grad(test_n) + p.value*mu_p*grad(test_p))*dx
+            wf += grad(phi).dot(-n*mu_n*grad(test_n) + p*mu_p*grad(test_p))*dx
             wf += D_n*grad(n).dot(grad(test_n))*dx + D_p*grad(p).dot(grad(test_p))*dx
 
             wf -= q*(p-n+Nd-Na)*test_phi * dx 

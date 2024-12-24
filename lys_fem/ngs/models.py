@@ -11,8 +11,8 @@ def addNGSModel(name, model):
     modelList[name] = model
 
 
-def generateModel(fem, mesh, mat):
-    return CompositeModel(mesh, [modelList[m.className](m, mat) for m in fem.models], mat)
+def generateModel(fem, mat):
+    return CompositeModel([modelList[m.className](m, mat) for m in fem.models], mat)
 
 
 class NGSVariable:
@@ -48,7 +48,11 @@ class NGSVariable:
     @property
     def scale(self):
         return self._scale
-    
+
+    @property
+    def residualScale(self):
+        return self._residualScale
+
     def value(self, fes):
         coef = self._init/self._scale
         if coef.valid:
@@ -200,14 +204,10 @@ class NGSModel:
 
 
 class CompositeModel:
-    def __init__(self, mesh, models, mat):
+    def __init__(self, models, mat):
         self._models = models
         self._mat = mat
-        self.update(mesh)
-
-    def update(self, mesh):
-        self._fes = util.prod([v.finiteElementSpace(mesh) for v in self.variables])
-        self._mat.update({v.name: trial for v, (trial, test) in self.TnT.items()})
+        self._mat.update({v.name: util.TrialFunction(v) for v in self.variables})
 
     def weakforms(self):
         tnt = {v.name: tnt for v, tnt in self.TnT.items()}
@@ -225,12 +225,10 @@ class CompositeModel:
             d.update(m.updater(self.TnT, sols, self._mat.const.dti))
         return d
 
-    def initialValue(self, mesh, use_a=True):
-        sp = FiniteElementSpace(self, mesh)
-        fes = self.finiteElementSpace
-        x = util.GridFunction(fes, [c for v in self.variables for c in v.value(sp)])
-        v = util.GridFunction(fes, [c for v in self.variables for c in v.velocity(sp)])
-        a = util.GridFunction(fes)
+    def initialValue(self, fes, use_a=True):
+        x = fes.gridFunction([c for v in self.variables for c in v.value(fes)])
+        v = fes.gridFunction([c for v in self.variables for c in v.velocity(fes)])
+        a = fes.gridFunction()
         if use_a:
             tnt = self.TnT
             wf = self.weakforms()
@@ -240,9 +238,9 @@ class CompositeModel:
                 d[trial.t] = 0
                 d[trial.tt] = 0
             wf_K = wf.replace(d).lhs
-            K = ngsolve.BilinearForm(fes)
+            K = fes.BilinearForm()
             if wf_K.valid:
-                K += wf_K.eval(sp)
+                K += wf_K.eval(fes)
 
             d = {}
             for var, (trial, test) in tnt.items():
@@ -251,9 +249,9 @@ class CompositeModel:
                 d[trial.t] = trial
                 d[trial.tt] = 0
             wf_C = wf.replace(d).lhs
-            C = ngsolve.BilinearForm(fes)
+            C = fes.BilinearForm()
             if wf_C.valid:
-                C += wf_C.eval(sp)
+                C += wf_C.eval(fes)
 
             d = {}
             for var, (trial, test) in tnt.items():
@@ -262,18 +260,18 @@ class CompositeModel:
                 d[trial.t] = 0
                 d[trial.tt] = trial
             wf_M = wf.replace(d).lhs
-            M = ngsolve.BilinearForm(fes)
+            M = fes.BilinearForm()
             if wf_M.valid:
-                M += wf_M.eval(sp)
+                M += wf_M.eval(fes)
 
             d = {}
             for var, (trial, test) in tnt.items():
                 d[trial.t] = trial
                 d[trial.tt] = trial
             wf_F = wf.replace(d).rhs
-            F = ngsolve.LinearForm(fes)
+            F = fes.LinearForm()
             if wf_F.valid:
-                F += wf_F.eval(sp)
+                F += wf_F.eval(fes)
 
             rhs = - F.vec - K.Apply(x.vec) - C.Apply(v.vec)
             M.AssembleLinearization(x.vec)
@@ -290,27 +288,10 @@ class CompositeModel:
         return self._models
     
     @property
-    def finiteElementSpace(self):
-        return self._fes
-
-    @property
     def variables(self):
         return sum([m.variables for m in self._models], [])
     
     @property
     def TnT(self):
-        return util.TnT_dict(self.variables, self._fes)
+        return {v: (util.TrialFunction(v), util.TestFunction(v)) for v in self.variables}
     
-
-class FiniteElementSpace:
-    def __init__(self, model, mesh):
-        self._mesh = mesh
-        self._fes = util.prod([v.finiteElementSpace(mesh) for v in model.variables])
-
-    @property
-    def mesh(self):
-        return self._mesh.eval()
-    
-    @property
-    def TnT(self):
-        return util.TnT_dict(self.variables, self._fes)
