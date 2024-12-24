@@ -100,11 +100,15 @@ class FiniteElementSpace:
         return self._mesh.eval()
     
     @property
+    def model(self):
+        return self._model
+    
+    @property
     def mask(self):
         return self._mask
     
     def gridFunction(self, value=None):
-        return GridFunction(self._fes, value)
+        return GridFunction(self, value)
     
     @property
     def ndof(self):
@@ -124,12 +128,12 @@ class FiniteElementSpace:
     
     def FreeDofs(self):
         return self._fes.FreeDofs(self._condense)
-
-
+        
 
 class GridFunction(ngsolve.GridFunction):
     def __init__(self, fes, value=None):
-        super().__init__(fes)
+        super().__init__(fes._fes)
+        self._fes = fes
         if value is not None:
             self.set(value)
 
@@ -140,12 +144,12 @@ class GridFunction(ngsolve.GridFunction):
             for ui, i in zip(self.components, value):
                 ui.Set(i)
 
-    def setComponent(self, var, value, model):
+    def setComponent(self, var, value):
         if self.isSingle:
             self.Set(value)
         else:
             n = 0
-            for v in model.variables:
+            for v in self._fes.model.variables:
                 if v.name == var.name:
                     break
                 n += v.size
@@ -173,6 +177,10 @@ class GridFunction(ngsolve.GridFunction):
                 res[v.name] = NGSFunction(v.scale*ngsolve.CoefficientFunction(tuple(self.components[n:n+v.size]), dims=(v.size,)), name=v.name+pre, tdep=True)
             n+=v.size
         return res
+
+    @property
+    def finiteElementSpace(self):
+        return self._fes
 
 
 class NGSFunction:

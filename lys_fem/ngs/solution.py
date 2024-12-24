@@ -44,7 +44,7 @@ class NGSSolution:
         self._mats = generateMaterial(self._fem)
         model = generateModel(self._fem, self._mats)
         self._fes = util.FiniteElementSpace(model, self._mesh)
-        self._sol = _Solution(self._mesh, model, self._dirname)
+        self._sol = _Solution(self._fes, model, self._dirname)
         
     def eval(self, expression, index, coords=None):
         f = self.coef(expression, index)
