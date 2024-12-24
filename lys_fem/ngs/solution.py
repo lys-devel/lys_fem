@@ -6,7 +6,7 @@ import ngsolve
 from . import mpi
 from .mesh import generateMesh
 from .material import generateMaterial
-from .models import generateModel
+from .models import generateModel, FiniteElementSpace
 from .solver import _Solution
 
 
@@ -23,7 +23,7 @@ class NGSSolution:
     def coef(self, expression, index=-1):
         self.update(index)
         d = self._sol.replaceDict
-        return self._mats[expression].replace(d).eval(self._mesh)
+        return self._mats[expression].replace(d).eval(self._fes)
 
     def update(self, index=-1):
         if index < 0:
@@ -43,6 +43,7 @@ class NGSSolution:
         self._mesh = generateMesh(self._fem)
         self._mats = generateMaterial(self._fem)
         model = generateModel(self._fem, self._mesh, self._mats)
+        self._fes = FiniteElementSpace(model, self._mesh)
         self._sol = _Solution(self._mesh, model, self._dirname)
         
     def eval(self, expression, index, coords=None):

@@ -170,28 +170,28 @@ class NGSFunction:
         else:
             raise RuntimeError("error")
 
-    def eval(self, mesh):
+    def eval(self, fes):
         if self._obj is None:
             return ngsolve.CoefficientFunction(0)
         if isinstance(self._obj, ngsolve.CoefficientFunction):
             return self._obj
         elif isinstance(self._obj, list):
-            return ngsolve.CoefficientFunction(tuple([obj.eval(mesh) for obj in self._obj]), dims=self.shape)
+            return ngsolve.CoefficientFunction(tuple([obj.eval(fes) for obj in self._obj]), dims=self.shape)
         elif isinstance(self._obj, dict):
-            coefs = {key: obj.eval(mesh) for key, obj in self._obj.items()}
+            coefs = {key: obj.eval(fes) for key, obj in self._obj.items()}
             if self._default is None:
                 default = None
             else:
-                default = self._default.eval(mesh)
+                default = self._default.eval(fes)
             if self._geom=="domain":
-                return mesh.eval().MaterialCF(coefs, default=default)
+                return fes.mesh.MaterialCF(coefs, default=default)
             else:
-                return mesh.eval().BoundaryCF(coefs, default=default)
+                return fes.mesh.BoundaryCF(coefs, default=default)
 
-    def integrate(self, mesh):
-        return ngsolve.Integrate(self.eval(mesh), mesh.eval())
+    def integrate(self, fes):
+        return ngsolve.Integrate(self.eval(fes), fes.mesh)
             
-    def grad(self, mesh):
+    def grad(self, fes):
         if self._obj is None:
             return ngsolve.CoefficientFunction([0]*dimension)
         if isinstance(self._obj, ngsolve.CoefficientFunction):
@@ -465,8 +465,8 @@ class _Add(_Oper):
     def hasTrial(self):
         return self._obj[0].hasTrial or self._obj[1].hasTrial
 
-    def eval(self, mesh):
-        return self(self._obj[0].eval(mesh), self._obj[1].eval(mesh))
+    def eval(self, fes):
+        return self(self._obj[0].eval(fes), self._obj[1].eval(fes))
     
     def __str__(self):
         return "(" + str(self._obj[0]) + self._type + str(self._obj[1]) + ")"
@@ -497,11 +497,11 @@ class _Mul(_Oper):
     def hasTrial(self):
         return self._obj[0].hasTrial or self._obj[1].hasTrial
 
-    def eval(self, mesh):
-        return self(self._obj[0].eval(mesh), self._obj[1].eval(mesh))
+    def eval(self, fes):
+        return self(self._obj[0].eval(fes), self._obj[1].eval(fes))
 
-    def grad(self, mesh):
-        return self._obj[0].eval(mesh)*self._obj[1].grad(mesh)+self._obj[1].eval(mesh)*self._obj[0].grad(mesh)
+    def grad(self, fes):
+        return self._obj[0].eval(fes)*self._obj[1].grad(fes)+self._obj[1].eval(fes)*self._obj[0].grad(fes)
 
     def __str__(self):
         if isinstance(self._obj[0], _Mul) or isinstance(self._obj[1], _Mul):
@@ -545,10 +545,10 @@ class _Div(_Oper):
     def hasTrial(self):
         return self._obj[0].hasTrial or self._obj[1].hasTrial
 
-    def eval(self, mesh):
-        return self(self._obj[0].eval(mesh), self._obj[1].eval(mesh))
+    def eval(self, fes):
+        return self(self._obj[0].eval(fes), self._obj[1].eval(fes))
 
-    def grad(self, mesh):
+    def grad(self, fes):
         raise RuntimeError("grad not implenented")
 
     def __str__(self):
@@ -600,11 +600,11 @@ class _TensorDot(_Oper):
         return self._obj[0].hasTrial or self._obj[1].hasTrial
 
     @printError
-    def eval(self, mesh):
+    def eval(self, fes):
         if self._obj[0].shape == self._obj[1].shape == ():
-            return self._obj[0].eval(mesh) * self._obj[1].eval(mesh)
+            return self._obj[0].eval(fes) * self._obj[1].eval(fes)
         s = self._axes
-        v1, v2 = self._obj[0].eval(mesh), self._obj[1].eval(mesh)
+        v1, v2 = self._obj[0].eval(fes), self._obj[1].eval(fes)
         sym1, sym2 = "abcdef"[0:len(v1.shape)-s]+"ijklmn"[:s], "ijklmn"[:s]+"opqrst"[0:len(v2.shape)-s]
         expr = sym1+","+sym2+"->"+sym1[0:-s]+sym2[s:]
         return ngsolve.fem.Einsum(expr, v1, v2)
@@ -643,8 +643,8 @@ class _Cross(_Oper):
     def shape(self):
         return tuple(list(self._obj[0].shape[:-1]) + [3] + list(self._obj[1].shape[1:]))
 
-    def eval(self, mesh):
-        v1, v2 = self._obj[0].eval(mesh), self._obj[1].eval(mesh)
+    def eval(self, fes):
+        v1, v2 = self._obj[0].eval(fes), self._obj[1].eval(fes)
         if len(v1.shape) == len(v2.shape) == 1:
             return ngsolve.Cross(v1, v2)
 
@@ -705,8 +705,8 @@ class _Pow(_Oper):
     def hasTrial(self):
         return self._obj[0].hasTrial
 
-    def eval(self, mesh):
-        return self(self._obj[0].eval(mesh), self._pow)
+    def eval(self, fes):
+        return self(self._obj[0].eval(fes), self._pow)
     
     def __str__(self):
         return str(self._obj[0]) + "**" + str(self._pow)
@@ -746,12 +746,12 @@ class _Index(_Oper):
     def shape(self):
         return self._obj[0].shape[1:]
     
-    def eval(self, mesh):
+    def eval(self, fes):
         if isinstance(self._index, int):
             sl = [int(self._index)] + [slice(None)]*(len(self.shape))
-            return self._obj[0].eval(mesh)[tuple(sl)]
+            return self._obj[0].eval(fes)[tuple(sl)]
         else:
-            return self._obj[0].eval(mesh)[self._index]
+            return self._obj[0].eval(fes)[self._index]
     
     def __str__(self):
         return str(self._obj[0]) + "[" + str(self._index) + "]"
@@ -790,8 +790,8 @@ class _Transpose(_Oper):
     def shape(self):
         return tuple(reversed(self._obj[0].shape))
     
-    def eval(self, mesh):
-        return self._obj[0].eval(mesh).TensorTranspose((1,0))
+    def eval(self, fes):
+        return self._obj[0].eval(fes).TensorTranspose((1,0))
     
     def __str__(self):
         return str(self._obj[0]) + ".T"
@@ -843,25 +843,25 @@ class _Func(_Oper):
     def __eq__(self, other):
         return hash(self) == hash(other)
 
-    def eval(self, mesh):
+    def eval(self, fes):
         if self._type == "exp":
-            return ngsolve.exp(self._obj[0].eval(mesh))
+            return ngsolve.exp(self._obj[0].eval(fes))
         if self._type == "sin":
-            return ngsolve.sin(self._obj[0].eval(mesh))
+            return ngsolve.sin(self._obj[0].eval(fes))
         if self._type == "cos":
-            return ngsolve.cos(self._obj[0].eval(mesh))
+            return ngsolve.cos(self._obj[0].eval(fes))
         if self._type == "tan":
-            return ngsolve.tan(self._obj[0].eval(mesh))
+            return ngsolve.tan(self._obj[0].eval(fes))
         if self._type == "step":
-            return ngsolve.IfPos(self._obj[0].eval(mesh), 1, 0)
+            return ngsolve.IfPos(self._obj[0].eval(fes), 1, 0)
         if self._type == "sqrt":
-            return ngsolve.sqrt(self._obj[0].eval(mesh))    
+            return ngsolve.sqrt(self._obj[0].eval(fes))    
         if self._type == "norm":
-            v = self._obj[0].eval(mesh)
+            v = self._obj[0].eval(fes)
             return ngsolve.sqrt(v*v)
         if self._type == "grad":
             if hasattr(self._obj[0], "grad"):
-                return self._obj[0].grad(mesh)
+                return self._obj[0].grad(fes)
             raise RuntimeError("grad is not implemented for " + str(type(self._obj[0])))
     
     def __str__(self):
@@ -901,8 +901,8 @@ class _MinMax(_Oper):
     def isNonlinear(self):
         return self._obj[0].hasTrial
 
-    def eval(self, mesh):
-        e1, e2 = self._obj[0].eval(mesh), self._obj[1].eval(mesh)
+    def eval(self, fes):
+        e1, e2 = self._obj[0].eval(fes), self._obj[1].eval(fes)
         if self._type == "max":
             return ngsolve.IfPos(e1-e2, e1, e2)
         else:
@@ -958,10 +958,10 @@ class TrialFunction(NGSFunction):
     def hasTrial(self):
         return True
     
-    def eval(self, mesh):
-        return self._scale * super().eval(mesh)
+    def eval(self, fes):
+        return self._scale * super().eval(fes)
         
-    def grad(self, mesh):
+    def grad(self, fes):
         if isinstance(self._tris, list):
             return self._scale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._tris]), dims=(len(self._tris), dimension)).TensorTranspose((1,0))
         return self._scale * ngsolve.grad(self._tris)
@@ -984,10 +984,10 @@ class TestFunction(NGSFunction):
         self._nam = name
         self._scale = scale
 
-    def eval(self, mesh):
-        return self._scale*super().eval(mesh)
+    def eval(self, fes):
+        return self._scale*super().eval(fes)
         
-    def grad(self, mesh):
+    def grad(self, fes):
         if isinstance(self._tests, list):
             return self._scale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._tests]), dims=(len(self._tests), dimension)).TensorTranspose((1,0))
         return self._scale * ngsolve.grad(self._tests)
@@ -1032,10 +1032,10 @@ class TrialFunctionValue(NGSFunction):
     def __str__(self):
         return self._nam
 
-    def grad(self, mesh):
+    def grad(self, fes):
         if isinstance(self._tris, list):
             return ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in self._tris]), dims=(ngsolve.grad(self._tris[0]).shape[0], len(self._tris))).TensorTranspose((1,0))
-        return ngsolve.grad(super().eval(mesh))
+        return ngsolve.grad(super().eval(fes))
 
     @property
     def hasTrial(self):
@@ -1091,7 +1091,7 @@ class SolutionFunction(NGSFunction):
     def valid(self):
         return True
 
-    def eval(self, mesh):
+    def eval(self, fes):
         v = self._var
         g = self._sol._sols[self._index][self._type]
         if v.isScalar:
@@ -1099,7 +1099,7 @@ class SolutionFunction(NGSFunction):
         else:
             return v.scale*ngsolve.CoefficientFunction(tuple(g.components[self._n:self._n+v.size]), dims=(v.size,))
             
-    def grad(self, mesh):
+    def grad(self, fes):
         v = self._var
         g = self._sol._sols[self._index][self._type]
 
@@ -1148,14 +1148,14 @@ class DifferentialSymbol(NGSFunction):
         super().__init__(obj, **kwargs)
         self._geom = geom
 
-    def eval(self, mesh):
+    def eval(self, fes):
         if self._geom is None:
             return self._obj
         else:
             if self._obj == ngsolve.dx:
-                g = mesh.eval().Materials(self._geom)
+                g = fes.mesh.Materials(self._geom)
             else:
-                g = mesh.eval().Boundaries(self._geom)
+                g = fes.mesh.Boundaries(self._geom)
             return self._obj(definedon=g)
         
     @property

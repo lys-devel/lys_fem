@@ -7,6 +7,7 @@ import ngsolve.ngs2petsc as n2p
 import petsc4py.PETSc as psc
 
 from . import mpi, util
+from .models import FiniteElementSpace
 
 def generateSolver(fem, mesh, model, load=False):
     solvers = {"Stationary Solver": StationarySolver, "Relaxation Solver": RelaxationSolver, "Time Dependent Solver": TimeDependentSolver}
@@ -27,6 +28,7 @@ class _Solution:
     def __init__(self, mesh, model, dirname=None, nlog=2):
         self._mesh = mesh
         self._model = model
+        self._fes_glb = FiniteElementSpace(model, mesh)
         self._fes = model.finiteElementSpace
         self._sols = [(util.GridFunction(self._fes), util.GridFunction(self._fes), util.GridFunction(self._fes)) for n in range(nlog)]
         self._use_a = False
@@ -62,13 +64,13 @@ class _Solution:
 
         for var, (trial, test) in tnt.items():
             if trial in tdep:
-                x.setComponent(var, tdep[trial].replace(d).eval(self._mesh), self._model)
+                x.setComponent(var, tdep[trial].replace(d).eval(self._fes_glb), self._model)
         for var, (trial, test) in tnt.items():
             if trial.t in tdep:
-                v.setComponent(var, tdep[trial.t].replace(d).eval(self._mesh), self._model)
+                v.setComponent(var, tdep[trial.t].replace(d).eval(self._fes_glb), self._model)
         for var, (trial, test) in tnt.items():
             if trial.tt in tdep:
-                a.setComponent(var, tdep[trial.tt].replace(d).eval(self._mesh), self._model)
+                a.setComponent(var, tdep[trial.tt].replace(d).eval(self._fes_glb), self._model)
 
         self.__update((x,v,a))
 
@@ -91,11 +93,11 @@ class _Solution:
         g = util.GridFunction(self._fes)
         for v in self._model.variables:
             if v.type == "x":
-                g.setComponent(v, self.X(v).eval(self._mesh)/v.scale, self._model)
+                g.setComponent(v, self.X(v).eval(self._fes_glb)/v.scale, self._model)
             if v.type == "v":
-                g.setComponent(v, self.V(v).eval(self._mesh)/v.scale, self._model)
+                g.setComponent(v, self.V(v).eval(self._fes_glb)/v.scale, self._model)
             if v.type == "a":
-                g.setComponent(v, self.A(v).eval(self._mesh)/v.scale, self._model)
+                g.setComponent(v, self.A(v).eval(self._fes_glb)/v.scale, self._model)
         return g
 
     def save(self, index):
@@ -137,6 +139,7 @@ class _Solution:
 
 class _Operator:
     def __init__(self, mesh, model, sols, step):
+        self._fes_glb = FiniteElementSpace(model, mesh)
         self._mesh = mesh
         self._model = model
         self._symbols = step.variables
@@ -158,11 +161,11 @@ class _Operator:
         if bilinear:
             self._blf = ngsolve.BilinearForm(self._fes, condense=self._step.condensation, symmetric=self._step.symmetric)
             if self._lhs.valid:
-                self._blf += self._lhs.eval(self._mesh)
+                self._blf += self._lhs.eval(self._fes_glb)
         if linear:
             self._lf = ngsolve.LinearForm(self._fes)
             if self._rhs.valid:
-                self._lf += self._rhs.eval(self._mesh)
+                self._lf += self._rhs.eval(self._fes_glb)
 
     def __compressed_fes(self, fes, symbols):
         if symbols is None:
@@ -345,6 +348,7 @@ class SolverBase:
     def __init__(self, obj, mesh, model, dirname, variableStep=False, load=False):
         self._obj = obj
         self._mesh = mesh
+        self._fes = FiniteElementSpace(model, mesh)
         self._model = model
         self._mat = model.materials
         self._mat.const.dti.tdep = variableStep
@@ -367,9 +371,9 @@ class SolverBase:
         self._mat.const.dti.set(dti)
         util.stepn.set(int(util.stepn.get() + 1))
 
-        E0 = self._diff.integrate(self._mesh)
+        E0 = self._diff.integrate(self._fes)
         self._step()
-        E = self._diff.integrate(self._mesh)
+        E = self._diff.integrate(self._fes)
         mpi.print_("\tTotal step time: {:.2f}".format(time.time()-start))
         mpi.print_()
         return np.divide(np.linalg.norm(E-E0), np.linalg.norm(E))
