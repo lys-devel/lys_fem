@@ -33,7 +33,7 @@ class _Solution:
         self._use_a = False
 
         if dirname is not None:
-            self._dirname = "Solutions/" + dirname
+            self._dirname = dirname
         else:
             self._dirname = None
 
@@ -351,7 +351,7 @@ class SolverBase:
         self._mat.const.dti.tdep = variableStep
         self._dirname = "Solutions/" + dirname
 
-        self._sols = _Solution(model, dirname)
+        self._sols = _Solution(model, "Solutions/" + dirname)
         self._ops = [_Operator(model, self._sols, step) for step in obj.steps]
         self._xis = [util.GridFunction(op.finiteElementSpace) for op in self._ops]
         self._diff = self.__calcDiff(obj.diff_expr)

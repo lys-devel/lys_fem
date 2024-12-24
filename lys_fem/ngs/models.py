@@ -12,7 +12,7 @@ def addNGSModel(name, model):
 
 
 def generateModel(fem, mesh, mat):
-    return CompositeModel(mesh, [modelList[m.className](m, mesh, mat) for m in fem.models], mat)
+    return CompositeModel([modelList[m.className](m, mesh, mat) for m in fem.models], mat)
 
 
 class NGSVariable:
@@ -192,15 +192,14 @@ class NGSModel:
 
 
 class CompositeModel:
-    def __init__(self, mesh, models, mat):
-        self._mesh = mesh
+    def __init__(self, models, mat):
         self._models = models
         self._mat = mat
         self._fes = util.prod([v.finiteElementSpace for v in self.variables])
+        self._mat.update({v.name: trial for v, (trial, test) in self.TnT.items()})
 
     def weakforms(self):
-        tnt = {v.name: tnt for v, tnt in self.TnT.items()}         # update variable dictionary
-        self._mat.update({v: trial for v, (trial, test) in tnt.items()})         # update variable dictionary
+        tnt = {v.name: tnt for v, tnt in self.TnT.items()}
         return sum([model.weakform(tnt, self._mat) for model in self._models])
     
     def discretize(self, sols):

@@ -7,7 +7,7 @@ from . import mpi
 from .mesh import generateMesh
 from .material import generateMaterial
 from .models import generateModel
-from .solver import generateSolver
+from .solver import _Solution
 
 
 class NGSSolution:
@@ -22,7 +22,7 @@ class NGSSolution:
 
     def coef(self, expression, index=-1):
         self.update(index)
-        d = self._solvers[0].solutions.replaceDict
+        d = self._sol.replaceDict
         return self._mats[expression].replace(d).eval()
 
     def update(self, index=-1):
@@ -37,13 +37,13 @@ class NGSSolution:
                 self.__generate()
         self._index = index
         self._meshInfo = None
-        self._solvers[0].solutions.load(index, parallel=self._fem.parallel, dirname=self._dirname)
+        self._sol.load(index, parallel=self._fem.parallel, dirname=self._dirname)
 
     def __generate(self):
         self._mesh = generateMesh(self._fem)
         self._mats = generateMaterial(self._fem, self._mesh)
         model = generateModel(self._fem, self._mesh, self._mats)
-        self._solvers = generateSolver(self._fem, self._mesh, model, load=True)
+        self._sol = _Solution(model, self._dirname)
         
     def eval(self, expression, index, coords=None):
         f = self.coef(expression, index)
