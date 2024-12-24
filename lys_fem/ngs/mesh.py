@@ -4,6 +4,25 @@ from netgen.meshing import Mesh, Element0D, Element1D, Element2D, Element3D, Fac
 from . import mpi, util
 
 
+class NGSMesh:
+    def __init__(self, mesh):
+        self._mesh = mesh
+
+    def update(self, mesh):
+        self._mesh = mesh
+
+    def eval(self):
+        return self._mesh
+    
+    @property
+    def materials(self):
+        return self._mesh.GetMaterials()
+
+    @property
+    def boundaries(self):
+        return self._mesh.GetBoundaries()
+
+
 def generateMesh(fem, file="mesh.msh"):
     if mpi.isRoot:
         geom = fem.geometries.generateGeometry()
@@ -24,6 +43,7 @@ def generateMesh(fem, file="mesh.msh"):
         mesh = ngsolve.Mesh(gmesh)
     if mpi.isRoot:
         mesh.tags = tags
+    mesh = NGSMesh(mesh)
     mesh.ns = ne, nv
     util.dimension = fem.dimension
     util.dx.setMesh(mesh)

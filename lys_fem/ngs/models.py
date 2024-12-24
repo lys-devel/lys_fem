@@ -44,7 +44,7 @@ class NGSVariable:
 
     @property
     def finiteElementSpace(self):
-        return util.prod(self._fes)
+        return util.prod([fes.eval() for fes in self._fes])
     
     @property
     def scale(self):
@@ -73,6 +73,19 @@ class NGSVariable:
             return [coef]
         else:
             return [coef[i] for i in range(coef.shape[0])]
+
+
+class _FESpace:
+    def __init__(self, type, mesh, kwargs):
+        self._type = type
+        self._mesh = mesh
+        self._kwargs = dict(kwargs)
+
+    def eval(self):
+        if self._type == "H1":
+            return ngsolve.H1(self._mesh.eval(), **self._kwargs)
+        if self._type == "L2":
+            return ngsolve.L2(self._mesh.eval(), **self._kwargs)
 
 
 class NGSModel:
@@ -108,9 +121,9 @@ class NGSModel:
             if dirichlet is not None:
                 kwargs["dirichlet"] = "|".join(["boundary" + str(item) for item in dirichlet[i]])
             if L2:
-                fess.append(ngsolve.L2(self._mesh, **kwargs))
+                fess.append(_FESpace("L2", self._mesh, kwargs))
             else:
-                fess.append(ngsolve.H1(self._mesh, **kwargs))
+                fess.append(_FESpace("H1", self._mesh, kwargs))
         
         if scale is None:
             scale = self.scale
@@ -195,6 +208,9 @@ class CompositeModel:
     def __init__(self, models, mat):
         self._models = models
         self._mat = mat
+        self.update()
+
+    def update(self):
         self._fes = util.prod([v.finiteElementSpace for v in self.variables])
         self._mat.update({v.name: trial for v, (trial, test) in self.TnT.items()})
 
@@ -215,11 +231,11 @@ class CompositeModel:
         return d
 
     def initialValue(self, use_a=True):
-        x = util.GridFunction(self._fes, [c for v in self.variables for c in v.value])
-        v = util.GridFunction(self._fes, [c for v in self.variables for c in v.velocity])
+        fes = self.finiteElementSpace
+        x = util.GridFunction(fes, [c for v in self.variables for c in v.value])
+        v = util.GridFunction(fes, [c for v in self.variables for c in v.velocity])
         a = None
         if use_a:
-            fes = self.finiteElementSpace
             tnt = self.TnT
             wf = self.weakforms()
 

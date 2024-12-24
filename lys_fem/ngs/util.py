@@ -197,12 +197,12 @@ class NGSFunction:
             else:
                 default = self._default.eval()
             if self._geom=="domain":
-                return self._mesh.MaterialCF(coefs, default=default)
+                return self._mesh.eval().MaterialCF(coefs, default=default)
             else:
-                return self._mesh.BoundaryCF(coefs, default=default)
+                return self._mesh.eval().BoundaryCF(coefs, default=default)
 
     def integrate(self, mesh):
-        return ngsolve.Integrate(self.eval(), mesh)
+        return ngsolve.Integrate(self.eval(), mesh.eval())
             
     def grad(self):
         if self._obj is None:
@@ -1099,9 +1099,9 @@ class DifferentialSymbol(NGSFunction):
     def __call__(self, region):
         geom = "|".join([region.geometryType.lower() + str(r) for r in region])
         if self == dx:
-            d = self._mesh.Materials(geom)
+            d = self._mesh.eval().Materials(geom)
         else:
-            d = self._mesh.Boundaries(geom)
+            d = self._mesh.eval().Boundaries(geom)
         return DifferentialSymbol(self._obj(definedon=d), name=str(self))
 
 

@@ -18,7 +18,7 @@ class NGSParams(dict):
         self._fem = fem
         self._mesh = mesh
         self._const = NGSConstants()
-        for key, value in fem.materials.materialDict(mesh.dim).items():
+        for key, value in fem.materials.materialDict(fem.dimension).items():
             self[key] = _generateCoefficient(value, mesh, name=key, dic=self)
         for key, value in fem.geometries.geometryParameters().items():
             self[key] = _generateCoefficient(value, mesh, name=key, dic=self)

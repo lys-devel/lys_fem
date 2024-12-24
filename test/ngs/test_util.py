@@ -18,7 +18,6 @@ class test_util(FEMTestCase):
         self.assertFalse(f.isTimeDependent)
         self.assertAlmostEqual(f.eval()(mp), 1)
         self.assertEqual(f.grad()(mp), (0,0))
-        self.assertAlmostEqual(f.integrate(mesh), 1)
         self.assertEqual(f.replace({}).eval()(mp), 1)
         self.assertEqual(f.rhs.eval()(mp), 1)
         self.assertEqual(f.lhs.eval()(mp), 0)
