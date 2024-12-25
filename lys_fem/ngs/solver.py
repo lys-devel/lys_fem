@@ -14,7 +14,6 @@ def generateSolver(fem, mesh, model, load=False):
     for i, s in enumerate(fem.solvers):
         sol = solvers[s.className]
         solver = sol(s, mesh, model, dirname="Solver" + str(i), load=load)
-        solver.fem = fem
         result.append(solver)
     return result
 
@@ -50,7 +49,14 @@ class _Sol:
             if v.type == "a":
                 g.setComponent(v, util.SolutionFunction(v, self, 2).eval(fes)/v.scale)
         return g
-    
+
+    def error(self, var):
+        val = util.grad(util.SolutionFunction(var, self, 0))
+        g = self._fes.gridFunction()
+        g.setComponent(var, val.eval(self._fes))
+        g = g.toNGSFunctions(self._fes.model, pre="_g")[var.name]
+        return ngsolve.Integrate(((g-val)**2).eval(self._fes), self._fes.mesh, ngsolve.VOL, element_wise=True)
+
     def save(self, path):
         self._sols[0].Save(path, parallel=mpi.isParallel())
         self._sols[1].Save(path+"_v", parallel=mpi.isParallel())
@@ -156,11 +162,12 @@ class _Solution:
         return util.SolutionFunction(var, self._sols[n], 2)
 
     def error(self, var):
-        val = self.grad(var)
-        g = self._fes.gridFunction()
-        g.setComponent(var, val.eval())
+        fes = self[0].finiteElementSpace
+        val = util.grad(self.X(var))
+        g = fes.gridFunction()
+        g.setComponent(var, val.eval(fes))
         g = g.toNGSFunctions(self._model, pre="_g")[var.name]
-        return ngsolve.Integrate(((g-val)**2).eval(), self._mesh, ngsolve.VOL, element_wise=True)
+        return ngsolve.Integrate(((g-val)**2).eval(fes), fes.mesh, ngsolve.VOL, element_wise=True)
     
 
 class _Operator:
@@ -331,19 +338,18 @@ class _Inv:
 class SolverBase:
     def __init__(self, obj, mesh, model, dirname, timeDep=False, variableStep=False, load=False):
         self._obj = obj
-        self._fes = util.FiniteElementSpace(model, mesh)
         self._model = model
         self._mat = model.materials
         self._mat.const.dti.tdep = variableStep
         self._dirname = "Solutions/" + dirname
+        self._wf = model.weakforms()
 
-        wf = model.weakforms()
+        self._fes = util.FiniteElementSpace(model, mesh)
         self._sols = _Solution(self._fes, model, "Solutions/" + dirname)
-        self._sols.initialize(self._fes, use_a = any([v.tt in wf for v, _ in model.TnT.values()]) and timeDep)
-        self._ops = [_Operator(wf, mesh, model, self._sols, step) for step in obj.steps]
-        self._xis = [op.finiteElementSpace.gridFunction() for op in self._ops]
         if not load:
+            self._sols.initialize(self._fes, use_a = any([v.tt in self._wf for v, _ in model.TnT.values()]) and timeDep)
             util.stepn.set(-1)
+        self._ops = [_Operator(self._wf, mesh, model, self._sols, step) for step in obj.steps]
 
     @np.errstate(divide='ignore', invalid="ignore")
     def solve(self, dti=0):
@@ -363,11 +369,12 @@ class SolverBase:
 
     def _step(self):
         x = self._sols[0].project(self._fes)
-        for i, (op, xi, step) in enumerate(zip(self._ops, self._xis, self._obj.steps)):
+        for i, (op, step) in enumerate(zip(self._ops, self._obj.steps)):
             mpi.print_("\t=======Solver step", i+1, "=======")
             if step.deformation is not None:
                 self.__applyDeformation(step)
             op.update()
+            xi = op.finiteElementSpace.gridFunction()
             op.syncGridFunction(x, "->", xi)
             xi.vec.data = newton(op, xi.vec.CreateVector(copy=True), eps=step.newton_eps, max_iter=step.newton_maxiter, gamma=step.newton_damping)
             op.syncGridFunction(x, "<-", xi)
@@ -388,12 +395,9 @@ class SolverBase:
         d = self._sols[0].replaceDict
         return self._mat[expr].replace(d).integrate(self._fes)
 
-    def exportRefinedMesh(self):
-        err = self.solutions.error([v for v in self._model.variables if v.name=="x"][0])
-        size = np.array([[0.02] for e in err])
-        file = self._dirname + "/mesh"+str(int(util.stepn.get()+2))+".msh"
-        self.fem.mesher.exportRefinedMesh(self.fem.geometries.generateGeometry(), self._mesh.tags, size, file)
-        return file
+    def updateMesh(self, mesh):
+        self._fes = util.FiniteElementSpace(self._model, mesh)
+        self._ops = [_Operator(self._wf, mesh, self._model, self._sols, step) for step in self._obj.steps]
 
     @property
     def solutions(self):
@@ -418,6 +422,11 @@ class SolverBase:
 class StationarySolver(SolverBase):
     def execute(self):
         self.solve()
+
+        #error = self.solutions[0].error([v for v in self._model.variables if v.name=="x"][0])
+        #m = self._fes.mesh.refinedMesh(error)
+        #self.updateMesh(m)
+        #self.solve()
 
 
 class RelaxationSolver(SolverBase):

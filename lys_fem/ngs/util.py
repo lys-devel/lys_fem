@@ -97,7 +97,7 @@ class FiniteElementSpace:
 
     @property
     def mesh(self):
-        return self._mesh.eval()
+        return self._mesh
     
     @property
     def model(self):

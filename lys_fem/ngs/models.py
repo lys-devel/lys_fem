@@ -83,9 +83,9 @@ class _FESpace:
 
     def eval(self, mesh):
         if self._type == "H1":
-            return ngsolve.H1(mesh.eval(), **self._kwargs)
+            return ngsolve.H1(mesh, **self._kwargs)
         if self._type == "L2":
-            return ngsolve.L2(mesh.eval(), **self._kwargs)
+            return ngsolve.L2(mesh, **self._kwargs)
 
 
 class NGSModel:

@@ -1,26 +1,21 @@
+import numpy as np
 import ngsolve
 from netgen.meshing import Mesh, Element0D, Element1D, Element2D, Element3D, FaceDescriptor, Pnt, MeshPoint
 
 from . import mpi, util
 
 
-class NGSMesh:
-    def __init__(self, mesh):
-        self._mesh = mesh
-
-    def update(self, mesh):
-        self._mesh = mesh
-
-    def eval(self):
-        return self._mesh
+class NGSMesh(ngsolve.Mesh):
+    def __init__(self, gmesh, fem=None, tags=None):
+        super().__init__(gmesh)
+        self._fem = fem
+        self.tags = tags
     
-    @property
-    def materials(self):
-        return self._mesh.GetMaterials()
-
-    @property
-    def boundaries(self):
-        return self._mesh.GetBoundaries()
+    def refinedMesh(self, error):
+        size = np.array([[0.02] for e in error])
+        model = self._fem.geometries.generateGeometry()
+        self._fem.mesher.exportRefinedMesh(model, self.tags, size, "refined.msh")
+        return generateMesh(self._fem, "refined.msh")
 
 
 def generateMesh(fem, file=None):
@@ -38,14 +33,11 @@ def generateMesh(fem, file=None):
     if mpi.isParallel():
         comm = ngsolve.MPI_Init()
         if mpi.isRoot:
-            mesh = ngsolve.Mesh(gmesh.Distribute(comm))
+            mesh = NGSMesh(gmesh.Distribute(comm), fem, tags)
         else:
-            mesh = ngsolve.Mesh(Mesh.Receive(comm))
+            mesh = NGSMesh(Mesh.Receive(comm), fem)
     else:
-        mesh = ngsolve.Mesh(gmesh)
-    if mpi.isRoot:
-        mesh.tags = tags
-    mesh = NGSMesh(mesh)
+        mesh = NGSMesh(gmesh, fem, tags)
     mesh.ns = ne, nv
     util.dimension = fem.dimension
     return mesh

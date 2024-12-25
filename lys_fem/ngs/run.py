@@ -20,12 +20,6 @@ def run(fem, run=True, save=True, output=True, nthreads=16):
                 s.solution.update(solvers[i].solution[0])
             with ngsolve.TaskManager():
                 s.execute()
-                if False:
-                    meshfile = s.exportRefinedMesh()
-                    fem.mesher.file=meshfile
-                    solvers = createSolver(fem, load=True, print=False)
-                    #solvers[i].load(int(util.stepn.get()+1))
-                    solvers[i].execute()
             mpi.print_("Calc. time for Solver", str(i+1), ":{:.2f}".format(time.time()-start), " seconds")
             mpi.print_()
     else:
@@ -55,7 +49,7 @@ def initialize(fem, save, output, nthreads):
 def createSolver(fem, load=False, print=True):
     start = time.time()
     mesh = generateMesh(fem)
-    mpi.print_("NGS Mesh generated in", '{:.2f}'.format(time.time()-start) ,"seconds : ", mesh.ns[0], "elements, ", mesh.ns[1], "nodes,", len(mesh.materials), "domains, ", len(mesh.boundaries), "boundaries.")
+    mpi.print_("NGS Mesh generated in", '{:.2f}'.format(time.time()-start) ,"seconds : ", mesh.ns[0], "elements, ", mesh.ns[1], "nodes,", len(mesh.GetMaterials()), "domains, ", len(mesh.GetBoundaries()), "boundaries.")
     mpi.print_()
 
     start = time.time()

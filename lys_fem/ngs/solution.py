@@ -61,7 +61,7 @@ class NGSSolution:
             
     def integrate(self, expression, index):
         f = self.coef(expression, index)
-        return ngsolve.Integrate(f, self._mesh.eval())
+        return ngsolve.Integrate(f, self._mesh)
 
     def __getDomainValues(self, f):
         if mpi.isParallel():
@@ -69,9 +69,9 @@ class NGSSolution:
         from lys import Wave
 
         if self._meshInfo is None:
-            self._meshInfo = self.__exportMesh(self._mesh.eval())
+            self._meshInfo = self.__exportMesh(self._mesh)
         domains, coords = self._meshInfo
-        mip = [self._mesh.eval()(*c) for c in coords]
+        mip = [self._mesh(*c) for c in coords]
         data=np.array([f(mi) for mi in mip])
         res = []
         if coords.shape[1] < 3:
@@ -111,6 +111,6 @@ class NGSSolution:
             return [self.__coordsToMIP(c) for c in coords]
         else:
             if self._fem.dimension == 1:
-                return self._mesh.eval()(coords)
+                return self._mesh(coords)
             else:
-                return self._mesh.eval()(*coords)
+                return self._mesh(*coords)
