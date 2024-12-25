@@ -40,6 +40,17 @@ class _Sol:
             else:
                 xi.vec.data *= 0
 
+    def project(self, fes):
+        g = fes.gridFunction()
+        for v in self._fes.model.variables:
+            if v.type == "x":
+                g.setComponent(v, util.SolutionFunction(v, self, 0).eval(fes)/v.scale)
+            if v.type == "v":
+                g.setComponent(v, util.SolutionFunction(v, self, 1).eval(fes)/v.scale)
+            if v.type == "a":
+                g.setComponent(v, util.SolutionFunction(v, self, 2).eval(fes)/v.scale)
+        return g
+    
     def save(self, path):
         self._sols[0].Save(path, parallel=mpi.isParallel())
         self._sols[1].Save(path+"_v", parallel=mpi.isParallel())
@@ -94,7 +105,7 @@ class _Solution:
             if os.path.exists(self._dirname):
                 shutil.rmtree(self._dirname)
             os.makedirs(self._dirname, exist_ok=True)
-            self.save(0)
+            self.__save(0)
 
     def reset(self):
         zero = self._sols[0][0].finiteElementSpace.gridFunction()
@@ -125,28 +136,14 @@ class _Solution:
         self.__update(_Sol((x,v,a)))
 
         if self._dirname is not None and saveIndex is not None:
-            self.save(saveIndex)
+            self.__save(saveIndex)
 
     def __update(self, xva):
-        if len(self._sols) < self._nlog:
-            self._sols.insert(0, xva)
-        else:
-            for n in range(1, len(self._sols)):
-                self._sols[-n].set(self._sols[-n+1])
-            self._sols[0].set(xva)
+        for n in range(1, len(self._sols)):
+            self._sols[-n].set(self._sols[-n+1])
+        self._sols[0].set(xva)
 
-    def copy(self, fes):
-        g = fes.gridFunction()
-        for v in self._model.variables:
-            if v.type == "x":
-                g.setComponent(v, self.X(v).eval(fes)/v.scale)
-            if v.type == "v":
-                g.setComponent(v, self.V(v).eval(fes)/v.scale)
-            if v.type == "a":
-                g.setComponent(v, self.A(v).eval(fes)/v.scale)
-        return g
-
-    def save(self, index):
+    def __save(self, index):
         self._sols[0].save(self._dirname + "/ngs" + str(index))
 
     def X(self, var, n=0):
@@ -169,7 +166,6 @@ class _Solution:
 class _Operator:
     def __init__(self, wf, mesh, model, sols, step):
         self._fes = util.FiniteElementSpace(model, mesh, step.variables, symmetric=step.symmetric, condense=step.condensation)
-        self._symbols = step.variables
         self._step = step
 
         wf = self.__prepareWeakform(wf, model, sols, step.variables)
@@ -244,7 +240,7 @@ class _Operator:
         return self._fes
 
     def syncGridFunction(self, glb, direction, loc):
-        if self._symbols is None:
+        if self._step.variables is None:
             if direction == "->":
                 loc.vec.data = glb.vec
             elif direction == "<-":
@@ -335,7 +331,6 @@ class _Inv:
 class SolverBase:
     def __init__(self, obj, mesh, model, dirname, timeDep=False, variableStep=False, load=False):
         self._obj = obj
-        self._mesh = mesh
         self._fes = util.FiniteElementSpace(model, mesh)
         self._model = model
         self._mat = model.materials
@@ -367,7 +362,7 @@ class SolverBase:
         return np.divide(np.linalg.norm(E-E0), np.linalg.norm(E))
 
     def _step(self):
-        x = self._sols.copy(self._fes)
+        x = self._sols[0].project(self._fes)
         for i, (op, xi, step) in enumerate(zip(self._ops, self._xis, self._obj.steps)):
             mpi.print_("\t=======Solver step", i+1, "=======")
             if step.deformation is not None:
