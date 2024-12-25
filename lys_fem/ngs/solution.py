@@ -15,23 +15,20 @@ class NGSSolution:
         self._fem = fem
         self._dirname = dirname
         self._index = None
+        self._mats = generateMaterial(fem)
+        self._model = generateModel(fem, self._mats)
 
     @property
     def maxIndex(self):
         return len(glob.glob(self._dirname+"/ngs*"))-len(glob.glob(self._dirname+"/ngs*_*"))-1
 
-    def coef(self, expression, index=-1):
-        self.update(index)
-        d = self._sol.replaceDict
-        return self._mats[expression].replace(d).eval(self._fes)
-
     def update(self, index=-1):
         if index < 0:
             index = self.maxIndex + index + 1
-        if os.path.exists(self._dirname+"/mesh"+str(index)+".msh"):
+        mpath = self._dirname+"/ngs"+str(index)+"_mesh.msh"
+        if os.path.exists(mpath):
             if index!=self._index:
-                self._fem.mesher.file = self._dirname+"/mesh"+str(index)+".msh"
-                self.__generate()
+                self.__generate(generateMesh(self._fem, mpath))
         else:
             if self._index is None:
                 self.__generate()
@@ -40,13 +37,19 @@ class NGSSolution:
         sol_new = _Sol.load(self._fes, self._dirname+"/ngs"+str(index), self._fem.parallel)
         self._sol.set(sol_new)
 
-    def __generate(self):
-        self._mesh = generateMesh(self._fem)
-        self._mats = generateMaterial(self._fem)
-        model = generateModel(self._fem, self._mats)
-        self._fes = util.FiniteElementSpace(model, self._mesh)
+    def __generate(self, mesh=None):
+        if mesh is None:
+            self._mesh = generateMesh(self._fem)
+        else:
+            self._mesh = mesh
+        self._fes = util.FiniteElementSpace(self._model, self._mesh)
         self._sol = _Sol(self._fes)
-        
+
+    def coef(self, expression, index=-1):
+        self.update(index)
+        d = self._sol.replaceDict
+        return self._mats[expression].replace(d).eval(self._fes)
+
     def eval(self, expression, index, coords=None):
         f = self.coef(expression, index)
         if coords is None:

@@ -1,6 +1,6 @@
 import time
 import ngsolve
-from . import mpi, util
+from . import mpi
 from .mesh import generateMesh
 from .material import generateMaterial
 from .models import generateModel
@@ -23,7 +23,7 @@ def run(fem, run=True, save=True, output=True, nthreads=16):
             mpi.print_("Calc. time for Solver", str(i+1), ":{:.2f}".format(time.time()-start), " seconds")
             mpi.print_()
     else:
-        return mesh, mats, model, solvers
+        return solvers
     mpi.print_("Total calculation time: {:.2f}".format(time.time()-first), " seconds")
     mpi.wait()
 
@@ -46,7 +46,7 @@ def initialize(fem, save, output, nthreads):
     mpi.print_()
 
 
-def createSolver(fem, load=False, print=True):
+def createSolver(fem):
     start = time.time()
     mesh = generateMesh(fem)
     mpi.print_("NGS Mesh generated in", '{:.2f}'.format(time.time()-start) ,"seconds : ", mesh.ns[0], "elements, ", mesh.ns[1], "nodes,", len(mesh.GetMaterials()), "domains, ", len(mesh.GetBoundaries()), "boundaries.")
@@ -54,26 +54,23 @@ def createSolver(fem, load=False, print=True):
 
     start = time.time()
     mats = generateMaterial(fem)
-    if print:
-        mpi.print_("NGS Variables generated in", '{:.2f}'.format(time.time()-start), "seconds :")
-        mpi.print_("\tParameters:", {key: value.shape if len(value.shape)>0 else "scalar" for key, value in mats.items()})
-        mpi.print_()
+    mpi.print_("NGS Variables generated in", '{:.2f}'.format(time.time()-start), "seconds :")
+    mpi.print_("\tParameters:", {key: value.shape if len(value.shape)>0 else "scalar" for key, value in mats.items()})
+    mpi.print_()
 
     start = time.time()
     model = generateModel(fem, mats)
-    if print:
-        mpi.print_("NGS Models generated in ", '{:.2f}'.format(time.time()-start), "seconds :")
-        for m in model.models:
-            mpi.print_("\t"+m.name+":", {v.name: v.size for v in m.variables}, "Discretization:", m.discretization)
-        mpi.print_()
+    mpi.print_("NGS Models generated in ", '{:.2f}'.format(time.time()-start), "seconds :")
+    for m in model.models:
+        mpi.print_("\t"+m.name+":", {v.name: v.size for v in m.variables}, "Discretization:", m.discretization)
+    mpi.print_()
 
     start = time.time()
-    solvers = generateSolver(fem, mesh, model, load=load)
-    if print:
-        mpi.print_("NGS Solvers generated in ", '{:.2f}'.format(time.time()-start), "seconds :")
-        for i, s in enumerate(solvers):
-            mpi.print_("\tSolver", i+1, "(",s.name,"):")
-            mpi.print_(s)
-        mpi.print_()
+    solvers = generateSolver(fem, mesh, model)
+    mpi.print_("NGS Solvers generated in ", '{:.2f}'.format(time.time()-start), "seconds :")
+    for i, s in enumerate(solvers):
+        mpi.print_("\tSolver", i+1, "(",s.name,"):")
+        mpi.print_(s)
+    mpi.print_()
 
     return solvers

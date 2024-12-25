@@ -8,12 +8,12 @@ import petsc4py.PETSc as psc
 
 from . import mpi, util
 
-def generateSolver(fem, mesh, model, load=False):
+def generateSolver(fem, mesh, model):
     solvers = {"Stationary Solver": StationarySolver, "Relaxation Solver": RelaxationSolver, "Time Dependent Solver": TimeDependentSolver}
     result = []
     for i, s in enumerate(fem.solvers):
         sol = solvers[s.className]
-        solver = sol(s, mesh, model, dirname="Solver" + str(i), load=load)
+        solver = sol(s, mesh, model, dirname="Solver" + str(i))
         result.append(solver)
     return result
 
@@ -39,16 +39,24 @@ class _Sol:
             else:
                 xi.vec.data *= 0
 
-    def project(self, fes):
-        g = fes.gridFunction()
+    def copy(self):
+        g = self._fes.gridFunction()
         for v in self._fes.model.variables:
             if v.type == "x":
-                g.setComponent(v, util.SolutionFunction(v, self, 0).eval(fes)/v.scale)
+                g.setComponent(v, util.SolutionFunction(v, self, 0).eval(self._fes)/v.scale)
             if v.type == "v":
-                g.setComponent(v, util.SolutionFunction(v, self, 1).eval(fes)/v.scale)
+                g.setComponent(v, util.SolutionFunction(v, self, 1).eval(self._fes)/v.scale)
             if v.type == "a":
-                g.setComponent(v, util.SolutionFunction(v, self, 2).eval(fes)/v.scale)
+                g.setComponent(v, util.SolutionFunction(v, self, 2).eval(self._fes)/v.scale)
         return g
+    
+    def project(self, fes):
+        x, v, a = fes.gridFunction(), fes.gridFunction(), fes.gridFunction()
+        for var in self._fes.model.variables:
+            x.setComponent(var, util.SolutionFunction(var,self,0).eval(fes))
+            v.setComponent(var, util.SolutionFunction(var,self,1).eval(fes))
+            a.setComponent(var, util.SolutionFunction(var,self,2).eval(fes))
+        return x,v,a
 
     def error(self, var):
         val = util.grad(util.SolutionFunction(var, self, 0))
@@ -57,10 +65,12 @@ class _Sol:
         g = g.toNGSFunctions(self._fes.model, pre="_g")[var.name]
         return ngsolve.Integrate(((g-val)**2).eval(self._fes), self._fes.mesh, ngsolve.VOL, element_wise=True)
 
-    def save(self, path):
+    def save(self, path, mesh=False):
         self._sols[0].Save(path, parallel=mpi.isParallel())
         self._sols[1].Save(path+"_v", parallel=mpi.isParallel())
         self._sols[2].Save(path+"_a", parallel=mpi.isParallel())
+        if mesh:
+            self._fes.mesh.save(path+"_mesh.msh")
 
     @staticmethod
     def load(fes, path, parallel=None):
@@ -92,7 +102,8 @@ class _Solution:
     Solution class stores the solutions and the time derivatives as grid function.
     The NGSFunctions based on the grid function is also provided by this class.
     """
-    def __init__(self, fes, model, dirname=None, nlog=2):
+    def __init__(self, fes, model, dirname=None, nlog=2, old=None):
+        self._fes = fes
         self._model = model
         self._sols = [_Sol(fes) for _ in range(nlog)]
         self._nlog = nlog
@@ -102,11 +113,17 @@ class _Solution:
         else:
             self._dirname = None
 
+        self._savemesh = old is not None
+        if self._savemesh:
+            for i, s in enumerate(self._sols):
+                s.set(old[i].project(self._fes))
+            self._savemesh = True
+
     def __getitem__(self, index):
         return self._sols[index]
 
-    def initialize(self, fes, use_a):
-        self.__update(_Sol(self._model.initialValue(fes, use_a)))
+    def initialize(self, use_a):
+        self.__update(_Sol(self._model.initialValue(self._fes, use_a)))
         if mpi.isRoot and self._dirname is not None:
             if os.path.exists(self._dirname):
                 shutil.rmtree(self._dirname)
@@ -114,13 +131,13 @@ class _Solution:
             self.__save(0)
 
     def reset(self):
-        zero = self._sols[0][0].finiteElementSpace.gridFunction()
+        zero = self._fes.gridFunction()
         for _ in range(len(self._sols)):
             self.__update(_Sol((self._sols[0][0], zero, zero)))
 
     def updateSolution(self, x0, saveIndex=None):
         tdep = self._model.updater(self)
-        fes = x0.finiteElementSpace
+        fes = self._fes
 
         x, v, a = fes.gridFunction(), fes.gridFunction(), fes.gridFunction()
         x.vec.data = x0.vec
@@ -150,7 +167,7 @@ class _Solution:
         self._sols[0].set(xva)
 
     def __save(self, index):
-        self._sols[0].save(self._dirname + "/ngs" + str(index))
+        self._sols[0].save(self._dirname + "/ngs" + str(index), mesh=self._savemesh)
 
     def X(self, var, n=0):
         return util.SolutionFunction(var, self._sols[n], 0)
@@ -161,14 +178,6 @@ class _Solution:
     def A(self, var, n=0):
         return util.SolutionFunction(var, self._sols[n], 2)
 
-    def error(self, var):
-        fes = self[0].finiteElementSpace
-        val = util.grad(self.X(var))
-        g = fes.gridFunction()
-        g.setComponent(var, val.eval(fes))
-        g = g.toNGSFunctions(self._model, pre="_g")[var.name]
-        return ngsolve.Integrate(((g-val)**2).eval(fes), fes.mesh, ngsolve.VOL, element_wise=True)
-    
 
 class _Operator:
     def __init__(self, wf, mesh, model, sols, step):
@@ -336,19 +345,18 @@ class _Inv:
 
 
 class SolverBase:
-    def __init__(self, obj, mesh, model, dirname, timeDep=False, variableStep=False, load=False):
+    def __init__(self, obj, mesh, model, dirname, timeDep=False, variableStep=False):
         self._obj = obj
         self._model = model
         self._mat = model.materials
         self._mat.const.dti.tdep = variableStep
         self._dirname = "Solutions/" + dirname
-        self._wf = model.weakforms()
+        self._index = -1
 
+        self._wf = model.weakforms()
         self._fes = util.FiniteElementSpace(model, mesh)
-        self._sols = _Solution(self._fes, model, "Solutions/" + dirname)
-        if not load:
-            self._sols.initialize(self._fes, use_a = any([v.tt in self._wf for v, _ in model.TnT.values()]) and timeDep)
-            util.stepn.set(-1)
+        self._sols = _Solution(self._fes, model, self._dirname)
+        self._sols.initialize(any([v.tt in self._wf for v, _ in model.TnT.values()]) and timeDep)
         self._ops = [_Operator(self._wf, mesh, model, self._sols, step) for step in obj.steps]
 
     @np.errstate(divide='ignore', invalid="ignore")
@@ -356,9 +364,10 @@ class SolverBase:
         start = time.time()
         if dti==0:
             self._sols.reset()
-        self._mat.updateSolutionFields(int(util.stepn.get()))
+        self._index += 1
+        self._mat.updateSolutionFields(self._index)
         self._mat.const.dti.set(dti)
-        util.stepn.set(int(util.stepn.get() + 1))
+        util.stepn.set(self._index)
 
         E0 = self.__calcDiff()
         self._step()
@@ -368,7 +377,7 @@ class SolverBase:
         return np.divide(np.linalg.norm(E-E0), np.linalg.norm(E))
 
     def _step(self):
-        x = self._sols[0].project(self._fes)
+        x = self._sols[0].copy()
         for i, (op, step) in enumerate(zip(self._ops, self._obj.steps)):
             mpi.print_("\t=======Solver step", i+1, "=======")
             if step.deformation is not None:
@@ -379,7 +388,7 @@ class SolverBase:
             xi.vec.data = newton(op, xi.vec.CreateVector(copy=True), eps=step.newton_eps, max_iter=step.newton_maxiter, gamma=step.newton_damping)
             op.syncGridFunction(x, "<-", xi)
             mpi.print_()
-        self.solutions.updateSolution(x, saveIndex=int(util.stepn.get()+1))
+        self.solutions.updateSolution(x, saveIndex=self._index+1)
 
     def __applyDeformation(self, step):
         deform = {v.name: xx for v, xx in zip(self._model.variables, self._sols.X())}[step.deformation]
@@ -397,6 +406,7 @@ class SolverBase:
 
     def updateMesh(self, mesh):
         self._fes = util.FiniteElementSpace(self._model, mesh)
+        self._sols = _Solution(self._fes, self._model, self._dirname, old=self._sols)
         self._ops = [_Operator(self._wf, mesh, self._model, self._sols, step) for step in self._obj.steps]
 
     @property
@@ -423,10 +433,11 @@ class StationarySolver(SolverBase):
     def execute(self):
         self.solve()
 
-        #error = self.solutions[0].error([v for v in self._model.variables if v.name=="x"][0])
-        #m = self._fes.mesh.refinedMesh(error)
-        #self.updateMesh(m)
-        #self.solve()
+        if False:
+            error = self.solutions[0].error([v for v in self._model.variables if v.name=="x"][0])
+            m = self._fes.mesh.refinedMesh(error)
+            self.updateMesh(m)
+            self.solve()
 
 
 class RelaxationSolver(SolverBase):
@@ -457,7 +468,7 @@ class RelaxationSolver(SolverBase):
             return self.solve(1/dt), dt
         except ConvergenceError:
             mpi.print_("Convergence problem detected. Time step is changed to " + str(dt/2))
-            util.stepn.set(int(util.stepn.get()-1))
+            self._index -= 1
             return self._solve(dt/2)
 
 

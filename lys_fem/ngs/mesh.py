@@ -16,6 +16,10 @@ class NGSMesh(ngsolve.Mesh):
         model = self._fem.geometries.generateGeometry()
         self._fem.mesher.exportRefinedMesh(model, self.tags, size, "refined.msh")
         return generateMesh(self._fem, "refined.msh")
+    
+    def save(self, path):
+        model = self._fem.geometries.generateGeometry()
+        self._fem.mesher.export(model, path)
 
 
 def generateMesh(fem, file=None):
