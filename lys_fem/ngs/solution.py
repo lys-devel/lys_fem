@@ -7,7 +7,7 @@ from . import mpi, util
 from .mesh import generateMesh
 from .material import generateMaterial
 from .models import generateModel
-from .solver import _Solution
+from .solver import _Sol
 
 
 class NGSSolution:
@@ -18,7 +18,7 @@ class NGSSolution:
 
     @property
     def maxIndex(self):
-        return len(glob.glob(self._dirname+"/ngs*"))-1
+        return len(glob.glob(self._dirname+"/ngs*"))-len(glob.glob(self._dirname+"/ngs*_*"))-1
 
     def coef(self, expression, index=-1):
         self.update(index)
@@ -37,14 +37,15 @@ class NGSSolution:
                 self.__generate()
         self._index = index
         self._meshInfo = None
-        self._sol.load(index, parallel=self._fem.parallel, dirname=self._dirname)
+        sol_new = _Sol.load(self._fes, self._dirname+"/ngs"+str(index), self._fem.parallel)
+        self._sol.set(sol_new)
 
     def __generate(self):
         self._mesh = generateMesh(self._fem)
         self._mats = generateMaterial(self._fem)
         model = generateModel(self._fem, self._mats)
         self._fes = util.FiniteElementSpace(model, self._mesh)
-        self._sol = _Solution(self._fes, model, self._dirname)
+        self._sol = _Sol(self._fes)
         
     def eval(self, expression, index, coords=None):
         f = self.coef(expression, index)

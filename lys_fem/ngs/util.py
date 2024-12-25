@@ -1123,15 +1123,13 @@ class SolutionFunction(NGSFunction):
         name(str): The symbol name
         sol(Solution): The solution object
         type(int): The type of the solution. 0:x, 1:x.t, 2:x.tt
-        index(int): The index of the solution. 0: present, 1: last, ...
     """
-    def __init__(self, var, model, sol, type, index):
+    def __init__(self, var, sol, type):
         self._sol = sol
         self._var = var
         self._type = type
-        self._index = index
         n = 0
-        for v in model.variables:
+        for v in sol.finiteElementSpace.model.variables:
             if v == var:
                 self._n = n
             n += v.size
@@ -1149,7 +1147,7 @@ class SolutionFunction(NGSFunction):
 
     def eval(self, fes):
         v = self._var
-        g = self._sol._sols[self._index][self._type]
+        g = self._sol[self._type]
         if v.isScalar:
             return v.scale*ngsolve.CoefficientFunction(g.components[self._n])
         else:
@@ -1157,7 +1155,7 @@ class SolutionFunction(NGSFunction):
             
     def grad(self, fes):
         v = self._var
-        g = self._sol._sols[self._index][self._type]
+        g = self._sol[self._type]
 
         if v.isScalar:
             return v.scale*ngsolve.grad(g.components[self._n])
@@ -1192,7 +1190,7 @@ class SolutionFunction(NGSFunction):
         return True
 
     def __str__(self):
-        return self._var.name
+        return self._var.name + "_n"
         
 
 class DifferentialSymbol(NGSFunction):

@@ -40,9 +40,34 @@ class _Sol:
             else:
                 xi.vec.data *= 0
 
+    def save(self, path):
+        self._sols[0].Save(path, parallel=mpi.isParallel())
+        self._sols[1].Save(path+"_v", parallel=mpi.isParallel())
+        self._sols[2].Save(path+"_a", parallel=mpi.isParallel())
+
+    @staticmethod
+    def load(fes, path, parallel=None):
+        if parallel is None:
+            parallel = mpi.isParallel()
+        x, v, a = (fes.gridFunction(), fes.gridFunction(), fes.gridFunction())
+        if os.path.exists(path):
+            x.Load(path, parallel)
+        if os.path.exists(path+"_v"):
+            v.Load(path+"_v", parallel)
+        if os.path.exists(path+"_a"):
+            a.Load(path+"_a", parallel)
+        return _Sol((x,v,a))
+
     @property
     def finiteElementSpace(self):
         return self._fes
+
+    @property
+    def replaceDict(self):
+        """
+        Returns a dictionary that replace trial functions with corresponding solutions.
+        """
+        return {trial: util.SolutionFunction(v, self, 0) for v, (trial, test) in self._fes.model.TnT.items()}
 
 
 class _Solution:
@@ -59,6 +84,9 @@ class _Solution:
             self._dirname = dirname
         else:
             self._dirname = None
+
+    def __getitem__(self, index):
+        return self._sols[index]
 
     def initialize(self, fes, use_a):
         self.__update(_Sol(self._model.initialValue(fes, use_a)))
@@ -119,25 +147,16 @@ class _Solution:
         return g
 
     def save(self, index):
-        path = self._dirname + "/ngs" + str(index)
-        self._sols[0][0].Save(path, parallel=mpi.isParallel())
-
-    def load(self, index, dirname=None, parallel=None):
-        if dirname is None:
-            dirname=self._dirname
-        if parallel is None:
-            parallel = mpi.isParallel()
-        path = dirname + "/ngs" + str(index)
-        self._sols[0][0].Load(path, parallel)
+        self._sols[0].save(self._dirname + "/ngs" + str(index))
 
     def X(self, var, n=0):
-        return util.SolutionFunction(var, self._model, self, 0, n)
+        return util.SolutionFunction(var, self._sols[n], 0)
 
     def V(self, var, n=0):
-        return util.SolutionFunction(var, self._model, self, 1, n)
+        return util.SolutionFunction(var, self._sols[n], 1)
 
     def A(self, var, n=0):
-        return util.SolutionFunction(var, self._model, self, 2, n)
+        return util.SolutionFunction(var, self._sols[n], 2)
 
     def error(self, var):
         val = self.grad(var)
@@ -146,13 +165,6 @@ class _Solution:
         g = g.toNGSFunctions(self._model, pre="_g")[var.name]
         return ngsolve.Integrate(((g-val)**2).eval(), self._mesh, ngsolve.VOL, element_wise=True)
     
-    @property
-    def replaceDict(self):
-        """
-        Returns a dictionary that replace trial functions with corresponding solutions.
-        """
-        return {trial: self.X(v) for v, (trial, test) in self._model.TnT.items()}
-
 
 class _Operator:
     def __init__(self, wf, mesh, model, sols, step):
@@ -335,7 +347,6 @@ class SolverBase:
         self._sols.initialize(self._fes, use_a = any([v.tt in wf for v, _ in model.TnT.values()]) and timeDep)
         self._ops = [_Operator(wf, mesh, model, self._sols, step) for step in obj.steps]
         self._xis = [op.finiteElementSpace.gridFunction() for op in self._ops]
-        self._diff = self.__calcDiff(obj.diff_expr)
         if not load:
             util.stepn.set(-1)
 
@@ -348,9 +359,9 @@ class SolverBase:
         self._mat.const.dti.set(dti)
         util.stepn.set(int(util.stepn.get() + 1))
 
-        E0 = self._diff.integrate(self._fes)
+        E0 = self.__calcDiff()
         self._step()
-        E = self._diff.integrate(self._fes)
+        E = self.__calcDiff()
         mpi.print_("\tTotal step time: {:.2f}".format(time.time()-start))
         mpi.print_()
         return np.divide(np.linalg.norm(E-E0), np.linalg.norm(E))
@@ -375,11 +386,12 @@ class SolverBase:
         self._mesh.SetDeformation(gf)
         mpi.print_("deformation set")
 
-    def __calcDiff(self, expr):
+    def __calcDiff(self):
+        expr = self._obj.diff_expr
         if expr is None or expr=="":
             expr = self._model.variables[0].name
-        d = self._sols.replaceDict
-        return self._mat[expr].replace(d)
+        d = self._sols[0].replaceDict
+        return self._mat[expr].replace(d).integrate(self._fes)
 
     def exportRefinedMesh(self):
         err = self.solutions.error([v for v in self._model.variables if v.name=="x"][0])
