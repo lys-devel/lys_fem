@@ -60,10 +60,14 @@ class _Sol:
 
     def error(self, var):
         val = util.grad(util.SolutionFunction(var, self, 0))
-        g = self._fes.gridFunction()
-        g.setComponent(var, val.eval(self._fes))
-        g = g.toNGSFunctions(self._fes.model, pre="_g")[var.name]
-        return ngsolve.Integrate(((g-val)**2).eval(self._fes), self._fes.mesh, ngsolve.VOL, element_wise=True)
+        grids = []
+        for d in range(util.dimension):
+            g = self._fes.gridFunction()
+            g.setComponent(var, val[d].eval(self._fes))
+            g = g.toNGSFunctions(self._fes.model, pre="_g")[var.name]
+            grids.append(g)
+        grids = util.NGSFunction(grids)
+        return np.sqrt(((grids-val)**2).integrate(self._fes, element_wise=True))
 
     def save(self, path, mesh=False):
         self._sols[0].Save(path, parallel=mpi.isParallel())
@@ -433,11 +437,30 @@ class StationarySolver(SolverBase):
     def execute(self):
         self.solve()
 
-        if False:
-            error = self.solutions[0].error([v for v in self._model.variables if v.name=="x"][0])
-            m = self._fes.mesh.refinedMesh(error)
-            self.updateMesh(m)
-            self.solve()
+        if self._obj.adaptive_mesh is not None:
+            V = util.NGSFunction(1).integrate(self._fes)
+            amr = self._obj.adaptive_mesh
+            var = [v for v in self._model.variables if v.name==amr.varName][0]
+            error = self.solutions[0].error(var)
+            m = self._fes.mesh
+            mpi.print_("\t[AMR] Adaptive Mesh Refinement started. Initial num. of nodes =", m.nodes, ", Error (max,min,mean) = {:.3e}, {:.3e}, {:.3e}".format(np.max(error), np.min(error), np.mean(error)))
+            mpi.print_()
+
+            for n in range(amr.maxiter):
+                size = self.compute_size_field(np.array(error)/np.median(error), d=util.dimension)
+                m = self._fes.mesh.refinedMesh(size, amr, V)
+                self.updateMesh(m)
+                self.solve()
+                error = self.solutions[0].error(var)
+                mpi.print_("\t[AMR] Step "+str(n+2)+": Num. of nodes =", m.nodes, ", Error (max,min,mean) = {:.3e}, {:.3e}, {:.3e}".format(np.max(error), np.min(error), np.mean(error)))
+                mpi.print_()
+            error = self.solutions[0].error(var)
+            mpi.print_("\t[AMR] Converged.")
+            mpi.print_()
+
+
+    def compute_size_field(self, err, p=2, d=2):
+        return err**(-1/(1+p)) * p**(-1/(d*(1+p)))
 
 
 class RelaxationSolver(SolverBase):

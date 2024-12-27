@@ -94,7 +94,11 @@ class _SolverStepGUI(FEMTreeItem):
 class StationarySolverWidget(QtWidgets.QWidget):
     def __init__(self, fem, solver):
         super().__init__()
-        pass
+
+        self._amr = _AdaptiveMeshRefinementWidget(solver)
+        layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(self._amr)
+        self.setLayout(layout)
 
 
 class RelaxationSolverWidget(QtWidgets.QWidget):
@@ -375,3 +379,60 @@ class _SolverStepWidget(QtWidgets.QWidget):
             self._step._deform = self._deform_var.text()
         else:
             self._step._deform = None
+
+
+class _AdaptiveMeshRefinementWidget(QtWidgets.QGroupBox):
+    def __init__(self, solver):
+        super().__init__(title="Adaptive Mesh Refinement", checkable=True)
+        self._solver = solver
+        self.__initLayout()
+        amr = solver.adaptive_mesh
+        if amr is not None:
+            self.setChecked(True)
+            self._var.setText(amr.varName)
+            self._iter.setValue(amr.maxiter)
+            self._nodes.setValue(amr.nodes)
+            self._min.setValue(amr.range[0])
+            self._max.setValue(amr.range[1])
+        else:
+            self.setChecked(False)
+        self.toggled.connect(self.__change)
+
+    def __initLayout(self):
+        self._var = QtWidgets.QLineEdit()
+        self._var.textChanged.connect(self.__change)
+        self._iter = QtWidgets.QSpinBox()
+        self._iter.setRange(1, 1000000)
+        self._iter.setValue(3)
+        self._iter.valueChanged.connect(self.__change)
+        self._nodes = QtWidgets.QSpinBox()
+        self._nodes.setRange(1, 100000000)
+        self._nodes.setValue(1000)
+        self._nodes.valueChanged.connect(self.__change)
+        self._min = ScientificSpinBox()
+        self._min.setValue(0)
+        self._min.valueChanged.connect(self.__change)
+        self._max = ScientificSpinBox()
+        self._max.setValue(1e5)
+        self._max.valueChanged.connect(self.__change)
+
+        grid = QtWidgets.QGridLayout()
+        grid.addWidget(QtWidgets.QLabel("Variable"), 0, 0)
+        grid.addWidget(QtWidgets.QLabel("Number of nodes"), 1, 0)
+        grid.addWidget(QtWidgets.QLabel("Max iteration"), 2, 0)
+        grid.addWidget(QtWidgets.QLabel("Min size"), 3, 0)
+        grid.addWidget(QtWidgets.QLabel("Max size"), 4, 0)
+
+        grid.addWidget(self._var, 0, 1)
+        grid.addWidget(self._nodes, 1, 1)
+        grid.addWidget(self._iter, 2, 1)
+        grid.addWidget(self._min, 3, 1)
+        grid.addWidget(self._max, 4, 1)
+
+        self.setLayout(grid)
+
+    def __change(self):
+        if self.isChecked():
+            self._solver.setAdaptiveMeshRefinement(self._var.text(), self._nodes.value(), maxiter=self._iter.value(), range=(self._min.value(), self._max.value()))
+        else:
+            self._solver.setAdaptiveMeshRefinement(None)

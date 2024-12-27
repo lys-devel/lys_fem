@@ -81,6 +81,42 @@ class poisson_test(FEMTestCase):
             r = np.sqrt(w.x[:,0]**2+w.x[:,1]**2)
             self.assert_allclose(w.data, solution(r), atol=1e-3, rtol=0)
 
+    def amr_2d(self, lib):
+        p = FEMProject(2)
+
+        r0 = 3
+        a = 1
+        rho = 1
+        # geometry
+        p.geometries.add(geometry.Disk(0, 0, 0, a, a))
+        p.geometries.add(geometry.Disk(0, 0, 0, r0, r0))
+        p.mesher.setRefinement(4)
+
+        # model: boundary and initial conditions
+        model = general.PoissonModel()
+        model.domainConditions.append(general.Source(rho, geometries=[1]))
+        model.boundaryConditions.append(general.DirichletBoundary([True], geometries=[1]))
+        model.initialConditions.append(general.InitialCondition(0, geometries=[2]))
+        model.initialConditions.append(general.InitialCondition(1, geometries=[1]))
+        p.models.append(model)
+
+        # solver
+        stationary = StationarySolver()
+        p.solvers.append(stationary)
+
+        # solve
+        lib.run(p)
+
+        def solution(r):
+            return rho/4*np.where(r<=1, r**2-1-2*np.log(r0), 2*np.log(r/r0))
+
+
+        sol = FEMSolution()
+        res = sol.eval("phi", data_number=1)
+        for w in res:
+            r = np.sqrt(w.x[:,0]**2+w.x[:,1]**2)
+            self.assert_allclose(w.data, solution(r), atol=1e-3, rtol=0)
+
     def dirichlet_3d(self, lib):
         p = FEMProject(3)
 

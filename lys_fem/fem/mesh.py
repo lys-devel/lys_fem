@@ -11,6 +11,7 @@ class OccMesher(FEMObject):
 
     def __init__(self, parent=None, refinement=0, partialRefine=None, transfinite=None, periodicity=None, size=None, file=None):
         super().__init__()
+        self._current = "Default"
         if parent is not None:
             self.setParent(parent)
         self._refine = refinement
@@ -225,24 +226,49 @@ class OccMesher(FEMObject):
             elem[type] = nodetag
         return np.reshape(coords, (-1, 3)), elem, nodes
 
-    def export(self, model, file):
-        self._generate(model)
+    def export(self, model, file, nogen=False):
+        if not nogen:
+            self._generate(model)
         gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
         gmsh.write(file)
 
-    def exportRefinedMesh(self, model, elems, size, file):
-        model.setCurrent("Default")
-        view = gmsh.view.add("refinement")
-        gmsh.view.addModelData(view, 0, "Default", "ElementData", elems, size)
+    def exportRefinedMesh(self, model, elems, size, file, amr):
+        if self._current == "Default":
+            present = "Default"
+            next = "Refined"
+        else:
+            present = "Refined"
+            next = "Default"
 
-        model.setCurrent("Refined")
+        model.setCurrent(next)
+
+        alpha, nodes, size = self.__refine(model, elems, size, amr, present, 1)
+
+        n = 0
+        while nodes < amr.nodes*0.95 or nodes > amr.nodes*1.05:
+            alpha, nodes, size = self.__refine(model, elems, size, amr, present, alpha)
+            n += 1
+            if n > 30:
+                break
+        self._current = next
+
+        gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
+        gmsh.write(file)
+
+    def __refine(self, model, elems, size, amr, present, alpha):
+        size = size*alpha
+        size[size < amr.range[0]] = amr.range[0]
+        size[size > amr.range[1]] = amr.range[1]
+        view = gmsh.view.add("refinement")
+        gmsh.view.addModelData(view, 0, present, "ElementData", elems, size)
+
+        model.mesh.clear()
         field = model.mesh.field.add("PostView")
         model.mesh.field.setNumber(field, "ViewTag", view)
         model.mesh.field.setAsBackgroundMesh(field)
         model.mesh.generate()
-
-        gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
-        gmsh.write(file)
+        nodes = len(model.mesh.getNodes()[0])
+        return (nodes/amr.nodes)**(1/self.fem.dimension), nodes, size
 
     def saveAsDictionary(self):
         pairs = [(p[0].saveAsDictionary(), p[1].saveAsDictionary()) for p in self._periodicity]

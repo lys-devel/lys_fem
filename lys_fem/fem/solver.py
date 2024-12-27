@@ -86,15 +86,61 @@ class SolverStep:
         return SolverStep(**d)
 
 
+class AdaptiveMeshRefinement:
+    def __init__(self, var, nodes, range=(0, 1e30), maxiter=30):
+        self._var = var
+        self._nodes = nodes
+        self._range = range
+        self._maxiter = maxiter
+
+    @property
+    def varName(self):
+        return self._var
+    
+    @property
+    def nodes(self):
+        return self._nodes
+    
+    @property
+    def range(self):
+        return self._range
+    
+    @property
+    def maxiter(self):
+        return self._maxiter
+    
+    def saveAsDictionary(self):
+        return {"var": self._var, "nodes": self._nodes, "range": self._range, "maxiter": self._maxiter}
+    
+    @classmethod
+    def loadFromDictionary(cls, d):
+        return cls(**d)
+   
+
 class FEMSolver(FEMObject):
-    def __init__(self, steps=None, diff_expr=None, **kwargs):
+    """
+    Args:
+        steps (list of SolverStep): Solter steps that specifies detailed solver behavior.
+        diff_expr (string expression): The expression of dx, which is used for relaxation etc.
+        amr (AdaptiveMeshRefinement): The adaptive mesh refinement parameter.
+    """
+    def __init__(self, steps=None, diff_expr=None, amr=None, **kwargs):
         if steps is None:
             steps = [SolverStep(**kwargs)]
         self._steps = steps
         self._diff_expr = diff_expr
+        self._amr = amr
+
+    def setAdaptiveMeshRefinement(self, var, nodes=1000, maxiter=5, range=(0,1e5)):
+        if var is None:
+            self._amr = None
+        else:
+            self._amr = AdaptiveMeshRefinement(var, nodes, range=range, maxiter=maxiter)
 
     def saveAsDictionary(self):
         d = {"solver": self.className, "steps": [s.saveAsDictionary() for s in self._steps], "diff_expr": self._diff_expr}
+        if self._amr is not None:
+            d["amr"] = self._amr.saveAsDictionary()
         return d
         
     @property
@@ -104,6 +150,10 @@ class FEMSolver(FEMObject):
     @property
     def diff_expr(self):
         return self._diff_expr
+    
+    @property
+    def adaptive_mesh(self):
+        return self._amr
 
     @staticmethod
     def loadFromDictionary(d):
@@ -113,6 +163,9 @@ class FEMSolver(FEMObject):
         del d["solver"]
 
         d["steps"] = [SolverStep.loadFromDictionary(s) for s in d["steps"]]
+        d["amr"] = d.get("amr", None)
+        if d["amr"] is not None:
+            d["amr"] = AdaptiveMeshRefinement.loadFromDictionary(d["amr"])
         return solver(**d)
 
 

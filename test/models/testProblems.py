@@ -329,7 +329,6 @@ class testProblems_test(FEMTestCase):
         for w in res:
             self.assert_array_almost_equal(w.data, w.x[:, 0])
 
-
     def tdepField(self, lib):
         if lib.mpi.isRoot:
             os.makedirs("run1", exist_ok=True)
@@ -476,11 +475,10 @@ class testProblems_test(FEMTestCase):
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
         p.geometries.add(geometry.Line(1, 0, 0, 2, 0, 0))
-        p.mesher.setRefinement(0)
 
         # model: boundary and initial conditions
         x = sp.Symbol("x")
-        model = test.NonlinearTestModel()
+        model = test.NonlinearTestModel(order=1)
         model.boundaryConditions.append(test.DirichletBoundary([True], geometries=[1, 3]))
         model.initialConditions.append(test.InitialCondition(x, geometries=[1]))
         model.initialConditions.append(test.InitialCondition(x, geometries=[2]))
@@ -488,6 +486,7 @@ class testProblems_test(FEMTestCase):
 
         # solver
         stationary = StationarySolver()
+        stationary.setAdaptiveMeshRefinement("x", 1500)
         p.solvers.append(stationary)
 
         # solve

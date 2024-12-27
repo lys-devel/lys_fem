@@ -28,7 +28,8 @@ class NGSSolution:
         mpath = self._dirname+"/ngs"+str(index)+"_mesh.msh"
         if os.path.exists(mpath):
             if index!=self._index:
-                self.__generate(generateMesh(self._fem, mpath))
+                m = generateMesh(self._fem, mpath)
+                self.__generate(m)
         else:
             if self._index is None:
                 self.__generate()

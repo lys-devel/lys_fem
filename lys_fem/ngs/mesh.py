@@ -11,15 +11,26 @@ class NGSMesh(ngsolve.Mesh):
         self._fem = fem
         self.tags = tags
     
-    def refinedMesh(self, error):
-        size = np.array([[0.02] for e in error])
+    def refinedMesh(self, size, amr, V):
         model = self._fem.geometries.generateGeometry()
-        self._fem.mesher.exportRefinedMesh(model, self.tags, size, "refined.msh")
+        h = model.mesh.getElementQualities(self.tags, "minEdge")
+        size = h * size
+
+        size /= amr.nodes/(V/(np.min(size)**self._fem.dimension))
+        self._fem.mesher.exportRefinedMesh(model, self.tags, np.array([size]).T, "refined.msh", amr)
         return generateMesh(self._fem, "refined.msh")
     
     def save(self, path):
         model = self._fem.geometries.generateGeometry()
-        self._fem.mesher.export(model, path)
+        self._fem.mesher.export(model, path, nogen=True)
+
+    @property
+    def nodes(self):
+        return self.ns[1]
+    
+    @property
+    def elements(self):
+        return self.ns[0]
 
 
 def generateMesh(fem, file=None):
@@ -127,13 +138,14 @@ def ReadGmsh(filename, meshdim): #from netgen.read_gmsh import ReadGmsh
                         bbcmap[id] = index
 
                 if elem_dim == 0:
-                    mesh.Add(Element0D(pointmap[index], index))
+                    el = Element0D(pointmap[index], index)
                 if elem_dim == 1:
-                    mesh.Add(Element1D(index=index, vertices=nodenums))
+                    el = Element1D(index=index, vertices=nodenums)
                 elif elem_dim==2:
-                    mesh.Add(Element2D(index, nodenums))
+                    el = Element2D(index, nodenums)
                 elif elem_dim==3:
-                    mesh.Add(Element3D(index, nodenums))
+                    el = Element3D(index, nodenums)
+                mesh.Add(el)
                 if elem_dim == meshdim:
                     tags.append(tag)
 

@@ -252,8 +252,8 @@ class NGSFunction:
             else:
                 return fes.mesh.BoundaryCF(coefs, default=default)
 
-    def integrate(self, fes):
-        return ngsolve.Integrate(self.eval(fes), fes.mesh)
+    def integrate(self, fes, **kwargs):
+        return ngsolve.Integrate(self.eval(fes), fes.mesh, **kwargs)
             
     def grad(self, fes):
         if self._obj is None:
