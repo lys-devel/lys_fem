@@ -28,6 +28,7 @@ class OccMesher(FEMObject):
             periodicity = []
         self._periodicity = periodicity
         self._file = file
+        self._view_refine = None
 
     def addTransfinite(self, geomType="Volume", geometries=[]):
         geom = GeometrySelection(geometryType=geomType, selection=geometries)
@@ -240,6 +241,7 @@ class OccMesher(FEMObject):
             present = "Refined"
             next = "Default"
 
+        self.__setGmsh(amr)
         model.setCurrent(next)
 
         alpha, nodes, size = self.__refine(model, elems, size, amr, present, 1)
@@ -254,19 +256,33 @@ class OccMesher(FEMObject):
 
         gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
         gmsh.write(file)
+        gmsh.option.restoreDefaults()
+
+    def __setGmsh(self, amr):
+        gmsh.option.setNumber("Mesh.MeshSizeMin", amr.range[0])
+        gmsh.option.setNumber("Mesh.MeshSizeMax", amr.range[1])
+        gmsh.option.setNumber("Mesh.MeshSizeFromPoints", 0)
+        gmsh.option.setNumber("Mesh.MeshSizeFromCurvature", 0)
+        gmsh.option.setNumber("Mesh.MeshSizeExtendFromBoundary", 0)
 
     def __refine(self, model, elems, size, amr, present, alpha):
         size = size*alpha
-        size[size < amr.range[0]] = amr.range[0]
-        size[size > amr.range[1]] = amr.range[1]
+        if self._view_refine is not None:
+            gmsh.view.remove(self._view_refine)
         view = gmsh.view.add("refinement")
+        self._view_refine = view
         gmsh.view.addModelData(view, 0, present, "ElementData", elems, size)
 
         model.mesh.clear()
+        for tag in model.mesh.field.list():
+            model.mesh.field.remove(tag)
         field = model.mesh.field.add("PostView")
+        self._field = field
         model.mesh.field.setNumber(field, "ViewTag", view)
         model.mesh.field.setAsBackgroundMesh(field)
         model.mesh.generate()
+        model.mesh.optimize()
+
         nodes = len(model.mesh.getNodes()[0])
         return (nodes/amr.nodes)**(1/self.fem.dimension), nodes, size
 
