@@ -12,15 +12,17 @@ class NGSMesh(ngsolve.Mesh):
         self.tags = tags
     
     def refinedMesh(self, size, amr):
-        model = self._fem.geometries.generateGeometry()
-        h = model.mesh.getElementQualities(self.tags, "minEdge")
-        size = h * size
-        size = size*np.median(h)/np.median(size)
+        if mpi.isRoot:
+            model = self._fem.geometries.generateGeometry()
+            h = model.mesh.getElementQualities(self.tags, "minEdge")
+            size = h * size
+            size = size*np.median(h)/np.median(size)
 
-        size /=  (amr.nodes/self.nodes)**(1/self._fem.dimension)
-        self._fem.mesher.exportRefinedMesh(model, self.tags, np.array([size]).T, "refined.msh", amr)
-        return generateMesh(self._fem, "refined.msh")
-    
+            size /=  (amr.nodes/self.nodes)**(1/self._fem.dimension)
+            self._fem.mesher.exportRefinedMesh(model, self.tags, np.array([size]).T, "refined.msh", amr)
+        m = generateMesh(self._fem, "refined.msh")
+        return m
+
     def save(self, path):
         model = self._fem.geometries.generateGeometry()
         self._fem.mesher.export(model, path, nogen=True)
@@ -52,6 +54,8 @@ def generateMesh(fem, file=None):
             mesh = NGSMesh(gmesh.Distribute(comm), fem, tags)
         else:
             mesh = NGSMesh(Mesh.Receive(comm), fem)
+        for el in mesh.Elements():
+            print(mpi.rank, el.nr)
     else:
         mesh = NGSMesh(gmesh, fem, tags)
     mesh.ns = ne, nv

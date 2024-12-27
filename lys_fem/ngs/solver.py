@@ -67,7 +67,13 @@ class _Sol:
             g = g.toNGSFunctions(self._fes.model, pre="_g")[var.name]
             grids.append(g)
         grids = util.NGSFunction(grids)
-        return np.sqrt(((grids-val)**2).integrate(self._fes, element_wise=True))
+        err = np.sqrt(((grids-val)**2).integrate(self._fes, element_wise=True).NumPy())
+        if mpi.isParallel():
+            err = mpi.gatherArray(err)
+        if mpi.isRoot:
+            return np.concatenate(err)
+        else:
+            return [0]
 
     def save(self, path, mesh=False):
         self._sols[0].Save(path, parallel=mpi.isParallel())
@@ -130,8 +136,9 @@ class _Solution:
         self.__update(_Sol(self._model.initialValue(self._fes, use_a)))
         if mpi.isRoot and self._dirname is not None:
             if os.path.exists(self._dirname):
-                shutil.rmtree(self._dirname)
+                shutil.rmtree(self._dirname, ignore_errors=True)
             os.makedirs(self._dirname, exist_ok=True)
+        if self._dirname is not None:
             self.__save(0)
 
     def reset(self):
@@ -451,7 +458,6 @@ class StationarySolver(SolverBase):
             var = [v for v in self._model.variables if v.name==self._obj.adaptive_mesh.varName][0]
             error = self.solutions[0].error(var)
             mpi.print_("\t[AMR] Adaptive Mesh Refinement started. Initial error (max,min,mean) = {:.3e}, {:.3e}, {:.3e}".format(np.max(error), np.min(error), np.mean(error)))
-            mpi.print_()
 
             for n in range(self._obj.adaptive_mesh.maxiter):
                 self.refineMesh(error)
