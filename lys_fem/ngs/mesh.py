@@ -11,12 +11,13 @@ class NGSMesh(ngsolve.Mesh):
         self._fem = fem
         self.tags = tags
     
-    def refinedMesh(self, size, amr, V):
+    def refinedMesh(self, size, amr):
         model = self._fem.geometries.generateGeometry()
         h = model.mesh.getElementQualities(self.tags, "minEdge")
         size = h * size
+        size = size*np.median(h)/np.median(size)
 
-        size /= amr.nodes/(V/(np.min(size)**self._fem.dimension))
+        size /=  (amr.nodes/self.nodes)**(1/self._fem.dimension)
         self._fem.mesher.exportRefinedMesh(model, self.tags, np.array([size]).T, "refined.msh", amr)
         return generateMesh(self._fem, "refined.msh")
     

@@ -106,9 +106,9 @@ class RelaxationSolverWidget(QtWidgets.QWidget):
         super().__init__()
         self._fem = fem
         self._solver = solver
-        self.__initlayout()
+        self.__initlayout(solver)
 
-    def __initlayout(self):
+    def __initlayout(self, solver):
         self._expr = QtWidgets.QLineEdit()
         self._expr.setText(self._solver.diff_expr)
         self._expr.setPlaceholderText("Auto if blank")
@@ -155,7 +155,13 @@ class RelaxationSolverWidget(QtWidgets.QWidget):
         grid.addWidget(self._maxstep, 5, 1)
         grid.addWidget(self._maxiter, 6, 1)
 
-        self.setLayout(grid)
+        self._amr = _AdaptiveMeshRefinementWidget(solver)
+
+        v = QtWidgets.QVBoxLayout()
+        v.addLayout(grid)
+        v.addWidget(self._amr)
+
+        self.setLayout(v)
 
     def __change(self):
         self._solver._diff_expr = self._expr.text()

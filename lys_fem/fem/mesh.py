@@ -243,14 +243,13 @@ class OccMesher(FEMObject):
 
         self.__setGmsh(amr)
         model.setCurrent(next)
-
-        alpha, nodes, size = self.__refine(model, elems, size, amr, present, 1)
+        alpha, nodes, size = self.__refine(model, elems, size, amr, present, 1.5)
 
         n = 0
-        while nodes < amr.nodes*0.95 or nodes > amr.nodes*1.05:
+        while nodes < amr.nodes*0.95:
             alpha, nodes, size = self.__refine(model, elems, size, amr, present, alpha)
             n += 1
-            if n > 30:
+            if n > 5:
                 break
         self._current = next
 
@@ -259,14 +258,14 @@ class OccMesher(FEMObject):
         gmsh.option.restoreDefaults()
 
     def __setGmsh(self, amr):
-        gmsh.option.setNumber("Mesh.MeshSizeMin", amr.range[0])
-        gmsh.option.setNumber("Mesh.MeshSizeMax", amr.range[1])
+        gmsh.option.setNumber("Mesh.MeshSizeMin", amr.range[0]/self.fem.geometries.scale)
+        gmsh.option.setNumber("Mesh.MeshSizeMax", amr.range[1]/self.fem.geometries.scale)
         gmsh.option.setNumber("Mesh.MeshSizeFromPoints", 0)
         gmsh.option.setNumber("Mesh.MeshSizeFromCurvature", 0)
         gmsh.option.setNumber("Mesh.MeshSizeExtendFromBoundary", 0)
 
     def __refine(self, model, elems, size, amr, present, alpha):
-        size = size*alpha
+        size *= alpha
         if self._view_refine is not None:
             gmsh.view.remove(self._view_refine)
         view = gmsh.view.add("refinement")
@@ -310,4 +309,4 @@ class OccMesher(FEMObject):
         for p in d.get("transfinite", []):
             g = GeometrySelection.loadFromDictionary(p)
             transfinite.append(g)
-        return OccMesher(refinement=d["refine"], partialRefine=partial, transfinite=transfinite, periodicity=pairs, size=size, file=d.get("file", None))
+        return OccMesher(refinement=d["refine"], transfinite=transfinite, periodicity=pairs, size=size, file=d.get("file", None))

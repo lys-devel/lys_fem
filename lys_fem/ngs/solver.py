@@ -412,6 +412,16 @@ class SolverBase:
         self._fes = util.FiniteElementSpace(self._model, mesh)
         self._sols = _Solution(self._fes, self._model, self._dirname, old=self._sols)
         self._ops = [_Operator(self._wf, mesh, self._model, self._sols, step) for step in self._obj.steps]
+        mpi.print_("\t[AMR] Mesh updated: Num. of nodes =", self._fes.mesh.nodes)
+
+    def refineMesh(self, error):
+        def compute_size_field(err, p=2, d=2):
+            err = np.array(err)/np.median(err)
+            return err**(-1/(1+p)) * p**(-1/(d*(1+p)))
+
+        size = compute_size_field(error, d=util.dimension)
+        m = self._fes.mesh.refinedMesh(size, self._obj.adaptive_mesh)
+        self.updateMesh(m)
 
     @property
     def solutions(self):
@@ -438,29 +448,18 @@ class StationarySolver(SolverBase):
         self.solve()
 
         if self._obj.adaptive_mesh is not None:
-            V = util.NGSFunction(1).integrate(self._fes)
-            amr = self._obj.adaptive_mesh
-            var = [v for v in self._model.variables if v.name==amr.varName][0]
+            var = [v for v in self._model.variables if v.name==self._obj.adaptive_mesh.varName][0]
             error = self.solutions[0].error(var)
-            m = self._fes.mesh
-            mpi.print_("\t[AMR] Adaptive Mesh Refinement started. Initial num. of nodes =", m.nodes, ", Error (max,min,mean) = {:.3e}, {:.3e}, {:.3e}".format(np.max(error), np.min(error), np.mean(error)))
+            mpi.print_("\t[AMR] Adaptive Mesh Refinement started. Initial error (max,min,mean) = {:.3e}, {:.3e}, {:.3e}".format(np.max(error), np.min(error), np.mean(error)))
             mpi.print_()
 
-            for n in range(amr.maxiter):
-                size = self.compute_size_field(np.array(error)/np.median(error), d=util.dimension)
-                m = self._fes.mesh.refinedMesh(size, amr, V)
-                self.updateMesh(m)
+            for n in range(self._obj.adaptive_mesh.maxiter):
+                self.refineMesh(error)
                 self.solve()
                 error = self.solutions[0].error(var)
-                mpi.print_("\t[AMR] Step "+str(n+2)+": Num. of nodes =", m.nodes, ", Error (max,min,mean) = {:.3e}, {:.3e}, {:.3e}".format(np.max(error), np.min(error), np.mean(error)))
+
+                mpi.print_("\t[AMR] Step "+str(n+2)+": Error (max,min,mean) = {:.3e}, {:.3e}, {:.3e}".format(np.max(error), np.min(error), np.mean(error)))
                 mpi.print_()
-            error = self.solutions[0].error(var)
-            mpi.print_("\t[AMR] Converged.")
-            mpi.print_()
-
-
-    def compute_size_field(self, err, p=2, d=2):
-        return err**(-1/(1+p)) * p**(-1/(d*(1+p)))
 
 
 class RelaxationSolver(SolverBase):
@@ -469,6 +468,23 @@ class RelaxationSolver(SolverBase):
         self._tSolver = obj
 
     def execute(self):
+        self._relax()
+        if self._tSolver.adaptive_mesh is None:
+            return
+        var = [v for v in self._model.variables if v.name==self._obj.adaptive_mesh.varName][0]
+        error = self.solutions[0].error(var)
+        mpi.print_("\t[AMR] Adaptive Mesh Refinement started. Initial error (max,min,mean) = {:.3e}, {:.3e}, {:.3e}".format(np.max(error), np.min(error), np.mean(error)))
+        mpi.print_()
+
+        for n in range(self._obj.adaptive_mesh.maxiter):
+            self.refineMesh(error)
+            self._relax()
+            error = self.solutions[0].error(var)
+
+            mpi.print_("\t[AMR] Step "+str(n+2)+": Error (max,min,mean) = {:.3e}, {:.3e}, {:.3e}".format(np.max(error), np.min(error), np.mean(error)))
+            mpi.print_()
+
+    def _relax(self):
         t = 0
         dt, dx_ref = self._tSolver.dt0, self._tSolver.dx
         for i in range(1,self._tSolver.maxiter):
@@ -485,7 +501,7 @@ class RelaxationSolver(SolverBase):
             if dt == self._tSolver.dt_max and dx < self._tSolver.tolerance:
                 mpi.print_("[Relaxation solver] Converged in", i, "steps")
                 return
-                
+
     def _solve(self, dt):
         try:
             return self.solve(1/dt), dt
@@ -507,6 +523,13 @@ class TimeDependentSolver(SolverBase):
             dx = self.solve(1/dt)
             t = t + dt
             mpi.print_("Timestep", i, ", t = {:3e}".format(t), ", dx = {:3e}".format(dx))
+            if self._tSolver.adaptive_mesh is not None:
+                var = [v for v in self._model.variables if v.name==self._obj.adaptive_mesh.varName][0]
+                error = self.solutions[0].error(var)
+
+                mpi.print_("\t[AMR] Error (max,min,mean) = {:.3e}, {:.3e}, {:.3e}".format(np.max(error), np.min(error), np.mean(error)))
+                self.refineMesh(error)
+                mpi.print_()
 
 
 def newton(F, x, eps=1e-5, max_iter=30, gamma=1):
