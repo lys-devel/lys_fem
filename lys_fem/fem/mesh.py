@@ -227,7 +227,7 @@ class OccMesher(FEMObject):
             elem[type] = nodetag
         return np.reshape(coords, (-1, 3)), elem, nodes
 
-    def export(self, model, file, nogen=False):
+    def export(self, model, file, nogen=False, partition=None):
         if not nogen:
             self._generate(model)
         gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
@@ -246,10 +246,10 @@ class OccMesher(FEMObject):
         alpha, nodes, size = self.__refine(model, elems, size, amr, present, 1.5)
 
         n = 0
-        while nodes < amr.nodes*0.95:
+        while nodes < amr.nodes*0.95 or nodes > amr.nodes*1.05:
             alpha, nodes, size = self.__refine(model, elems, size, amr, present, alpha)
             n += 1
-            if n > 5:
+            if n > 50:
                 break
         self._current = next
 

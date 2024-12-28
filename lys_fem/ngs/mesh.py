@@ -12,7 +12,7 @@ class NGSMesh(ngsolve.Mesh):
         self.tags = tags
     
     def refinedMesh(self, size, amr):
-        if mpi.isRoot:
+        if mpi.isRoot:            
             model = self._fem.geometries.generateGeometry()
             h = model.mesh.getElementQualities(self.tags, "minEdge")
             size = h * size
@@ -37,30 +37,114 @@ class NGSMesh(ngsolve.Mesh):
 
 
 def generateMesh(fem, file=None):
+    geom = fem.geometries.generateGeometry()
+    if file is None:
+        fem.mesher._generate(geom)
     if mpi.isRoot:
         if file is None:
             file = "mesh.msh"
-            geom = fem.geometries.generateGeometry()
             fem.mesher.export(geom, file)
         gmesh, tags = ReadGmsh(file, fem.dimension)
-        ne, nv = gmesh.ne, len(gmesh.Points())
         gmesh.Scale(fem.geometries.scale)
-    else:
-        ne, nv = 0, 0
 
     if mpi.isParallel():
         comm = ngsolve.MPI_Init()
         if mpi.isRoot:
-            mesh = NGSMesh(gmesh.Distribute(comm), fem, tags)
+            mesh = NGSMesh(gmesh.Distribute(comm), fem)
         else:
             mesh = NGSMesh(Mesh.Receive(comm), fem)
-        for el in mesh.Elements():
-            print(mpi.rank, el.nr)
     else:
         mesh = NGSMesh(gmesh, fem, tags)
-    mesh.ns = ne, nv
+
+    # create global element mapping for adaptive mesh refinement
+    pts = np.array(mesh.ngmesh.Coordinates())
+    tags = []
+    if fem.dimension == 1:
+        elms = mesh.ngmesh.Elements1D()
+    elif fem.dimension == 2:
+        elms = mesh.ngmesh.Elements2D()
+    else:
+        elms = mesh.ngmesh.Elements3D()
+    co = [0]*(3-fem.dimension)
+    for el in elms:
+        c = np.array([pts[p.nr-1] for p in el.vertices]).mean(axis=0)
+        tags.append(geom.mesh.getElementByCoordinates(*c,*co)[0])
+    tag_gathered = mpi.gatherArray(tags)
+    if mpi.isRoot and mpi.isParallel():
+        mesh.tags = np.concatenate(tag_gathered)
+    else:
+        mesh.tags = tag_gathered
+
+    # set num of nodes and elements
+    if mpi.isParallel():
+        ns = comm.Sum(len(tags)), len(geom.mesh.getNodes()[0])
+    else:
+        ns = len(tags), len(geom.mesh.getNodes()[0])
+    if mpi.isRoot:
+        mesh.ns = ns
+    else:
+        mesh.ns = len(tags), len(mesh.ngmesh.Points())
     util.dimension = fem.dimension
     return mesh
+
+
+def __parseElements(type, nodes, index):
+    if type == 15: # point
+        return [Element0D(index, index) for n in nodes]
+    elif type == 1: # line
+        return [Element1D(index=index, vertices=n.tolist()) for n in nodes.reshape(-1, 2)]
+    elif type == 2: # triangle
+        return [Element2D(index, n) for n in nodes.reshape(-1, 3)]
+    elif type == 4: # tetra
+        return [Element3D(index, n) for n in nodes.reshape(-1, 4)]
+    else:
+        raise RuntimeError("error!", type, nodes, index)
+
+
+def ReadGmsh2(geom, meshdim): #from netgen.read_gmsh import ReadGmsh
+    mesh = Mesh(dim=meshdim)
+    __loadGroups(mesh, geom, meshdim)
+
+    nodeMap = {}
+    node_tags, coords, _ = geom.mesh.getNodes()
+    for n, c in zip(node_tags, coords.reshape(-1,3)):
+        index = mesh.Add(MeshPoint(Pnt(*c)))
+        nodeMap[n] = index
+
+    _tag = __loadMesh(mesh, geom, meshdim)
+    return mesh, _tag
+
+
+def __loadGroups(mesh, geom, meshdim):
+    for obj in geom.getPhysicalGroups(meshdim):
+        mesh.SetMaterial(obj[1], "domain"+str(obj[1]))
+
+    for obj in geom.getPhysicalGroups(meshdim-1):
+        fd = FaceDescriptor(bc=obj[1])
+        fd.bcname = 'boundary' + str(obj[1])
+        mesh.SetBCName(obj[1]-1, 'boundary' + str(obj[1]))
+        mesh.Add(fd)
+
+def __loadMesh(mesh, geom, meshdim):
+    tags, coords, _ = geom.mesh.getNodes(dim=meshdim, includeBoundary=True)
+    items = {t: c for t, c in zip(tags, coords.reshape(-1, 3))}
+    for i in range(len(items)):
+        mesh.Add(MeshPoint(Pnt(*items[i+1])))
+
+    for g in geom.getPhysicalGroups(meshdim-1):
+        for ent in geom.getEntitiesForPhysicalGroup(*g):
+            for type, tags, nodes in zip(*geom.mesh.getElements(dim=meshdim-1, tag=ent)):
+                for el in __parseElements(type, nodes, g[1]):
+                    mesh.Add(el)
+
+    _tag = []
+    for g in geom.getPhysicalGroups(meshdim):
+        for ent in geom.getEntitiesForPhysicalGroup(*g):
+            for type, tags, nodes in zip(*geom.mesh.getElements(dim=meshdim, tag=ent)):
+                _tag.extend(tags)
+                for el in __parseElements(type, nodes, g[1]):
+                    mesh.Add(el)
+
 
 
 def ReadGmsh(filename, meshdim): #from netgen.read_gmsh import ReadGmsh

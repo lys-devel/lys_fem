@@ -3,8 +3,8 @@ import time
 import shutil
 import numpy as np
 import ngsolve
-import ngsolve.ngs2petsc as n2p
-import petsc4py.PETSc as psc
+#import ngsolve.ngs2petsc as n2p
+#import petsc4py.PETSc as psc
 
 from . import mpi, util
 
@@ -70,6 +70,8 @@ class _Sol:
         err = np.sqrt(((grids-val)**2).integrate(self._fes, element_wise=True).NumPy())
         if mpi.isParallel():
             err = mpi.gatherArray(err)
+        if mpi.isParallel() is False:
+            return err
         if mpi.isRoot:
             return np.concatenate(err)
         else:

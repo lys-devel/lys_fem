@@ -15,6 +15,7 @@ if isParallel():
     from mpi4py import MPI
     isRoot = MPI.COMM_WORLD.rank == 0
     rank = MPI.COMM_WORLD.rank
+    size = MPI.COMM_WORLD.size
 else:
     isRoot = True
 
