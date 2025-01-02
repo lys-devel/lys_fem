@@ -3,8 +3,8 @@ import time
 import shutil
 import numpy as np
 import ngsolve
-#import ngsolve.ngs2petsc as n2p
-#import petsc4py.PETSc as psc
+import ngsolve.ngs2petsc as n2p
+import petsc4py.PETSc as psc
 
 from . import mpi, util
 

@@ -57,7 +57,7 @@ def generateMesh(fem, file=None):
         mesh = NGSMesh(gmesh, fem, tags)
 
     # create global element mapping for adaptive mesh refinement
-    pts = np.array(mesh.ngmesh.Coordinates())
+    pts = np.array(mesh.ngmesh.Coordinates())/fem.geometries.scale
     tags = []
     if fem.dimension == 1:
         elms = mesh.ngmesh.Elements1D()
