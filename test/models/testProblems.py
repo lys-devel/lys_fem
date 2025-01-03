@@ -71,7 +71,7 @@ class testProblems_test(FEMTestCase):
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
         p.geometries.add(geometry.Line(1, 0, 0, 2, 0, 0))
-        p.mesher.setRefinement(4)
+        p.mesher.setRefinement(5)
 
         # model: boundary and initial conditions
         x = sp.Symbol("x")
@@ -392,7 +392,7 @@ class testProblems_test(FEMTestCase):
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
         p.geometries.add(geometry.Line(1, 0, 0, 2, 0, 0))
-        p.mesher.setRefinement(4)
+        p.mesher.setRefinement(5)
 
         # model: boundary and initial conditions
         model = test.ScaleTestModel()

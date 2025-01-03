@@ -8,47 +8,27 @@ gmsh.initialize()
 gmsh.option.setNumber("General.Terminal", 0)
 
 
-class GeometryGenerator(FEMObject):
-    def __init__(self, order=None, scale="auto"):
-        super().__init__()
-        self._scale = scale
-        if order is None:
-            order = []
-        self._order = []
-        for ord in order:
-            self.add(ord)
-        self._updated = True
+class GmshGeometry:
+    _index = 0
 
-    def add(self, command):
-        self._order.append(command)
-        command.setParent(self)
-        self._updated=True
+    def __init__(self, fem, orders):
+        self._fem = fem
+        GmshGeometry._index += 1
+        self._name = "Geometry" + str(GmshGeometry._index)
+        self._model = self.__update(self._name, orders)
+        self._orders = list(orders)
 
-    def remove(self, command):
-        self._order.remove(command)
-        self._updated=True
+    def update(self, orders):
+        self._model.remove(self._name)
+        self.__update(self._name, orders)
 
-    def _update(self):
-        self._updated=True
-
-    def generateGeometry(self, n=None):
-        if n is None and self._updated is False:
-            return self._model
+    def __update(self, name, orders):
         model = gmsh.model()
-        model.add("Default")
-        model.setCurrent("Default")
-        self.__createModel(model, n)
-        model.add("Refined")
-        model.setCurrent("Refined")
-        self.__createModel(model, n)
-        model.setCurrent("Default")
-        self._model = model
-        self._updated=False
-        return self._model
-    
-    def __createModel(self, model, n):
-        scale = TransGeom(self.fem)
-        for order in self._order if n is None else self._order[0:n + 1]:
+        model.add(name)
+        model.setCurrent(name)
+
+        scale = TransGeom(self._fem)
+        for order in orders:
             order.execute(model, scale)
         model.occ.removeAllDuplicates()
         model.occ.synchronize()
@@ -78,17 +58,85 @@ class GeometryGenerator(FEMObject):
                 model.setPhysicalName(dim=0, tag=i+1, name="boundary" + str(i+1))
             else:
                 model.setPhysicalName(dim=0, tag=i+1, name="point" + str(i+1))
+        return model
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def model(self):
+        self._model.setCurrent(self._name)
+        return self._model
+
+    @property
+    def mesh(self):
+        self._model.setCurrent(self._name)
+        return self._model.mesh
 
     def geometryParameters(self):
-        m = self.generateGeometry()
+        self._model.setCurrent(self._name)
         result = {}
-        for c in self.commands:
-            result.update(c.generateParameters(m, TransGeom(self.fem)))
+        for c in self._orders:
+            result.update(c.generateParameters(self._model, TransGeom(self._fem)))
         return result
 
     def geometryAttributes(self, dim):
-        m = self.generateGeometry()
-        return [tag for d, tag  in m.getPhysicalGroups(dim)]
+        self._model.setCurrent(self._name)
+        return [tag for d, tag  in self._model.getPhysicalGroups(dim)]
+
+    def duplicate(self):
+        return GmshGeometry(self._fem, self._orders)
+
+    def export(self, file):
+        self._model.setCurrent(self._name)
+        gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
+        gmsh.write(file)
+
+
+class GeometryGenerator(FEMObject):
+    def __init__(self, order=None, scale="auto"):
+        super().__init__()
+        self._scale = scale
+        if order is None:
+            order = []
+        self._order = []
+        for ord in order:
+            self.add(ord)
+        self._default = None
+        self._partial = None
+        self._updated = True
+
+    def add(self, command):
+        self._order.append(command)
+        command.setParent(self)
+        self._updated=True
+
+    def remove(self, command):
+        self._order.remove(command)
+        self._updated=True
+
+    def _update(self):
+        self._updated=True
+
+    def generateGeometry(self, n=None):
+        if n is None:
+            if self._updated or self._default is None:
+                self._default = GmshGeometry(self.fem, self._order)
+            self._updated=False
+            return self._default
+        else:
+            if self._partial is None:
+                self._partial = GmshGeometry(self.fem, self._order[:n+1])
+            else:
+                self._partial.update(self._order[:n+1])
+            return self._partial
+
+    def geometryParameters(self):
+        return self.generateGeometry().geometryParameters()
+
+    def geometryAttributes(self, dim):
+        return self.generateGeometry().geometryAttributes(dim)
 
     @property
     def scale(self):

@@ -5,7 +5,7 @@ from ..base import FEMTestCase
 
 class test_util(FEMTestCase):     
     def test_NGSFunction(self):
-        m = mesh.NGSMesh(unit_square.GenerateMesh(maxh=0.2))
+        m = mesh.NGSMesh(unit_square.GenerateMesh(maxh=0.2), None)
         mp = m(0,0)
         util.dimension = 2
 

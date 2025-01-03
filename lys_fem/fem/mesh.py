@@ -1,4 +1,3 @@
-import itertools
 import numpy as np
 
 import gmsh
@@ -9,15 +8,12 @@ from .geometry import GeometrySelection
 class OccMesher(FEMObject):
     _keys = {15: "point", 1: "line", 2: "triangle", 3: "quad", 4: "tetra", 5: "hexa", 6: "prism", 7: "pyramid"}
 
-    def __init__(self, parent=None, refinement=0, partialRefine=None, transfinite=None, periodicity=None, size=None, file=None):
+    def __init__(self, parent=None, refinement=0, transfinite=None, periodicity=None, size=None, file=None):
         super().__init__()
         self._current = "Default"
         if parent is not None:
             self.setParent(parent)
         self._refine = refinement
-        if partialRefine is None:
-            partialRefine = []
-        self._partialRefine = FEMObjectList(self, partialRefine)
         if transfinite is None:
             transfinite=[]
         self._transfinite = FEMObjectList(self, transfinite)
@@ -28,7 +24,7 @@ class OccMesher(FEMObject):
             periodicity = []
         self._periodicity = periodicity
         self._file = file
-        self._view_refine = None
+        self._duplicated_model = None
 
     def addTransfinite(self, geomType="Volume", geometries=[]):
         geom = GeometrySelection(geometryType=geomType, selection=geometries)
@@ -38,9 +34,6 @@ class OccMesher(FEMObject):
     @property
     def transfinite(self):
         return self._transfinite
-
-    def setPartialRefinement(self, dim, tag, factor):
-        self._partialRefine[(dim, tag)] = factor
 
     @property
     def file(self):
@@ -70,16 +63,6 @@ class OccMesher(FEMObject):
         self._refine = n
 
     @property
-    def partialRefinement(self):
-        return self._partialRefine
-
-    def addPartialRefinement(self, geomType="Volume", geometries=[], factor=1):
-        geom = GeometrySelection(geometryType=geomType, selection=geometries)
-        geom.factor = factor
-        self._partialRefine.append(geom)
-        return geom
-
-    @property
     def sizeConstraint(self):
         return self._size
 
@@ -93,7 +76,8 @@ class OccMesher(FEMObject):
     def periodicPairs(self):
         return self._periodicity
 
-    def _generate(self, model):
+    def generate(self, model):
+        model = model.model
         model.mesh.clear()
         
         if self._file is not None:
@@ -102,7 +86,6 @@ class OccMesher(FEMObject):
    
         self.__setTransfinite(model)
         self.__setPeriodicity(model)
-        self.__partialRefine(model)
         self.__setSize(model)
 
         model.mesh.generate()
@@ -152,36 +135,6 @@ class OccMesher(FEMObject):
             dist = max([min(np.linalg.norm(c2 - (d - shift), axis=1)) for d in c1])
             if dist < 1e-3:
                 return [1, 0, 0, shift[0], 0, 1, 0, shift[1], 0, 0, 1, shift[2], 0, 0, 0, 1]
-            
-    def __partialRefine(self, model):
-        # prepare partial refinement
-        self._refineData = []
-        if len(self._partialRefine) != 0:
-            for geom in self._partialRefine:
-                dim = {"Volume": 3, "Surface": 2, "Edge": 1, "Point": 0}[geom.geometryType]
-                tagSet = set()
-                for tag in geom:
-                    if dim == 1:
-                        edge = model.getEntitiesForPhysicalGroup(1, tag)[0]
-                        tagSet.add(edge)
-                    if dim == 2:
-                        surf = model.getEntitiesForPhysicalGroup(2, tag)[0]
-                        _, edges = model.getAdjacencies(2, surf)
-                        tagSet |= set(edges)
-                    if dim == 3:
-                        domain = model.getEntitiesForPhysicalGroup(3, tag)[0]
-                        _, surfs = model.getAdjacencies(3, domain)
-                        edges = itertools.chain.from_iterable([model.getAdjacencies(2, v)[1] for v in surfs])
-                        tagSet |= set(edges)
-                self._refineData.append((tagSet, geom.factor))
-            model.mesh.setSizeCallback(self.__callback)
-
-    def __callback(self, dim, tag, x, y, z, lc):
-        if dim == 1:
-            for edges, factor in self._refineData:
-                if tag in edges:
-                    lc = lc / (factor+1)
-        return lc
 
     def __setSize(self, model):
         # size constraint
@@ -196,7 +149,7 @@ class OccMesher(FEMObject):
 
     def getMeshWave(self, model, dim=3):
         from lys import Wave
-        self._generate(model)
+        self.generate(model)
         result = []
         for dim, grp in model.getPhysicalGroups(dim):
             coords_group = np.zeros((0, 3))
@@ -227,35 +180,24 @@ class OccMesher(FEMObject):
             elem[type] = nodetag
         return np.reshape(coords, (-1, 3)), elem, nodes
 
-    def export(self, model, file, nogen=False, partition=None):
-        if not nogen:
-            self._generate(model)
-        gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
-        gmsh.write(file)
-
-    def exportRefinedMesh(self, model, elems, size, file, amr):
-        if self._current == "Default":
-            present = "Default"
-            next = "Refined"
-        else:
-            present = "Refined"
-            next = "Default"
-
+    def refinedMesh(self, model, elems, size, amr):
         self.__setGmsh(amr)
-        model.setCurrent(next)
-        alpha, nodes, size = self.__refine(model, elems, size, amr, present, 1.5)
+        if self._duplicated_model is None:
+            duplicated_model = model.duplicate()
+        else:
+            duplicated_model = self._duplicated_model
+        alpha, nodes, size = self.__refine(duplicated_model, model, elems, size, amr, 1.5)
 
         n = 0
         while nodes < amr.nodes*0.95 or nodes > amr.nodes*1.05:
-            alpha, nodes, size = self.__refine(model, elems, size, amr, present, alpha)
+            alpha, nodes, size = self.__refine(duplicated_model, model, elems, size, amr, alpha)
             n += 1
             if n > 50:
                 break
-        self._current = next
+        self._duplicated_model = model
 
-        gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
-        gmsh.write(file)
         gmsh.option.restoreDefaults()
+        return duplicated_model
 
     def __setGmsh(self, amr):
         gmsh.option.setNumber("Mesh.MeshSizeMin", amr.range[0]/self.fem.geometries.scale)
@@ -264,42 +206,34 @@ class OccMesher(FEMObject):
         gmsh.option.setNumber("Mesh.MeshSizeFromCurvature", 0)
         gmsh.option.setNumber("Mesh.MeshSizeExtendFromBoundary", 0)
 
-    def __refine(self, model, elems, size, amr, present, alpha):
+    def __refine(self, model_new, model_old, elems, size, amr, alpha):
         size *= alpha
-        if self._view_refine is not None:
-            gmsh.view.remove(self._view_refine)
         view = gmsh.view.add("refinement")
-        self._view_refine = view
-        gmsh.view.addModelData(view, 0, present, "ElementData", elems, size)
+        gmsh.view.addModelData(view, 0, model_old.name, "ElementData", elems, size)
 
-        model.mesh.clear()
-        for tag in model.mesh.field.list():
-            model.mesh.field.remove(tag)
-        field = model.mesh.field.add("PostView")
-        self._field = field
-        model.mesh.field.setNumber(field, "ViewTag", view)
-        model.mesh.field.setAsBackgroundMesh(field)
-        model.mesh.generate()
-        model.mesh.optimize()
+        mesh = model_new.mesh
+        mesh.clear()
+        field = mesh.field.add("PostView")
+        mesh.field.setNumber(field, "ViewTag", view)
+        mesh.field.setAsBackgroundMesh(field)
+        mesh.generate()
+        mesh.optimize()
+        mesh.field.remove(field)
+        nodes = len(mesh.getNodes()[0])
+        
+        gmsh.view.remove(view)
 
-        nodes = len(model.mesh.getNodes()[0])
         return (nodes/amr.nodes)**(1/self.fem.dimension), nodes, size
 
     def saveAsDictionary(self):
         pairs = [(p[0].saveAsDictionary(), p[1].saveAsDictionary()) for p in self._periodicity]
-        partial = [{"factor": p.factor, "geometries": p.saveAsDictionary()} for p in self._partialRefine]
         size = [{"size": p.size, "geometries": p.saveAsDictionary()} for p in self._size]
         trans = [t.saveAsDictionary() for t in self._transfinite]
-        return {"refine": self.refinement, "partial": partial, "periodicity": pairs, "transfinite": trans, "size": size, "file": self._file}
+        return {"refine": self.refinement, "periodicity": pairs, "transfinite": trans, "size": size, "file": self._file}
 
     @classmethod
     def loadFromDictionary(cls, d):
         pairs = [(GeometrySelection.loadFromDictionary(p[0]), GeometrySelection.loadFromDictionary(p[1])) for p in d.get("periodicity", [])]
-        partial = []
-        for p in d["partial"]:
-            g = GeometrySelection.loadFromDictionary(p["geometries"])
-            g.factor = p["factor"]
-            partial.append(g)
         size = []
         for p in d.get("size", []):
             g = GeometrySelection.loadFromDictionary(p["geometries"])

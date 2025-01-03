@@ -6,26 +6,27 @@ from . import mpi, util
 
 
 class NGSMesh(ngsolve.Mesh):
-    def __init__(self, gmesh, fem=None, tags=None):
+    def __init__(self, gmesh, geom, fem=None, tags=None):
         super().__init__(gmesh)
+        self._geom = geom
         self._fem = fem
         self.tags = tags
     
     def refinedMesh(self, size, amr):
-        if mpi.isRoot:            
-            model = self._fem.geometries.generateGeometry()
-            h = model.mesh.getElementQualities(self.tags, "minEdge")
+        if mpi.isRoot:
+            h = self._geom.mesh.getElementQualities(self.tags, "minEdge")
             size = h * size
             size = size*np.median(h)/np.median(size)
 
             size /=  (amr.nodes/self.nodes)**(1/self._fem.dimension)
-            self._fem.mesher.exportRefinedMesh(model, self.tags, np.array([size]).T, "refined.msh", amr)
-        m = generateMesh(self._fem, "refined.msh")
+            mesh_new = self._fem.mesher.refinedMesh(self._geom, self.tags, np.array([size]).T, amr)
+            m = generateMesh(self._fem, mesh_new)
+        else:
+            m = generateMesh(self._fem, None)
         return m
 
     def save(self, path):
-        model = self._fem.geometries.generateGeometry()
-        self._fem.mesher.export(model, path, nogen=True)
+        self._geom.export(path)
 
     @property
     def nodes(self):
@@ -36,54 +37,56 @@ class NGSMesh(ngsolve.Mesh):
         return self.ns[0]
 
 
-def generateMesh(fem, file=None):
-    geom = fem.geometries.generateGeometry()
-    if file is None:
-        fem.mesher._generate(geom)
+def generateMesh(fem, geom=None):
     if mpi.isRoot:
-        if file is None:
-            file = "mesh.msh"
-            fem.mesher.export(geom, file)
-        gmesh, tags = ReadGmsh(file, fem.dimension)
+        if geom is None:
+            geom = fem.geometries.generateGeometry()
+            fem.mesher.generate(geom)
+        if isinstance(geom, str):
+            gmesh, _ = ReadGmsh(geom, fem.dimension)
+            geom = fem.geometries.generateGeometry()
+            fem.mesher.generate(geom)
+        else:
+            gmesh, _ = ReadGmsh2(geom.model, fem.dimension)
         gmesh.Scale(fem.geometries.scale)
 
     if mpi.isParallel():
         comm = ngsolve.MPI_Init()
         if mpi.isRoot:
-            mesh = NGSMesh(gmesh.Distribute(comm), fem)
+            mesh = NGSMesh(gmesh.Distribute(comm), geom, fem)
         else:
-            mesh = NGSMesh(Mesh.Receive(comm), fem)
+            mesh = NGSMesh(Mesh.Receive(comm), geom, fem)
     else:
-        mesh = NGSMesh(gmesh, fem, tags)
+        mesh = NGSMesh(gmesh, geom, fem)
 
     # create global element mapping for adaptive mesh refinement
     pts = np.array(mesh.ngmesh.Coordinates())/fem.geometries.scale
-    tags = []
     if fem.dimension == 1:
         elms = mesh.ngmesh.Elements1D()
     elif fem.dimension == 2:
         elms = mesh.ngmesh.Elements2D()
     else:
         elms = mesh.ngmesh.Elements3D()
+    coords = np.array([np.array([pts[p.nr-1] for p in el.vertices]).mean(axis=0) for el in elms])
+    print(coords.flatten())
+    coords_list = mpi.gatherArray(coords.flatten())
+    print(coords_list)
+
     co = [0]*(3-fem.dimension)
-    for el in elms:
-        c = np.array([pts[p.nr-1] for p in el.vertices]).mean(axis=0)
-        tags.append(geom.mesh.getElementByCoordinates(*c,*co)[0])
-    tag_gathered = mpi.gatherArray(tags)
-    if mpi.isRoot and mpi.isParallel():
-        mesh.tags = np.concatenate(tag_gathered)
-    else:
-        mesh.tags = tag_gathered
+    tags = []
+    if mpi.isRoot:
+        for coords in coords_list:
+            coords = coords.reshape(-1, fem.dimension)
+            for c in coords:
+                tags.append(geom.mesh.getElementByCoordinates(*c,*co)[0])
+    mesh.tags = tags
 
     # set num of nodes and elements
-    if mpi.isParallel():
-        ns = comm.Sum(len(tags)), len(geom.mesh.getNodes()[0])
-    else:
-        ns = len(tags), len(geom.mesh.getNodes()[0])
+    ns = len(tags), len(geom.mesh.getNodes()[0])
     if mpi.isRoot:
         mesh.ns = ns
     else:
-        mesh.ns = len(tags), len(mesh.ngmesh.Points())
+        mesh.ns = len(coords), len(mesh.ngmesh.Points())
     util.dimension = fem.dimension
     return mesh
 

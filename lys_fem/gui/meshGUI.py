@@ -68,7 +68,9 @@ class MeshTree(FEMTreeItem):
         if path:
             if not path.endswith(".msh"):
                 path = path + ".msh"
-            self._mesher.export(self.fem().geometries.generateGeometry(), path)
+            geom = self.fem().geometries.generateGeometry()
+            self._mesher.generate(geom)
+            geom.export(path)
 
 
 class _RefineGUI(FEMTreeItem):

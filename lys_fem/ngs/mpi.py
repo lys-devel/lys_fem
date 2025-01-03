@@ -50,7 +50,7 @@ def wait():
 
 def gatherArray(arr, dtype=float):
     if not isParallel():
-        return arr
+        return [arr]
     arr = np.array(arr).flatten().astype(dtype)
     sizes = MPI.COMM_WORLD.gather(len(arr), root=0)
     if MPI.COMM_WORLD.rank == 0:

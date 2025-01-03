@@ -70,8 +70,6 @@ class _Sol:
         err = np.sqrt(((grids-val)**2).integrate(self._fes, element_wise=True).NumPy())
         if mpi.isParallel():
             err = mpi.gatherArray(err)
-        if mpi.isParallel() is False:
-            return err
         if mpi.isRoot:
             return np.concatenate(err)
         else:
