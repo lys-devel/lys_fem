@@ -68,8 +68,7 @@ class _Sol:
             grids.append(g)
         grids = util.NGSFunction(grids)
         err = np.sqrt(((grids-val)**2).integrate(self._fes, element_wise=True).NumPy())
-        if mpi.isParallel():
-            err = mpi.gatherArray(err)
+        err = mpi.gatherArray(err)
         if mpi.isRoot:
             return np.concatenate(err)
         else:
@@ -419,16 +418,20 @@ class SolverBase:
         self._fes = util.FiniteElementSpace(self._model, mesh)
         self._sols = _Solution(self._fes, self._model, self._dirname, old=self._sols)
         self._ops = [_Operator(self._wf, mesh, self._model, self._sols, step) for step in self._obj.steps]
-        mpi.print_("\t[AMR] Mesh updated: Num. of nodes =", self._fes.mesh.nodes)
 
     def refineMesh(self, error):
         def compute_size_field(err, p=2, d=2):
             err = np.array(err)/np.median(err)
             return err**(-1/(1+p)) * p**(-1/(d*(1+p)))
 
+        start = time.time()
         size = compute_size_field(error, d=util.dimension)
         m = self._fes.mesh.refinedMesh(size, self._obj.adaptive_mesh)
+        refine = time.time()-start
         self.updateMesh(m)
+        total = time.time()-start
+        mpi.print_("\t[AMR] Mesh updated: Num. of nodes =", self._fes.mesh.nodes, ", Time for refinement = {:.2f}".format(refine), ", Time for update = {:.2f}".format(total-refine))
+        mpi.print_()
 
     @property
     def solutions(self):
@@ -465,7 +468,6 @@ class StationarySolver(SolverBase):
                 error = self.solutions[0].error(var)
 
                 mpi.print_("\t[AMR] Step "+str(n+2)+": Error (max,min,mean) = {:.3e}, {:.3e}, {:.3e}".format(np.max(error), np.min(error), np.mean(error)))
-                mpi.print_()
 
 
 class RelaxationSolver(SolverBase):

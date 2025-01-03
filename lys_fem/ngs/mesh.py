@@ -26,7 +26,8 @@ class NGSMesh(ngsolve.Mesh):
         return m
 
     def save(self, path):
-        self._geom.export(path)
+        if mpi.isRoot:
+            self._geom.export(path)
 
     @property
     def nodes(self):
@@ -68,9 +69,7 @@ def generateMesh(fem, geom=None):
     else:
         elms = mesh.ngmesh.Elements3D()
     coords = np.array([np.array([pts[p.nr-1] for p in el.vertices]).mean(axis=0) for el in elms])
-    print(coords.flatten())
     coords_list = mpi.gatherArray(coords.flatten())
-    print(coords_list)
 
     co = [0]*(3-fem.dimension)
     tags = []
@@ -82,9 +81,8 @@ def generateMesh(fem, geom=None):
     mesh.tags = tags
 
     # set num of nodes and elements
-    ns = len(tags), len(geom.mesh.getNodes()[0])
     if mpi.isRoot:
-        mesh.ns = ns
+        mesh.ns = len(tags), len(geom.mesh.getNodes()[0])
     else:
         mesh.ns = len(coords), len(mesh.ngmesh.Points())
     util.dimension = fem.dimension

@@ -150,6 +150,7 @@ class OccMesher(FEMObject):
     def getMeshWave(self, model, dim=3):
         from lys import Wave
         self.generate(model)
+        model = model.model
         result = []
         for dim, grp in model.getPhysicalGroups(dim):
             coords_group = np.zeros((0, 3))
