@@ -1,5 +1,5 @@
 from lys_fem import FEMFixedModel, Equation
-from . import DirichletBoundary, InitialCondition
+from . import DirichletBoundary, DomainCondition, InitialCondition
 
 class LinearTestEquation(Equation):
     className = "Linear Test Equation"
@@ -39,6 +39,17 @@ class TwoVarGradTestEquation(Equation):
     className = "Two Variable Grad Test"
     def __init__(self, varName="x", **kwargs):
         super().__init__(varName, **kwargs)
+
+
+class RandomWalkEquation(Equation):
+    className = "Random Walk Test Equation"
+    isScalar = True
+    def __init__(self, varName="x", **kwargs):
+        super().__init__(varName, **kwargs)
+
+
+class RandomForce(DomainCondition):
+    className="Random Force"
 
 
 class LinearTestModel(FEMFixedModel):
@@ -108,3 +119,13 @@ class TwoVarGradTestModel(FEMFixedModel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(2, *args, **kwargs)
+
+
+class RandomWalkModel(FEMFixedModel):
+    className = "Random Walk Test"
+    equationTypes = [RandomWalkEquation]
+    domainConditionTypes = [RandomForce]
+    initialConditionTypes = [InitialCondition]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(1, *args, **kwargs)

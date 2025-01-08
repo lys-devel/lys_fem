@@ -70,3 +70,6 @@ class test(testProblems_test):
 
     def test_error(self):
         self.error(ngs)
+
+    def test_random(self):
+        self.random(ngs)

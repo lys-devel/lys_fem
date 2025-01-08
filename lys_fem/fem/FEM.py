@@ -1,5 +1,5 @@
 from .base import FEMObjectList
-from .parameters import Parameters
+from .parameters import Parameters, RandomFields
 from .geometry import GeometryGenerator
 from .mesh import OccMesher
 from .material import Material, Materials
@@ -23,6 +23,7 @@ class FEMProject:
         self._models = FEMObjectList(self)
         self._solvers = FEMObjectList(self)
         self._solutions = SolutionFields()
+        self._randoms = RandomFields()
         self._submit = {"nthreads": 4}
 
     def saveAsDictionary(self, parallel=False):
@@ -34,6 +35,7 @@ class FEMProject:
         d["models"] = [m.saveAsDictionary() for m in self._models]
         d["solvers"] = [s.saveAsDictionary() for s in self._solvers]
         d["solutionFields"] = self._solutions.saveAsDictionary()
+        d["randomFields"] = self._randoms.saveAsDictionary()
         d["submit"] = self._submit
         return d
 
@@ -56,6 +58,8 @@ class FEMProject:
             self._solvers = FEMObjectList(self, [FEMSolver.loadFromDictionary(dic) for dic in d["solvers"]])
         if "solutionFields" in d:
             self._solutions = SolutionFields.loadFromDictionary(d["solutionFields"])
+        if "randomFields" in d:
+            self._randoms = RandomFields.loadFromDictionary(d["randomFields"])
         if "submit" in d:
             self._submit = d["submit"]
 
@@ -106,6 +110,10 @@ class FEMProject:
     @property
     def solutionFields(self):
         return self._solutions
+    
+    @property
+    def randomFields(self):
+        return self._randoms
 
     @property
     def domainAttributes(self):

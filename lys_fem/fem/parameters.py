@@ -1,8 +1,6 @@
 import sympy as sp
 from sympy.parsing.sympy_parser import parse_expr
 
-from .base import FEMObjectList, FEMObject
-from .geometry import GeometrySelection
 
 class Parameters(dict):
     def getSolved(self):
@@ -31,3 +29,31 @@ class Parameters(dict):
         for key, item in d.items():
             p[parse_expr(key)] = parse_expr(item)
         return p
+    
+
+class RandomFields(dict):
+    def add(self, name, type, tdep=False):
+        self[name] = RandomField(type, tdep)
+
+    def saveAsDictionary(self):
+        return {key: value.saveAsDictionary() for key, value in self.items()}
+
+    @classmethod
+    def loadFromDictionary(cls, d):
+        res = RandomFields()
+        for key, value in d.items():
+            res[key] = RandomField.loadFromDictionary(value)
+        return res
+    
+
+class RandomField:
+    def __init__(self, type, tdep):
+        self.type = type
+        self.tdep = tdep
+
+    def saveAsDictionary(self):
+        return {"type": self.type, "tdep": self.tdep}
+    
+    @classmethod
+    def loadFromDictionary(cls, d):
+        return RandomField(d["type"], d["tdep"])

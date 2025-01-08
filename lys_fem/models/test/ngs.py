@@ -1,5 +1,5 @@
-from lys_fem.ngs import NGSModel, grad, dx
-from . import DirichletBoundary, InitialCondition
+from lys_fem.ngs import NGSModel, grad, dx, util
+from . import DirichletBoundary, InitialCondition, RandomForce
 
 class NGSLinearTestModel(NGSModel):
     def __init__(self, model, vars):
@@ -119,4 +119,20 @@ class NGSTwoVarGradTestModel(NGSModel):
             y,test_y = vars["Y"]
             wf += (x.t*test_x + y.t*test_y) * dx
             wf += x*test_x *dx + grad(x)*test_y*dx
+        return wf
+    
+
+class NGSRandomWalkModel(NGSModel):
+    def __init__(self, model, vars):
+        super().__init__(model, vars, addVariables=True)
+        self._model = model
+
+    def weakform(self, vars, mat):
+        wf = 0
+        for eq in self._model.equations:
+            u,v = vars[eq.variableName]
+
+            for f in self._model.domainConditions.get(RandomForce):
+                R = mat[f.values]*util.sqrt(mat.const.dti) # Euler-Maruyama formula
+                wf += (u.t.dot(v) - R.dot(v)) * dx(f.geometries)
         return wf

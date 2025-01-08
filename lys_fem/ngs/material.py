@@ -9,6 +9,7 @@ from . import util
 def generateMaterial(fem):
     sols = {str(key): util.NGSFunction(value) for key, value in fem.parameters.getSolved().items()}
     sols.update({key: util.SolutionFieldFunction(coef.get(), tdep=coef.index is None) for key, coef in fem.solutionFields.items()})
+    sols.update({key: util.RandomFieldFunction(item.type, item.tdep, name=key) for key, item in fem.randomFields.items()})
     return NGSParams(fem, sols)
 
 
@@ -31,6 +32,8 @@ class NGSParams(dict):
         for key, f in self.items():
             if isinstance(f, util.SolutionFieldFunction) and f.isTimeDependent:
                 self._fem.solutionFields[key].update(step)
+            if isinstance(f, util.RandomFieldFunction) and f.isTimeDependent:
+                f.update()
 
     @property
     def const(self):

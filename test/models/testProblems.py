@@ -499,3 +499,30 @@ class testProblems_test(FEMTestCase):
             assert_array_almost_equal(w.data, np.sqrt(2 * w.x[:, 0]), decimal=2)
         c = np.array([0.5,0.6,0.7])
         assert_array_almost_equal(sol.eval("x", data_number=-1, coords=c), np.sqrt(2*c))
+    
+    def random(self, lib):
+        p = FEMProject(1)
+
+        # geometry
+        p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
+        p.mesher.setRefinement(7)
+        p.randomFields.add("R", "H1", True)
+
+        # model: boundary and initial conditions
+        model = test.RandomWalkModel()
+        model.initialConditions.append(test.InitialCondition(0.0, geometries="all"))
+        model.domainConditions.append(test.RandomForce("R", geometries="all"))
+        p.models.append(model)
+
+        # solver
+        solver = TimeDependentSolver(0.5, 100)
+        p.solvers.append(solver)
+
+        # solve
+        lib.run(p)
+
+        # solution
+        sol = FEMSolution()
+        w = sol.eval("x", data_number=-1)[0]
+        self.assertTrue(abs(np.mean(w.data)) < 1)
+        self.assertTrue(80 < np.var(w.data) < 120)
