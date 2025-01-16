@@ -42,3 +42,6 @@ class ngs_LLG_test(LLG_test):
     
     def test_damping(self):
         self.damping(ngs)
+
+    def test_thermal(self):
+        self.thermal2(ngs)

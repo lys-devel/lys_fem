@@ -3,7 +3,7 @@ from lys_fem.ngs import addNGSModel
 from ..common import InitialCondition, DirichletBoundary, UserDefinedParameters
 
 from .material import LLGParameters
-from .model import LLGModel, LLGEquation, ExternalMagneticField, UniaxialAnisotropy, CubicAnisotropy, MagneticScalarPotential, SpinTransferTorque
+from .model import LLGModel, LLGEquation, ExternalMagneticField, UniaxialAnisotropy, CubicAnisotropy, MagneticScalarPotential, SpinTransferTorque, ThermalFluctuation
 from .ngs import NGSLLGModel
 
 addMaterialParameter("Magnetism", LLGParameters)

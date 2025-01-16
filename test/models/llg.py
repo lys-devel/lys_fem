@@ -434,3 +434,73 @@ class LLG_test(FEMTestCase):
         res = sol.eval("phi", data_number=1)
         for w in [res[0]]:
             self.assert_allclose(w.data, solution(w.x[:,0],w.x[:,1],w.x[:,2], 0.8, 1), atol=0.02, rtol=0)
+
+    def thermal(self, lib):
+        p = FEMProject(3)
+
+        # geometry
+        p.geometries.add(geometry.Box(-0.5e-6, -0.5e-6, -10e-9, 1e-6, 1e-6, 20e-9))
+        p.mesher.addSizeConstraint(size=10e-9, geometries="all")
+        p.mesher.addTransfinite(geometries="all")
+        p.randomFields.add("R1", "L2", True)
+        p.randomFields.add("R2", "L2", True)
+        p.randomFields.add("R3", "L2", True)
+
+        # Material
+        param = llg.LLGParameters(alpha=0.1, Aex=0, Ms=1e6, Ku=1e4, u_Ku=[0,0,1])
+        p.materials.append(Material([param], geometries="all"))
+
+        # model: boundary and initial conditions
+        model = llg.LLGModel([llg.LLGEquation(geometries="all")], constraint="Alouges", type="L2", order=0)
+        model.initialConditions.append(llg.InitialCondition([0, 0, 1], geometries="all"))
+        model.domainConditions.append(llg.UniaxialAnisotropy(geometries="all"))
+        model.domainConditions.append(llg.ThermalFluctuation((100, ["R1", "R2", "R3"]), geometries="all"))
+        p.models.append(model)
+
+        # solver
+        t = 10e-9
+        t = 2e-12
+        solver = TimeDependentSolver(1e-12, t)
+        p.solvers.append(solver)
+
+        # solve
+        lib.run(p)
+
+        sol = FEMSolution()
+        res = np.array(sol.integrate("m[2]", data_number=-1, element_wise=True))/1e-24
+        print((len(np.where(res < 0)[0])/len(res))/t)
+
+    def thermal2(self, lib):
+        p = FEMProject(3)
+
+        # geometry
+        p.geometries.add(geometry.Box(-5e-9, -5e-9, -5e-9, 10e-9, 10e-9, 10e-9))
+        p.mesher.addSizeConstraint(size=0.7e-9, geometries="all")
+        p.mesher.addTransfinite(geometries="all")
+        p.randomFields.add("R1", "L2", True)
+        p.randomFields.add("R2", "L2", True)
+        p.randomFields.add("R3", "L2", True)
+
+        # Material
+        param = llg.LLGParameters(alpha=0.1, Aex=1.3e-11, Ms=8e5)
+        p.materials.append(Material([param], geometries="all"))
+
+        # model: boundary and initial conditions
+        model = llg.LLGModel([llg.LLGEquation(geometries="all")], constraint="Alouges", type="H1", order=1)
+        model.initialConditions.append(llg.InitialCondition([1, 0, 0], geometries="all"))
+        #model.domainConditions.append(llg.UniaxialAnisotropy(geometries="all"))
+        model.domainConditions.append(llg.ThermalFluctuation((10000, ["R1", "R2", "R3"]), geometries="all"))
+        p.models.append(model)
+
+        # solver
+        solver = TimeDependentSolver(1e-12, 0.3e-9, solver="gmres", prec="gamg")
+        p.solvers.append(solver)
+
+        # solve
+        lib.run(p)
+
+        sol = FEMSolution()
+        import matplotlib.pyplot as plt
+        plt.plot([(sol.integrate("m[0]", data_number=i*10))/1e-24 for i in range(100)])
+        plt.show()
+        

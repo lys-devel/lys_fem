@@ -96,8 +96,12 @@ def __parseElements(type, nodes, index):
         return [Element1D(index=index, vertices=n.tolist()) for n in nodes.reshape(-1, 2)]
     elif type == 2: # triangle
         return [Element2D(index, n) for n in nodes.reshape(-1, 3)]
+    elif type == 3: # quad
+        return [Element2D(index, n) for n in nodes.reshape(-1, 4)]
     elif type == 4: # tetra
         return [Element3D(index, n) for n in nodes.reshape(-1, 4)]
+    elif type == 5: # hex
+        return [Element3D(index, n[[0,1,5,4,3,2,6,7]]) for n in nodes.reshape(-1, 8)]
     else:
         raise RuntimeError("error!", type, nodes, index)
 

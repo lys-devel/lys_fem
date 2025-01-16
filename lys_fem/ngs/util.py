@@ -1209,12 +1209,12 @@ class RandomFieldFunction(NGSFunction):
 
     def _initialize(self, fes):
         if self._type=="L2":
-            sp = ngsolve.L2(fes.mesh)
+            sp = ngsolve.L2(fes.mesh, order=0)
         if self._type=="H1":
-            sp = ngsolve.H1(fes.mesh)
+            sp = ngsolve.H1(fes.mesh, order=0)
         self._func = ngsolve.GridFunction(sp)
-        self.update()
         self._init = True
+        self.update()
 
     @property
     def shape(self):
@@ -1225,6 +1225,8 @@ class RandomFieldFunction(NGSFunction):
         return True
     
     def update(self):
+        if not self._init:
+            raise RuntimeWarning("The random field is not initialized. Please delete unused field.")
         self._func.vec.data = np.random.normal(size=len(self._func.vec))
 
     def eval(self, fes):
@@ -1262,6 +1264,69 @@ class RandomFieldFunction(NGSFunction):
     @property
     def isTimeDependent(self):
         return self._tdep
+
+    def __str__(self):
+        return self._name
+
+
+class VolumeField(NGSFunction):
+    """
+    NGSFunction that provide the access to the element wise volume.
+    Args:
+        name(str): The symbol name
+    """
+    def __init__(self, name=None):
+        self._name = name
+        self._init = False
+
+    def _initialize(self, fes):
+        sp = ngsolve.L2(fes.mesh)
+        self._func = ngsolve.GridFunction(sp)
+        data = ngsolve.Integrate(ngsolve.CoefficientFunction(1), fes.mesh, element_wise=True)
+        self._func.vec.data = np.array(data)
+        self._init = True
+
+    @property
+    def shape(self):
+        return ()
+
+    @property
+    def valid(self):
+        return True
+    
+    def eval(self, fes):
+        if not self._init:
+            self._initialize(fes)
+        return self._func
+            
+    def grad(self, fes):
+        raise RuntimeError("Gradient of the element-wise volume is not defined.")
+            
+    def replace(self, d):
+        return d.get(self, self)
+
+    def __contains__(self, item):
+        return self == item
+
+    @property
+    def hasTrial(self):
+        return False
+    
+    @property
+    def rhs(self):
+        return self
+
+    @property
+    def lhs(self):
+        return NGSFunction()
+        
+    @property
+    def isNonlinear(self):
+        return False
+        
+    @property
+    def isTimeDependent(self):
+        return False
 
     def __str__(self):
         return self._name

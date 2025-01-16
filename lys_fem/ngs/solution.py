@@ -63,9 +63,9 @@ class NGSSolution:
                 mip = self.__coordsToMIP(np.array(coords))
                 return np.array([f(mi) for mi in mip]).squeeze()
             
-    def integrate(self, expression, index):
+    def integrate(self, expression, index, **kwargs):
         f = self.coef(expression, index)
-        return ngsolve.Integrate(f, self._mesh)
+        return ngsolve.Integrate(f, self._mesh, **kwargs)
 
     def __getDomainValues(self, f):
         if mpi.isParallel():

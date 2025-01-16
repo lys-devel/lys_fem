@@ -71,8 +71,8 @@ class FEMSolution:
     def eval(self, varName, data_number=0, coords=None):
         return self._sol.eval(varName, data_number, coords)
     
-    def integrate(self, expr, data_number=0):
-        return self._sol.integrate(expr, data_number)
+    def integrate(self, expr, data_number=0, **kwargs):
+        return self._sol.integrate(expr, data_number, **kwargs)
 
     @property
     def obj(self):

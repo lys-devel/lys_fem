@@ -1,6 +1,6 @@
 
 
-from lys_fem import FEMFixedModel, Equation, DomainCondition
+from lys_fem import FEMFixedModel, Equation, DomainCondition, GeometrySelection
 from . import DirichletBoundary
 
 class LLGEquation(Equation):
@@ -50,10 +50,21 @@ class SpinTransferTorque(DomainCondition):
         return super().widget(fem, canvas, title="Spin polarized current (A/m^2)")
 
 
+class ThermalFluctuation(DomainCondition):
+    className = "ThermalFluctuation"
+
+    @classmethod
+    def default(cls, fem, model):
+        return cls(0, 0)
+
+    def widget(self, fem, canvas):
+        pass
+
+
 class LLGModel(FEMFixedModel):
     className = "LLG"
     equationTypes = [LLGEquation]
-    domainConditionTypes = [ExternalMagneticField, UniaxialAnisotropy, CubicAnisotropy, MagneticScalarPotential, SpinTransferTorque]
+    domainConditionTypes = [ExternalMagneticField, UniaxialAnisotropy, CubicAnisotropy, MagneticScalarPotential, SpinTransferTorque, ThermalFluctuation]
     boundaryConditionTypes = [DirichletBoundary]
 
     def __init__(self, *args, constraint="Lagrange", order=2, **kwargs):

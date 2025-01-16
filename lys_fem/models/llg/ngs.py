@@ -1,5 +1,5 @@
-from lys_fem.ngs import NGSModel, grad, dx, util, time
-from . import ExternalMagneticField, UniaxialAnisotropy, CubicAnisotropy, MagneticScalarPotential, SpinTransferTorque
+from lys_fem.ngs import NGSModel, grad, dx, util
+from . import ExternalMagneticField, UniaxialAnisotropy, CubicAnisotropy, MagneticScalarPotential, SpinTransferTorque, ThermalFluctuation
 
 class NGSLLGModel(NGSModel):
     def __init__(self, model, vars):
@@ -8,12 +8,12 @@ class NGSLLGModel(NGSModel):
 
         for eq in model.equations:
             if self._model.constraint == "Alouges":
-                self.addVariable(eq.variableName, 3, region = eq.geometries, order=model.order, type="v")
-                self.addVariable(eq.variableName+"_lam", 1, initialValue=None, dirichlet=None, region=eq.geometries, order=model.order, isScalar=True, L2=False)
+                self.addVariable(eq.variableName, 3, region = eq.geometries, type="v", order=model.order, fetype=model.type)
+                self.addVariable(eq.variableName+"_lam", 1, initialValue=None, dirichlet=None, region=eq.geometries, order=model.order, fetype=model.type, isScalar=True)
 
             elif self._model.constraint == "Lagrange":
                 self.addVariable(eq.variableName, 3, region = eq.geometries, order=model.order)
-                self.addVariable(eq.variableName+"_lam", 1, initialValue=None, dirichlet=None, region=eq.geometries, order=0, isScalar=True, L2=True)
+                self.addVariable(eq.variableName+"_lam", 1, initialValue=None, dirichlet=None, region=eq.geometries, order=0, isScalar=True, fetype="L2")
             
             else:
                 self.addVariable(eq.variableName, 3, region = eq.geometries, order=model.order)
@@ -65,7 +65,7 @@ class NGSLLGModel(NGSModel):
         return wf
 
     def _weakform_alouges(self, vars, mat):
-        g, e, mu_B, mu0, Ms, dti = mat.const.g_e, mat.const.e, mat.const.mu_B, mat.const.mu_0, mat["Ms"], mat.const.dti
+        g, e, mu_B, mu0, Ms, kB, dti = mat.const.g_e, mat.const.e, mat.const.mu_B, mat.const.mu_0, mat["Ms"], mat.const.k_B, mat.const.dti
         A = 2*mat["Aex"] * g / Ms
         alpha = mat["alpha"]
 
@@ -114,6 +114,12 @@ class NGSLLGModel(NGSModel):
                 u = -mu_B/e/Ms*mat[st.values]/(1+beta**2)
                 w = u.dot(grad(m))
                 wf += -(m.cross(w) + beta*w).dot(test_m)*dx(st.geometries)
+
+            for th in self._model.domainConditions.get(ThermalFluctuation):
+                T, R, Ve = mat[th.values[0]], mat[th.values[1]], mat.const.Ve
+                D = alpha*kB*T*dti/(Ms*g*Ve)
+                B = util.sqrt(2*D)*R
+                wf += -g*B.dot(test_m)*dx(th.geometries)
 
         return wf
 
