@@ -310,6 +310,9 @@ class _petsc:
         ksp.create()
         ksp.setOperators(self._psc_mat)
         ksp.setType(solver)
+        ksp.setComputeSingularValues(True)
+        if prec == "gmres":
+            ksp.setGMRESRestart(2000)
         ksp.getPC().setType(prec)
         ksp.setTolerances(rtol=self._tol, atol=0, divtol=1e16, max_it=self._iter)
         self._ksp = ksp
@@ -329,7 +332,8 @@ class _petsc:
             self._vecmap.P2N(u, gfu.vec)
         else:
             gfu.vec.FV().NumPy()[self._dofs] = u.getArray()
-        mpi.print_("\t[Iterative solver] Iter =", self._ksp.its, ", Time = {:.2f}".format(time.time()-start))
+        ma, mi = self._ksp.computeExtremeSingularValues()
+        mpi.print_("\t[Iterative solver] Iter =", self._ksp.its, ", Condition = {:.2f}".format(ma/mi), ", Time = {:.2f}".format(time.time()-start))
         if self._ksp.its == self._iter:
             raise ConvergenceError("[Iterative solver] NOT converged.")
         return gfu.vec

@@ -1201,8 +1201,9 @@ class RandomFieldFunction(NGSFunction):
         type('L2' or 'H1'): The finite element space type.
         tdep(bool): Whether the field is time dependent
     """
-    def __init__(self, type, tdep, name=None):
+    def __init__(self, type, shape, tdep, name=None):
         self._name = name
+        self._shape = shape
         self._type = type
         self._tdep = tdep
         self._init = False
@@ -1212,13 +1213,16 @@ class RandomFieldFunction(NGSFunction):
             sp = ngsolve.L2(fes.mesh, order=0)
         if self._type=="H1":
             sp = ngsolve.H1(fes.mesh, order=0)
-        self._func = ngsolve.GridFunction(sp)
+        if self._shape == ():
+            self._func = ngsolve.GridFunction(sp)
+        else:
+            self._func = [ngsolve.GridFunction(sp) for _ in range(prod(self._shape))]
         self._init = True
         self.update()
 
     @property
     def shape(self):
-        return ()
+        return self._shape
 
     @property
     def valid(self):
@@ -1227,17 +1231,27 @@ class RandomFieldFunction(NGSFunction):
     def update(self):
         if not self._init:
             raise RuntimeWarning("The random field is not initialized. Please delete unused field.")
-        self._func.vec.data = np.random.normal(size=len(self._func.vec))
+        if self._shape == ():
+            self._func.vec.data = np.random.normal(size=len(self._func.vec))
+        else:
+            for f in self._func:
+                f.vec.data = np.random.normal(size=len(f.vec))
 
     def eval(self, fes):
         if not self._init:
             self._initialize(fes)
-        return self._func
+        if self._shape == ():
+            return self._func
+        else:
+            return ngsolve.CoefficientFunction(tuple(self._func), dims=self._shape)
             
     def grad(self, fes):
         if not self._init:
             self._initialize(fes)
-        return ngsolve.grad(self._func)
+        if self._shape == ():
+            return ngsolve.grad(self._func)
+        else:
+            raise RuntimeError("grad for multi-dim random is not defined.")
             
     def replace(self, d):
         return d.get(self, self)

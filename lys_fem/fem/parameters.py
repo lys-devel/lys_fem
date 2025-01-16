@@ -32,8 +32,8 @@ class Parameters(dict):
     
 
 class RandomFields(dict):
-    def add(self, name, type, tdep=False):
-        self[name] = RandomField(type, tdep)
+    def add(self, name, type, shape=(), tdep=False):
+        self[name] = RandomField(type, shape, tdep)
 
     def saveAsDictionary(self):
         return {key: value.saveAsDictionary() for key, value in self.items()}
@@ -47,13 +47,14 @@ class RandomFields(dict):
     
 
 class RandomField:
-    def __init__(self, type, tdep):
+    def __init__(self, type, shape, tdep):
         self.type = type
         self.tdep = tdep
+        self.shape = shape
 
     def saveAsDictionary(self):
-        return {"type": self.type, "tdep": self.tdep}
+        return {"type": self.type, "tdep": self.tdep, "shape": self.shape}
     
     @classmethod
     def loadFromDictionary(cls, d):
-        return RandomField(d["type"], d["tdep"])
+        return RandomField(d["type"], d.get("shape", ()), d["tdep"])

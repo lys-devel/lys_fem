@@ -9,7 +9,7 @@ from . import util
 def generateMaterial(fem):
     sols = {str(key): util.NGSFunction(value) for key, value in fem.parameters.getSolved().items()}
     sols.update({key: util.SolutionFieldFunction(coef.get(), tdep=coef.index is None) for key, coef in fem.solutionFields.items()})
-    sols.update({key: util.RandomFieldFunction(item.type, item.tdep, name=key) for key, item in fem.randomFields.items()})
+    sols.update({key: util.RandomFieldFunction(item.type, item.shape, item.tdep, name=key) for key, item in fem.randomFields.items()})
     res = NGSParams(fem, sols)
     res.const["Ve"] = util.VolumeField(name = "Ve")
     return res
