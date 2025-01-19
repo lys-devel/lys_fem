@@ -394,8 +394,6 @@ class SolverBase:
         x = self._sols[0].copy()
         for i, (op, step) in enumerate(zip(self._ops, self._obj.steps)):
             mpi.print_("\t=======Solver step", i+1, "=======")
-            if step.deformation is not None:
-                self.__applyDeformation(step)
             op.update()
             xi = op.finiteElementSpace.gridFunction()
             op.syncGridFunction(x, "->", xi)
@@ -403,13 +401,6 @@ class SolverBase:
             op.syncGridFunction(x, "<-", xi)
             mpi.print_()
         self.solutions.updateSolution(x, saveIndex=self._index+1)
-
-    def __applyDeformation(self, step):
-        deform = {v.name: xx for v, xx in zip(self._model.variables, self._sols.X())}[step.deformation]
-        space = ngsolve.VectorH1(self._mesh)
-        gf = util.GridFunction(space, deform.eval())
-        self._mesh.SetDeformation(gf)
-        mpi.print_("deformation set")
 
     def __calcDiff(self):
         expr = self._obj.diff_expr

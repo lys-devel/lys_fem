@@ -17,11 +17,9 @@ class SolverStep:
         maxiter(int): The maximum iteration for nonlinear newton solver. It will be negrected if the problem is linear.
         damping(float): The damping factor for newton solver.
         eps(float): The convergence criteria for newton solver.
-        deformation(str): The name of a variable that is used for deformation of mesh.
     """
-    def __init__(self, vars=None, solver="pardiso", prec=None, symmetric=False, condensation=False, rtol=1e-6, iter=5000, maxiter=30, damping=1, eps=1e-5, deformation=None):
+    def __init__(self, vars=None, solver="pardiso", prec=None, symmetric=False, condensation=False, rtol=1e-6, iter=5000, maxiter=30, damping=1, eps=1e-5):
         self._vars = vars
-        self._deform = deformation
         self._solver = solver
         self._prec = prec
         self._sym = symmetric
@@ -35,10 +33,6 @@ class SolverStep:
     @property
     def variables(self):
         return self._vars
-
-    @property
-    def deformation(self):
-        return self._deform
 
     @property
     def solver(self):
@@ -76,9 +70,8 @@ class SolverStep:
     def linear_rtol(self):
         return self._rtol
     
-    
     def saveAsDictionary(self):
-        return {"vars": self._vars, "deformation": self._deform, "solver": self._solver, "prec": self._prec, "symmetric": self._sym, 
+        return {"vars": self._vars, "solver": self._solver, "prec": self._prec, "symmetric": self._sym, 
                 "condensation": self._cond, "eps": self._eps, "damping": self._damping, "maxiter": self._maxiter, "iter": self._iter, "rtol": self._rtol}
     
     @classmethod
