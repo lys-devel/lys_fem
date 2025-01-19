@@ -116,7 +116,7 @@ class NGSLLGModel(NGSModel):
                 wf += -(m.cross(w) + beta*w).dot(test_m)*dx(st.geometries)
 
             for th in self._model.domainConditions.get(ThermalFluctuation):
-                T, R, Ve = mat[th.values[0]], mat[th.values[1]], mat.const.Ve
+                T, R, Ve = mat[th.T], mat[th.R], mat.const.Ve
                 D = alpha*kB*T*dti/(Ms*g*Ve)
                 B = util.sqrt(2*D)*R
                 wf += -g*B.dot(test_m)*dx(th.geometries)

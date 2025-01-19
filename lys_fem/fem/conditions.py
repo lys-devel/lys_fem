@@ -77,11 +77,13 @@ class ConditionBase(FEMObject):
     Even if the single condition requires several parameters (such as temperature and electric field), it is recommended to put all these values into single vector.
     """
 
-    def __init__(self, geomType, values=None, objName=None, geometries=None):
+    def __init__(self, geomType, values=None, objName=None, geometries=None, **kwargs):
         super().__init__(objName)
         self._geomType = geomType
         self._geom = GeometrySelection(self._geomType, geometries, parent=self)
-        self._values = self.__parseValues(values)
+        self._values = {key: self.__parseValues(v) for key, v in kwargs.items()}
+        if values is not None:
+            self._values["values"] = self.__parseValues(values)
 
     def __parseValues(self, value):
         if isinstance(value, (list, tuple, np.ndarray)):
@@ -91,6 +93,9 @@ class ConditionBase(FEMObject):
         else:
             return str(value)
 
+    def __getattr__(self, key):
+        return self._values.get(key, None)
+
     @property
     def geometries(self):
         return self._geom
@@ -99,21 +104,13 @@ class ConditionBase(FEMObject):
     def geometries(self, value):
         self._geom = GeometrySelection(self._geomType, value, parent=self)
 
-    @property
-    def values(self):
-        return self._values
-    
-    @values.setter
-    def values(self, values):
-        self._values = values
-
     def saveAsDictionary(self):
-        return {"type": self.className, "objName": self.objName, "values": self.values, "geometries": self.geometries.saveAsDictionary()}
+        return {"type": self.className, "objName": self.objName, "values": self._values, "geometries": self.geometries.saveAsDictionary()}
 
     @classmethod
     def loadFromDictionary(cls, d):
         geometries = GeometrySelection.loadFromDictionary(d["geometries"])
-        return cls(values = d["values"], geometries=geometries, objName=d["objName"])
+        return cls(geometries=geometries, objName=d["objName"], **d.get("values", {}))
 
     @classmethod
     def default(cls, fem, model):

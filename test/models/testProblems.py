@@ -506,7 +506,7 @@ class testProblems_test(FEMTestCase):
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
         p.mesher.setRefinement(7)
-        p.randomFields.add("R", "H1", True)
+        p.randomFields.add("R", "H1", tdep = True)
 
         # model: boundary and initial conditions
         model = test.RandomWalkModel()

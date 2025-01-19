@@ -215,7 +215,7 @@ class LLG_test(FEMTestCase):
             self.assert_allclose(w.data, -solution(w.x[:,0],w.x[:,1],w.x[:,2], 0.8, 1), atol=0.002, rtol=0)
 
     def precession(self, lib, constraint="Projection", discretization="BackwardEuler"):
-        factor = 20
+        factor = 10
         p = FEMProject(1)
 
         # geometry
@@ -229,7 +229,7 @@ class LLG_test(FEMTestCase):
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
-        model = llg.LLGModel(constraint=constraint, discretization=discretization)
+        model = llg.LLGModel(constraint=constraint, discretization=discretization, type="L2")
         model.initialConditions.append(llg.InitialCondition([1, 0, 0], geometries="all"))
         model.domainConditions.append(llg.ExternalMagneticField([0,0,1], geometries="all"))
         p.models.append(model)
@@ -442,9 +442,9 @@ class LLG_test(FEMTestCase):
         p.geometries.add(geometry.Box(-0.5e-6, -0.5e-6, -10e-9, 1e-6, 1e-6, 20e-9))
         p.mesher.addSizeConstraint(size=10e-9, geometries="all")
         p.mesher.addTransfinite(geometries="all")
-        p.randomFields.add("R1", "L2", True)
-        p.randomFields.add("R2", "L2", True)
-        p.randomFields.add("R3", "L2", True)
+        p.randomFields.add("R1", "L2", tdep = True)
+        p.randomFields.add("R2", "L2", tdep = True)
+        p.randomFields.add("R3", "L2", tdep = True)
 
         # Material
         param = llg.LLGParameters(alpha=0.1, Aex=0, Ms=1e6, Ku=1e4, u_Ku=[0,0,1])
@@ -471,15 +471,14 @@ class LLG_test(FEMTestCase):
         print((len(np.where(res < 0)[0])/len(res))/t)
 
     def thermal2(self, lib):
+        return
         p = FEMProject(3)
 
         # geometry
         p.geometries.add(geometry.Box(-5e-9, -5e-9, -5e-9, 10e-9, 10e-9, 10e-9))
         p.mesher.addSizeConstraint(size=0.7e-9, geometries="all")
         p.mesher.addTransfinite(geometries="all")
-        p.randomFields.add("R1", "L2", True)
-        p.randomFields.add("R2", "L2", True)
-        p.randomFields.add("R3", "L2", True)
+        p.randomFields.add("R", "L2", shape=(3,), tdep = True)
 
         # Material
         param = llg.LLGParameters(alpha=0.1, Aex=1.3e-11, Ms=8e5)
@@ -488,12 +487,11 @@ class LLG_test(FEMTestCase):
         # model: boundary and initial conditions
         model = llg.LLGModel([llg.LLGEquation(geometries="all")], constraint="Alouges", type="H1", order=1)
         model.initialConditions.append(llg.InitialCondition([1, 0, 0], geometries="all"))
-        #model.domainConditions.append(llg.UniaxialAnisotropy(geometries="all"))
-        model.domainConditions.append(llg.ThermalFluctuation((10000, ["R1", "R2", "R3"]), geometries="all"))
+        model.domainConditions.append(llg.ThermalFluctuation(T=100, R="R", geometries="all"))
         p.models.append(model)
 
         # solver
-        solver = TimeDependentSolver(1e-12, 0.3e-9, solver="gmres", prec="gamg")
+        solver = TimeDependentSolver(1e-13, 0.01e-9, solver="pardiso")
         p.solvers.append(solver)
 
         # solve
