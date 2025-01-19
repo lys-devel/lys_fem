@@ -135,7 +135,7 @@ class RelaxationSolverWidget(QtWidgets.QWidget):
         self._dt_max.valueChanged.connect(self.__change)
 
         self._maxiter = QtWidgets.QSpinBox()
-        self._maxiter.setRange(1,1000)
+        self._maxiter.setRange(1,100000)
         self._maxiter.setValue(self._solver._maxiter)
         self._maxiter.valueChanged.connect(self.__change)
 
