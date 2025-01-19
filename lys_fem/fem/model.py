@@ -12,11 +12,11 @@ class FEMModel(FEMObject):
     initialConditionTypes = [InitialCondition]
     discretizationTypes = ["BackwardEuler", "BDF2", "NewmarkBeta", "ForwardEuler"]
 
-    def __init__(self, nvar, equations="auto", discretization="BackwardEuler", order=2, type="H1", initialConditions=None, boundaryConditions=None, domainConditions=None, objName=None):
+    def __init__(self, nvar, equations="auto", discretization="BackwardEuler", order=2, type="H1", initialConditions=None, boundaryConditions=None, domainConditions=None, objName=None, **kwargs):
         super().__init__(objName)
         self._nvar = nvar
         if equations == "auto":
-            equations=[self.equationTypes[0](objName=self.equationTypes[0].className)]
+            equations=[self.equationTypes[0](objName=self.equationTypes[0].className, **kwargs)]
         if initialConditions is None:
             initialConditions = []
         if boundaryConditions is None:

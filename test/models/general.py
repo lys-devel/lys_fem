@@ -148,7 +148,6 @@ class poisson_test(FEMTestCase):
             r = np.sqrt(w.x[:,0]**2+w.x[:,1]**2+w.x[:,2]**2)+1e-16
             self.assert_allclose(w.data, -solution(r, 1, 2, 1), atol=0.1, rtol=0)
 
-
     def infinite_3d(self, lib):
         r2 = 2
         p = FEMProject(3)
@@ -160,7 +159,7 @@ class poisson_test(FEMTestCase):
         p.mesher.setRefinement(1)
 
         # model: boundary and initial conditions
-        model = general.PoissonModel()
+        model = general.PoissonModel(J="J")
         model.initialConditions.append(general.InitialCondition(0, geometries="all"))
         model.domainConditions.append(general.Source(1, geometries=[1,2,9,10,11,12,13,14]))
         model.boundaryConditions.append(general.DirichletBoundary([True], geometries=[31,36,39,42,43,44]))

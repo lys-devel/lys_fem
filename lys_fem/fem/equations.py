@@ -1,3 +1,4 @@
+import numpy as np
 from .base import FEMObject, FEMObjectList
 from .geometry import GeometrySelection
 
@@ -34,11 +35,23 @@ class Equations(FEMObjectList):
 
 class Equation(FEMObject):
     isScalar = False
-    def __init__(self, varName, varDim=None, geometries="all", geometryType="Domain", objName=None):
+    def __init__(self, varName, varDim=None, geometries="all", geometryType="Domain", objName=None, **kwargs):
         super().__init__(objName)
         self._varName = varName
         self._varDim = varDim
         self._geometries = GeometrySelection(geometryType, geometries, parent=self)
+        self._values = {key: self.__parseValues(v) for key, v in kwargs.items()}
+
+    def __parseValues(self, value):
+        if isinstance(value, (list, tuple, np.ndarray)):
+            return [self.__parseValues(v) for v in value]
+        if isinstance(value, (bool, int, float, complex)):
+            return value
+        else:
+            return str(value)
+
+    def __getattr__(self, key):
+        return self._values.get(key, None)
 
     @property
     def variableName(self):
@@ -64,12 +77,12 @@ class Equation(FEMObject):
         self._geometries = GeometrySelection(value.geometryType, value, parent=self)
 
     def saveAsDictionary(self):
-        return {"type": self.className, "objName": self.objName, "varName": self._varName, "dim": self._varDim, "geometries": self.geometries.saveAsDictionary()}
+        return {"type": self.className, "objName": self.objName, "varName": self._varName, "dim": self._varDim, "geometries": self.geometries.saveAsDictionary(), "values": self._values}
 
     @classmethod
     def loadFromDictionary(cls, d):
         geometries = GeometrySelection.loadFromDictionary(d["geometries"])
-        return cls(d["varName"], varDim = d["dim"], geometries=geometries, objName=d["objName"])
+        return cls(d["varName"], varDim = d["dim"], geometries=geometries, objName=d["objName"], **d.get("values", {}))
 
     def widget(self, fem, canvas):
         from lys_fem.gui import EquationWidget

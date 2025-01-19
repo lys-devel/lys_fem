@@ -16,8 +16,8 @@ class NGSPoissonModel(NGSModel):
             gu = grad(u)
             if self._coef is not None:
                 gu = mat[self._coef].dot(gu)
-            if "J" in mat:
-                J = mat["J"]
+            if eq.J is not None:
+                J = mat[eq.J]
                 wf += J.dot(gu).dot(J.dot(grad(v)))/J.det() * dx
             else:
                 wf += gu.dot(grad(v)) * dx
