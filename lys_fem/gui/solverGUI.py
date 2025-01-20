@@ -215,13 +215,11 @@ class _SolverStepWidget(QtWidgets.QWidget):
         g0 = self.__initSolvers(step)
         g1 = self.__initVars(step)
         g2 = self.__initNewton(step)
-        g3 = self.__initDeform(step)
 
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(g1)
         layout.addWidget(g0)
         layout.addWidget(g2)
-        layout.addWidget(g3)
 
         self.setLayout(layout)
 
@@ -359,32 +357,6 @@ class _SolverStepWidget(QtWidgets.QWidget):
             self._step._vars = None
         else:
             self._step._vars = self._vars.text().replace(" ", "").split(",")
-
-    def __initDeform(self, step):
-        self._deform_var = QtWidgets.QLineEdit()
-        self._deform_var.setPlaceholderText("u")
-        self._deform_var.textChanged.connect(self.__changeDeform)
-
-        h1 = QtWidgets.QHBoxLayout()
-        h1.addWidget(QtWidgets.QLabel("Variable name"))
-        h1.addWidget(self._deform_var)
-
-        self._deform = QtWidgets.QGroupBox("Apply Deformation")
-        self._deform.setCheckable(True)
-        self._deform.setLayout(h1)
-        if step.deformation is None:
-            self._deform.setChecked(False)
-        else:
-            self._deform.setChecked(True)
-            self._deform_var.setText(self._deform)
-        self._deform.toggled.connect(self.__changeDeform)
-        return self._deform
-    
-    def __changeDeform(self):
-        if self._deform.isChecked():
-            self._step._deform = self._deform_var.text()
-        else:
-            self._step._deform = None
 
 
 class _AdaptiveMeshRefinementWidget(QtWidgets.QGroupBox):

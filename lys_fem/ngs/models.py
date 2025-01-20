@@ -273,7 +273,7 @@ class CompositeModel:
             rhs = - F.vec - K.Apply(x.vec) - C.Apply(v.vec)
             M.AssembleLinearization(x.vec)
 
-            a.vec.data  = M.mat.Inverse(fes.FreeDofs(), "pardiso") * rhs
+            a.vec.data  = M.mat.Inverse(fes.FreeDofs(), "sparsecholesky") * rhs
         return x, v, a
 
     @property

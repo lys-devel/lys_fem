@@ -18,7 +18,7 @@ class SolverStep:
         damping(float): The damping factor for newton solver.
         eps(float): The convergence criteria for newton solver.
     """
-    def __init__(self, vars=None, solver="pardiso", prec=None, symmetric=False, condensation=False, rtol=1e-6, iter=5000, maxiter=30, damping=1, eps=1e-5):
+    def __init__(self, vars=None, solver="pardiso", prec=None, symmetric=False, condensation=False, rtol=1e-6, iter=5000, maxiter=30, damping=1, eps=1e-5, **kwargs):
         self._vars = vars
         self._solver = solver
         self._prec = prec

@@ -95,6 +95,13 @@ class ConditionBase(FEMObject):
 
     def __getattr__(self, key):
         return self._values.get(key, None)
+    
+    def __setattr__(self, key, value):
+        if "_values" in self.__dict__:
+            if key in self._values:
+                self._values[key] = value
+                return
+        super().__setattr__(key, value)
 
     @property
     def geometries(self):
@@ -110,7 +117,10 @@ class ConditionBase(FEMObject):
     @classmethod
     def loadFromDictionary(cls, d):
         geometries = GeometrySelection.loadFromDictionary(d["geometries"])
-        return cls(geometries=geometries, objName=d["objName"], **d.get("values", {}))
+        values = d.get("values", {})
+        if not isinstance(values, dict): # For backward compability
+            values = {"values": values}
+        return cls(geometries=geometries, objName=d["objName"], **values)
 
     @classmethod
     def default(cls, fem, model):
