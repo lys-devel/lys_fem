@@ -131,8 +131,13 @@ class _Solution:
     def __getitem__(self, index):
         return self._sols[index]
 
-    def initialize(self, use_a):
-        self.__update(_Sol(self._model.initialValue(self._fes, use_a)))
+    def initialize(self, use_a, op):
+        x,v,a = self._model.initialValue(self._fes)
+        self.__update(_Sol((x,v,a)))
+        if use_a:
+            mpi.print_("\t======= Initial value calculation =======")
+            mpi.print_(op)
+            op.solve(self._sols[0][2])
         if mpi.isRoot and self._dirname is not None:
             if os.path.exists(self._dirname):
                 shutil.rmtree(self._dirname, ignore_errors=True)
@@ -190,20 +195,23 @@ class _Solution:
 
 
 class _Operator:
-    def __init__(self, wf, mesh, model, sols, step):
+    def __init__(self, wf, mesh, model, sols, step, init=False):
         self._fes = util.FiniteElementSpace(model, mesh, step.variables, symmetric=step.symmetric, condense=step.condensation)
         self._step = step
 
-        wf = self.__prepareWeakform(wf, model, sols, step.variables)
+        if init:
+            wf = self.__prepareWeakform2(wf, model, sols, step.variables)
+        else:
+            wf = self.__prepareWeakform(wf, model, sols, step.variables)
         self._lhs, self._rhs = wf.lhs, wf.rhs
-        self.__update()
+        self.__form()
 
         self._nl = self._lhs.isNonlinear
         self._tdep_lhs = self._lhs.isTimeDependent
         self._tdep_rhs = self._rhs.isTimeDependent
         self._init  = False
 
-    def __update(self, bilinear=True, linear=True):
+    def __form(self, bilinear=True, linear=True):
         if bilinear:
             self._blf = self._fes.BilinearForm()
             if self._lhs.valid:
@@ -225,6 +233,15 @@ class _Operator:
                     d[test] = 0
                     d[util.grad(test)] = 0
         return wf.replace(d)
+
+    def __prepareWeakform2(self, wf, model, sols, symbols):
+        d = {}
+        for v, (trial, test) in model.TnT.items():
+            d[trial] = sols.X(v)
+            d[trial.t] = sols.V(v)
+            d[trial.tt] = trial
+            d[util.grad(trial)] = util.grad(sols.X(v))
+        return wf.replace(d)
     
     def __call__(self, x):
         if self.isNonlinear:
@@ -238,7 +255,18 @@ class _Operator:
             self._inv = self.__inverse(self._blf.mat)
         return self._inv
 
-    def update(self):
+    @property
+    def isNonlinear(self):
+        return self._nl
+
+    def solve(self, x):
+        self.__update()
+        xi = self._fes.gridFunction()
+        self.__syncGridFunction(x, "->", xi)
+        xi.vec.data = newton(self, xi.vec.CreateVector(copy=True), eps=self._step.newton_eps, max_iter=self._step.newton_maxiter, gamma=self._step.newton_damping)
+        self.__syncGridFunction(x, "<-", xi)
+
+    def __update(self):
         if (self._tdep_rhs or not self._init):
             self._lf.Assemble()
         if (self._tdep_lhs or not self._init) and not self.isNonlinear:
@@ -256,16 +284,8 @@ class _Operator:
         else:
             inv = _petsc(self._fes, mat, self._step.solver, self._step.preconditioner, iter=self._step.linear_maxiter, tol=self._step.linear_rtol)
         return _Inv(self._fes, inv, self._blf)
-
-    @property
-    def isNonlinear(self):
-        return self._nl
-
-    @property
-    def finiteElementSpace(self):
-        return self._fes
-
-    def syncGridFunction(self, glb, direction, loc):
+    
+    def __syncGridFunction(self, glb, direction, loc):
         if self._step.variables is None:
             if direction == "->":
                 loc.vec.data = glb.vec
@@ -370,7 +390,12 @@ class SolverBase:
         self._wf = model.weakforms()
         self._fes = util.FiniteElementSpace(model, mesh)
         self._sols = _Solution(self._fes, model, self._dirname)
-        self._sols.initialize(any([v.tt in self._wf for v, _ in model.TnT.values()]) and timeDep)
+        use_a = any([v.tt in self._wf for v, _ in model.TnT.values()]) and timeDep
+        if use_a:
+            op = _Operator(self._wf, mesh, model, self._sols, obj.steps[0], init=True)
+        else:
+            op = None
+        self._sols.initialize(use_a, op)
         self._ops = [_Operator(self._wf, mesh, model, self._sols, step) for step in obj.steps]
 
     @np.errstate(divide='ignore', invalid="ignore")
@@ -394,11 +419,7 @@ class SolverBase:
         x = self._sols[0].copy()
         for i, (op, step) in enumerate(zip(self._ops, self._obj.steps)):
             mpi.print_("\t=======Solver step", i+1, "=======")
-            op.update()
-            xi = op.finiteElementSpace.gridFunction()
-            op.syncGridFunction(x, "->", xi)
-            xi.vec.data = newton(op, xi.vec.CreateVector(copy=True), eps=step.newton_eps, max_iter=step.newton_maxiter, gamma=step.newton_damping)
-            op.syncGridFunction(x, "<-", xi)
+            op.solve(x)
             mpi.print_()
         self.solutions.updateSolution(x, saveIndex=self._index+1)
 

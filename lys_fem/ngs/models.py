@@ -222,60 +222,12 @@ class CompositeModel:
             d.update(m.updater(self.TnT, sols, self._mat.const.dti))
         return d
 
-    def initialValue(self, fes, use_a=True):
+    def initialValue(self, fes):
         x = fes.gridFunction([c for v in self.variables for c in v.value(fes)])
         v = fes.gridFunction([c for v in self.variables for c in v.velocity(fes)])
         a = fes.gridFunction()
-        if use_a:
-            tnt = self.TnT
-            wf = self.weakforms()
-
-            d = {}
-            for var, (trial, test) in tnt.items():
-                d[trial.t] = 0
-                d[trial.tt] = 0
-            wf_K = wf.replace(d).lhs
-            K = fes.BilinearForm()
-            if wf_K.valid:
-                K += wf_K.eval(fes)
-
-            d = {}
-            for var, (trial, test) in tnt.items():
-                d[util.grad(trial)] = 0
-                d[trial] = 0
-                d[trial.t] = trial
-                d[trial.tt] = 0
-            wf_C = wf.replace(d).lhs
-            C = fes.BilinearForm()
-            if wf_C.valid:
-                C += wf_C.eval(fes)
-
-            d = {}
-            for var, (trial, test) in tnt.items():
-                d[util.grad(trial)] = 0
-                d[trial] = 0
-                d[trial.t] = 0
-                d[trial.tt] = trial
-            wf_M = wf.replace(d).lhs
-            M = fes.BilinearForm()
-            if wf_M.valid:
-                M += wf_M.eval(fes)
-
-            d = {}
-            for var, (trial, test) in tnt.items():
-                d[trial.t] = trial
-                d[trial.tt] = trial
-            wf_F = wf.replace(d).rhs
-            F = fes.LinearForm()
-            if wf_F.valid:
-                F += wf_F.eval(fes)
-
-            rhs = - F.vec - K.Apply(x.vec) - C.Apply(v.vec)
-            M.AssembleLinearization(x.vec)
-
-            a.vec.data  = M.mat.Inverse(fes.FreeDofs(), "sparsecholesky") * rhs
         return x, v, a
-
+    
     @property
     def materials(self):
         return self._mat
