@@ -2,11 +2,9 @@ import os
 import time
 import shutil
 import numpy as np
-import ngsolve
-import ngsolve.ngs2petsc as n2p
-import petsc4py.PETSc as psc
 
 from . import mpi, util
+from .operator import Operator, ConvergenceError
 
 def generateSolver(fem, mesh, model):
     solvers = {"Stationary Solver": StationarySolver, "Relaxation Solver": RelaxationSolver, "Time Dependent Solver": TimeDependentSolver}
@@ -131,10 +129,10 @@ class _Solution:
     def __getitem__(self, index):
         return self._sols[index]
 
-    def initialize(self, use_a, op):
+    def initialize(self, op):
         x,v,a = self._model.initialValue(self._fes)
         self.__update(_Sol((x,v,a)))
-        if use_a:
+        if op is not None:
             mpi.print_("\t======= Initial value calculation =======")
             mpi.print_(op)
             op.solve(self._sols[0][2])
@@ -194,190 +192,6 @@ class _Solution:
         return util.SolutionFunction(var, self._sols[n], 2)
 
 
-class _Operator:
-    def __init__(self, wf, mesh, model, sols, step, init=False):
-        self._fes = util.FiniteElementSpace(model, mesh, step.variables, symmetric=step.symmetric, condense=step.condensation)
-        self._step = step
-
-        if init:
-            wf = self.__prepareWeakform2(wf, model, sols, step.variables)
-        else:
-            wf = self.__prepareWeakform(wf, model, sols, step.variables)
-        self._lhs, self._rhs = wf.lhs, wf.rhs
-        self.__form()
-
-        self._nl = self._lhs.isNonlinear
-        self._tdep_lhs = self._lhs.isTimeDependent
-        self._tdep_rhs = self._rhs.isTimeDependent
-        self._init  = False
-
-    def __form(self, bilinear=True, linear=True):
-        if bilinear:
-            self._blf = self._fes.BilinearForm()
-            if self._lhs.valid:
-                self._blf += self._lhs.eval(self._fes)
-        if linear:
-            self._lf = self._fes.LinearForm()
-            if self._rhs.valid:
-                self._lf += self._rhs.eval(self._fes)
-
-    def __prepareWeakform(self, wf, model, sols, symbols):
-        d = dict(model.discretize(sols))
-        if symbols is not None:
-            for v, (trial, test) in model.TnT.items():
-                if v.name not in symbols:
-                    d[trial] = sols.X(v)
-                    d[trial.t] = sols.V(v)
-                    if trial.tt in wf:
-                        d[trial.tt] = sols.A(v)
-                    d[test] = 0
-                    d[util.grad(test)] = 0
-        return wf.replace(d)
-
-    def __prepareWeakform2(self, wf, model, sols, symbols):
-        d = {}
-        for v, (trial, test) in model.TnT.items():
-            d[trial] = sols.X(v)
-            d[trial.t] = sols.V(v)
-            d[trial.tt] = trial
-            d[util.grad(trial)] = util.grad(sols.X(v))
-        return wf.replace(d)
-    
-    def __call__(self, x):
-        if self.isNonlinear:
-            return self._blf.Apply(x) + self._lf.vec
-        else:
-            return self._blf.mat * x  + self._lf.vec
-
-    def Jacobian(self, x):
-        if self.isNonlinear:
-            self._blf.AssembleLinearization(x)
-            self._inv = self.__inverse(self._blf.mat)
-        return self._inv
-
-    @property
-    def isNonlinear(self):
-        return self._nl
-
-    def solve(self, x):
-        self.__update()
-        xi = self._fes.gridFunction()
-        self.__syncGridFunction(x, "->", xi)
-        xi.vec.data = newton(self, xi.vec.CreateVector(copy=True), eps=self._step.newton_eps, max_iter=self._step.newton_maxiter, gamma=self._step.newton_damping)
-        self.__syncGridFunction(x, "<-", xi)
-
-    def __update(self):
-        if (self._tdep_rhs or not self._init):
-            self._lf.Assemble()
-        if (self._tdep_lhs or not self._init) and not self.isNonlinear:
-            start = time.time()
-            self._blf.Assemble()
-            self._inv = self.__inverse(self._blf.mat)
-            mpi.print_("\t[Assemble] Time = {:.2f}".format(time.time()-start))
-        self._init = True
-
-    def __inverse(self, mat):
-        if self._step.solver in ["pardiso", "mumps", "umfpack", "pardisospd", "sparsecholesky", "masterinverse"]:
-            start = time.time()
-            inv = mat.Inverse(self._fes.FreeDofs(), self._step.solver)
-            mpi.print_("\t[Direct solver] Time = {:.2f}".format(time.time()-start))
-        else:
-            inv = _petsc(self._fes, mat, self._step.solver, self._step.preconditioner, iter=self._step.linear_maxiter, tol=self._step.linear_rtol)
-        return _Inv(self._fes, inv, self._blf)
-    
-    def __syncGridFunction(self, glb, direction, loc):
-        if self._step.variables is None:
-            if direction == "->":
-                loc.vec.data = glb.vec
-            elif direction == "<-":
-                glb.vec.data = loc.vec
-        else:
-            if direction == "->":
-                loc.vec.FV().NumPy()[:] = glb.vec.FV().NumPy()[self._fes.mask]
-            elif direction == "<-":
-                glb.vec.FV().NumPy()[self._fes.mask] = loc.vec.FV().NumPy()
-
-    def __str__(self):
-        res = ""
-        res += "\t\tTotal degree of freedoms: " + str(self._fes.ndof) + "\n"
-        res += "\t\tNonlinear: " + str(self.isNonlinear) + "\n"
-        res += "\t\tTime dependent: LHS = " + str(self._tdep_lhs) + ", RHS = " + str(self._tdep_rhs) + "\n" 
-        res += "\t\tStatic condensation: " + str(self._step.condensation) + "\n"
-        if self._step.variables is not None:
-            res += "\t\tSymbols: " + str(self._step.variables) + "\n"
-        res += "\t\tSolver: " + str(self._step.solver) + "\n"
-        if self._step.preconditioner is not None:
-            res += "\t\tPreconditioner: " + str(self._step.preconditioner) + "\n"
-            res += "\t\tMax iteration:" + str(self._step.linear_maxiter) + "\n"
-            res += "\t\tRelative tolerance:" + str(self._step.linear_rtol) + "\n"
-        return res
-
-
-class _petsc:
-    def __init__(self, fes, mat, solver, prec, iter=10000, tol=1e-9):
-        self._fes = fes
-        self._iter=iter
-        self._tol = tol
-        self.__initialize(mat, solver, prec)
-
-    def __initialize(self, mat, solver, prec):
-        self._dofs = self._fes.FreeDofs()
-        self._psc_mat = n2p.CreatePETScMatrix(mat, self._dofs)
-        if mpi.isParallel():
-            self._vecmap = n2p.VectorMapping(mat.row_pardofs, self._dofs)
-
-        ksp = psc.KSP()
-        ksp.create()
-        ksp.setOperators(self._psc_mat)
-        ksp.setType(solver)
-        ksp.setComputeSingularValues(True)
-        if prec == "gmres":
-            ksp.setGMRESRestart(2000)
-        ksp.getPC().setType(prec)
-        ksp.setTolerances(rtol=self._tol, atol=0, divtol=1e16, max_it=self._iter)
-        self._ksp = ksp
-
-    def __mul__(self, other):
-        start = time.time()
-        f, u = self._psc_mat.createVecs()
-        gfu = self._fes.gridFunction()
-        gfu.vec.data = other
-        if mpi.isParallel():
-            self._vecmap.N2P(gfu.vec, f)
-        else:
-            f.getArray()[:] = gfu.vec.FV().NumPy()[self._dofs]
-        self._ksp.solve(f, u)
-        gfu.vec.FV().NumPy()[:] = 0
-        if mpi.isParallel():
-            self._vecmap.P2N(u, gfu.vec)
-        else:
-            gfu.vec.FV().NumPy()[self._dofs] = u.getArray()
-        ma, mi = self._ksp.computeExtremeSingularValues()
-        mpi.print_("\t[Iterative solver] Iter =", self._ksp.its, ", Condition = {:.2f}".format(ma/mi), ", Time = {:.2f}".format(time.time()-start))
-        if self._ksp.its == self._iter:
-            raise ConvergenceError("[Iterative solver] NOT converged.")
-        return gfu.vec
-
-
-class _Inv:
-    def __init__(self, fes, inv, blf):
-        self._inv = inv
-        self._blf = blf
-        self._res = fes.gridFunction()
-
-    def __mul__(self, other):
-        start = time.time()
-        if self._blf.condense:
-            ext = ngsolve.IdentityMatrix() + self._blf.harmonic_extension
-            extT = ngsolve.IdentityMatrix() + self._blf.harmonic_extension_trans
-            self._res.vec.data = ext * (self._inv * (extT * other)) + self._blf.inner_solve * other
-        else:
-            self._res.vec.data = self._inv * other
-        if not isinstance(self._inv, _petsc):
-            mpi.print_("\t[Direct Inv. Mult] Time = {:.2f}".format(time.time()-start))
-        return self._res.vec
-
-
 class SolverBase:
     def __init__(self, obj, mesh, model, dirname, timeDep=False, variableStep=False):
         self._obj = obj
@@ -387,16 +201,15 @@ class SolverBase:
         self._dirname = "Solutions/" + dirname
         self._index = -1
 
-        self._wf = model.weakforms()
         self._fes = util.FiniteElementSpace(model, mesh)
         self._sols = _Solution(self._fes, model, self._dirname)
-        use_a = any([v.tt in self._wf for v, _ in model.TnT.values()]) and timeDep
+        use_a = any([v.tt in model.weakforms() for v, _ in model.TnT.values()]) and timeDep
         if use_a:
-            op = _Operator(self._wf, mesh, model, self._sols, obj.steps[0], init=True)
+            op = Operator(mesh, model, self._sols, obj.steps[0], type="initial")
         else:
             op = None
-        self._sols.initialize(use_a, op)
-        self._ops = [_Operator(self._wf, mesh, model, self._sols, step) for step in obj.steps]
+        self._sols.initialize(op)
+        self._ops = [Operator(mesh, model, self._sols, step) for step in obj.steps]
 
     @np.errstate(divide='ignore', invalid="ignore")
     def solve(self, dti=0):
@@ -433,7 +246,7 @@ class SolverBase:
     def updateMesh(self, mesh):
         self._fes = util.FiniteElementSpace(self._model, mesh)
         self._sols = _Solution(self._fes, self._model, self._dirname, old=self._sols)
-        self._ops = [_Operator(self._wf, mesh, self._model, self._sols, step) for step in self._obj.steps]
+        self._ops = [Operator(mesh, self._model, self._sols, step) for step in self._obj.steps]
 
     def refineMesh(self, error):
         def compute_size_field(err, p=2, d=2):
@@ -556,26 +369,3 @@ class TimeDependentSolver(SolverBase):
                 mpi.print_()
 
 
-def newton(F, x, eps=1e-5, max_iter=30, gamma=1):
-    if not F.isNonlinear:
-        max_iter=1
-    dx = x.CreateVector()
-    for i in range(max_iter):
-        dx.data = F.Jacobian(x)*F(x)
-        dx.data *= gamma
-        x -= dx
-        R = np.sqrt(np.divide(dx.InnerProduct(dx), x.InnerProduct(x)))
-        mpi.print_("\tResidual R =", R)
-        if R < eps:
-            if i!=0:
-                mpi.print_("\t[Newton solver] Converged in", i, "steps.")
-            return x
-    if max_iter !=1:
-        raise ConvergenceError("[Newton solver] NOT Converged in " + str(i) + " steps.")
-    return x
-
-
-class ConvergenceError(RuntimeError):
-    def __init__(self, msg):
-        mpi.print_(msg)
-        super().__init__(msg)
