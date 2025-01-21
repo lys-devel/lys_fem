@@ -110,11 +110,6 @@ def ReadGmsh2(geom, meshdim): #from netgen.read_gmsh import ReadGmsh
     mesh = Mesh(dim=meshdim)
     __loadGroups(mesh, geom, meshdim)
 
-    nodeMap = {}
-    node_tags, coords, _ = geom.mesh.getNodes()
-    for n, c in zip(node_tags, coords.reshape(-1,3)):
-        index = mesh.Add(MeshPoint(Pnt(*c)))
-        nodeMap[n] = index
 
     _tag = __loadMesh(mesh, geom, meshdim)
     return mesh, _tag
@@ -131,15 +126,16 @@ def __loadGroups(mesh, geom, meshdim):
         mesh.Add(fd)
 
 def __loadMesh(mesh, geom, meshdim):
-    tags, coords, _ = geom.mesh.getNodes(dim=meshdim, includeBoundary=True)
-    items = {t: c for t, c in zip(tags, coords.reshape(-1, 3))}
-    for i in range(len(items)):
-        mesh.Add(MeshPoint(Pnt(*items[i+1])))
+    nodeMap = {}
+    node_tags, coords, _ = geom.mesh.getNodes(dim=meshdim, includeBoundary=True)
+    for n, c in zip(node_tags, coords.reshape(-1,3)):
+        index = mesh.Add(MeshPoint(Pnt(*c)))
+        nodeMap[n] = index
 
     for g in geom.getPhysicalGroups(meshdim-1):
         for ent in geom.getEntitiesForPhysicalGroup(*g):
             for type, tags, nodes in zip(*geom.mesh.getElements(dim=meshdim-1, tag=ent)):
-                for el in __parseElements(type, nodes, g[1]):
+                for el in __parseElements(type, np.array([nodeMap[n] for n in nodes]), g[1]):
                     mesh.Add(el)
 
     _tag = []
@@ -147,7 +143,7 @@ def __loadMesh(mesh, geom, meshdim):
         for ent in geom.getEntitiesForPhysicalGroup(*g):
             for type, tags, nodes in zip(*geom.mesh.getElements(dim=meshdim, tag=ent)):
                 _tag.extend(tags)
-                for el in __parseElements(type, nodes, g[1]):
+                for el in __parseElements(type, np.array([nodeMap[n] for n in nodes]), g[1]):
                     mesh.Add(el)
 
 

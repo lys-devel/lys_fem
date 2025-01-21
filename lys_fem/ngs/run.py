@@ -49,7 +49,7 @@ def initialize(fem, save, output, nthreads):
 def createSolver(fem):
     start = time.time()
     mesh = generateMesh(fem)
-    mpi.print_("NGS Mesh generated in", '{:.2f}'.format(time.time()-start) ,"seconds : ", mesh.ns[0], "elements, ", mesh.ns[1], "nodes,", len(mesh.GetMaterials()), "domains, ", len(mesh.GetBoundaries()), "boundaries.")
+    mpi.print_("NGS Mesh generated in", '{:.2f}'.format(time.time()-start) ,"seconds : ", mesh.elements, "elements, ", mesh.nodes, "nodes,", len(mesh.GetMaterials()), "domains, ", len(mesh.GetBoundaries()), "boundaries.")
     mpi.print_()
 
     start = time.time()
