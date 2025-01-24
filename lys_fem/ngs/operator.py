@@ -21,6 +21,7 @@ class Operator:
         self._tdep_lhs = self._lhs.isTimeDependent
         self._tdep_rhs = self._rhs.isTimeDependent
         self._init  = False
+        self._psc = None
 
     def __form(self):
         self._blf = self._fes.BilinearForm()
@@ -69,7 +70,11 @@ class Operator:
             inv = mat.Inverse(self._fes.FreeDofs(), self._step.solver)
             mpi.print_("\t[Direct solver] Time = {:.2f}".format(time.time()-start))
         else:
-            inv = _petsc(self._fes, mat, self._step.solver, self._step.preconditioner, iter=self._step.linear_maxiter, tol=self._step.linear_rtol)
+            if self._psc is None:
+                self._psc = _petsc(self._fes, mat, self._step.solver, self._step.preconditioner, iter=self._step.linear_maxiter, tol=self._step.linear_rtol)
+            else:
+                self._psc.setMatrix(mat)
+            inv = self._psc
         return _Inv(self._fes, inv, self._blf)
     
     def __syncGridFunction(self, glb, direction, loc):
@@ -123,6 +128,10 @@ class _petsc:
         ksp.getPC().setType(prec)
         ksp.setTolerances(rtol=self._tol, atol=0, divtol=1e16, max_it=self._iter)
         self._ksp = ksp
+
+    def setMatrix(self, mat):
+        self._psc_mat = n2p.CreatePETScMatrix(mat, self._dofs)
+        self._ksp.setOperators(self._psc_mat)
 
     def __mul__(self, other):
         start = time.time()
