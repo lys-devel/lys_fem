@@ -50,6 +50,7 @@ def generateMesh(fem, geom=None):
         else:
             gmesh, _ = ReadGmsh2(geom.model, fem.dimension)
         gmesh.Scale(fem.geometries.scale)
+        nodes = len(gmesh.Coordinates())
 
     if mpi.isParallel():
         comm = ngsolve.MPI_Init()
@@ -82,7 +83,7 @@ def generateMesh(fem, geom=None):
 
     # set num of nodes and elements
     if mpi.isRoot:
-        mesh.ns = len(tags), len(geom.mesh.getNodes()[0])
+        mesh.ns = len(tags), nodes
     else:
         mesh.ns = len(coords), len(mesh.ngmesh.Points())
     util.dimension = fem.dimension
@@ -109,8 +110,6 @@ def __parseElements(type, nodes, index):
 def ReadGmsh2(geom, meshdim): #from netgen.read_gmsh import ReadGmsh
     mesh = Mesh(dim=meshdim)
     __loadGroups(mesh, geom, meshdim)
-
-
     _tag = __loadMesh(mesh, geom, meshdim)
     return mesh, _tag
 
@@ -127,10 +126,16 @@ def __loadGroups(mesh, geom, meshdim):
 
 def __loadMesh(mesh, geom, meshdim):
     nodeMap = {}
+    registered = {}
     node_tags, coords, _ = geom.mesh.getNodes(dim=meshdim, includeBoundary=True)
     for n, c in zip(node_tags, coords.reshape(-1,3)):
-        index = mesh.Add(MeshPoint(Pnt(*c)))
-        nodeMap[n] = index
+        c = tuple(c)
+        if c in registered:
+            nodeMap[n] = registered[c]
+        else:
+            index = mesh.Add(MeshPoint(Pnt(*c)))
+            nodeMap[n] = index
+            registered[c] = index
 
     for g in geom.getPhysicalGroups(meshdim-1):
         for ent in geom.getEntitiesForPhysicalGroup(*g):
