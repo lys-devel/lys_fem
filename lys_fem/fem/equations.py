@@ -52,6 +52,9 @@ class Equation(FEMObject):
 
     def __getattr__(self, key):
         return self._values.get(key, None)
+    
+    def set(self, name, value):
+        self._values[name] = value
 
     @property
     def variableName(self):
