@@ -16,23 +16,21 @@ def generateModel(fem, mat):
 
 
 class NGSVariable:
-    def __init__(self, name, fes, scale, residualScale, initialValue, initialVelocity, isScalar, type):
-        self._name = name
+    def __init__(self, fes, scale, residualScale, initialValue, initialVelocity, type):
         self._fes = fes
         self._scale = scale
         self._residualScale = residualScale
         self._init = initialValue
         self._vel = initialVelocity
-        self._isScalar = isScalar
         self._type = type
 
     @property
     def name(self):
-        return self._name
+        return self._fes._name
     
     @property
     def size(self):
-        return len(self._fes)
+        return self._fes.size
     
     @property
     def type(self):
@@ -40,10 +38,10 @@ class NGSVariable:
 
     @property
     def isScalar(self):
-        return self._isScalar
+        return self._fes.isScalar
 
     def finiteElementSpace(self, mesh):
-        return util.prod([fes.eval(mesh) for fes in self._fes])
+        return self._fes.eval(mesh)
     
     @property
     def scale(self):
@@ -76,18 +74,6 @@ class NGSVariable:
             return [coef[i] for i in range(coef.shape[0])]
 
 
-class _FESpace:
-    def __init__(self, type, kwargs):
-        self._type = type
-        self._kwargs = dict(kwargs)
-
-    def eval(self, mesh):
-        if self._type == "H1":
-            return ngsolve.H1(mesh, **self._kwargs)
-        if self._type == "L2":
-            return ngsolve.L2(mesh, **self._kwargs)
-
-
 class NGSModel:
     def __init__(self, model, vars, addVariables=False):
         self._model = model
@@ -106,7 +92,7 @@ class NGSModel:
         if initialVelocity is None:
             initialVelocity = self._funcs[FEMCoefficient([0]*vdim)]
 
-        kwargs = {"order": order}
+        kwargs = {"isScalar": isScalar, "order": order}
         if region is not None:
             if region.selectionType() == "Selected":
                 kwargs["definedon"] = "|".join([region.geometryType.lower() + str(r) for r in region])
@@ -115,11 +101,13 @@ class NGSModel:
             dirichlet = self._model.boundaryConditions.coef(DirichletBoundary)
         dirichlet = self.__dirichlet(dirichlet, vdim)
 
-        fess = []
-        for i in range(vdim):
-            if dirichlet is not None:
-                kwargs["dirichlet"] = "|".join(["boundary" + str(item) for item in dirichlet[i]])
-            fess.append(_FESpace(fetype, kwargs))
+        if dirichlet is not None:
+            kwargs["dirichlet"] = ["|".join(["boundary" + str(item) for item in dirichlet[i]]) for i in range(vdim)]
+
+        if fetype == "H1":
+            fes = util.H1(name, vdim, **kwargs)
+        elif fetype == "L2":
+            fes = util.L2(name, vdim, **kwargs)
         
         if scale is None:
             scale = self.scale
@@ -127,7 +115,7 @@ class NGSModel:
         if residualScale is None:
             residualScale = self.residualScale
 
-        self._vars.append(NGSVariable(name, fess, scale, residualScale, initialValue, initialVelocity, isScalar=isScalar, type=type))
+        self._vars.append(NGSVariable(fes, scale, residualScale, initialValue, initialVelocity, type=type))
 
     def __dirichlet(self, coef, vdim):
         bdr_dir = [[] for _ in range(vdim)] 

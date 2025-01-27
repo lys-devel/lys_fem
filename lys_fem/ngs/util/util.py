@@ -1,0 +1,1458 @@
+import builtins
+import numpy as np
+import sympy as sp
+import ngsolve
+
+def eval(expr, dic={}):
+    return builtins.eval(expr, globals(), dic)
+
+
+def prod(args):
+    res = args[0]
+    for arg in args[1:]:
+        res = res * arg
+    return res
+
+
+def grad(f):
+    """
+    Calculate gradient of a function f.
+    The output shape is in the form of (dimension, original shpae). 
+    
+    """
+    return _Func(f, "grad")
+
+
+def exp(x):
+    return _Func(x, "exp")
+
+
+def sin(x):
+    return _Func(x, "sin")
+
+
+def cos(x):
+    return _Func(x, "cos")
+
+
+def tan(x):
+    return _Func(x, "tan")
+
+
+def step(x):
+    return _Func(x, "step")
+
+
+def sqrt(x):
+    return _Func(x, "sqrt")
+
+
+def norm(x):
+    return _Func(x, "norm")
+
+
+def min(x,y):
+    return _MinMax(x, y, "min")
+
+
+def max(x,y):
+    return _MinMax(x, y, "max")
+
+
+class FiniteElementSpace:
+    def __init__(self, model, mesh, symbols=None, symmetric=False, condense=False):
+        self._mesh = mesh
+        self._model = model
+        self._symbols = symbols
+        self._symmetric = symmetric
+        self._condense = condense
+        if symbols is None:
+            self._fes = prod([v.finiteElementSpace(mesh) for v in model.variables])
+            self._tnt = self.__TnT_dict(model.variables, self._fes)
+        else:
+            self._fes_glb = prod([v.finiteElementSpace(mesh) for v in model.variables])
+            self._fes = prod([v.finiteElementSpace(mesh) for v in model.variables if v.name in symbols])
+            self._tnt = self.__TnT_dict([v for v in model.variables if v.name in symbols], self._fes)
+            self._mask = self.__mask(self._fes_glb, symbols)
+
+    def __TnT_dict(self, vars, fes):
+        if isinstance(fes, (ngsolve.ProductSpace, ngsolve.comp.Compress)):
+            trials, tests = fes.TnT()
+        else:
+            trials, tests = [[t] for t in fes.TnT()]
+
+        n = 0
+        res = {}
+        for var in vars:
+            if var.isScalar:
+                trial, test = trials[n], tests[n]
+            else:
+                trial, test = trials[n:n+var.size], tests[n:n+var.size]
+            res[var] = (trial, test)
+            n+=var.size
+        return res
+
+    def __mask(self, fes, symbols):
+        dofs = ngsolve.BitArray(fes.FreeDofs())
+        n = 0
+        for v in self._model.variables:
+            for j in range(n, n+v.size):
+                dofs[fes.Range(j)]=v.name in symbols
+            n += v.size
+        return dofs
+
+    @property
+    def mesh(self):
+        return self._mesh
+    
+    @property
+    def model(self):
+        return self._model
+    
+    @property
+    def mask(self):
+        return self._mask
+    
+    def gridFunction(self, value=None):
+        return GridFunction(self, value)
+    
+    @property
+    def ndof(self):
+        return self._fes.ndofglobal
+    
+    def trial(self, var):
+        return self._tnt[var][0]
+
+    def test(self, var):
+        return self._tnt[var][1]
+    
+    def BilinearForm(self):
+        return ngsolve.BilinearForm(self._fes, condense=self._condense, symmetric=self._symmetric)
+
+    def LinearForm(self):
+        return ngsolve.LinearForm(self._fes)
+    
+    def FreeDofs(self):
+        return self._fes.FreeDofs(self._condense)
+        
+
+class GridFunction(ngsolve.GridFunction):
+    def __init__(self, fes, value=None):
+        super().__init__(fes._fes)
+        self._fes = fes
+        if value is not None:
+            self.set(value)
+
+    def set(self, value):
+        if self.isSingle:
+            self.Set(*value)
+        else:
+            for ui, i in zip(self.components, value):
+                ui.Set(i)
+
+    def setComponent(self, var, value):
+        if self.isSingle:
+            self.Set(value)
+        else:
+            n = 0
+            for v in self._fes.model.variables:
+                if v.name == var.name:
+                    break
+                n += v.size
+            for i in range(var.size):
+                self.components[n+i].Set(value[i])
+
+    @property
+    def components(self):
+        if self.isSingle:
+            return [self]
+        else:
+            return super().components
+
+    @property
+    def isSingle(self):
+        return not isinstance(self.space, ngsolve.ProductSpace)
+
+    def toNGSFunctions(self, model, pre=""):
+        res = {}
+        n = 0
+        for v in model.variables:
+            if v.size == 1 and v.isScalar:
+                res[v.name] = NGSFunction(v.scale*self.components[n], name=v.name+pre, tdep=True)
+            else:
+                res[v.name] = NGSFunction(v.scale*ngsolve.CoefficientFunction(tuple(self.components[n:n+v.size]), dims=(v.size,)), name=v.name+pre, tdep=True)
+            n+=v.size
+        return res
+
+    @property
+    def finiteElementSpace(self):
+        return self._fes
+
+
+class NGSFunction:
+    def __init__(self, obj=None, default=None, geomType="domain", name="Undefined", tdep=False):
+        if obj is None or obj == 0:
+            self._obj = None
+            self._name = "0"
+        elif isinstance(obj, (int, float, complex, sp.Integer, sp.Float)):
+            self._obj = ngsolve.CoefficientFunction(obj)
+            if name == "Undefined":
+                self._name = str(obj)
+            else:
+                self._name = name
+            self._tdep = False
+        elif isinstance(obj, (list, tuple, np.ndarray)):
+            self._obj = [value if isinstance(value, NGSFunction) else NGSFunction(value) for value in obj]
+            self._name = name
+        elif isinstance(obj, dict):
+            self._obj = {key: value if isinstance(value, NGSFunction) else NGSFunction(value) for key, value in obj.items()}
+            self._default = default
+            self._geom = geomType
+            self._name = name
+        else:
+            self._obj = obj
+            self._name = name
+            self._tdep = tdep
+
+    @property
+    def shape(self):
+        if self._obj is None:
+            return ()
+        elif isinstance(self._obj, ngsolve.CoefficientFunction):
+            return self._obj.shape
+        elif isinstance(self._obj, list):
+            return tuple([len(self._obj)] + list(self._obj[0].shape))
+        elif isinstance(self._obj, dict):
+            return list(self._obj.values())[0].shape
+        else:
+            raise RuntimeError("error")
+
+    @property
+    def valid(self):
+        if self._obj is None:
+            return False
+        elif isinstance(self._obj, ngsolve.CoefficientFunction):
+            return True
+        elif isinstance(self._obj, list):
+            return any([obj.valid for obj in self._obj])
+        elif isinstance(self._obj, dict):
+            return any([obj.valid for obj in self._obj.values()])
+        else:
+            raise RuntimeError("error")
+
+    def eval(self, fes):
+        if self._obj is None:
+            return ngsolve.CoefficientFunction(0)
+        if isinstance(self._obj, ngsolve.CoefficientFunction):
+            return self._obj
+        elif isinstance(self._obj, list):
+            return ngsolve.CoefficientFunction(tuple([obj.eval(fes) for obj in self._obj]), dims=self.shape)
+        elif isinstance(self._obj, dict):
+            coefs = {key: obj.eval(fes) for key, obj in self._obj.items()}
+            if self._default is None:
+                default = None
+            else:
+                default = self._default.eval(fes)
+            if self._geom=="domain":
+                return fes.mesh.MaterialCF(coefs, default=default)
+            else:
+                return fes.mesh.BoundaryCF(coefs, default=default)
+
+    def integrate(self, fes, **kwargs):
+        return ngsolve.Integrate(self.eval(fes), fes.mesh, **kwargs)
+            
+    def grad(self, fes):
+        if self._obj is None:
+            return ngsolve.CoefficientFunction([0]*dimension)
+        if isinstance(self._obj, list):
+            return ngsolve.CoefficientFunction(tuple([obj.grad(fes) for obj in self._obj]), dims=self.shape+(dimension,)).TensorTranspose((1,0))
+        if isinstance(self._obj, dict):
+            coefs = {key: obj.grad(fes) for key, obj in self._obj.items()}
+            if self._default is None:
+                default = None
+            else:
+                default = self._default.grad(fes)
+            if self._geom=="domain":
+                return fes.mesh.MaterialCF(coefs, default=default)
+            else:
+                return fes.mesh.BoundaryCF(coefs, default=default)
+        if isinstance(self._obj, ngsolve.CoefficientFunction):
+            g = [self._obj.Diff(symbol) for symbol in [ngsolve.x, ngsolve.y, ngsolve.z][:dimension]]
+            return ngsolve.CoefficientFunction(tuple(g), dims=(dimension,))
+        raise RuntimeError("grad not implemented")
+    
+    def replace(self, d):
+        if self._obj is None:
+            return self
+        elif isinstance(self._obj, list):
+            return NGSFunction([obj.replace(d) for obj in self._obj], name=self._name)
+        elif isinstance(self._obj, dict):
+            if self._default is None:
+                default = None
+            else:
+                default = self._default.replace(d)
+            return NGSFunction({key: value.replace(d) for key, value in self._obj.items()}, name=self._name, default=default, geomType=self._geom)
+        else:
+            return d.get(self, self)
+
+    def __contains__(self, item):
+        if self._obj is None:
+            return False
+        elif isinstance(self._obj, list):
+            return any([item in obj for obj in self._obj])
+        elif isinstance(self._obj, dict):
+            default = False if self._default is None else item in self._default
+            return any([item in obj for obj in self._obj.values()]+[default])
+        else:
+            return False
+
+    @property
+    def hasTrial(self):
+        if self._obj is None:
+            return False
+        elif isinstance(self._obj, ngsolve.CoefficientFunction):
+            return False
+        elif isinstance(self._obj, list):
+            return any([obj.hasTrial for obj in self._obj])
+        elif isinstance(self._obj, dict):
+            return any([obj.hasTrial for obj in self._obj.values()])
+        else:
+            raise RuntimeError("error")
+    
+    @property
+    def rhs(self):
+        if not self.hasTrial:
+            return self
+        else:
+            if isinstance(self._obj, ngsolve.CoefficientFunction):
+                return self
+            elif isinstance(self._obj, list):
+                return NGSFunction([obj.rhs for obj in self._obj])
+            elif isinstance(self._obj, dict):
+                return NGSFunction({key: obj.rhs for key, obj in self._obj.items()})
+            else:
+                raise RuntimeError("error")
+
+    @property
+    def lhs(self):
+        if self.hasTrial:
+            if isinstance(self._obj, ngsolve.CoefficientFunction):
+                return self
+            elif isinstance(self._obj, list):
+                return NGSFunction([obj.lhs for obj in self._obj])
+            elif isinstance(self._obj, dict):
+                return NGSFunction({key: obj.lhs for key, obj in self._obj.items()})
+            else:
+                raise RuntimeError("error")
+        else:
+            return NGSFunction()
+        
+    @property
+    def isNonlinear(self):
+        if self._obj is None:
+            return False
+        if isinstance(self._obj, ngsolve.CoefficientFunction):
+            return False
+        elif isinstance(self._obj, list):
+            return any([obj.isNonlinear for obj in self._obj])
+        elif isinstance(self._obj, dict):
+            return any([obj.isNonlinear for obj in self._obj.values()])
+        else:
+            raise RuntimeError("error")
+        
+    @property
+    def isTimeDependent(self):
+        if self._obj is None:
+            return False
+        if isinstance(self._obj, ngsolve.CoefficientFunction):
+            return self._tdep
+        elif isinstance(self._obj, list):
+            return any([obj.isTimeDependent for obj in self._obj])
+        elif isinstance(self._obj, dict):
+            return any([obj.isTimeDependent for obj in self._obj.values()])
+        else:
+            raise RuntimeError("error")
+
+    def __str__(self):
+        return self._name
+
+    def __mul__(self, other):
+        if isinstance(other, (int, float, complex)):
+            other = NGSFunction(other)
+        if self.valid and other.valid:
+            return _Mul(self, other)
+        else:
+            return NGSFunction()
+
+    def __truediv__(self, other):
+        if isinstance(other, (int, float, complex)):
+            other = NGSFunction(other)
+        if self.valid and other.valid:
+            return _Div(self, other)
+        else:
+            return NGSFunction()
+        
+    def __add__(self, other):
+        if isinstance(other, (int, float, complex)):
+            other = NGSFunction(other)
+        if not self.valid:
+            return other
+        elif not other.valid:
+            return self
+        else:
+            return _Add(self, other)
+
+    def __sub__(self, other):
+        if isinstance(other, (int, float, complex)):
+            other = NGSFunction(other)
+        if not self.valid:
+            return (-1)*other
+        elif not other.valid:
+            return self
+        else:
+            return _Add(self, other, type="-")
+        
+    def __neg__(self):
+        if not self.valid:
+            return NGSFunction()
+        else:
+            return self*(-1)
+
+    def __rmul__(self, other):
+        return self * other
+    
+    def __radd__(self, other):
+        return self + other
+    
+    def __rsub__(self, other):
+        return (-self) + other 
+    
+    def __rtruediv__(self, other):
+        if isinstance(other, (int, float, complex)):
+            other = NGSFunction(other)
+        return other/self
+
+    def __pow__(self, other):
+        if not self.valid:
+            return self
+        return _Pow(self, other)
+
+    def dot(self, other):
+        if self.valid and other.valid:
+            return _TensorDot(self, other)
+        else:
+            return NGSFunction()
+    
+    def ddot(self, other):
+        if self.valid and other.valid:
+            return _TensorDot(self, other, axes=2)
+        else:
+            return NGSFunction()
+
+    def cross(self, other):
+        if self.valid and other.valid:
+            return _Cross(self, other)
+        else:
+            return NGSFunction()
+        
+    def det(self):
+        J = self
+        if J.shape[0] == 3:
+            return J[0,0]*J[1,1]*J[2,2] + J[0,1]*J[1,2]*J[2,0] + J[0,2]*J[1,0]*J[2,1] - J[0,2]*J[1,1]*J[2,0] - J[0,1]*J[1,0]*J[2,2] - J[0,0]*J[1,2]*J[2,1]
+        elif J.shape[0] == 2:
+            return J[0,0]*J[1,1] - J[0,1]*J[1,0]
+        elif J.shape[0] == 1:
+            return J[0,0]
+        
+    def diag(self):
+        M = np.zeros(self.shape, dtype=object)
+        for i in range(builtins.min(*self.shape)):
+            M[i,i] = self[i,i]
+        return NGSFunction(M.tolist())
+
+    def offdiag(self):
+        M = np.zeros(self.shape, dtype=object)
+        for i in range(self.shape[0]):
+            for j in range(self.shape[1]):
+                if i != j:
+                    M[i,j] = self[i,j]
+        return NGSFunction(M.tolist())
+
+    def __getitem__(self, index):
+        if not self.valid:
+            return NGSFunction()
+        return _Index(self, index)
+        
+    @property
+    def T(self):
+        return _Transpose(self)
+
+def printError(f):
+    def wrapper(*args, **kwargs):
+        return f(*args, **kwargs)
+        try:
+            return f(*args, **kwargs)
+        except:
+            print("Error while evaluating", args[0])
+            return None
+    return wrapper
+
+
+class _Oper(NGSFunction):
+    def __init__(self, obj1, obj2=None):
+        if not isinstance(obj1, NGSFunction):
+            obj1 = NGSFunction(obj1, str(obj1))
+        if not isinstance(obj2, NGSFunction) and obj2 is not None:
+            obj2 = NGSFunction(obj2, str(obj2))
+        super().__init__([obj1, obj2])
+
+    def replace(self, d):
+        if self in d:
+            return d.get(self)
+        objs = []
+        for i in range(2):
+            obj = self._obj[i]
+            replaced = obj.replace(d)
+            if replaced == 0:
+                replaced = NGSFunction()
+            objs.append(replaced)
+        return self(*objs)
+    
+    def __contains__(self, item):
+        return any([item in self._obj[i] for i in range(2)])
+
+    @property
+    def isNonlinear(self):
+        return self._obj[0].isNonlinear or self._obj[1].isNonlinear
+    
+    @property
+    def isTimeDependent(self):
+        return self._obj[0].isTimeDependent or self._obj[1].isTimeDependent
+
+
+class _Add(_Oper):
+    def __init__(self, obj1, obj2,type="+"):
+        super().__init__(obj1, obj2)
+        self._type = type
+
+    def __call__(self, v1, v2):
+        if self._type == "+":
+            return v1+v2
+        else:
+            return v1-v2
+
+    @property
+    def shape(self):
+        return self._obj[0].shape
+
+    @property
+    def rhs(self):
+        return self(self._obj[0].rhs, self._obj[1].rhs)
+
+    @property
+    def lhs(self):
+        return self(self._obj[0].lhs, self._obj[1].lhs)
+
+    @property
+    def hasTrial(self):
+        return self._obj[0].hasTrial or self._obj[1].hasTrial
+
+    def eval(self, fes):
+        return self(self._obj[0].eval(fes), self._obj[1].eval(fes))
+    
+    def grad(self, fes):
+        return self._obj[0].grad(fes) + self._obj[1].grad(fes)
+    
+    def __str__(self):
+        return "(" + str(self._obj[0]) + self._type + str(self._obj[1]) + ")"
+
+
+class _Mul(_Oper):
+    def __init__(self, obj1, obj2):
+        super().__init__(obj1, obj2)
+
+    def __call__(self, x, y):
+        if isinstance(x, ngsolve.CoefficientFunction) and isinstance(y, ngsolve.CoefficientFunction):
+            if len(x.shape)!=0 and len(x.shape) == len(y.shape):
+                return ngsolve.CoefficientFunction(tuple([xi*yi for xi, yi in zip(x,y)]), dims=x.shape)
+            if (len(x.shape) == 0 and y.shape == (1,)) or (x.shape==(1,) and len(y.shape)==0):
+                return ngsolve.CoefficientFunction(x*y, dims=(1,))
+        if isinstance(x, (ngsolve.la.DynamicVectorExpression, ngsolve.la.BaseVector)) and isinstance(y, (int, float, complex)):
+            return y * x
+        return x * y
+
+    @property
+    def shape(self):
+        if len(self._obj[0].shape)==0:
+            return self._obj[1].shape
+        else:
+            return self._obj[0].shape
+
+    @property
+    def hasTrial(self):
+        return self._obj[0].hasTrial or self._obj[1].hasTrial
+
+    def eval(self, fes):
+        return self(self._obj[0].eval(fes), self._obj[1].eval(fes))
+
+    def grad(self, fes):
+        return self._obj[0].eval(fes)*self._obj[1].grad(fes)+self._obj[1].eval(fes)*self._obj[0].grad(fes)
+
+    def __str__(self):
+        if isinstance(self._obj[0], _Mul) or isinstance(self._obj[1], _Mul):
+            return str(self._obj[0]) + "*" + str(self._obj[1])
+        return "(" + str(self._obj[0]) + "*" + str(self._obj[1]) + ")"
+
+    @property
+    def rhs(self):
+        return self._obj[0].rhs * self._obj[1].rhs
+
+    @property
+    def lhs(self):
+        return self._obj[0].lhs * self._obj[1].lhs + self._obj[0].lhs * self._obj[1].rhs + self._obj[0].rhs * self._obj[1].lhs
+
+    @property
+    def isNonlinear(self):
+        if self._obj[0].hasTrial and self._obj[1].hasTrial:
+            return True
+        else:
+            return super().isNonlinear
+
+
+class _Div(_Oper):
+    def __call__(self, x, y):
+        if isinstance(x, ngsolve.CoefficientFunction) and isinstance(y, ngsolve.CoefficientFunction):
+            if (len(x.shape) == 0 and y.shape == (1,)) or (x.shape==(1,) and len(y.shape)==0):
+                return ngsolve.CoefficientFunction(x/y, dims=(1,))
+
+        if isinstance(x, ngsolve.la.DynamicVectorExpression) and isinstance(y, (int, float, complex)):
+            return 1 / y * x
+        return x / y
+
+    @property
+    def shape(self):
+        if len(self._obj[0].shape)==0:
+            return self._obj[1].shape
+        else:
+            return self._obj[0].shape
+
+    @property
+    def hasTrial(self):
+        return self._obj[0].hasTrial or self._obj[1].hasTrial
+
+    def eval(self, fes):
+        return self(self._obj[0].eval(fes), self._obj[1].eval(fes))
+
+    def grad(self, fes):
+        raise RuntimeError("grad not implenented")
+
+    def __str__(self):
+        if isinstance(self._obj[0], _Mul) or isinstance(self._obj[1], _Mul):
+            return str(self._obj[0]) + "/" + str(self._obj[1])
+        return "(" + str(self._obj[0]) + "/" + str(self._obj[1]) + ")"
+
+    @property
+    def rhs(self):
+        if self._obj[1].hasTrial:
+            return NGSFunction()
+        else:
+            return self._obj[0].rhs/self._obj[1]
+
+    @property
+    def lhs(self):
+        if self._obj[1].hasTrial:
+            return self
+        else:
+            return self._obj[0].lhs/self._obj[1]
+
+    @property
+    def isNonlinear(self):
+        if self._obj[1].hasTrial:
+            return True
+        return self._obj[0].isNonlinear
+
+
+class _TensorDot(_Oper):
+    def __init__(self, obj1, obj2, axes=1):
+        super().__init__(obj1, obj2)
+        self._axes = axes
+
+    def __call__(self, a, b):
+        if self._axes == 1:
+            return a.dot(b)
+        else:
+            return a.ddot(b)
+        
+    @property
+    def shape(self):
+        if self._axes == 1:
+            return tuple(list(self._obj[0].shape[:-1]) + list(self._obj[1].shape[1:]))
+        elif self._axes == 2:
+            return tuple(list(self._obj[0].shape[:-2]) + list(self._obj[1].shape[2:]))
+
+    @property
+    def hasTrial(self):
+        return self._obj[0].hasTrial or self._obj[1].hasTrial
+
+    @printError
+    def eval(self, fes):
+        if self._obj[0].shape == self._obj[1].shape == ():
+            return self._obj[0].eval(fes) * self._obj[1].eval(fes)
+        s = self._axes
+        v1, v2 = self._obj[0].eval(fes), self._obj[1].eval(fes)
+        sym1, sym2 = "abcdef"[0:len(v1.shape)-s]+"ijklmn"[:s], "ijklmn"[:s]+"opqrst"[0:len(v2.shape)-s]
+        expr = sym1+","+sym2+"->"+sym1[0:-s]+sym2[s:]
+        return ngsolve.fem.Einsum(expr, v1, v2)
+
+    def __str__(self):
+        if self._axes == 1:
+            return "(" + str(self._obj[0]) + "." + str(self._obj[1]) + ")"
+        else:
+            return "(" + str(self._obj[0]) + ":" + str(self._obj[1]) + ")"
+
+    @property
+    def rhs(self):
+        return self(self._obj[0].rhs, self._obj[1].rhs)
+
+    @property
+    def lhs(self):
+        return self(self._obj[0].lhs, self._obj[1].lhs) + self(self._obj[0].lhs, self._obj[1].rhs) + self(self._obj[0].rhs, self._obj[1].lhs)
+
+    @property
+    def isNonlinear(self):
+        if self._obj[0].hasTrial and self._obj[1].hasTrial:
+            return True
+        else:
+            return super().isNonlinear
+
+
+class _Cross(_Oper):
+    def __call__(self, v1, v2):
+        return v1.cross(v2)
+
+    @property
+    def hasTrial(self):
+        return self._obj[0].hasTrial or self._obj[1].hasTrial
+    
+    @property
+    def shape(self):
+        return tuple(list(self._obj[0].shape[:-1]) + [3] + list(self._obj[1].shape[1:]))
+
+    def eval(self, fes):
+        v1, v2 = self._obj[0].eval(fes), self._obj[1].eval(fes)
+        if len(v1.shape) == len(v2.shape) == 1:
+            return ngsolve.Cross(v1, v2)
+
+        # Levi Civita symbol
+        eijk = np.zeros((3, 3, 3))
+        eijk[0, 1, 2] = eijk[1, 2, 0] = eijk[2, 0, 1] = 1
+        eijk[0, 2, 1] = eijk[2, 1, 0] = eijk[1, 0, 2] = -1
+        eijk = tuple([tuple([tuple(ek) for ek in ejk]) for ejk in eijk])
+        eijk = ngsolve.CoefficientFunction(eijk, dims=(3,3,3))
+
+        # Create expression
+        sym1, sym2 = "abcdefgh"[:len(v1.shape)], "nmpqrs"[:len(v2.shape)]
+        expr = "i"+sym1[-1]+sym2[0]+","+sym1+","+sym2+"->"+sym1[:-1]+"i"+sym2[1:]
+
+        # Calculate by einsum
+        return ngsolve.fem.Einsum(expr, eijk, v1, v2)
+
+    def __str__(self):
+        return "(" + str(self._obj[0]) + " x " + str(self._obj[1]) + ")"
+
+    @property
+    def rhs(self):
+        return self._obj[0].rhs.cross(self._obj[1].rhs)
+
+    @property
+    def lhs(self):
+        return self._obj[0].lhs.cross(self._obj[1].lhs)+self._obj[0].rhs.cross(self._obj[1].lhs)+self._obj[0].lhs.cross(self._obj[1].rhs)
+
+    @property
+    def isNonlinear(self):
+        if self._obj[0].hasTrial and self._obj[1].hasTrial:
+            return True
+        else:
+            return super().isNonlinear
+
+
+class _Pow(_Oper):
+    def __init__(self, v1, v2):
+        super().__init__(v1)
+        self._pow = v2
+
+    def __call__(self, v1, v2):
+        return v1 ** self._pow
+    
+    @property
+    def shape(self):
+        return self._obj[0].shape
+
+    @property
+    def rhs(self):
+        return self(self._obj[0].rhs, self._pow)
+
+    @property
+    def lhs(self):
+        return self(self._obj[0].lhs, self._pow)
+
+    @property
+    def hasTrial(self):
+        return self._obj[0].hasTrial
+
+    def eval(self, fes):
+        return self(self._obj[0].eval(fes), self._pow)
+    
+    def __str__(self):
+        return str(self._obj[0]) + "**" + str(self._pow)
+
+    @property
+    def isNonlinear(self):
+        return self._obj[0].hasTrial
+
+
+class _Index(_Oper):
+    def __init__(self, obj1, index):
+        super().__init__(obj1)
+        self._index = index
+
+    def __call__(self, obj1, obj2):
+        return _Index(obj1, self._index)
+
+    @property
+    def lhs(self):
+        if self.hasTrial:
+            return self
+        else:
+            return NGSFunction()
+        
+    @property
+    def rhs(self):
+        if self.hasTrial:
+            return NGSFunction()
+        else:
+            return self
+        
+    @property
+    def hasTrial(self):
+        return self._obj[0].hasTrial
+    
+    @property
+    def shape(self):
+        if isinstance(self._index, int):
+            return self._obj[0].shape[1:]
+        else:
+            return ()
+    
+    def eval(self, fes):
+        if isinstance(self._index, int):
+            sl = [int(self._index)] + [slice(None)]*(len(self.shape))
+            return self._obj[0].eval(fes)[tuple(sl)]
+        else:
+            return self._obj[0].eval(fes)[self._index]
+    
+    def __str__(self):
+        return str(self._obj[0]) + "[" + str(self._index) + "]"
+
+    @property
+    def isNonlinear(self):
+        return self._obj[0].hasTrial
+
+
+class _Transpose(_Oper):
+    def __init__(self, obj):
+        super().__init__(obj)
+
+    def __call__(self, obj1, obj2):
+        return _Transpose(obj1)
+
+    @property
+    def lhs(self):
+        if self.hasTrial:
+            return self
+        else:
+            return NGSFunction()
+        
+    @property
+    def rhs(self):
+        if self.hasTrial:
+            return NGSFunction()
+        else:
+            return self
+        
+    @property
+    def hasTrial(self):
+        return self._obj[0].hasTrial
+    
+    @property
+    def shape(self):
+        return tuple(reversed(self._obj[0].shape))
+    
+    def eval(self, fes):
+        return self._obj[0].eval(fes).TensorTranspose((1,0))
+    
+    def __str__(self):
+        return str(self._obj[0]) + ".T"
+
+    @property
+    def isNonlinear(self):
+        return self._obj[0].hasTrial
+
+
+class _Func(_Oper):
+    def __init__(self, obj1, type):
+        super().__init__(obj1)
+        self._type = type
+
+    def __call__(self, obj1, obj2=None):
+        return _Func(obj1, self._type)
+
+    @property
+    def rhs(self):
+        return self(self._obj[0].rhs)
+
+    @property
+    def lhs(self):
+        return self(self._obj[0].lhs)
+
+    @property
+    def hasTrial(self):
+        return self._obj[0].hasTrial
+
+    @property
+    def isNonlinear(self):
+        if self._type == "grad":
+            return self._obj[0].isNonlinear
+        else:
+            return self._obj[0].hasTrial
+
+    @property
+    def shape(self):
+        if self._type == "grad":
+            return tuple([dimension]+list(self._obj[0].shape))
+        else:
+            return self._obj[0].shape
+
+    def __hash__(self):
+        if self._type == "grad" and isinstance(self._obj[0], (TrialFunction, TestFunction)):
+            return hash(str(self._obj[0])+"__grad")
+        return super().__hash__()
+    
+    def __eq__(self, other):
+        return hash(self) == hash(other)
+
+    def eval(self, fes):
+        if self._type == "exp":
+            return ngsolve.exp(self._obj[0].eval(fes))
+        if self._type == "sin":
+            return ngsolve.sin(self._obj[0].eval(fes))
+        if self._type == "cos":
+            return ngsolve.cos(self._obj[0].eval(fes))
+        if self._type == "tan":
+            return ngsolve.tan(self._obj[0].eval(fes))
+        if self._type == "step":
+            return ngsolve.IfPos(self._obj[0].eval(fes), 1, 0)
+        if self._type == "sqrt":
+            return ngsolve.sqrt(self._obj[0].eval(fes))    
+        if self._type == "norm":
+            v = self._obj[0].eval(fes)
+            return ngsolve.sqrt(v*v)
+        if self._type == "grad":
+            if hasattr(self._obj[0], "grad"):
+                return self._obj[0].grad(fes)
+            raise RuntimeError("grad is not implemented for " + str(type(self._obj[0])))
+    
+    def __str__(self):
+        return self._type + "(" + str(self._obj[0]) + ")"
+
+
+class _MinMax(_Oper):
+    def __init__(self, obj1, obj2, type="min"):
+        super().__init__(obj1, obj2)
+        self._type = type
+
+    def __call__(self, obj1, obj2):
+        if isinstance(obj1, (int,float)) and isinstance(obj2, (int,float)):
+            if self._type == "min":
+                return builtins.min([obj1, obj2])
+            else:
+                return builtins.max([obj1, obj2])
+        return _MinMax(obj1, obj2, self._type)
+
+    @property
+    def shape(self):
+        return self._obj[0].shape
+
+    @property
+    def rhs(self):
+        return self(self._obj[0].rhs, self._obj[1].rhs)
+
+    @property
+    def lhs(self):
+        return self(self._obj[0].lhs, self._obj[1].lhs)
+
+    @property
+    def hasTrial(self):
+        return self._obj[0].hasTrial or self._obj[1].hasTrial
+
+    @property
+    def isNonlinear(self):
+        return self._obj[0].hasTrial
+
+    def eval(self, fes):
+        e1, e2 = self._obj[0].eval(fes), self._obj[1].eval(fes)
+        if self._type == "max":
+            return ngsolve.IfPos(e1-e2, e1, e2)
+        else:
+            return ngsolve.IfPos(e1-e2, e2, e1)
+    
+    def __str__(self):
+        return self._type + "(" + str(self._obj[0]) + ", " + str(self._obj[1]) + ")"
+
+
+class TrialFunction(NGSFunction):
+    def __init__(self, var, dt=0):
+        self._var = var
+        self._dt = dt
+
+    @property
+    def t(self):
+        return TrialFunction(self._var, self._dt+1)
+
+    @property
+    def tt(self):
+        return TrialFunction(self._var, self._dt+2)
+
+    @property
+    def value(self):
+        return TrialFunctionValue(self._var)
+    
+    @property
+    def rhs(self):
+        return NGSFunction()
+    
+    @property
+    def lhs(self):
+        return self
+    
+    @property
+    def shape(self):
+        if self._var.isScalar:
+            return ()
+        else:
+            return (self._var.size,)
+       
+    def __hash__(self):
+        return hash(self._var.name + "__" + str(self._dt))
+    
+    def __eq__(self, other):
+        return hash(self) == hash(other)
+    
+    def __str__(self):
+        name = self._var.name
+        if self._dt == -1:
+            return name+"0"
+        for i in range(self._dt):
+            name += "t" 
+        return name
+
+    @property
+    def hasTrial(self):
+        return True
+    
+    def eval(self, fes):
+        trial = fes.trial(self._var)
+        if isinstance(trial, list):
+            return ngsolve.CoefficientFunction(tuple(trial), dims=self.shape)
+        return self._var.scale * trial
+        
+    def grad(self, fes):
+        trial = fes.trial(self._var)
+        if isinstance(trial, list):
+            return self._var.scale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in trial]), dims=(len(trial), dimension)).TensorTranspose((1,0))
+        return self._var.scale * ngsolve.grad(trial)
+        
+    @property
+    def isNonlinear(self):
+        return False
+
+    @property
+    def isTimeDependent(self):
+        return False
+
+    @property
+    def valid(self):
+        return True
+
+    def replace(self, d):
+        return d.get(self, self)
+    
+    def __contains__(self, item):
+        return self == item
+        
+
+class TestFunction(NGSFunction):
+    def __init__(self, var):
+        self._var = var
+
+    def eval(self, fes):
+        test = fes.test(self._var)
+        if isinstance(test, list):
+            return self._var.residualScale * ngsolve.CoefficientFunction(tuple(test), dims=self.shape)
+        return self._var.residualScale * test
+        
+    def grad(self, fes):
+        test = fes.test(self._var)
+        if isinstance(test, list):
+            return self._var.residualScale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in test]), dims=(len(test), dimension)).TensorTranspose((1,0))
+        return self._var.residualScale * ngsolve.grad(test)
+        
+    def __hash__(self):
+        return hash(self._var.name)
+    
+    def __eq__(self, other):
+        return hash(self) == hash(other)
+
+    @property
+    def shape(self):
+        if self._var.isScalar:
+            return ()
+        else:
+            return (self._var.size,)
+
+    @property
+    def lhs(self):
+        return NGSFunction()
+
+    @property
+    def rhs(self):
+        return self
+
+    @property
+    def isNonlinear(self):
+        return False
+
+    @property
+    def isTimeDependent(self):
+        return False
+
+    @property
+    def valid(self):
+        return True
+    
+    @property
+    def hasTrial(self):
+        return False
+
+    def replace(self, d):
+        return d.get(self, self)
+
+    def __contains__(self, item):
+        return self == item
+    
+    def __str__(self):
+        return "test(" + self._var.name + ")"
+
+
+class SolutionFunction(NGSFunction):
+    """
+    NGSFunction that provide the access to the present solution.
+    Args:
+        name(str): The symbol name
+        sol(Solution): The solution object
+        type(int): The type of the solution. 0:x, 1:x.t, 2:x.tt
+    """
+    def __init__(self, var, sol, type):
+        self._sol = sol
+        self._var = var
+        self._type = type
+        n = 0
+        for v in sol.finiteElementSpace.model.variables:
+            if v == var:
+                self._n = n
+            n += v.size
+
+    @property
+    def shape(self):
+        if self._var.isScalar:
+            return ()
+        else:
+            return (self._var.size,)
+
+    @property
+    def valid(self):
+        return True
+
+    def eval(self, fes):
+        v = self._var
+        g = self._sol[self._type]
+        if v.isScalar:
+            return v.scale*ngsolve.CoefficientFunction(g.components[self._n])
+        else:
+            return v.scale*ngsolve.CoefficientFunction(tuple(g.components[self._n:self._n+v.size]), dims=(v.size,))
+            
+    def grad(self, fes):
+        v = self._var
+        g = self._sol[self._type]
+
+        if v.isScalar:
+            return v.scale*ngsolve.grad(g.components[self._n])
+        else:
+            g = [ngsolve.grad(g.components[i]) for i in range(self._n,self._n+v.size)]
+            return v.scale*ngsolve.CoefficientFunction(tuple(g), dims=(v.size, dimension)).TensorTranspose((1,0))
+    
+    def replace(self, d):
+        return d.get(self, self)
+
+    def __contains__(self, item):
+        return self == item
+
+    @property
+    def hasTrial(self):
+        return False
+    
+    @property
+    def rhs(self):
+        return self
+
+    @property
+    def lhs(self):
+        return NGSFunction()
+        
+    @property
+    def isNonlinear(self):
+        return False
+        
+    @property
+    def isTimeDependent(self):
+        return True
+
+    def __str__(self):
+        return self._var.name + "_n"
+
+
+class RandomFieldFunction(NGSFunction):
+    """
+    NGSFunction that provide the access to the present solution.
+    Args:
+        name(str): The symbol name
+        type('L2' or 'H1'): The finite element space type.
+        tdep(bool): Whether the field is time dependent
+    """
+    def __init__(self, type, shape, tdep, name=None):
+        self._name = name
+        self._shape = shape
+        self._type = type
+        self._tdep = tdep
+        self._init = False
+
+    def _initialize(self, fes):
+        if self._type=="L2":
+            sp = ngsolve.L2(fes.mesh, order=0)
+        if self._type=="H1":
+            sp = ngsolve.H1(fes.mesh, order=0)
+        if self._shape == ():
+            self._func = ngsolve.GridFunction(sp)
+        else:
+            self._func = [ngsolve.GridFunction(sp) for _ in range(prod(self._shape))]
+        self._init = True
+        self.update()
+
+    @property
+    def shape(self):
+        return self._shape
+
+    @property
+    def valid(self):
+        return True
+    
+    def update(self):
+        if not self._init:
+            raise RuntimeWarning("The random field is not initialized. Please delete unused field.")
+        if self._shape == ():
+            self._func.vec.data = np.random.normal(size=len(self._func.vec))
+        else:
+            for f in self._func:
+                f.vec.data = np.random.normal(size=len(f.vec))
+
+    def eval(self, fes):
+        if not self._init:
+            self._initialize(fes)
+        if self._shape == ():
+            return self._func
+        else:
+            return ngsolve.CoefficientFunction(tuple(self._func), dims=self._shape)
+            
+    def grad(self, fes):
+        if not self._init:
+            self._initialize(fes)
+        if self._shape == ():
+            return ngsolve.grad(self._func)
+        else:
+            raise RuntimeError("grad for multi-dim random is not defined.")
+            
+    def replace(self, d):
+        return d.get(self, self)
+
+    def __contains__(self, item):
+        return self == item
+
+    @property
+    def hasTrial(self):
+        return False
+    
+    @property
+    def rhs(self):
+        return self
+
+    @property
+    def lhs(self):
+        return NGSFunction()
+        
+    @property
+    def isNonlinear(self):
+        return False
+        
+    @property
+    def isTimeDependent(self):
+        return self._tdep
+
+    def __str__(self):
+        return self._name
+
+
+class VolumeField(NGSFunction):
+    """
+    NGSFunction that provide the access to the element wise volume.
+    Args:
+        name(str): The symbol name
+    """
+    def __init__(self, name=None):
+        self._name = name
+        self._init = False
+
+    def _initialize(self, fes):
+        sp = ngsolve.L2(fes.mesh)
+        self._func = ngsolve.GridFunction(sp)
+        data = ngsolve.Integrate(ngsolve.CoefficientFunction(1), fes.mesh, element_wise=True)
+        self._func.vec.data = np.array(data)
+        self._init = True
+
+    @property
+    def shape(self):
+        return ()
+
+    @property
+    def valid(self):
+        return True
+    
+    def eval(self, fes):
+        if not self._init:
+            self._initialize(fes)
+        return self._func
+            
+    def grad(self, fes):
+        raise RuntimeError("Gradient of the element-wise volume is not defined.")
+            
+    def replace(self, d):
+        return d.get(self, self)
+
+    def __contains__(self, item):
+        return self == item
+
+    @property
+    def hasTrial(self):
+        return False
+    
+    @property
+    def rhs(self):
+        return self
+
+    @property
+    def lhs(self):
+        return NGSFunction()
+        
+    @property
+    def isNonlinear(self):
+        return False
+        
+    @property
+    def isTimeDependent(self):
+        return False
+
+    def __str__(self):
+        return self._name
+     
+
+class DifferentialSymbol(NGSFunction):
+    def __init__(self, obj, geom=None, **kwargs):
+        super().__init__(obj, **kwargs)
+        self._geom = geom
+
+    def eval(self, fes):
+        if self._geom is None:
+            return self._obj
+        else:
+            if self._obj == ngsolve.dx:
+                g = fes.mesh.Materials(self._geom)
+            else:
+                g = fes.mesh.Boundaries(self._geom)
+            return self._obj(definedon=g)
+        
+    @property
+    def shape(self):
+        return ()
+    
+    @property
+    def valid(self):
+        return True
+
+    @property
+    def hasTrial(self):
+        return False
+        
+    @property
+    def isNonlinear(self):
+        return False
+    
+    @property
+    def isTimeDependent(self):
+        return False
+
+    def __call__(self, region):
+        geom = "|".join([region.geometryType.lower() + str(r) for r in region])
+        return DifferentialSymbol(self._obj, geom, name=str(self))
+
+
+class Parameter(NGSFunction):
+    def __init__(self, name, value, tdep=False):
+        super().__init__(ngsolve.Parameter(value), name=name, tdep=tdep)
+
+    def set(self, value):
+        self._obj.Set(value)
+
+    def get(self):
+        return self._obj.Get()
+
+    @property
+    def tdep(self):
+        return self._tdep
+
+    @tdep.setter
+    def tdep(self, b):
+        self._tdep = b
+
+    @property
+    def isNonlinear(self):
+        return False
+
+
+class SolutionFieldFunction(NGSFunction):
+    pass
+
+
+dx = DifferentialSymbol(ngsolve.dx, name="dx")
+ds = DifferentialSymbol(ngsolve.ds, name="ds")
+t = Parameter("t", 0, tdep=True)
+stepn = Parameter("step", 0, tdep=True)
+dimension = 3
