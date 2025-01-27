@@ -10,7 +10,7 @@ from . import mpi, util
 
 class Operator:
     def __init__(self, mesh, model, sols, step, type="discretized"):
-        self._fes = util.FiniteElementSpace(model, mesh, step.variables, symmetric=step.symmetric, condense=step.condensation)
+        self._fes = util.FiniteElementSpace(model.variables, mesh, step.variables, symmetric=step.symmetric, condense=step.condensation)
         self._step = step
 
         wf = model.weakforms(type=type, sols=sols, symbols=step.variables)

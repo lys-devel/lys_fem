@@ -39,7 +39,7 @@ class _Sol:
 
     def copy(self):
         g = self._fes.gridFunction()
-        for v in self._fes.model.variables:
+        for v in self._fes.variables:
             if v.type == "x":
                 g.setComponent(v, util.SolutionFunction(v, self, 0).eval(self._fes))
             if v.type == "v":
@@ -101,7 +101,7 @@ class _Sol:
         """
         Returns a dictionary that replace trial functions with corresponding solutions.
         """
-        return {trial: util.SolutionFunction(v, self, 0) for v, (trial, test) in self._fes.model.TnT.items()}
+        return {util.TrialFunction(v): util.SolutionFunction(v, self, 0) for v in self._fes.variables}
 
 
 class _Solution:
@@ -121,8 +121,8 @@ class _Solution:
     def __getitem__(self, index):
         return self._sols[index]
 
-    def initialize(self, op):
-        x,v,a = self._fes.model.initialValue(self._fes)
+    def initialize(self, model, op):
+        x,v,a = model.initialValue(self._fes)
         self.__update(_Sol((x,v,a)))
         if op is not None:
             mpi.print_("\t======= Initial value calculation =======")
@@ -134,24 +134,26 @@ class _Solution:
         for _ in range(len(self._sols)):
             self.__update(_Sol((self._sols[0][0], zero, zero)))
 
-    def updateSolution(self, x0):
-        tdep = self._fes.model.updater(self)
+    def updateSolution(self, model, x0):
+        tdep = model.updater(self)
         fes = self._fes
 
         x, v, a = fes.gridFunction(), fes.gridFunction(), fes.gridFunction()
         x.vec.data = x0.vec
 
         fs = x0.toNGSFunctions("_new")
-        tnt = self._fes.model.TnT
-        d = {trial: fs[v.name] for v, (trial, test) in tnt.items()}
+        d = {util.TrialFunction(v): fs[v.name] for v in self._fes.variables}
 
-        for var, (trial, test) in tnt.items():
+        for var in self._fes.variables:
+            trial = util.TrialFunction(var)
             if trial in tdep:
                 x.setComponent(var, tdep[trial].replace(d).eval(fes))
-        for var, (trial, test) in tnt.items():
+        for var in self._fes.variables:
+            trial = util.TrialFunction(var)
             if trial.t in tdep:
                 v.setComponent(var, tdep[trial.t].replace(d).eval(fes))
-        for var, (trial, test) in tnt.items():
+        for var in self._fes.variables:
+            trial = util.TrialFunction(var)
             if trial.tt in tdep:
                 a.setComponent(var, tdep[trial.tt].replace(d).eval(fes))
 
@@ -204,14 +206,14 @@ class SolverBase:
         self._mat.const.dti.tdep = variableStep
         self._index = -1
 
-        self._fes = util.FiniteElementSpace(model, mesh)
+        self._fes = util.FiniteElementSpace(model.variables, mesh)
         self._sols = _Solution(self._fes)
         use_a = any([v.tt in model.weakforms() for v, _ in model.TnT.values()]) and timeDep
         if use_a:
             op = Operator(mesh, model, self._sols, obj.steps[0], type="initial")
         else:
             op = None
-        self._sols.initialize(op)
+        self._sols.initialize(model, op)
         self._ops = [Operator(mesh, model, self._sols, step) for step in obj.steps]
         self._data = _DataStorage(self._sols, "Solutions/" + dirname)
 
@@ -238,7 +240,7 @@ class SolverBase:
             mpi.print_("\t=======Solver step", i+1, "=======")
             op.solve(x)
             mpi.print_()
-        self.solutions.updateSolution(x)
+        self.solutions.updateSolution(self._model, x)
         self._data.save(self._index+1)
 
     def __calcDiff(self):

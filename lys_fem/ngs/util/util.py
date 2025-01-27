@@ -57,83 +57,6 @@ def min(x,y):
 
 def max(x,y):
     return _MinMax(x, y, "max")
-
-
-class FiniteElementSpace:
-    def __init__(self, model, mesh, symbols=None, symmetric=False, condense=False):
-        self._mesh = mesh
-        self._model = model
-        self._symbols = symbols
-        self._symmetric = symmetric
-        self._condense = condense
-        if symbols is None:
-            self._fes = prod([v.finiteElementSpace(mesh) for v in model.variables])
-            self._tnt = self.__TnT_dict(model.variables, self._fes)
-        else:
-            self._fes_glb = prod([v.finiteElementSpace(mesh) for v in model.variables])
-            self._fes = prod([v.finiteElementSpace(mesh) for v in model.variables if v.name in symbols])
-            self._tnt = self.__TnT_dict([v for v in model.variables if v.name in symbols], self._fes)
-            self._mask = self.__mask(self._fes_glb, symbols)
-
-    def __TnT_dict(self, vars, fes):
-        if isinstance(fes, (ngsolve.ProductSpace, ngsolve.comp.Compress)):
-            trials, tests = fes.TnT()
-        else:
-            trials, tests = [[t] for t in fes.TnT()]
-
-        n = 0
-        res = {}
-        for var in vars:
-            if var.isScalar:
-                trial, test = trials[n], tests[n]
-            else:
-                trial, test = trials[n:n+var.size], tests[n:n+var.size]
-            res[var] = (trial, test)
-            n+=var.size
-        return res
-
-    def __mask(self, fes, symbols):
-        dofs = ngsolve.BitArray(fes.FreeDofs())
-        n = 0
-        for v in self._model.variables:
-            for j in range(n, n+v.size):
-                dofs[fes.Range(j)]=v.name in symbols
-            n += v.size
-        return dofs
-
-    @property
-    def mesh(self):
-        return self._mesh
-    
-    @property
-    def model(self):
-        return self._model
-    
-    @property
-    def mask(self):
-        return self._mask
-    
-    def gridFunction(self, value=None):
-        return GridFunction(self, value)
-    
-    @property
-    def ndof(self):
-        return self._fes.ndofglobal
-    
-    def trial(self, var):
-        return self._tnt[var][0]
-
-    def test(self, var):
-        return self._tnt[var][1]
-    
-    def BilinearForm(self):
-        return ngsolve.BilinearForm(self._fes, condense=self._condense, symmetric=self._symmetric)
-
-    def LinearForm(self):
-        return ngsolve.LinearForm(self._fes)
-    
-    def FreeDofs(self):
-        return self._fes.FreeDofs(self._condense)
         
 
 class GridFunction(ngsolve.GridFunction):
@@ -155,7 +78,7 @@ class GridFunction(ngsolve.GridFunction):
             self.Set(value)
         else:
             n = 0
-            for v in self._fes.model.variables:
+            for v in self._fes.variables:
                 if v.name == var.name:
                     break
                 n += v.size
@@ -176,7 +99,7 @@ class GridFunction(ngsolve.GridFunction):
     def toNGSFunctions(self, pre=""):
         res = {}
         n = 0
-        for v in self._fes.model.variables:
+        for v in self._fes.variables:
             if v.size == 1 and v.isScalar:
                 res[v.name] = NGSFunction(self.components[n], name=v.name+pre, tdep=True)
             else:
@@ -1022,10 +945,6 @@ class TrialFunction(NGSFunction):
     @property
     def tt(self):
         return TrialFunction(self._var, self._dt+2)
-
-    @property
-    def value(self):
-        return TrialFunctionValue(self._var)
     
     @property
     def rhs(self):
@@ -1167,7 +1086,7 @@ class SolutionFunction(NGSFunction):
         self._var = var
         self._type = type
         n = 0
-        for v in sol.finiteElementSpace.model.variables:
+        for v in sol.finiteElementSpace.variables:
             if v == var:
                 self._n = n
             n += v.size
