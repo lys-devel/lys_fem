@@ -173,10 +173,10 @@ class GridFunction(ngsolve.GridFunction):
     def isSingle(self):
         return not isinstance(self.space, ngsolve.ProductSpace)
 
-    def toNGSFunctions(self, model, pre=""):
+    def toNGSFunctions(self, pre=""):
         res = {}
         n = 0
-        for v in model.variables:
+        for v in self._fes.model.variables:
             if v.size == 1 and v.isScalar:
                 res[v.name] = NGSFunction(v.scale*self.components[n], name=v.name+pre, tdep=True)
             else:

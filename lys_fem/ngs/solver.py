@@ -62,7 +62,7 @@ class _Sol:
         for d in range(util.dimension):
             g = self._fes.gridFunction()
             g.setComponent(var, val[d].eval(self._fes))
-            g = g.toNGSFunctions(self._fes.model, pre="_g")[var.name]
+            g = g.toNGSFunctions(pre="_g")[var.name]
             grids.append(g)
         grids = util.NGSFunction(grids)
         err = np.sqrt(((grids-val)**2).integrate(self._fes, element_wise=True).NumPy())
@@ -109,39 +109,25 @@ class _Solution:
     Solution class stores the solutions and the time derivatives as grid function.
     The NGSFunctions based on the grid function is also provided by this class.
     """
-    def __init__(self, fes, model, dirname=None, nlog=2, old=None):
+    def __init__(self, fes, nlog=2, old=None):
         self._fes = fes
-        self._model = model
         self._sols = [_Sol(fes) for _ in range(nlog)]
         self._nlog = nlog
 
-        if dirname is not None:
-            self._dirname = dirname
-        else:
-            self._dirname = None
-
-        self._savemesh = old is not None
-        if self._savemesh:
+        if old is not None:
             for i, s in enumerate(self._sols):
                 s.set(old[i].project(self._fes))
-            self._savemesh = True
 
     def __getitem__(self, index):
         return self._sols[index]
 
     def initialize(self, op):
-        x,v,a = self._model.initialValue(self._fes)
+        x,v,a = self._fes.model.initialValue(self._fes)
         self.__update(_Sol((x,v,a)))
         if op is not None:
             mpi.print_("\t======= Initial value calculation =======")
             mpi.print_(op)
             op.solve(self._sols[0][2])
-        if mpi.isRoot and self._dirname is not None:
-            if os.path.exists(self._dirname):
-                shutil.rmtree(self._dirname, ignore_errors=True)
-            os.makedirs(self._dirname, exist_ok=True)
-        if self._dirname is not None:
-            self.__save(0)
 
     def reset(self):
         zero = self._fes.gridFunction()
@@ -149,14 +135,14 @@ class _Solution:
             self.__update(_Sol((self._sols[0][0], zero, zero)))
 
     def updateSolution(self, x0, saveIndex=None):
-        tdep = self._model.updater(self)
+        tdep = self._fes.model.updater(self)
         fes = self._fes
 
         x, v, a = fes.gridFunction(), fes.gridFunction(), fes.gridFunction()
         x.vec.data = x0.vec
 
-        fs = x0.toNGSFunctions(self._model, "_new")
-        tnt = self._model.TnT
+        fs = x0.toNGSFunctions("_new")
+        tnt = self._fes.model.TnT
         d = {trial: fs[v.name] for v, (trial, test) in tnt.items()}
 
         for var, (trial, test) in tnt.items():
@@ -171,16 +157,10 @@ class _Solution:
 
         self.__update(_Sol((x,v,a)))
 
-        if self._dirname is not None and saveIndex is not None:
-            self.__save(saveIndex)
-
     def __update(self, xva):
         for n in range(1, len(self._sols)):
             self._sols[-n].set(self._sols[-n+1])
         self._sols[0].set(xva)
-
-    def __save(self, index):
-        self._sols[0].save(self._dirname + "/ngs" + str(index), mesh=self._savemesh)
 
     def X(self, var, n=0):
         return util.SolutionFunction(var, self._sols[n], 0)
@@ -192,17 +172,40 @@ class _Solution:
         return util.SolutionFunction(var, self._sols[n], 2)
 
 
+class _DataStorage:
+    def __init__(self, sols, dirname):
+        self._sols = sols
+        if dirname is not None:
+            self._dirname = dirname
+        else:
+            self._dirname = None
+        self._savemesh = False
+        self.__init()
+        self.save(0)
+
+    def __init(self):
+        if mpi.isRoot and self._dirname is not None:
+            if os.path.exists(self._dirname):
+                shutil.rmtree(self._dirname, ignore_errors=True)
+            os.makedirs(self._dirname, exist_ok=True)
+
+    def enableSaveMesh(self, b=True):
+        self._savemesh=b
+
+    def save(self, index):
+        self._sols[0].save(self._dirname + "/ngs" + str(index), mesh=self._savemesh)
+
+
 class SolverBase:
     def __init__(self, obj, mesh, model, dirname, timeDep=False, variableStep=False):
         self._obj = obj
         self._model = model
         self._mat = model.materials
         self._mat.const.dti.tdep = variableStep
-        self._dirname = "Solutions/" + dirname
         self._index = -1
 
         self._fes = util.FiniteElementSpace(model, mesh)
-        self._sols = _Solution(self._fes, model, self._dirname)
+        self._sols = _Solution(self._fes)
         use_a = any([v.tt in model.weakforms() for v, _ in model.TnT.values()]) and timeDep
         if use_a:
             op = Operator(mesh, model, self._sols, obj.steps[0], type="initial")
@@ -210,6 +213,7 @@ class SolverBase:
             op = None
         self._sols.initialize(op)
         self._ops = [Operator(mesh, model, self._sols, step) for step in obj.steps]
+        self._data = _DataStorage(self._sols, "Solutions/" + dirname)
 
     @np.errstate(divide='ignore', invalid="ignore")
     def solve(self, dti=0):
@@ -234,7 +238,8 @@ class SolverBase:
             mpi.print_("\t=======Solver step", i+1, "=======")
             op.solve(x)
             mpi.print_()
-        self.solutions.updateSolution(x, saveIndex=self._index+1)
+        self.solutions.updateSolution(x)
+        self._data.save(self._index+1)
 
     def __calcDiff(self):
         expr = self._obj.diff_expr
@@ -245,8 +250,9 @@ class SolverBase:
 
     def updateMesh(self, mesh):
         self._fes = util.FiniteElementSpace(self._model, mesh)
-        self._sols = _Solution(self._fes, self._model, self._dirname, old=self._sols)
+        self._sols = _Solution(self._fes, self._model, old=self._sols)
         self._ops = [Operator(mesh, self._model, self._sols, step) for step in self._obj.steps]
+        self._data.enableSaveMesh()
 
     def refineMesh(self, error):
         def compute_size_field(err, p=2, d=2):
