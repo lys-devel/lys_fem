@@ -7,7 +7,6 @@ import petsc4py.PETSc as psc
 
 from . import mpi, util
 
-
 class Operator:
     def __init__(self, mesh, model, sols, step, type="discretized"):
         self._fes = util.FiniteElementSpace(model.variables, mesh, step.variables, symmetric=step.symmetric, condense=step.condensation)
@@ -32,7 +31,7 @@ class Operator:
             self._lf += self._rhs.eval(self._fes)
   
     def __call__(self, x):
-        if self.isNonlinear:
+        if self.isNonlinear or self._blf.condense:
             return self._blf.Apply(x) + self._lf.vec
         else:
             return self._blf.mat * x  + self._lf.vec
@@ -91,7 +90,7 @@ class Operator:
 
     def __str__(self):
         res = ""
-        res += "\t\tTotal degree of freedoms: " + str(self._fes.ndof) + "\n"
+        res += "\t\tTotal (Free) degree of freedoms: " + str(self._fes.ndof) + " ("+ str(sum(self._fes.FreeDofs())) + ")" + "\n"
         res += "\t\tNonlinear: " + str(self.isNonlinear) + "\n"
         res += "\t\tTime dependent: LHS = " + str(self._tdep_lhs) + ", RHS = " + str(self._tdep_rhs) + "\n" 
         res += "\t\tStatic condensation: " + str(self._step.condensation) + "\n"

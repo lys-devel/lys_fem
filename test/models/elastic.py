@@ -125,7 +125,7 @@ class elasticity_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        solver = TimeDependentSolver(0.005, 1)
+        solver = TimeDependentSolver(0.005, 1, condensation=True)
         p.solvers.append(solver)
 
         # solve

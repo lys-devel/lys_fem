@@ -166,7 +166,7 @@ class poisson_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        stationary = StationarySolver()
+        stationary = StationarySolver(solver="cg", prec="jacobi")
         p.solvers.append(stationary)
 
         # solve
