@@ -41,11 +41,11 @@ class _Sol:
         g = self._fes.gridFunction()
         for v in self._fes.model.variables:
             if v.type == "x":
-                g.setComponent(v, util.SolutionFunction(v, self, 0).eval(self._fes)/v.scale)
+                g.setComponent(v, util.SolutionFunction(v, self, 0).eval(self._fes))
             if v.type == "v":
-                g.setComponent(v, util.SolutionFunction(v, self, 1).eval(self._fes)/v.scale)
+                g.setComponent(v, util.SolutionFunction(v, self, 1).eval(self._fes))
             if v.type == "a":
-                g.setComponent(v, util.SolutionFunction(v, self, 2).eval(self._fes)/v.scale)
+                g.setComponent(v, util.SolutionFunction(v, self, 2).eval(self._fes))
         return g
     
     def project(self, fes):
@@ -134,7 +134,7 @@ class _Solution:
         for _ in range(len(self._sols)):
             self.__update(_Sol((self._sols[0][0], zero, zero)))
 
-    def updateSolution(self, x0, saveIndex=None):
+    def updateSolution(self, x0):
         tdep = self._fes.model.updater(self)
         fes = self._fes
 

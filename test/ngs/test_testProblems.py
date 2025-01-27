@@ -35,9 +35,6 @@ class test(testProblems_test):
     def test_tdepField(self):
         self.tdepField(ngs)
 
-    def test_scale(self):
-        self.scale(ngs)
-
     def test_twoval_grad(self):
         self.twoVars_grad(ngs)
 

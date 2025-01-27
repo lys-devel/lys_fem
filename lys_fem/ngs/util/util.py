@@ -178,9 +178,9 @@ class GridFunction(ngsolve.GridFunction):
         n = 0
         for v in self._fes.model.variables:
             if v.size == 1 and v.isScalar:
-                res[v.name] = NGSFunction(v.scale*self.components[n], name=v.name+pre, tdep=True)
+                res[v.name] = NGSFunction(self.components[n], name=v.name+pre, tdep=True)
             else:
-                res[v.name] = NGSFunction(v.scale*ngsolve.CoefficientFunction(tuple(self.components[n:n+v.size]), dims=(v.size,)), name=v.name+pre, tdep=True)
+                res[v.name] = NGSFunction(ngsolve.CoefficientFunction(tuple(self.components[n:n+v.size]), dims=(v.size,)), name=v.name+pre, tdep=True)
             n+=v.size
         return res
 
@@ -1064,13 +1064,13 @@ class TrialFunction(NGSFunction):
         trial = fes.trial(self._var)
         if isinstance(trial, list):
             return ngsolve.CoefficientFunction(tuple(trial), dims=self.shape)
-        return self._var.scale * trial
+        return trial
         
     def grad(self, fes):
         trial = fes.trial(self._var)
         if isinstance(trial, list):
-            return self._var.scale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in trial]), dims=(len(trial), dimension)).TensorTranspose((1,0))
-        return self._var.scale * ngsolve.grad(trial)
+            return ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in trial]), dims=(len(trial), dimension)).TensorTranspose((1,0))
+        return ngsolve.grad(trial)
         
     @property
     def isNonlinear(self):
@@ -1098,14 +1098,14 @@ class TestFunction(NGSFunction):
     def eval(self, fes):
         test = fes.test(self._var)
         if isinstance(test, list):
-            return self._var.residualScale * ngsolve.CoefficientFunction(tuple(test), dims=self.shape)
-        return self._var.residualScale * test
+            return ngsolve.CoefficientFunction(tuple(test), dims=self.shape)
+        return test
         
     def grad(self, fes):
         test = fes.test(self._var)
         if isinstance(test, list):
-            return self._var.residualScale * ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in test]), dims=(len(test), dimension)).TensorTranspose((1,0))
-        return self._var.residualScale * ngsolve.grad(test)
+            return ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in test]), dims=(len(test), dimension)).TensorTranspose((1,0))
+        return ngsolve.grad(test)
         
     def __hash__(self):
         return hash(self._var.name)
@@ -1187,19 +1187,19 @@ class SolutionFunction(NGSFunction):
         v = self._var
         g = self._sol[self._type]
         if v.isScalar:
-            return v.scale*ngsolve.CoefficientFunction(g.components[self._n])
+            return ngsolve.CoefficientFunction(g.components[self._n])
         else:
-            return v.scale*ngsolve.CoefficientFunction(tuple(g.components[self._n:self._n+v.size]), dims=(v.size,))
+            return ngsolve.CoefficientFunction(tuple(g.components[self._n:self._n+v.size]), dims=(v.size,))
             
     def grad(self, fes):
         v = self._var
         g = self._sol[self._type]
 
         if v.isScalar:
-            return v.scale*ngsolve.grad(g.components[self._n])
+            return ngsolve.grad(g.components[self._n])
         else:
             g = [ngsolve.grad(g.components[i]) for i in range(self._n,self._n+v.size)]
-            return v.scale*ngsolve.CoefficientFunction(tuple(g), dims=(v.size, dimension)).TensorTranspose((1,0))
+            return ngsolve.CoefficientFunction(tuple(g), dims=(v.size, dimension)).TensorTranspose((1,0))
     
     def replace(self, d):
         return d.get(self, self)

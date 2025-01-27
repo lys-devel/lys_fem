@@ -7,7 +7,7 @@ from . import mpi, util
 from .mesh import generateMesh
 from .material import generateMaterial
 from .models import generateModel
-from .solver import _Sol
+from .solver import _Solution, _Sol
 
 
 class NGSSolution:
@@ -36,7 +36,7 @@ class NGSSolution:
         self._index = index
         self._meshInfo = None
         sol_new = _Sol.load(self._fes, self._dirname+"/ngs"+str(index), self._fem.parallel)
-        self._sol.set(sol_new)
+        self._sol[0].set(sol_new)
 
     def __generate(self, mesh=None):
         if mesh is None:
@@ -44,11 +44,11 @@ class NGSSolution:
         else:
             self._mesh = mesh
         self._fes = util.FiniteElementSpace(self._model, self._mesh)
-        self._sol = _Sol(self._fes)
+        self._sol = _Solution(self._fes, nlog=1)
 
     def coef(self, expression, index=-1):
         self.update(index)
-        d = self._sol.replaceDict
+        d = self._sol[0].replaceDict
         return self._mats[expression].replace(d).eval(self._fes)
 
     def eval(self, expression, index, coords=None):

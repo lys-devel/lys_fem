@@ -43,14 +43,6 @@ class NGSVariable:
     def finiteElementSpace(self, mesh):
         return self._fes.eval(mesh)
     
-    @property
-    def scale(self):
-        return self._scale
-
-    @property
-    def residualScale(self):
-        return self._residualScale
-
     def value(self, fes):
         coef = self._init/self._scale
         if coef.valid:
