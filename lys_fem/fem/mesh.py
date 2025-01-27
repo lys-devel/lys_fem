@@ -141,10 +141,10 @@ class OccMesher(FEMObject):
         for geom in sorted(self._size, key=lambda x: 1/x.size):
             dim = {"Volume": 3, "Surface": 2, "Edge": 1, "Point": 0}[geom.geometryType]
             for tag in geom:
+                ents = [(dim, t) for t in model.getEntitiesForPhysicalGroup(dim, tag)]
                 if dim == 0:
-                    model.mesh.setSize((dim, tag), geom.size)
+                    model.mesh.setSize(ents, geom.size/self.fem.geometries.scale)
                 else:
-                    ents = [(dim, t) for t in model.getEntitiesForPhysicalGroup(dim, tag)]
                     model.mesh.setSize(model.getBoundary(ents, recursive=True), geom.size/self.fem.geometries.scale)
 
     def getMeshWave(self, model, dim=3):
