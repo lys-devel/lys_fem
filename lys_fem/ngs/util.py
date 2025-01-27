@@ -15,6 +15,11 @@ def prod(args):
 
 
 def grad(f):
+    """
+    Calculate gradient of a function f.
+    The output shape is in the form of (dimension, original shpae). 
+    
+    """
     return _Func(f, "grad")
 
 
@@ -40,6 +45,7 @@ def step(x):
 
 def sqrt(x):
     return _Func(x, "sqrt")
+
 
 def norm(x):
     return _Func(x, "norm")
@@ -258,6 +264,18 @@ class NGSFunction:
     def grad(self, fes):
         if self._obj is None:
             return ngsolve.CoefficientFunction([0]*dimension)
+        if isinstance(self._obj, list):
+            return ngsolve.CoefficientFunction(tuple([obj.grad(fes) for obj in self._obj]), dims=self.shape+(dimension,)).TensorTranspose((1,0))
+        if isinstance(self._obj, dict):
+            coefs = {key: obj.grad(fes) for key, obj in self._obj.items()}
+            if self._default is None:
+                default = None
+            else:
+                default = self._default.grad(fes)
+            if self._geom=="domain":
+                return fes.mesh.MaterialCF(coefs, default=default)
+            else:
+                return fes.mesh.BoundaryCF(coefs, default=default)
         if isinstance(self._obj, ngsolve.CoefficientFunction):
             g = [self._obj.Diff(symbol) for symbol in [ngsolve.x, ngsolve.y, ngsolve.z][:dimension]]
             return ngsolve.CoefficientFunction(tuple(g), dims=(dimension,))
@@ -445,7 +463,21 @@ class NGSFunction:
             return J[0,0]*J[1,1] - J[0,1]*J[1,0]
         elif J.shape[0] == 1:
             return J[0,0]
-                
+        
+    def diag(self):
+        M = np.zeros(self.shape, dtype=object)
+        for i in range(builtins.min(*self.shape)):
+            M[i,i] = self[i,i]
+        return NGSFunction(M.tolist())
+
+    def offdiag(self):
+        M = np.zeros(self.shape, dtype=object)
+        for i in range(self.shape[0]):
+            for j in range(self.shape[1]):
+                if i != j:
+                    M[i,j] = self[i,j]
+        return NGSFunction(M.tolist())
+
     def __getitem__(self, index):
         if not self.valid:
             return NGSFunction()
@@ -527,6 +559,9 @@ class _Add(_Oper):
 
     def eval(self, fes):
         return self(self._obj[0].eval(fes), self._obj[1].eval(fes))
+    
+    def grad(self, fes):
+        return self._obj[0].grad(fes) + self._obj[1].grad(fes)
     
     def __str__(self):
         return "(" + str(self._obj[0]) + self._type + str(self._obj[1]) + ")"
@@ -804,7 +839,10 @@ class _Index(_Oper):
     
     @property
     def shape(self):
-        return self._obj[0].shape[1:]
+        if isinstance(self._index, int):
+            return self._obj[0].shape[1:]
+        else:
+            return ()
     
     def eval(self, fes):
         if isinstance(self._index, int):

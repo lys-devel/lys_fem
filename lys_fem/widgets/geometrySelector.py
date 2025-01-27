@@ -81,14 +81,14 @@ class GeometrySelector(QtWidgets.QWidget):
             self._selectBtn.show()
 
     def __showGeometry(self):
-        mesh = self._fem.getMeshWave(self._dim)
+        mesh = self._fem.getMeshWave(self._dim, nomesh=True)
         with self._canvas.delayUpdate():
             self._canvas.clear()
             objs = self._canvas.append(mesh)
             for obj, m in zip(objs, mesh):
                 self.__setColor(obj, self._selected.check(m.note["tag"]))
             if self._geomType == "Surface" and self._dim != 2:
-                mesh = self._fem.getMeshWave(self._dim + 1)
+                mesh = self._fem.getMeshWave(self._dim + 1, nomesh=True)
                 objs = self._canvas.append(mesh)
                 for obj, m in zip(objs, mesh):
                     self.__setColor(obj, False)

@@ -43,6 +43,8 @@ def generateMesh(fem, geom=None):
         if geom is None:
             geom = fem.geometries.generateGeometry()
             fem.mesher.generate(geom)
+            geom.export("mesh.msh")
+            geom = "mesh.msh"
         if isinstance(geom, str):
             gmesh, _ = ReadGmsh(geom, fem.dimension)
             geom = fem.geometries.generateGeometry()
