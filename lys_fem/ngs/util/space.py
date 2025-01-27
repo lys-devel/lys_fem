@@ -43,6 +43,8 @@ class L2(MeshFreeSpace):
     def __init__(self, name, size, dirichlet=None, isScalar=True, **kwargs):
         super().__init__(name, size, isScalar)
         self._kwargs = dict(kwargs)
+        if dirichlet is None:
+            dirichlet = [None] * size
         self._dirichlet = dirichlet
 
     def eval(self, mesh):
