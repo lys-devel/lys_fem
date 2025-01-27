@@ -1,4 +1,3 @@
-import ngsolve
 from lys_fem.fem import FEMCoefficient
 from . import util, time
 from ..models.common import DirichletBoundary
@@ -15,57 +14,6 @@ def generateModel(fem, mat):
     return CompositeModel([modelList[m.className](m, mat) for m in fem.models], mat)
 
 
-class NGSVariable:
-    def __init__(self, fes, scale, residualScale, initialValue, initialVelocity, type):
-        self._fes = fes
-        self._scale = scale
-        self._residualScale = residualScale
-        self._init = initialValue
-        self._vel = initialVelocity
-        self._type = type
-
-    @property
-    def name(self):
-        return self._fes._name
-    
-    @property
-    def size(self):
-        return self._fes.size
-    
-    @property
-    def type(self):
-        return self._type
-
-    @property
-    def isScalar(self):
-        return self._fes.isScalar
-
-    def finiteElementSpace(self, mesh):
-        return self._fes.eval(mesh)
-    
-    def value(self, fes):
-        coef = self._init/self._scale
-        if coef.valid:
-            coef = coef.eval(fes)
-        else:
-            coef = ngsolve.CoefficientFunction(tuple([0] * self.size))
-        if self.size == 1:
-            return [coef]
-        else:
-            return [coef[i] for i in range(coef.shape[0])]
-    
-    def velocity(self, fes):
-        coef = self._vel/self._scale
-        if coef.valid:
-            coef = coef.eval(fes)
-        else:
-            coef = ngsolve.CoefficientFunction(tuple([0] * self.size))
-        if self.size == 1:
-            return [coef]
-        else:
-            return [coef[i] for i in range(coef.shape[0])]
-
-
 class NGSModel:
     def __init__(self, model, vars, addVariables=False):
         self._model = model
@@ -76,7 +24,7 @@ class NGSModel:
             for eq in model.equations:
                 self.addVariable(eq.variableName, eq.variableDimension, region=eq.geometries, order=model.order, isScalar=eq.isScalar, fetype=model.type)
 
-    def addVariable(self, name, vdim, dirichlet="auto", initialValue="auto", initialVelocity=None, region=None, order=1, isScalar=False, type="x", scale=None, residualScale=None, fetype="H1"):
+    def addVariable(self, name, vdim, dirichlet="auto", initialValue="auto", initialVelocity=None, region=None, order=1, isScalar=False, type="x", fetype="H1"):
         initialValue = self._funcs[self.__initialValue(vdim, initialValue)]
         if initialValue is None:
             raise RuntimeError("Invalid initial value for " + str(name))
@@ -84,7 +32,7 @@ class NGSModel:
         if initialVelocity is None:
             initialVelocity = self._funcs[FEMCoefficient([0]*vdim)]
 
-        kwargs = {"isScalar": isScalar, "order": order}
+        kwargs = {"fetype": fetype, "isScalar": isScalar, "order": order, "size": vdim}
         if region is not None:
             if region.selectionType() == "Selected":
                 kwargs["definedon"] = "|".join([region.geometryType.lower() + str(r) for r in region])
@@ -96,18 +44,8 @@ class NGSModel:
         if dirichlet is not None:
             kwargs["dirichlet"] = ["|".join(["boundary" + str(item) for item in dirichlet[i]]) for i in range(vdim)]
 
-        if fetype == "H1":
-            fes = util.H1(name, vdim, **kwargs)
-        elif fetype == "L2":
-            fes = util.L2(name, vdim, **kwargs)
-        
-        if scale is None:
-            scale = self.scale
-
-        if residualScale is None:
-            residualScale = self.residualScale
-
-        self._vars.append(NGSVariable(fes, scale, residualScale, initialValue, initialVelocity, type=type))
+        fes = util.FunctionSpace(**kwargs)
+        self._vars.append(util.NGSVariable(name, fes, initialValue, initialVelocity, type=type))
 
     def __dirichlet(self, coef, vdim):
         bdr_dir = [[] for _ in range(vdim)] 
