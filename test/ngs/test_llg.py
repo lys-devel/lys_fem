@@ -45,3 +45,6 @@ class ngs_LLG_test(LLG_test):
 
     def test_thermal(self):
         self.thermal2(ngs)
+
+    def test_MS(self):
+        self.magnetoStriction(ngs)

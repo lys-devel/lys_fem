@@ -28,6 +28,17 @@ class CubicAnisotropy(DomainCondition):
     className = "CubicAnisotropy"
 
 
+class CubicMagnetoStriction(DomainCondition):
+    className = "CubicMagnetoStriction"
+
+    @classmethod
+    def default(cls, fem, model):
+        return CubicMagnetoStriction("u")
+
+    def widget(self, fem, canvas):
+        return super().widget(fem, canvas, title="Displacement field (m)")
+
+
 class MagneticScalarPotential(DomainCondition):
     className = "MagneticScalarPotential"
 
@@ -64,7 +75,7 @@ class ThermalFluctuation(DomainCondition):
 class LLGModel(FEMFixedModel):
     className = "LLG"
     equationTypes = [LLGEquation]
-    domainConditionTypes = [ExternalMagneticField, UniaxialAnisotropy, CubicAnisotropy, MagneticScalarPotential, SpinTransferTorque, ThermalFluctuation]
+    domainConditionTypes = [ExternalMagneticField, UniaxialAnisotropy, CubicAnisotropy, MagneticScalarPotential, CubicMagnetoStriction, SpinTransferTorque, ThermalFluctuation]
     boundaryConditionTypes = [DirichletBoundary]
 
     def __init__(self, *args, constraint="Lagrange", order=2, **kwargs):

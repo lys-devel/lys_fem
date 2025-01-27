@@ -502,3 +502,39 @@ class LLG_test(FEMTestCase):
         plt.plot([(sol.integrate("m[0]", data_number=i*10))/1e-24 for i in range(100)])
         plt.show()
         
+    def magnetoStriction(self, lib):
+        p = FEMProject(3)
+
+        # geometry
+        p.geometries.add(geometry.Box(0, 0, 0, 1e-6, 1e-6, 1e-7))
+        p.mesher.addSizeConstraint(geometries="all", size=1e-6)
+
+        # material
+        param = llg.LLGParameters(alpha=1, Ms=1e5, lam100=1e-6, lam111=0)
+        param2 = elasticity.ElasticParameters(C=[100e9, 40e9, 0], type="cubic")
+        param3 = llg.UserDefinedParameters(u=["(x+y+z)", "(x+y+z)", "(x+y+z)"])
+        mat1 = Material([param, param2, param3], geometries="all")
+        p.materials.append(mat1)
+
+        # model: boundary and initial conditions
+        model = llg.LLGModel(constraint="Alouges", order=1)
+        model.initialConditions.append(llg.InitialCondition([1, 0, 0], geometries="all"))
+        model.domainConditions.append(llg.CubicMagnetoStriction("u", geometries="all"))
+        p.models.append(model)
+
+        # solver
+        solver = RelaxationSolver(dt0=1e-12, dt_max=1e-8, dx=0.05, diff_expr="m", solver="pardiso")
+        p.solvers.append(solver)
+
+        # solve
+        lib.run(p)
+
+        # solution
+        sol = FEMSolution()
+        print(sol.eval("-3*lam100*(C[0,1,0,0]-C[0,0,0,0])/Ms*(grad(u)+grad(u).T).diag()", data_number=50)[0].data)
+        return
+        for w in res:
+            self.assert_array_almost_equal(w.data, -np.ones(w.data.shape)/np.sqrt(2), decimal=2)
+        res = sol.eval("m[2]", data_number=50)
+        for w in res:
+            self.assert_array_almost_equal(w.data, -np.ones(w.data.shape)/np.sqrt(2), decimal=2)

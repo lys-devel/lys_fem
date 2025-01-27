@@ -69,6 +69,9 @@ class ElasticParameters(FEMParameter):
                 C1, C2 = float(self.C[0]), float(self.C[1])
                 lam, mu = C2, (C1-C2)/2
             return [[self._lame(i, j, lam, mu) for j in range(6)] for i in range(6)]
+        elif self.type == "cubic":
+            C1, C2, C4 = float(self.C[0]), float(self.C[1]), float(self.C[2])
+            return [[self._cubic(i, j, C1, C2, C4) for j in range(6)] for i in range(6)]
         elif self.type in ["monoclinic", "triclinic", "general"]:
             return self.C
 
@@ -98,4 +101,15 @@ class ElasticParameters(FEMParameter):
             else:
                 res += mu
         return res
+    
+    def _cubic(self, i, j , C1, C2, C4):
+        if i < 3 and j < 3:
+            if i == j:
+                return C1
+            else:
+                return C2
+        elif i==j:
+            return C4
+        return 0
+
 
