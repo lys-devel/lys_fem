@@ -1,5 +1,5 @@
 from lys_fem.ngs import NGSModel, grad, dx, util
-from . import ExternalMagneticField, UniaxialAnisotropy, CubicAnisotropy, MagneticScalarPotential, CubicMagnetoStriction, SpinTransferTorque, ThermalFluctuation
+from . import ExternalMagneticField, UniaxialAnisotropy, CubicAnisotropy, MagneticScalarPotential, CubicMagnetoStriction, SpinTransferTorque, ThermalFluctuation, CubicMagnetoRotationCoupling
 
 class NGSLLGModel(NGSModel):
     def __init__(self, model, vars):
@@ -115,6 +115,18 @@ class NGSLLGModel(NGSModel):
                 e = (du + du.T)/2
                 B1, B2 = -3*l100*(C[1,1,0,0]-C[0,0,0,0])/Ms, - 6*l111*C[0,1,0,1]/Ms
                 B = B1*e.diag()*m + B2*e.offdiag()*m
+                wf += -g*B.dot(test_m)*dx(cms.geometries)
+                wf += g*m.dot(B)*m.t.dot(test_m)*theta/dti*dx(cms.geometries)
+
+            for cms in self._model.domainConditions.get(CubicMagnetoRotationCoupling):
+                c1, c2, c3, Kc = mat["u_Kc[0]/norm(u_Kc[0])"], mat["u_Kc[1]/norm(u_Kc[1])"], mat["u_Kc[2]/norm(u_Kc[2])"], mat["Kc"]
+                du = util.grad(mat[cms.values])
+                w = (du.T-du)/2
+                n1, n2, n3 = c1.dot(m), c2.dot(m), c3.dot(m)
+                B =  -2*Kc/Ms*(3*( n2*w[0,1]+n3*w[0,2])*n1**2 - w[0,1]*n2**3 - w[0,2]*n3**3)*c1
+                B += -2*Kc/Ms*(3*(-n1*w[0,1]+n3*w[2,1])*n2**2 - w[0,1]*n1**3 - w[1,2]*n3**3)*c2
+                B += -2*Kc/Ms*(3*(-n1*w[0,2]-n2*w[1,2])*n3**2 - w[0,2]*n1**3 - w[2,1]*n2**3)*c3
+
                 wf += -g*B.dot(test_m)*dx(cms.geometries)
                 wf += g*m.dot(B)*m.t.dot(test_m)*theta/dti*dx(cms.geometries)
 

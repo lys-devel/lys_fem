@@ -48,3 +48,6 @@ class ngs_LLG_test(LLG_test):
 
     def test_MS(self):
         self.magnetoStriction(ngs)
+
+    def test_MR(self):
+        self.magnetoRotation(ngs)

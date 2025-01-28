@@ -186,7 +186,7 @@ class NGSFunction:
             
     def grad(self, fes):
         if self._obj is None:
-            return ngsolve.CoefficientFunction([0]*dimension)
+            return ngsolve.CoefficientFunction(tuple([0]*dimension))
         if isinstance(self._obj, list):
             return ngsolve.CoefficientFunction(tuple([obj.grad(fes) for obj in self._obj]), dims=self.shape+(dimension,)).TensorTranspose((1,0))
         if isinstance(self._obj, dict):

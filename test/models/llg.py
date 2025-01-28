@@ -544,3 +544,37 @@ class LLG_test(FEMTestCase):
         s = sol.eval("m", data_number=-1)[0].data[0]
 
         self.assert_allclose(r2, s[1]/s[0], rtol=1e-4)
+
+
+    def magnetoRotation(self, lib):
+        p = FEMProject(3)
+
+        # geometry
+        p.geometries.add(geometry.Box(0, 0, 0, 1e-6, 1e-6, 1e-7))
+        p.mesher.addSizeConstraint(geometries="all", size=1e-6)
+
+        # material
+        param = llg.LLGParameters(alpha=10, Ms=1e6, Kc=1e3, Aex=0, u_Kc=np.eye(3))
+        param2 = llg.UserDefinedParameters(u=["-z", "0", "x"])
+        mat1 = Material([param, param2], geometries="all")
+        p.materials.append(mat1)
+
+        # model: boundary and initial conditions
+        model = llg.LLGModel(constraint="Alouges", order=1)
+        model.initialConditions.append(llg.InitialCondition([0, 0, 1], geometries="all"))
+        model.domainConditions.append(llg.CubicAnisotropy(geometries="all"))
+        model.domainConditions.append(llg.CubicMagnetoRotationCoupling("u*1e-3", geometries="all"))
+        p.models.append(model)
+
+        # solver
+        solver = RelaxationSolver(dt0=1e-14, dt_max=1e-9, dx=0.01, diff_expr="m", maxiter=30000, tolerance=1e-8, solver="pardiso")
+        p.solvers.append(solver)
+
+        # solve
+        lib.run(p)
+
+        # solution
+        sol = FEMSolution()
+        s = sol.eval("m", data_number=-1)[0].data[0]
+        self.assertTrue(s[0]/s[2] < 0)
+        self.assertAlmostEqual(abs(s[0]/s[2]), 1e-3, delta=1e-3)
