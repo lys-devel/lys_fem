@@ -101,7 +101,7 @@ class NGSLLGModel(NGSModel):
                 B += -2*Kc/Ms*(c3.dot(m)**2+c1.dot(m)**2)*c2.dot(m)*c2
                 B += -2*Kc/Ms*(c1.dot(m)**2+c2.dot(m)**2)*c3.dot(m)*c3
                 wf += -g*B.dot(test_m)*dx(cu.geometries)
-                #wf += g*m.dot(B)*m.t.dot(test_m)*theta/dti*dx(cu.geometries)
+                wf += g*m.dot(B)*m.t.dot(test_m)*theta/dti*dx(cu.geometries)
 
             for sc in self._model.domainConditions.get(MagneticScalarPotential):
                 phi = mat[sc.values]
@@ -113,11 +113,10 @@ class NGSLLGModel(NGSModel):
                 C, l100, l111 = mat["C"], mat["lam100"], mat["lam111"]
                 du = util.grad(mat[cms.values])
                 e = (du + du.T)/2
-                B1, B2 = -3*l100*(C[0,1,0,0]-C[0,0,0,0])/Ms, - 6*l111*C[0,1,0,1]/Ms
+                B1, B2 = -3*l100*(C[1,1,0,0]-C[0,0,0,0])/Ms, - 6*l111*C[0,1,0,1]/Ms
                 B = B1*e.diag()*m + B2*e.offdiag()*m
                 wf += -g*B.dot(test_m)*dx(cms.geometries)
-                print(wf)
-                #wf += g*m.dot(B)*m.t.dot(test_m)*theta/dti*dx(cms.geometries)
+                wf += g*m.dot(B)*m.t.dot(test_m)*theta/dti*dx(cms.geometries)
 
             for st in self._model.domainConditions.get(SpinTransferTorque):
                 beta = mat["beta_st"]

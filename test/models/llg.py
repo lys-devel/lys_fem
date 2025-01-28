@@ -505,36 +505,42 @@ class LLG_test(FEMTestCase):
     def magnetoStriction(self, lib):
         p = FEMProject(3)
 
+        C1, C2, C4 = 100e9, 40e9, 20e9
+        Ms = 1e5
+        l100, l111 = 1e-6, 2e-6
+        rat = 1.2
+        B1, B2 = -3*l100*(C2-C1)/Ms, -6*l111*C4/Ms
+        e11, e22, e33, e12, e23, e31 = 1e-2, rat*1e-2, 1e-2, (rat+1)/2*1e-2, (rat+1)/2*1e-2, 1e-2
+
         # geometry
         p.geometries.add(geometry.Box(0, 0, 0, 1e-6, 1e-6, 1e-7))
         p.mesher.addSizeConstraint(geometries="all", size=1e-6)
 
         # material
-        param = llg.LLGParameters(alpha=1, Ms=1e5, lam100=1e-6, lam111=0)
-        param2 = elasticity.ElasticParameters(C=[100e9, 40e9, 0], type="cubic")
-        param3 = llg.UserDefinedParameters(u=["(x+y+z)", "(x+y+z)", "(x+y+z)"])
+        param = llg.LLGParameters(alpha=20, Ms=Ms, lam100=l100, lam111=l111)
+        param2 = elasticity.ElasticParameters(C=[C1, C2, C4], type="cubic")
+        param3 = llg.UserDefinedParameters(u=["1e-2*(x+y+z)", str(rat)+"e-2*(x+y+z)", "1e-2*(x+y+z)"])
         mat1 = Material([param, param2, param3], geometries="all")
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
         model = llg.LLGModel(constraint="Alouges", order=1)
-        model.initialConditions.append(llg.InitialCondition([1, 0, 0], geometries="all"))
+        model.initialConditions.append(llg.InitialCondition([1/np.sqrt(3), 1/np.sqrt(3), 1/np.sqrt(3)], geometries="all"))
         model.domainConditions.append(llg.CubicMagnetoStriction("u", geometries="all"))
         p.models.append(model)
 
         # solver
-        solver = RelaxationSolver(dt0=1e-12, dt_max=1e-8, dx=0.05, diff_expr="m", solver="pardiso")
+        solver = RelaxationSolver(dt0=1e-14, dt_max=1e-9, dx=0.01, diff_expr="m", maxiter=30000, tolerance=1e-6, solver="pardiso")
         p.solvers.append(solver)
 
         # solve
         lib.run(p)
 
+        a,b,c = -B2*e12, -B2*e31-B1*e11+B1*e22, 2*B2*e12
+        r1, r2 = (-b+np.sqrt(b**2-4*a*c))/(2*a),(-b-np.sqrt(b**2-4*a*c))/(2*a)
+
         # solution
         sol = FEMSolution()
-        print(sol.eval("-3*lam100*(C[0,1,0,0]-C[0,0,0,0])/Ms*(grad(u)+grad(u).T).diag()", data_number=50)[0].data)
-        return
-        for w in res:
-            self.assert_array_almost_equal(w.data, -np.ones(w.data.shape)/np.sqrt(2), decimal=2)
-        res = sol.eval("m[2]", data_number=50)
-        for w in res:
-            self.assert_array_almost_equal(w.data, -np.ones(w.data.shape)/np.sqrt(2), decimal=2)
+        s = sol.eval("m", data_number=-1)[0].data[0]
+
+        self.assert_allclose(r2, s[1]/s[0], rtol=1e-4)
