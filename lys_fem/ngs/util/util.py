@@ -387,6 +387,18 @@ class NGSFunction:
         elif J.shape[0] == 1:
             return J[0,0]
         
+    def inv(self):
+        m = self
+        if m.shape[0] == 3:
+            return NGSFunction([
+                [m[1,1]*m[2,2]-m[1,2]*m[2,1], m[0,2]*m[2,1]-m[0,1]*m[2,2], m[0,1]*m[1,2]-m[0,2]*m[1,1]],
+                [m[1,2]*m[2,0]-m[1,0]*m[2,2], m[0,0]*m[2,2]-m[0,2]*m[2,0], m[0,2]*m[1,0]-m[0,0]*m[1,2]],
+                [m[1,0]*m[2,1]-m[1,1]*m[2,0], m[0,1]*m[2,0]-m[0,0]*m[2,1], m[0,0]*m[1,1]-m[0,1]*m[1,0]]])/self.det()
+        elif m.shape[0] == 2:
+            return NGSFunction([[m[1,1], -m[0,1]], [-m[1,0], m[0,0]]])/self.det()
+        else:
+            return 1/self
+        
     def diag(self):
         M = np.zeros(self.shape, dtype=object)
         for i in range(builtins.min(*self.shape)):
