@@ -43,7 +43,8 @@ class NGSSolution:
             self._mesh = generateMesh(self._fem)
         else:
             self._mesh = mesh
-        self._fes = util.FiniteElementSpace(self._model.variables, self._mesh)
+        J = self._model.materials["J"] if "J" in self._model.materials else None
+        self._fes = util.FiniteElementSpace(self._model.variables, self._mesh, jacobi=J)
         self._sol = _Solution(self._fes, nlog=1)
 
     def coef(self, expression, index=-1):

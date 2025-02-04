@@ -507,6 +507,8 @@ class _Mul(_Oper):
         super().__init__(obj1, obj2)
 
     def __call__(self, x, y):
+        if isinstance(y, _MultDiffSimbol):
+            return y * x
         if isinstance(x, ngsolve.CoefficientFunction) and isinstance(y, ngsolve.CoefficientFunction):
             if len(x.shape)!=0 and len(x.shape) == len(y.shape):
                 return ngsolve.CoefficientFunction(tuple([xi*yi for xi, yi in zip(x,y)]), dims=x.shape)
@@ -894,7 +896,12 @@ class _Func(_Oper):
             return ngsolve.sqrt(v*v)
         if self._type == "grad":
             if hasattr(self._obj[0], "grad"):
-                return self._obj[0].grad(fes)
+                x = self._obj[0].grad(fes)
+                if fes.J is None:
+                    return x
+                else:
+                    return fes.J.eval(fes)*x
+                
             raise RuntimeError("grad is not implemented for " + str(type(self._obj[0])))
     
     def __str__(self):
@@ -1321,14 +1328,18 @@ class DifferentialSymbol(NGSFunction):
         self._geom = geom
 
     def eval(self, fes):
+        if fes.J is None:
+            J = None
+        else:
+            J = fes.J.det().eval(fes)
         if self._geom is None:
-            return self._obj
+            return _MultDiffSimbol(self._obj, J)
         else:
             if self._obj == ngsolve.dx:
                 g = fes.mesh.Materials(self._geom)
             else:
                 g = fes.mesh.Boundaries(self._geom)
-            return self._obj(definedon=g)
+            return _MultDiffSimbol(self._obj(definedon=g), J)
         
     @property
     def shape(self):
@@ -1353,6 +1364,17 @@ class DifferentialSymbol(NGSFunction):
     def __call__(self, region):
         geom = "|".join([region.geometryType.lower() + str(r) for r in region])
         return DifferentialSymbol(self._obj, geom, name=str(self))
+
+
+class _MultDiffSimbol:
+    def __init__(self, obj, J):
+        self._obj = obj
+        self._J = J
+
+    def __mul__(self, other):
+        if self._J is None:
+            return other * self._obj
+        return (other / self._J) * self._obj
 
 
 class Parameter(NGSFunction):

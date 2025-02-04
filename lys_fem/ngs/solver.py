@@ -206,7 +206,8 @@ class SolverBase:
         self._mat.const.dti.tdep = variableStep
         self._index = -1
 
-        self._fes = util.FiniteElementSpace(model.variables, mesh)
+        J = self._mat["J"] if "J" in self._mat else None
+        self._fes = util.FiniteElementSpace(model.variables, mesh, jacobi=J)
         self._sols = _Solution(self._fes)
         use_a = any([v.tt in model.weakforms() for v, _ in model.TnT.values()]) and timeDep
         if use_a:

@@ -96,12 +96,13 @@ class NGSVariable:
 
 
 class FiniteElementSpace:
-    def __init__(self, vars, mesh, symbols=None, symmetric=False, condense=False):
+    def __init__(self, vars, mesh, symbols=None, symmetric=False, condense=False, jacobi=None):
         self._mesh = mesh
         self._vars = vars
         self._symbols = symbols
         self._symmetric = symmetric
         self._condense = condense
+        self._jacobi = jacobi
         if symbols is None:
             self._fes = prod([v.finiteElementSpace(mesh) for v in vars])
             self._tnt = self.__TnT_dict(vars, self._fes)
@@ -148,6 +149,10 @@ class FiniteElementSpace:
     @property
     def mask(self):
         return self._mask
+    
+    @property
+    def J(self):
+        return self._jacobi
     
     def gridFunction(self, value=None):
         return GridFunction(self, value)

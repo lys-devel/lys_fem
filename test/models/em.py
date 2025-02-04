@@ -62,7 +62,7 @@ class magnetostatistics_test(FEMTestCase):
         p.materials.append(Material([param], geometries=domain))
 
         # poisson equation for infinite boundary
-        model = em.MagnetostaticsModel(J="J")
+        model = em.MagnetostaticsModel()
         model.initialConditions.append(em.InitialCondition(0, geometries="all"))
         model.boundaryConditions.append(em.DirichletBoundary(True, geometries=infBdr))
         model.domainConditions.append(em.DivSource(np.array([0,0,"M"]), geometries=domain))

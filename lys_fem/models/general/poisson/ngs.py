@@ -16,11 +16,7 @@ class NGSPoissonModel(NGSModel):
             gu = grad(u)
             if self._coef is not None:
                 gu = mat[self._coef].dot(gu)
-            if eq.J is not None:
-                J = mat[eq.J]
-                wf += J.dot(gu).dot(J.dot(grad(v)))/J.det() * dx
-            else:
-                wf += gu.dot(grad(v)) * dx
+            wf += gu.dot(grad(v)) * dx
 
             for s in self._model.domainConditions.get(Source):
                 f = mat[s.values]
