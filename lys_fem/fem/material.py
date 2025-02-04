@@ -40,17 +40,31 @@ class Materials(FEMObjectList):
         groups = {}
         for m in self:
             for p in m:
-                if p.name in groups:
-                    groups[p.name] |= set(p.getParameters(dim).keys())
-                else:
-                    groups[p.name] = set(p.getParameters(dim).keys())
+                if p.name not in groups:
+                    groups[p.name] = set()
+                groups[p.name] |= set(p.getParameters(dim).keys())
 
         # create coefficient for respective parameter
         res = {}
         for group, params in groups.items():
             for pname in params:
                 res[pname] = self.__generateCoefForParameter(pname, group, dim)
+        J = self.jacobi(dim)
+        if J is not None:
+            res["J_M"] = J
         return res
+
+    def jacobi(self, dim):
+        J = FEMCoefficient({"default": np.eye(3).tolist()}, geomType="Domain")
+        for m in self:
+            R =  m.coordinate
+            if R is not None:
+                for d in m.geometries:
+                    J.value[d] = R[:dim, :dim]/np.linalg.norm(R[:dim, :dim])
+        if len(J.value) > 1:
+            return J
+        else:
+            return None
 
     def __generateCoefForParameter(self, pname, group, dim):
         #coefs = {"default": self.defaultParameter(group, dim)[pname]}
@@ -64,12 +78,13 @@ class Materials(FEMObjectList):
 
 
 class Material(FEMObject):
-    def __init__(self, params=None, geometries=None, objName=None):
+    def __init__(self, params=None, geometries=None, objName=None, coord=None):
         super().__init__(objName)
         self._geometries = GeometrySelection("Domain", geometries, parent=self)
         if params is None:
             params = []
         self._params = params
+        self._coord = coord
 
     def __getitem__(self, i):
         if isinstance(i, str):
@@ -86,18 +101,22 @@ class Material(FEMObject):
     @property
     def geometries(self):
         return self._geometries
+    
+    @property
+    def coordinate(self):
+        return self._coord
 
     @geometries.setter
     def geometries(self, value):
         self._geometries = GeometrySelection("Domain", value, parent=self)
 
     def saveAsDictionary(self):
-        return {"name": self.objName, "geometries": self.geometries.saveAsDictionary(), "params": [p.saveAsDictionary() for p in self]}
+        return {"name": self.objName, "geometries": self.geometries.saveAsDictionary(), "params": [p.saveAsDictionary() for p in self], "coord": self._coord}
 
     @staticmethod
     def loadFromDictionary(d):
         params = [FEMParameter.loadFromDictionary(p) for p in d["params"]]
-        return Material(params, GeometrySelection.loadFromDictionary(d["geometries"]), objName=d["name"])
+        return Material(params, GeometrySelection.loadFromDictionary(d["geometries"]), objName=d["name"], coord=d.get("coord"))
 
 
 class FEMParameter:
