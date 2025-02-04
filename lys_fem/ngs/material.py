@@ -11,7 +11,6 @@ def generateMaterial(fem):
     sols.update({key: util.SolutionFieldFunction(coef.get(), tdep=coef.index is None) for key, coef in fem.solutionFields.items()})
     sols.update({key: util.RandomFieldFunction(item.type, item.shape, item.tdep, name=key) for key, item in fem.randomFields.items()})
     res = NGSParams(fem, sols)
-    res.const["Ve"] = util.VolumeField(name = "Ve")
     return res
 
 
@@ -58,6 +57,8 @@ class NGSConstants(dict):
         self["mu_B"] = util.NGSFunction(9.2740100657e-24 , name="mu_B")
         self["eps_0"] = util.NGSFunction(8.8541878128e-12, name="eps_0")
         self["dti"] = util.Parameter("dti", -1)
+
+        self["Ve"] = util.VolumeField(name = "Ve")
 
     def __getattr__(self, key):
         if key in self:

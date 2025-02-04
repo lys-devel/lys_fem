@@ -10,6 +10,7 @@ class VariableTree(FEMTreeItem):
         super().__init__(fem=obj, canvas=canvas)
         self.append(GlobalVariableTree(self))
         self.append(SolutionFieldTree(self))
+        self.append(RandomFieldTree(self))
         self.append(MaterialTree(self, obj.materials))
 
     def setVariables(self, materials):
@@ -41,6 +42,19 @@ class SolutionFieldTree(FEMTreeItem):
     def widget(self):
         return _FieldWidget(self.fem())
 
+
+class RandomFieldTree(FEMTreeItem):
+    def __init__(self, parent):
+        super().__init__(parent)
+
+    @property
+    def name(self):
+        return "Random Fields"
+
+    @property
+    def widget(self):
+        return _RandomFieldWidget(self.fem())
+    
 
 class _ParametersWidget(QtWidgets.QTreeWidget):
     def __init__(self, fem):
@@ -207,3 +221,102 @@ class _SolutionFieldEditDialog(QtWidgets.QDialog):
 
     def result(self):
         return self._name.text(), self._type.currentText(), self._path.text(), self._expr.text()
+    
+
+class _RandomFieldWidget(QtWidgets.QTreeWidget):
+    def __init__(self, fem):
+        super().__init__()
+        self._fem = fem
+        self.setHeaderLabels(["Symbol", "Type", "Shape"])
+        self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self._buildContextMenu)
+        self.reset()
+        
+    def reset(self):
+        while self.topLevelItemCount() > 0:
+            item = self.topLevelItem(0)
+            index = self.indexFromItem(item)
+            self.takeTopLevelItem(index.row())
+        for key, item in self._fem.randomFields.items():
+            item = QtWidgets.QTreeWidgetItem([str(key), item.type + " (t-dep)" if item.tdep else "", str(item.shape)])
+            self.addTopLevelItem(item)
+
+    def _buildContextMenu(self):
+        menu = QtWidgets.QMenu()
+        menu.addAction(QtWidgets.QAction("Add", self, triggered=self.__add))
+        menu.addAction(QtWidgets.QAction("Edit", self, triggered=self.__edit))
+        menu.addAction(QtWidgets.QAction("Remove", self, triggered=self.__remove))
+        menu.exec_(QtGui.QCursor.pos())
+                       
+    def __add(self):
+        d = _RandomFieldEditDialog(self)
+        ok = d.exec_()
+        if ok:
+            name, typ, tdep, shape = d.result()
+            self._fem.randomFields.add(name, typ, shape=shape, tdep=tdep)
+            self.reset()
+
+    def __edit(self):
+        key = self.indexFromItem(self.selectedItems()[0]).data(QtCore.Qt.DisplayRole)
+        obj = self._fem.randomFields[key]
+        d = _RandomFieldEditDialog(self, key, obj)
+        ok = d.exec_()
+        if ok:
+            name, typ, tdep, shape = d.result()
+            obj.set(typ, shape, tdep)
+            self.reset()
+
+    def __remove(self):
+        for item in self.selectedItems():
+            index = self.indexFromItem(item)
+            key = self.indexFromItem(self.selectedItems()[0]).data(QtCore.Qt.DisplayRole)
+            self._fem.solutionFields.pop(key)
+            self.takeTopLevelItem(index.row())
+        self.reset()
+
+
+class _RandomFieldEditDialog(QtWidgets.QDialog):
+    def __init__(self, parent=None, key=None, obj=None):
+        super().__init__(parent)
+        self.__initLayout()
+        if key is not None:
+            self._name.setText(key)
+        if obj is not None:
+            self._type.setCurrentText(obj.type)
+            self._shape.setText(str(obj.shape))
+            self._tdep.setChecked(obj.tdep)
+
+    def __initLayout(self):
+        self._name = QtWidgets.QLineEdit()
+        self._type = QtWidgets.QComboBox()
+        self._type.addItems(["L2", "H1"])
+        self._tdep = QtWidgets.QCheckBox("Time dependent")
+        self._shape = QtWidgets.QLineEdit()
+
+        grid = QtWidgets.QGridLayout()
+        grid.addWidget(QtWidgets.QLabel("Symbol name"), 0, 0)
+        grid.addWidget(self._name, 0, 1)
+        grid.addWidget(self._tdep, 0, 2)
+        grid.addWidget(QtWidgets.QLabel("Type"), 1, 0)
+        grid.addWidget(self._type, 1, 1, 1, 2)
+        grid.addWidget(QtWidgets.QLabel("Shape"), 2, 0)
+        grid.addWidget(self._shape, 2, 1, 1, 2)
+
+        h1 = QtWidgets.QHBoxLayout()
+        h1.addWidget(QtWidgets.QPushButton('O K', clicked=self.accept))
+        h1.addWidget(QtWidgets.QPushButton('CALCEL', clicked=self.reject))
+
+        v1 = QtWidgets.QVBoxLayout()
+        v1.addLayout(grid)
+        v1.addLayout(h1)
+
+        self.setLayout(v1)
+
+    def result(self):
+        shape = self._shape.text()
+        if shape == "":
+            shape = ()
+        shape = eval(shape)
+        if isinstance(shape, int):
+            shape = (shape,)
+        return self._name.text(), self._type.currentText(), self._tdep.isChecked(), shape 

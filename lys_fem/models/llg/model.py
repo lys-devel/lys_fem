@@ -77,10 +77,11 @@ class ThermalFluctuation(DomainCondition):
 
     @classmethod
     def default(cls, fem, model):
-        return cls(0, 0)
+        return cls(T=0, R=[0,0,0])
 
     def widget(self, fem, canvas):
-        pass
+        from .widgets import ThermalFluctuationWidget
+        return ThermalFluctuationWidget(self)
 
 
 class LLGModel(FEMFixedModel):

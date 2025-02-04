@@ -37,7 +37,7 @@ class RandomFields(dict):
 
     def saveAsDictionary(self):
         return {key: value.saveAsDictionary() for key, value in self.items()}
-
+    
     @classmethod
     def loadFromDictionary(cls, d):
         res = RandomFields()
@@ -48,6 +48,11 @@ class RandomFields(dict):
 
 class RandomField:
     def __init__(self, type, shape, tdep):
+        self.type = type
+        self.tdep = tdep
+        self.shape = shape
+
+    def set(self, type, shape, tdep):
         self.type = type
         self.tdep = tdep
         self.shape = shape
