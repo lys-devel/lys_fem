@@ -14,7 +14,7 @@ class VariableTree(FEMTreeItem):
         self.append(MaterialTree(self, obj.materials))
 
     def setVariables(self, materials):
-        self.children[2].setMaterials(materials)
+        self.children[3].setMaterials(materials)
 
 
 class GlobalVariableTree(FEMTreeItem):

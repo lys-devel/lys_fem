@@ -21,7 +21,7 @@ class LLG_test(FEMTestCase):
         p.mesher.setRefinement(4)
 
         # material
-        param = llg.LLGParameters(alpha=10, Ms=1e6, Ku=1e3, Aex=1e-11, u_Ku=[0,0,1])
+        param = llg.LLGParameters(alpha_LLG=10, Ms=1e6, Ku=1e3, Aex=1e-11, u_Ku=[0,0,1])
         mat1 = Material([param], geometries="all")
         p.materials.append(mat1)
 
@@ -73,7 +73,7 @@ class LLG_test(FEMTestCase):
         p.mesher.setRefinement(3)
 
         # material
-        param = llg.LLGParameters(alpha=5, Ms=1e6, Ku=1e3, Aex=1e-11, u_Ku=[0,0,1])
+        param = llg.LLGParameters(alpha_LLG=5, Ms=1e6, Ku=1e3, Aex=1e-11, u_Ku=[0,0,1])
         mat1 = Material([param], geometries="all")
         p.materials.append(mat1)
 
@@ -125,7 +125,7 @@ class LLG_test(FEMTestCase):
         p.geometries.add(geometry.Line(0, 0, 0, 1e-6, 0, 0))
 
         # material
-        param = llg.LLGParameters(alpha=1, Ms=1e5, Ku=1e5, u_Ku=[1,0,1])
+        param = llg.LLGParameters(alpha_LLG=1, Ms=1e5, Ku=1e5, u_Ku=[1,0,1])
         mat1 = Material([param], geometries="all")
         p.materials.append(mat1)
 
@@ -224,7 +224,7 @@ class LLG_test(FEMTestCase):
         p.mesher.setRefinement(0)
 
         # material
-        param = llg.LLGParameters(alpha=0, Aex=0)
+        param = llg.LLGParameters(alpha_LLG=0, Aex=0)
         mat1 = Material([param], geometries="all")
         p.materials.append(mat1)
 
@@ -268,7 +268,7 @@ class LLG_test(FEMTestCase):
         p.mesher.setRefinement(0)
 
         # material
-        param = llg.LLGParameters(alpha=1, Aex=0)
+        param = llg.LLGParameters(alpha_LLG=1, Aex=0)
         mat1 = Material([param], geometries="all")
         p.materials.append(mat1)
 
@@ -302,7 +302,7 @@ class LLG_test(FEMTestCase):
         p.mesher.setRefinement(0)
 
         # material
-        param = llg.LLGParameters(alpha=0, Aex=0)
+        param = llg.LLGParameters(alpha_LLG=0, Aex=0)
         mat1 = Material([param], geometries="all")
         p.materials.append(mat1)
 
@@ -345,7 +345,7 @@ class LLG_test(FEMTestCase):
         p.mesher.setRefinement(0)
 
         # material
-        param = llg.LLGParameters(alpha=0, Aex=0)
+        param = llg.LLGParameters(alpha_LLG=0, Aex=0)
         mat1 = Material([param], geometries="all")
         p.materials.append(mat1)
 
@@ -403,7 +403,7 @@ class LLG_test(FEMTestCase):
         mBdr = [1,5,8,11,14,16,24,25]
 
         # Material
-        param = llg.LLGParameters(alpha=0, Aex=0, Ms=1)
+        param = llg.LLGParameters(alpha_LLG=0, Aex=0, Ms=1)
         p.materials.append(Material([param], geometries=domain))
 
         # poisson equation for infinite boundary
@@ -447,7 +447,7 @@ class LLG_test(FEMTestCase):
         p.randomFields.add("R3", "L2", tdep = True)
 
         # Material
-        param = llg.LLGParameters(alpha=0.1, Aex=0, Ms=1e6, Ku=1e4, u_Ku=[0,0,1])
+        param = llg.LLGParameters(alpha_LLG=0.1, Aex=0, Ms=1e6, Ku=1e4, u_Ku=[0,0,1])
         p.materials.append(Material([param], geometries="all"))
 
         # model: boundary and initial conditions
@@ -517,7 +517,7 @@ class LLG_test(FEMTestCase):
         p.mesher.addSizeConstraint(geometries="all", size=1e-6)
 
         # material
-        param = llg.LLGParameters(alpha=20, Ms=Ms, lam100=l100, lam111=l111)
+        param = llg.LLGParameters(alpha_LLG=20, Ms=Ms, lam100=l100, lam111=l111)
         param2 = elasticity.ElasticParameters(C=[C1, C2, C4], type="cubic")
         param3 = llg.UserDefinedParameters(u=["1e-2*(x+y+z)", str(rat)+"e-2*(x+y+z)", "1e-2*(x+y+z)"])
         mat1 = Material([param, param2, param3], geometries="all")
@@ -554,7 +554,7 @@ class LLG_test(FEMTestCase):
         p.mesher.addSizeConstraint(geometries="all", size=1e-6)
 
         # material
-        param = llg.LLGParameters(alpha=10, Ms=1e6, Kc=1e3, Aex=0, u_Kc=np.eye(3))
+        param = llg.LLGParameters(alpha_LLG=10, Ms=1e6, Kc=1e3, Aex=0, u_Kc=np.eye(3))
         param2 = llg.UserDefinedParameters(u=["-z", "0", "x"])
         mat1 = Material([param, param2], geometries="all")
         p.materials.append(mat1)

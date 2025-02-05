@@ -27,7 +27,7 @@ class NGSLLGModel(NGSModel):
     def _weakform_default(self, vars, mat):
         g, e, mu_B, mu0, Ms = mat.const.g_e, mat.const.e, mat.const.mu_B, mat.const.mu_0, mat["Ms"]
         A = 2*mat["Aex"] * g / Ms
-        alpha = mat["alpha"]
+        alpha = mat["alpha_LLG"]
 
         wf = 0
         for eq in self._model.equations:
@@ -67,7 +67,7 @@ class NGSLLGModel(NGSModel):
     def _weakform_alouges(self, vars, mat):
         g, e, mu_B, mu0, Ms, kB, dti = mat.const.g_e, mat.const.e, mat.const.mu_B, mat.const.mu_0, mat["Ms"], mat.const.k_B, mat.const.dti
         A = 2*mat["Aex"] * g / Ms
-        alpha = mat["alpha"]
+        alpha = mat["alpha_LLG"]
 
         wf = 0
         theta = 1

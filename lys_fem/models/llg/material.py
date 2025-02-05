@@ -4,8 +4,8 @@ from lys_fem import FEMParameter
 class LLGParameters(FEMParameter):
     name = "LLG"
 
-    def __init__(self, Ms=1e6, Aex=1e-11, alpha=0, Ku=None, u_Ku=None, Kc=None, u_Kc=None, beta_st=None, lam100=None, lam111=None):
-        self.alpha = alpha
+    def __init__(self, Ms=1e6, Aex=1e-11, alpha_LLG=0, Ku=None, u_Ku=None, Kc=None, u_Kc=None, beta_st=None, lam100=None, lam111=None):
+        self.alpha_LLG = alpha_LLG
         self.Ms = Ms
         self.Aex = Aex
         self.Ku = Ku
@@ -22,8 +22,8 @@ class LLGParameters(FEMParameter):
             res["Ms"] = self.Ms
         if self.Aex is not None:
             res["Aex"] = self.Aex
-        if self.alpha is not None:
-            res["alpha"] = self.alpha
+        if self.alpha_LLG is not None:
+            res["alpha_LLG"] = self.alpha_LLG
         if self.Ku is not None:
             res["Ku"] = self.Ku
         if self.u_Ku is not None:
@@ -45,7 +45,7 @@ class LLGParameters(FEMParameter):
         return {
             "Ms": "Saturation magnetization (A/m)",
             "Aex": "Exchange constant (J/m)",
-            "alpha": "Gilbert damping const.",
+            "alpha_LLG": "Gilbert damping const.",
             "Ku": "Uniaxial anisotropy (J/m^3)",
             "u_Ku": "Uniaxial anisotropy direction",
             "Kc": "Cubic anisotropy (J/m^3)",
@@ -60,7 +60,7 @@ class LLGParameters(FEMParameter):
         return {
             "Ms": 1e6,
             "Aex": 1e-11,
-            "alpha": 0,
+            "alpha_LLG": 0,
             "Ku": 1e3,
             "u_Ku": [0,0,1],
             "Kc": 100,
