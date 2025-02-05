@@ -114,7 +114,7 @@ class NGSLLGModel(NGSModel):
                 du = util.grad(mat[cms.values])
                 e = (du + du.T)/2
                 B1, B2 = -3*l100*(C[1,1,0,0]-C[0,0,0,0])/Ms, - 6*l111*C[0,1,0,1]/Ms
-                B = B1*e.diag()*m + B2*e.offdiag()*m
+                B = B1*util.diag(e)*m + B2*util.offdiag(e)*m
                 wf += -g*B.dot(test_m)*dx(cms.geometries)
                 wf += g*m.dot(B)*m.t.dot(test_m)*theta/dti*dx(cms.geometries)
 
