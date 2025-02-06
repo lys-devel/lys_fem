@@ -1,7 +1,7 @@
 import builtins
 import ngsolve
 
-from .util import NGSFunction, DomainWiseFunction
+from .coef import NGSFunction, DomainWiseFunction
 from .trials import TrialFunction, TestFunction, SolutionFunction, DifferentialSymbol
 from .fields import VolumeField, SolutionFieldFunction, RandomFieldFunction
 from .functions import det, inv, diag, offdiag, grad, sin, cos, tan, step, min, max, exp, sqrt, norm

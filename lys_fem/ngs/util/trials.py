@@ -1,6 +1,6 @@
 import ngsolve
 from .operators import NGSFunctionBase
-from .util import NGSFunction
+from .coef import NGSFunction
 
 
 class TrialFunction(NGSFunctionBase):
@@ -221,11 +221,11 @@ class SolutionFunction(NGSFunctionBase):
         return self._var.name + "_n"
 
 
-
-class DifferentialSymbol(NGSFunction):
-    def __init__(self, obj, geom=None, **kwargs):
-        super().__init__(obj, **kwargs)
+class DifferentialSymbol(NGSFunctionBase):
+    def __init__(self, obj, geom=None, name=""):
+        self._obj = obj
         self._geom = geom
+        self._name = name
 
     def eval(self, fes):
         from .functions import det
@@ -241,7 +241,25 @@ class DifferentialSymbol(NGSFunction):
             else:
                 g = fes.mesh.Boundaries(self._geom)
             return _MultDiffSimbol(self._obj(definedon=g), J)
+
+    @property
+    def hasTrial(self):
+        return False
         
+    @property
+    def rhs(self):
+        return self
+
+    @property
+    def lhs(self):
+        return NGSFunction()
+
+    def replace(self, d):
+        return d.get(self, self)
+    
+    def __contains__(self, item):
+        return self == item
+            
     @property
     def shape(self):
         return ()
@@ -265,6 +283,9 @@ class DifferentialSymbol(NGSFunction):
     def __call__(self, region):
         geom = "|".join([region.geometryType.lower() + str(r) for r in region])
         return DifferentialSymbol(self._obj, geom, name=str(self))
+    
+    def __str__(self):
+        return self._name
 
 
 class _MultDiffSimbol:

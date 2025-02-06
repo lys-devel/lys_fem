@@ -3,7 +3,7 @@ import numpy as np
 import ngsolve
 
 from .operators import NGSFunctionBase
-from .util import NGSFunction
+from .coef import NGSFunction
 from .trials import TrialFunction, TestFunction
 
 

@@ -14,6 +14,7 @@ class Operator:
         self._step = step
 
         wf = model.weakforms(type=type, sols=sols, symbols=step.variables)
+        print(wf)
         self._lhs, self._rhs = wf.lhs, wf.rhs
         self.__form()
 
@@ -29,6 +30,7 @@ class Operator:
             self._blf += self._lhs.eval(self._fes)
         self._lf = self._fes.LinearForm()
         if self._rhs.valid:
+            print(self._rhs)
             self._lf += self._rhs.eval(self._fes)
   
     def __call__(self, x):

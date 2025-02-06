@@ -3,7 +3,7 @@ import ngsolve
 
 
 def NGSFunction(*args, **kwargs):
-    from .util import NGSFunction as func
+    from .coef import NGSFunction as func
     return func(*args, **kwargs)
 
 

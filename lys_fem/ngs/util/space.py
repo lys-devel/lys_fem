@@ -1,5 +1,5 @@
 import ngsolve
-from .util import NGSFunction
+from .coef import NGSFunction
 
 def prod(args):
     res = args[0]

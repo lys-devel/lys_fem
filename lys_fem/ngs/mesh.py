@@ -88,7 +88,7 @@ def generateMesh(fem, geom=None):
         mesh.ns = len(tags), nodes
     else:
         mesh.ns = len(coords), len(mesh.ngmesh.Points())
-    util.util.dimension = fem.dimension
+    util.dimension = fem.dimension
     return mesh
 
 
