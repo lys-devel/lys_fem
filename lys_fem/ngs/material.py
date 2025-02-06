@@ -47,6 +47,7 @@ class NGSConstants(dict):
         self["y"] = util.NGSFunction(ngsolve.y, name="y")
         self["z"] = util.NGSFunction(ngsolve.z, name="z")
         self["t"] = util.t
+        self["dti"] = util.dti
 
         self["c"] = util.NGSFunction(2.99792458e8, name="c")
         self["e"] = util.NGSFunction(-1.602176634e-19, name="e")
@@ -56,7 +57,6 @@ class NGSConstants(dict):
         self["mu_0"] = util.NGSFunction(1.25663706e-6, name="mu_0")
         self["mu_B"] = util.NGSFunction(9.2740100657e-24 , name="mu_B")
         self["eps_0"] = util.NGSFunction(8.8541878128e-12, name="eps_0")
-        self["dti"] = util.Parameter("dti", -1)
 
         self["Ve"] = util.VolumeField(name = "Ve")
 
@@ -77,7 +77,7 @@ def _generateCoefficient(coef, name="Undefined", dic={}):
             default = _generateCoefficient(coef.default, dic=dic)
         else:
             default = None
-        return util.NGSFunction(coefs, geomType=geom, default=default, name=name)
+        return util.DomainWiseFunction(coefs, geomType=geom, default=default, name=name)
     elif isinstance(coef, (list, tuple, np.ndarray)):
         return util.NGSFunction([_generateCoefficient(c, dic=dic) for c in coef], name=name)
     elif isinstance(coef, (int, float, sp.Integer, sp.Float, ngsolve.CoefficientFunction)):

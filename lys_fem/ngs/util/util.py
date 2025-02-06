@@ -22,6 +22,7 @@ class NGSFunction(NGSFunctionBase):
             self._obj = [value if isinstance(value, NGSFunctionBase) else NGSFunction(value) for value in obj]
             self._name = name
         elif isinstance(obj, dict):
+            raise RuntimeError("Error001")
             self._obj = {key: value if isinstance(value, NGSFunctionBase) else NGSFunction(value) for key, value in obj.items()}
             self._default = default
             self._geom = geomType
@@ -57,6 +58,12 @@ class NGSFunction(NGSFunctionBase):
         else:
             raise RuntimeError("error")
 
+    def set(self, value):
+        if isinstance(self._obj, ngsolve.Parameter):
+            self._obj.Set(value)
+        else:
+            raise RuntimeError("Cannot set coefficient function except parameter.")
+
     def eval(self, fes):
         if self._obj is None:
             return ngsolve.CoefficientFunction(0)
@@ -75,7 +82,6 @@ class NGSFunction(NGSFunctionBase):
             else:
                 return fes.mesh.BoundaryCF(coefs, default=default)
 
-            
     def grad(self, fes):
         if self._obj is None:
             return ngsolve.CoefficientFunction(tuple([0]*fes.dimension))
@@ -187,193 +193,89 @@ class NGSFunction(NGSFunctionBase):
             return any([obj.isTimeDependent for obj in self._obj.values()])
         else:
             raise RuntimeError("error")
-
-    def __str__(self):
-        return self._name
-
-
-class RandomFieldFunction(NGSFunction):
-    """
-    NGSFunction that provide the access to the present solution.
-    Args:
-        name(str): The symbol name
-        type('L2' or 'H1'): The finite element space type.
-        tdep(bool): Whether the field is time dependent
-    """
-    def __init__(self, type, shape, tdep, name=None):
-        self._name = name
-        self._shape = shape
-        self._type = type
-        self._tdep = tdep
-        self._init = False
-
-    def _initialize(self, fes):
-        if self._type=="L2":
-            sp = ngsolve.L2(fes.mesh, order=0)
-        if self._type=="H1":
-            sp = ngsolve.H1(fes.mesh, order=0)
-        if self._shape == ():
-            self._func = ngsolve.GridFunction(sp)
-        else:
-            size = 1
-            for s in self._shape:
-                size *= s
-            self._func = [ngsolve.GridFunction(sp) for _ in range(size)]
-        self._init = True
-        self.update()
-
-    @property
-    def shape(self):
-        return self._shape
-
-    @property
-    def valid(self):
-        return True
-    
-    def update(self):
-        if not self._init:
-            raise RuntimeWarning("The random field is not initialized. Please delete unused field.")
-        if self._shape == ():
-            self._func.vec.data = np.random.normal(size=len(self._func.vec))
-        else:
-            for f in self._func:
-                f.vec.data = np.random.normal(size=len(f.vec))
-
-    def eval(self, fes):
-        if not self._init:
-            self._initialize(fes)
-        if self._shape == ():
-            return self._func
-        else:
-            return ngsolve.CoefficientFunction(tuple(self._func), dims=self._shape)
-            
-    def grad(self, fes):
-        if not self._init:
-            self._initialize(fes)
-        if self._shape == ():
-            return ngsolve.grad(self._func)
-        else:
-            raise RuntimeError("grad for multi-dim random is not defined.")
-            
-    def replace(self, d):
-        return d.get(self, self)
-
-    def __contains__(self, item):
-        return self == item
-
-    @property
-    def hasTrial(self):
-        return False
-    
-    @property
-    def rhs(self):
-        return self
-
-    @property
-    def lhs(self):
-        return NGSFunction()
         
-    @property
-    def isNonlinear(self):
-        return False
-        
-    @property
-    def isTimeDependent(self):
-        return self._tdep
-
-    def __str__(self):
-        return self._name
-
-
-class VolumeField(NGSFunction):
-    """
-    NGSFunction that provide the access to the element wise volume.
-    Args:
-        name(str): The symbol name
-    """
-    def __init__(self, name=None):
-        self._name = name
-        self._init = False
-
-    def _initialize(self, fes):
-        sp = ngsolve.L2(fes.mesh)
-        self._func = ngsolve.GridFunction(sp)
-        data = ngsolve.Integrate(ngsolve.CoefficientFunction(1), fes.mesh, element_wise=True)
-        self._func.vec.data = np.array(data)
-        self._init = True
-
-    @property
-    def shape(self):
-        return ()
-
-    @property
-    def valid(self):
-        return True
-    
-    def eval(self, fes):
-        if not self._init:
-            self._initialize(fes)
-        return self._func
-            
-    def grad(self, fes):
-        raise RuntimeError("Gradient of the element-wise volume is not defined.")
-            
-    def replace(self, d):
-        return d.get(self, self)
-
-    def __contains__(self, item):
-        return self == item
-
-    @property
-    def hasTrial(self):
-        return False
-    
-    @property
-    def rhs(self):
-        return self
-
-    @property
-    def lhs(self):
-        return NGSFunction()
-        
-    @property
-    def isNonlinear(self):
-        return False
-        
-    @property
-    def isTimeDependent(self):
-        return False
-
-    def __str__(self):
-        return self._name
-     
-
-class Parameter(NGSFunction):
-    def __init__(self, name, value, tdep=False):
-        super().__init__(ngsolve.Parameter(value), name=name, tdep=tdep)
-
-    def set(self, value):
-        self._obj.Set(value)
-
-    def get(self):
-        return self._obj.Get()
-
-    @property
-    def tdep(self):
-        return self._tdep
-
-    @tdep.setter
-    def tdep(self, b):
+    @isTimeDependent.setter
+    def isTimeDependent(self, b):
         self._tdep = b
 
+    def __str__(self):
+        return self._name
+ 
+
+class DomainWiseFunction(NGSFunctionBase):
+    def __init__(self, obj=None, default=None, geomType="domain", name="Undefined"):
+        self._obj = {key: value if isinstance(value, NGSFunctionBase) else NGSFunction(value) for key, value in obj.items()}
+        self._default = default
+        self._geom = geomType
+        self._name = name
+
+    @property
+    def shape(self):
+        return list(self._obj.values())[0].shape
+
+    @property
+    def valid(self):
+        return any([obj.valid for obj in self._obj.values()])
+
+    def eval(self, fes):
+        coefs = {key: obj.eval(fes) for key, obj in self._obj.items()}
+        if self._default is None:
+            default = None
+        else:
+            default = self._default.eval(fes)
+        if self._geom=="domain":
+            return fes.mesh.MaterialCF(coefs, default=default)
+        else:
+            return fes.mesh.BoundaryCF(coefs, default=default)
+
+    def grad(self, fes):
+        coefs = {key: obj.grad(fes) for key, obj in self._obj.items()}
+        if self._default is None:
+            default = None
+        else:
+            default = self._default.grad(fes)
+        if self._geom=="domain":
+            return fes.mesh.MaterialCF(coefs, default=default)
+        else:
+            return fes.mesh.BoundaryCF(coefs, default=default)
+    
+    def replace(self, d):
+        if self._default is None:
+            default = None
+        else:
+            default = self._default.replace(d)
+        return DomainWiseFunction({key: value.replace(d) for key, value in self._obj.items()}, name=self._name, default=default, geomType=self._geom)
+
+    def __contains__(self, item):
+        default = False if self._default is None else item in self._default
+        return any([item in obj for obj in self._obj.values()]+[default])
+
+    @property
+    def hasTrial(self):
+        return any([obj.hasTrial for obj in self._obj.values()])
+    
+    @property
+    def rhs(self):
+        if not self.hasTrial:
+            return self
+        else:
+            return DomainWiseFunction({key: obj.rhs for key, obj in self._obj.items()})
+
+    @property
+    def lhs(self):
+        if self.hasTrial:
+            return DomainWiseFunction({key: obj.lhs for key, obj in self._obj.items()})
+        else:
+            return NGSFunction()
+        
     @property
     def isNonlinear(self):
-        return False
-
-
-class SolutionFieldFunction(NGSFunction):
-    pass
-
-
-t = Parameter("t", 0, tdep=True)
-stepn = Parameter("step", 0, tdep=True)
+        return any([obj.isNonlinear for obj in self._obj.values()])
+        
+    @property
+    def isTimeDependent(self):
+        return any([obj.isTimeDependent for obj in self._obj.values()])
+        
+    def __str__(self):
+        return self._name
+ 

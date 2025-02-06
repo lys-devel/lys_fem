@@ -203,7 +203,7 @@ class SolverBase:
         self._obj = obj
         self._model = model
         self._mat = model.materials
-        self._mat.const.dti.tdep = variableStep
+        self._mat.const.dti.isTimeDependent = variableStep
         self._index = -1
 
         J = self._mat["J"] if "J" in self._mat else None
