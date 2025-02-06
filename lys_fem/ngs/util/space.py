@@ -1,5 +1,11 @@
 import ngsolve
-from .util import prod, GridFunction
+from .util import NGSFunction
+
+def prod(args):
+    res = args[0]
+    for arg in args[1:]:
+        res = res * arg
+    return res
 
 
 class FunctionSpace:
@@ -154,6 +160,10 @@ class FiniteElementSpace:
     def J(self):
         return self._jacobi
     
+    @property
+    def dimension(self):
+        return self._mesh.dim
+    
     def gridFunction(self, value=None):
         return GridFunction(self, value)
     
@@ -175,3 +185,56 @@ class FiniteElementSpace:
     
     def FreeDofs(self):
         return self._fes.FreeDofs(self._condense)
+
+
+class GridFunction(ngsolve.GridFunction):
+    def __init__(self, fes, value=None):
+        super().__init__(fes._fes)
+        self._fes = fes
+        if value is not None:
+            self.set(value)
+
+    def set(self, value):
+        if self.isSingle:
+            self.Set(*value)
+        else:
+            for ui, i in zip(self.components, value):
+                ui.Set(i)
+
+    def setComponent(self, var, value):
+        if self.isSingle:
+            self.Set(value)
+        else:
+            n = 0
+            for v in self._fes.variables:
+                if v.name == var.name:
+                    break
+                n += v.size
+            for i in range(var.size):
+                self.components[n+i].Set(value[i])
+
+    @property
+    def components(self):
+        if self.isSingle:
+            return [self]
+        else:
+            return super().components
+
+    @property
+    def isSingle(self):
+        return not isinstance(self.space, ngsolve.ProductSpace)
+
+    def toNGSFunctions(self, pre=""):
+        res = {}
+        n = 0
+        for v in self._fes.variables:
+            if v.size == 1 and v.isScalar:
+                res[v.name] = NGSFunction(self.components[n], name=v.name+pre, tdep=True)
+            else:
+                res[v.name] = NGSFunction(ngsolve.CoefficientFunction(tuple(self.components[n:n+v.size]), dims=(v.size,)), name=v.name+pre, tdep=True)
+            n+=v.size
+        return res
+
+    @property
+    def finiteElementSpace(self):
+        return self._fes

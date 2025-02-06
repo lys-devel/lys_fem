@@ -3,18 +3,8 @@ import numpy as np
 import ngsolve
 
 from .operators import NGSFunctionBase
-
-
-def NGSFunction(*args, **kwargs):
-    from .util import NGSFunction as func
-    return func(*args, **kwargs)
-
-
-def prod(args):
-    res = args[0]
-    for arg in args[1:]:
-        res = res * arg
-    return res
+from .util import NGSFunction
+from .trials import TrialFunction, TestFunction
 
 
 def grad(f):
@@ -154,14 +144,13 @@ class _Func(NGSFunctionBase):
 
     @property
     def shape(self):
-        from .util import dimension
+        from . import dimension
         if self._type == "grad":
             return tuple([dimension]+list(self._obj.shape))
         else:
             return self._obj.shape
 
     def __hash__(self):
-        from .util import TrialFunction, TestFunction
         if self._type == "grad" and isinstance(self._obj[0], (TrialFunction, TestFunction)):
             return hash(str(self._obj)+"__grad")
         return super().__hash__()

@@ -2,6 +2,11 @@ import numpy as np
 import ngsolve
 
 
+def NGSFunction(*args, **kwargs):
+    from .util import NGSFunction as func
+    return func(*args, **kwargs)
+
+
 class Base:
     @property
     def shape(self):
@@ -15,7 +20,7 @@ class Base:
         raise NotImplementedError()
 
     def integrate(self, fes, **kwargs):
-        raise NotImplementedError()
+        return ngsolve.Integrate(self.eval(fes), fes.mesh, **kwargs)
             
     def grad(self, fes):
         raise NotImplementedError()
@@ -52,7 +57,6 @@ class Base:
 
 class NGSFunctionBase(Base):
     def __mul__(self, other):
-        from .util import NGSFunction
         if isinstance(other, (int, float, complex)):
             other = NGSFunction(other)
         if self.valid and other.valid:
@@ -61,7 +65,6 @@ class NGSFunctionBase(Base):
             return NGSFunction()
 
     def __truediv__(self, other):
-        from .util import NGSFunction
         if isinstance(other, (int, float, complex)):
             other = NGSFunction(other)
         if self.valid and other.valid:
@@ -70,7 +73,6 @@ class NGSFunctionBase(Base):
             return NGSFunction()
         
     def __add__(self, other):
-        from .util import NGSFunction
         if isinstance(other, (int, float, complex)):
             other = NGSFunction(other)
         if not self.valid:
@@ -81,7 +83,6 @@ class NGSFunctionBase(Base):
             return _Add(self, other)
 
     def __sub__(self, other):
-        from .util import NGSFunction
         if isinstance(other, (int, float, complex)):
             other = NGSFunction(other)
         if not self.valid:
@@ -92,7 +93,6 @@ class NGSFunctionBase(Base):
             return _Add(self, other, type="-")
         
     def __neg__(self):
-        from .util import NGSFunction
         if not self.valid:
             return NGSFunction()
         else:
@@ -108,7 +108,6 @@ class NGSFunctionBase(Base):
         return (-self) + other 
     
     def __rtruediv__(self, other):
-        from .util import NGSFunction
         if isinstance(other, (int, float, complex)):
             other = NGSFunction(other)
         return other/self
@@ -119,28 +118,24 @@ class NGSFunctionBase(Base):
         return _Pow(self, other)
     
     def dot(self, other):
-        from .util import NGSFunction
         if self.valid and other.valid:
             return _TensorDot(self, other)
         else:
             return NGSFunction()
     
     def ddot(self, other):
-        from .util import NGSFunction
         if self.valid and other.valid:
             return _TensorDot(self, other, axes=2)
         else:
             return NGSFunction()
 
     def cross(self, other):
-        from .util import NGSFunction
         if self.valid and other.valid:
             return _Cross(self, other)
         else:
             return NGSFunction()
 
     def __getitem__(self, index):
-        from .util import NGSFunction
         if not self.valid:
             return NGSFunction()
         return _Index(self, index)
@@ -152,7 +147,6 @@ class NGSFunctionBase(Base):
 
 class _BinaryOper(NGSFunctionBase):
     def __init__(self, obj1, obj2):
-        from . util import NGSFunction
         if not isinstance(obj1, NGSFunctionBase):
             obj1 = NGSFunction(obj1, str(obj1))
         if not isinstance(obj2, NGSFunctionBase):
@@ -164,7 +158,6 @@ class _BinaryOper(NGSFunctionBase):
         return True
 
     def replace(self, d):
-        from . util import NGSFunction
         if self in d:
             return d.get(self)
         objs = []
@@ -230,7 +223,7 @@ class _Mul(_BinaryOper):
         super().__init__(obj1, obj2)
 
     def __call__(self, x, y):
-        from .util import _MultDiffSimbol
+        from .trials import _MultDiffSimbol
         if isinstance(y, _MultDiffSimbol):
             return y * x
         if isinstance(x, ngsolve.CoefficientFunction) and isinstance(y, ngsolve.CoefficientFunction):
@@ -314,7 +307,6 @@ class _Div(_BinaryOper):
 
     @property
     def rhs(self):
-        from .util import NGSFunction
         if self._obj[1].hasTrial:
             return NGSFunction()
         else:
@@ -489,7 +481,6 @@ class _Index(NGSFunctionBase):
 
     @property
     def lhs(self):
-        from .util import NGSFunction
         if self.hasTrial:
             return self
         else:
@@ -497,7 +488,6 @@ class _Index(NGSFunctionBase):
         
     @property
     def rhs(self):
-        from .util import NGSFunction
         if self.hasTrial:
             return NGSFunction()
         else:
@@ -545,7 +535,6 @@ class _Transpose(NGSFunctionBase):
 
     @property
     def lhs(self):
-        from .util import NGSFunction
         if self.hasTrial:
             return self
         else:
@@ -553,7 +542,6 @@ class _Transpose(NGSFunctionBase):
         
     @property
     def rhs(self):
-        from .util import NGSFunction
         if self.hasTrial:
             return NGSFunction()
         else:
