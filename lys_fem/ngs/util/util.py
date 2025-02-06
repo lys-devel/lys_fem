@@ -1,66 +1,10 @@
-import builtins
+
 import numpy as np
 import sympy as sp
 import ngsolve
 
 from .operators import NGSFunctionBase
-from .functions import det
-
-
-def eval(expr, dic={}):
-    return builtins.eval(expr, globals(), dic)
-
-
-def prod(args):
-    res = args[0]
-    for arg in args[1:]:
-        res = res * arg
-    return res
-
-
-def grad(f):
-    """
-    Calculate gradient of a function f.
-    The output shape is in the form of (dimension, original shpae). 
-    
-    """
-    return _Func(f, "grad")
-
-
-def exp(x):
-    return _Func(x, "exp")
-
-
-def sin(x):
-    return _Func(x, "sin")
-
-
-def cos(x):
-    return _Func(x, "cos")
-
-
-def tan(x):
-    return _Func(x, "tan")
-
-
-def step(x):
-    return _Func(x, "step")
-
-
-def sqrt(x):
-    return _Func(x, "sqrt")
-
-
-def norm(x):
-    return _Func(x, "norm")
-
-
-def min(x,y):
-    return _MinMax(x, y, "min")
-
-
-def max(x,y):
-    return _MinMax(x, y, "max")
+from .functions import det, prod
 
 
 class GridFunction(ngsolve.GridFunction):
@@ -304,7 +248,6 @@ class NGSFunction(NGSFunctionBase):
         return self._name
 
 
-
 def printError(f):
     def wrapper(*args, **kwargs):
         return f(*args, **kwargs)
@@ -314,154 +257,6 @@ def printError(f):
             print("Error while evaluating", args[0])
             return None
     return wrapper
-
-
-class _Oper(NGSFunction):
-    def __init__(self, obj1, obj2=None):
-        if not isinstance(obj1, NGSFunctionBase):
-            obj1 = NGSFunction(obj1, str(obj1))
-        if not isinstance(obj2, NGSFunctionBase) and obj2 is not None:
-            obj2 = NGSFunction(obj2, str(obj2))
-        super().__init__([obj1, obj2])
-
-    def replace(self, d):
-        if self in d:
-            return d.get(self)
-        objs = []
-        for i in range(2):
-            obj = self._obj[i]
-            replaced = obj.replace(d)
-            if replaced == 0:
-                replaced = NGSFunction()
-            objs.append(replaced)
-        return self(*objs)
-    
-    def __contains__(self, item):
-        return any([item in self._obj[i] for i in range(2)])
-
-    @property
-    def isNonlinear(self):
-        return self._obj[0].isNonlinear or self._obj[1].isNonlinear
-    
-    @property
-    def isTimeDependent(self):
-        return self._obj[0].isTimeDependent or self._obj[1].isTimeDependent
-
-
-class _Func(_Oper):
-    def __init__(self, obj1, type):
-        super().__init__(obj1)
-        self._type = type
-
-    def __call__(self, obj1, obj2=None):
-        return _Func(obj1, self._type)
-
-    @property
-    def rhs(self):
-        return self(self._obj[0].rhs)
-
-    @property
-    def lhs(self):
-        return self(self._obj[0].lhs)
-
-    @property
-    def hasTrial(self):
-        return self._obj[0].hasTrial
-
-    @property
-    def isNonlinear(self):
-        if self._type == "grad":
-            return self._obj[0].isNonlinear
-        else:
-            return self._obj[0].hasTrial
-
-    @property
-    def shape(self):
-        if self._type == "grad":
-            return tuple([dimension]+list(self._obj[0].shape))
-        else:
-            return self._obj[0].shape
-
-    def __hash__(self):
-        if self._type == "grad" and isinstance(self._obj[0], (TrialFunction, TestFunction)):
-            return hash(str(self._obj[0])+"__grad")
-        return super().__hash__()
-    
-    def __eq__(self, other):
-        return hash(self) == hash(other)
-
-    def eval(self, fes):
-        if self._type == "exp":
-            return ngsolve.exp(self._obj[0].eval(fes))
-        if self._type == "sin":
-            return ngsolve.sin(self._obj[0].eval(fes))
-        if self._type == "cos":
-            return ngsolve.cos(self._obj[0].eval(fes))
-        if self._type == "tan":
-            return ngsolve.tan(self._obj[0].eval(fes))
-        if self._type == "step":
-            return ngsolve.IfPos(self._obj[0].eval(fes), 1, 0)
-        if self._type == "sqrt":
-            return ngsolve.sqrt(self._obj[0].eval(fes))    
-        if self._type == "norm":
-            v = self._obj[0].eval(fes)
-            return ngsolve.sqrt(v*v)
-        if self._type == "grad":
-            if hasattr(self._obj[0], "grad"):
-                x = self._obj[0].grad(fes)
-                if fes.J is None:
-                    return x
-                else:
-                    return fes.J.eval(fes)*x
-                
-            raise RuntimeError("grad is not implemented for " + str(type(self._obj[0])))
-    
-    def __str__(self):
-        return self._type + "(" + str(self._obj[0]) + ")"
-
-
-class _MinMax(_Oper):
-    def __init__(self, obj1, obj2, type="min"):
-        super().__init__(obj1, obj2)
-        self._type = type
-
-    def __call__(self, obj1, obj2):
-        if isinstance(obj1, (int,float)) and isinstance(obj2, (int,float)):
-            if self._type == "min":
-                return builtins.min([obj1, obj2])
-            else:
-                return builtins.max([obj1, obj2])
-        return _MinMax(obj1, obj2, self._type)
-
-    @property
-    def shape(self):
-        return self._obj[0].shape
-
-    @property
-    def rhs(self):
-        return self(self._obj[0].rhs, self._obj[1].rhs)
-
-    @property
-    def lhs(self):
-        return self(self._obj[0].lhs, self._obj[1].lhs)
-
-    @property
-    def hasTrial(self):
-        return self._obj[0].hasTrial or self._obj[1].hasTrial
-
-    @property
-    def isNonlinear(self):
-        return self._obj[0].hasTrial
-
-    def eval(self, fes):
-        e1, e2 = self._obj[0].eval(fes), self._obj[1].eval(fes)
-        if self._type == "max":
-            return ngsolve.IfPos(e1-e2, e1, e2)
-        else:
-            return ngsolve.IfPos(e1-e2, e2, e1)
-    
-    def __str__(self):
-        return self._type + "(" + str(self._obj[0]) + ", " + str(self._obj[1]) + ")"
 
 
 class TrialFunction(NGSFunction):
