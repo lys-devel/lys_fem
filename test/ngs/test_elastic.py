@@ -22,3 +22,6 @@ class ngs_elasticity_test(elasticity_test):
 
     def test_1d_time(self):
         self.thermoelasticity_time(ngs)
+
+    def test_1d_rot(self):
+        self.rotation_1d(ngs)

@@ -237,3 +237,44 @@ class elasticity_test(FEMTestCase):
         # solution
         sol = FEMSolution()
         self.assertAlmostEqual(sol.eval("u[0]", data_number=420, coords=0), 0, places=11)
+
+    def rotation_1d(self, lib):
+        p = FEMProject(1)
+
+        # geometry
+        p.geometries.add(geometry.Line(0, 0, 0, 2, 0, 0))
+        p.mesher.setRefinement(5)
+        
+        # material
+        C = np.eye(6)
+        C[0,0] = 1/4
+        C[1,1] = 1/2
+        C[2,2] = 1
+        R = [[0,1,0], [0,0,1], [1,0,0]]
+        param = elasticity.ElasticParameters(C=C, type="triclinic")
+        mat1 = Material([param], geometries="all", coord=R)
+        p.materials.append(mat1)
+
+        x = sp.symbols("x")
+
+        # model: boundary and initial conditions
+        model = elasticity.ElasticModel(1)
+        model.initialConditions.append(elasticity.InitialCondition(sp.exp(-(x/0.1)**2), geometries=[1]))
+        p.models.append(model)
+
+        # solver
+        solver = TimeDependentSolver(0.0025, 1, condensation=True)
+        p.solvers.append(solver)
+
+        # solve
+        lib.run(p)
+
+        # solution
+        sol = FEMSolution()
+
+        res = sol.eval("u[0]", data_number=0)
+        for w in res:
+            self.assert_array_almost_equal(w.data, np.exp(-((w.x[:, 0])/0.1)**2), decimal=3)
+        res = sol.eval("u[0]", data_number=-1)
+        for w in res:
+            self.assert_array_almost_equal(w.data, np.exp(-((w.x[:, 0]-1)/0.1)**2)/2, decimal=2)

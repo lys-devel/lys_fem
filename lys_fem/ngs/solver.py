@@ -206,8 +206,7 @@ class SolverBase:
         self._mat.const.dti.isTimeDependent = variableStep
         self._index = -1
 
-        J = self._mat["J"] if "J" in self._mat else None
-        self._fes = util.FiniteElementSpace(model.variables, mesh, jacobi=J)
+        self._fes = util.FiniteElementSpace(model.variables, mesh, jacobi=self._mat.jacobi)
         self._sols = _Solution(self._fes)
         use_a = any([v.tt in model.weakforms() for v, _ in model.TnT.values()]) and timeDep
         if use_a:
@@ -252,7 +251,7 @@ class SolverBase:
         return self._mat[expr].replace(d).integrate(self._fes)
 
     def updateMesh(self, mesh):
-        self._fes = util.FiniteElementSpace(self._model.variables, mesh)
+        self._fes = util.FiniteElementSpace(self._model.variables, mesh, jacobi=self._mat.jacobi)
         self._sols = _Solution(self._fes, old=self._sols)
         self._ops = [Operator(mesh, self._model, self._sols, step) for step in self._obj.steps]
         self._data.enableSaveMesh()

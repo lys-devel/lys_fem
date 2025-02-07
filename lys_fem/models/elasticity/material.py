@@ -56,7 +56,6 @@ class ElasticParameters(FEMParameter):
         else:
             return super().widget(name)
 
-
     def _constructC(self):
         if self.type in ["lame", "young", "isotropic"]:
             if self.type == "lame":

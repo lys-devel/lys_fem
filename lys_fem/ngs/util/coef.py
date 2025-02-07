@@ -7,7 +7,8 @@ from .operators import NGSFunctionBase
 
 
 class NGSFunction(NGSFunctionBase):
-    def __init__(self, obj=None, name="Undefined", tdep=False):
+    def __init__(self, obj=None, name="Undefined", tdep=False, J=None):
+        self._J = J
         if obj is None or obj == 0:
             self._obj = None
             self._name = "0"
@@ -47,9 +48,12 @@ class NGSFunction(NGSFunctionBase):
         if self._obj is None:
             return ngsolve.CoefficientFunction(0)
         elif isinstance(self._obj, ngsolve.CoefficientFunction):
-            return self._obj
+            res = self._obj
         elif isinstance(self._obj, list):
-            return ngsolve.CoefficientFunction(tuple([obj.eval(fes) for obj in self._obj]), dims=self.shape)
+            res = ngsolve.CoefficientFunction(tuple([obj.eval(fes) for obj in self._obj]), dims=self.shape)
+        if self._J is not None and len(res.shape) > 0:
+            res = applyJacobian(res, fes.jacobi(self._J))
+        return res
 
     def grad(self, fes):
         if self._obj is None:
@@ -57,8 +61,8 @@ class NGSFunction(NGSFunctionBase):
         if isinstance(self._obj, list):
             return ngsolve.CoefficientFunction(tuple([obj.grad(fes) for obj in self._obj]), dims=self.shape+(fes.dimension,)).TensorTranspose((1,0))
         if isinstance(self._obj, ngsolve.CoefficientFunction):
-            g = [self._obj.Diff(symbol) for symbol in [ngsolve.x, ngsolve.y, ngsolve.z][:fes.dimension]]
-            return ngsolve.CoefficientFunction(tuple(g), dims=(fes.dimension,))
+            g = [self._obj.Diff(symbol) for symbol in [ngsolve.x, ngsolve.y, ngsolve.z]]
+            return ngsolve.CoefficientFunction(tuple(g), dims=(3,))
         raise RuntimeError("grad not implemented")
     
     def replace(self, d):
@@ -127,11 +131,12 @@ class NGSFunction(NGSFunctionBase):
 
 
 class DomainWiseFunction(NGSFunctionBase):
-    def __init__(self, obj=None, default=None, geomType="domain", name="Undefined"):
+    def __init__(self, obj=None, default=None, geomType="domain", name="Undefined", J=None):
         self._obj = {key: value if isinstance(value, NGSFunctionBase) else NGSFunction(value) for key, value in obj.items()}
         self._default = default
         self._geom = geomType
         self._name = name
+        self._J = J
 
     @property
     def shape(self):
@@ -147,10 +152,15 @@ class DomainWiseFunction(NGSFunctionBase):
             default = None
         else:
             default = self._default.eval(fes)
+
         if self._geom=="domain":
-            return fes.mesh.MaterialCF(coefs, default=default)
+            res = fes.mesh.MaterialCF(coefs, default=default)
         else:
-            return fes.mesh.BoundaryCF(coefs, default=default)
+            res = fes.mesh.BoundaryCF(coefs, default=default)
+
+        if self._J is not None:
+            res = applyJacobian(res, fes.jacobi(self._J))
+        return res
 
     def grad(self, fes):
         coefs = {key: obj.grad(fes) for key, obj in self._obj.items()}
@@ -168,7 +178,7 @@ class DomainWiseFunction(NGSFunctionBase):
             default = None
         else:
             default = self._default.replace(d)
-        return DomainWiseFunction({key: value.replace(d) for key, value in self._obj.items()}, name=self._name, default=default, geomType=self._geom)
+        return DomainWiseFunction({key: value.replace(d) for key, value in self._obj.items()}, name=self._name, default=default, geomType=self._geom, J=self._J)
 
     def __contains__(self, item):
         default = False if self._default is None else item in self._default
@@ -203,3 +213,10 @@ class DomainWiseFunction(NGSFunctionBase):
     def __str__(self):
         return self._name
  
+def applyJacobian(A, J):
+    if len(A.shape) == 0 or J is None:
+        return A
+    st1, st2 = "ijklmnopqrt"[:len(A.shape)], "IJKLMNOPQRT"[:len(A.shape)]
+    st3 = ",".join(s1+s2 for s1, s2 in zip(st1, st2))
+    Js = [J] * len(A.shape)
+    return ngsolve.fem.Einsum(st1+","+st3+"->"+st2, A, *Js)

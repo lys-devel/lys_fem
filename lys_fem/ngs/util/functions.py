@@ -3,7 +3,7 @@ import numpy as np
 import ngsolve
 
 from .operators import NGSFunctionBase
-from .coef import NGSFunction
+from .coef import NGSFunction, applyJacobian
 from .trials import TrialFunction, TestFunction
 
 
@@ -13,7 +13,7 @@ def grad(f):
     The output shape is in the form of (dimension, original shpae). 
     
     """
-    return _Func(f, "grad")
+    return _Grad(f)
 
 
 def exp(x):
@@ -137,23 +137,15 @@ class _Func(NGSFunctionBase):
 
     @property
     def isNonlinear(self):
-        if self._type == "grad":
-            return self._obj.isNonlinear
-        else:
-            return self._obj.hasTrial
+        return self._obj.hasTrial
 
     @property
     def shape(self):
-        if self._type == "grad":
-            return tuple([3]+list(self._obj.shape))
-        else:
-            return self._obj.shape
-
-    def __hash__(self):
-        if self._type == "grad" and isinstance(self._obj, (TrialFunction, TestFunction)):
-            return hash(str(self._obj)+"__grad")
-        return super().__hash__()
+        return self._obj.shape
     
+    def __hash__(self):
+        return super().__hash__()
+
     def __eq__(self, other):
         return hash(self) == hash(other)
 
@@ -172,19 +164,42 @@ class _Func(NGSFunctionBase):
             return ngsolve.sqrt(self._obj.eval(fes))    
         if self._type == "norm":
             v = self._obj.eval(fes)
-            return ngsolve.sqrt(v*v)
-        if self._type == "grad":
-            if hasattr(self._obj, "grad"):
-                x = self._obj.grad(fes)
-                if fes.J is None:
-                    return x
-                else:
-                    return fes.J.eval(fes)*x
-                
-            raise RuntimeError("grad is not implemented for " + str(type(self._obj)))
-    
+            return ngsolve.sqrt(v*v) 
+        
     def __str__(self):
         return self._type + "(" + str(self._obj) + ")"
+
+
+class _Grad(_Func):
+    def __init__(self, obj):
+        if not isinstance(obj, NGSFunctionBase):
+            obj = NGSFunction(obj, str(obj))
+        self._obj = obj
+
+    def __call__(self, obj1):
+        return _Grad(obj1)
+    
+    @property
+    def isNonlinear(self):
+        return self._obj.isNonlinear
+
+    @property
+    def shape(self):
+        return tuple([3]+list(self._obj.shape))
+
+    def __hash__(self):
+        if isinstance(self._obj, (TrialFunction, TestFunction)):
+            return hash(str(self._obj)+"__grad")
+        return super().__hash__()
+    
+    def eval(self, fes):
+        if hasattr(self._obj, "grad"):
+            x = self._obj.grad(fes)
+            return applyJacobian(x, fes.jacobi())
+        raise RuntimeError("grad is not implemented for " + str(type(self._obj)))
+    
+    def __str__(self):
+        return "grad(" + str(self._obj) + ")"
 
 
 class _MinMax(_Func):

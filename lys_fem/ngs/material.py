@@ -20,7 +20,7 @@ class NGSParams(dict):
         self._fem = fem
         self._const = NGSConstants()
         for key, value in fem.materials.materialDict(fem.dimension).items():
-            self[key] = _generateCoefficient(value, name=key, dic=self)
+            self[key] = _generateCoefficient(value, name=key, dic=self, J="R" if key != "R" else None)
         for key, value in fem.geometries.geometryParameters().items():
             self[key] = _generateCoefficient(value, name=key, dic=self)
 
@@ -28,6 +28,15 @@ class NGSParams(dict):
         d = dict(self._const)
         d.update(self)
         return _generateCoefficient(expr, dic=d, name=str(expr))
+    
+    @property
+    def jacobi(self):
+        res = {}
+        if "J" in self:
+            res["J"] = self["J"].T
+        if "R" in self:
+            res["R"] = self["R"]
+        return res
 
     def updateSolutionFields(self, step):
         for key, f in self.items():
@@ -67,17 +76,17 @@ class NGSConstants(dict):
             super().__getattr__(key)
 
 
-def _generateCoefficient(coef, name="Undefined", dic={}):
+def _generateCoefficient(coef, name="Undefined", dic={}, J=None):
     if isinstance(coef, FEMCoefficient):
         geom = coef.geometryType.lower()
         if geom == "const":
-            return _generateCoefficient(coef.value, name=name, dic=dic)
+            return _generateCoefficient(coef.value, name=name, dic=dic,J=J)
         coefs = {geom+str(key): _generateCoefficient(value, dic=dic) for key, value in coef.value.items() if key != "default"}
         if coef.default is not None:
             default = _generateCoefficient(coef.default, dic=dic)
         else:
             default = None
-        return util.DomainWiseFunction(coefs, geomType=geom, default=default, name=name)
+        return util.DomainWiseFunction(coefs, geomType=geom, default=default, name=name, J=J)
     elif isinstance(coef, (list, tuple, np.ndarray)):
         return util.NGSFunction([_generateCoefficient(c, dic=dic) for c in coef], name=name)
     elif isinstance(coef, (int, float, sp.Integer, sp.Float, ngsolve.CoefficientFunction)):

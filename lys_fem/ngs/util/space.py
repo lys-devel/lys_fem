@@ -102,13 +102,12 @@ class NGSVariable:
 
 
 class FiniteElementSpace:
-    def __init__(self, vars, mesh, symbols=None, symmetric=False, condense=False, jacobi=None):
+    def __init__(self, vars, mesh, symbols=None, symmetric=False, condense=False, jacobi={}):
         self._mesh = mesh
         self._vars = vars
         self._symbols = symbols
         self._symmetric = symmetric
         self._condense = condense
-        self._jacobi = jacobi
         if symbols is None:
             self._fes = prod([v.finiteElementSpace(mesh) for v in vars])
             self._tnt = self.__TnT_dict(vars, self._fes)
@@ -117,6 +116,7 @@ class FiniteElementSpace:
             self._fes = prod([v.finiteElementSpace(mesh) for v in vars if v.name in symbols])
             self._tnt = self.__TnT_dict([v for v in vars if v.name in symbols], self._fes)
             self._mask = self.__mask(self._fes_glb, symbols)
+        self._jacobi = {key: value.eval(self) for key, value in jacobi.items()}
 
     def __TnT_dict(self, vars, fes):
         if isinstance(fes, (ngsolve.ProductSpace, ngsolve.comp.Compress)):
@@ -156,9 +156,8 @@ class FiniteElementSpace:
     def mask(self):
         return self._mask
     
-    @property
-    def J(self):
-        return self._jacobi
+    def jacobi(self, name="J"):
+        return self._jacobi.get(name)
     
     @property
     def dimension(self):

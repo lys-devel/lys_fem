@@ -51,7 +51,7 @@ class Materials(FEMObjectList):
                 res[pname] = self.__generateCoefForParameter(pname, group)
         J = self.jacobi(dim)
         if J is not None:
-            res["J_M"] = J
+            res["R"] = J
         return res
 
     def jacobi(self, dim):
@@ -60,7 +60,7 @@ class Materials(FEMObjectList):
             R =  m.coordinate
             if R is not None:
                 for d in m.geometries:
-                    J.value[d] = R[:dim, :dim]/np.linalg.norm(R[:dim, :dim])
+                    J.value[d] = R/np.linalg.norm(R, axis=0)
         if len(J.value) > 1:
             return J
         else:

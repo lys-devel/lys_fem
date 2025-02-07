@@ -9,8 +9,7 @@ from . import mpi, util
 
 class Operator:
     def __init__(self, mesh, model, sols, step, type="discretized"):
-        J = model.materials["J"] if "J" in model.materials else None
-        self._fes = util.FiniteElementSpace(model.variables, mesh, step.variables, symmetric=step.symmetric, condense=step.condensation, jacobi=J)
+        self._fes = util.FiniteElementSpace(model.variables, mesh, step.variables, symmetric=step.symmetric, condense=step.condensation, jacobi=model.materials.jacobi)
         self._step = step
 
         wf = model.weakforms(type=type, sols=sols, symbols=step.variables)
