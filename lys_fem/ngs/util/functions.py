@@ -144,14 +144,13 @@ class _Func(NGSFunctionBase):
 
     @property
     def shape(self):
-        from . import dimension
         if self._type == "grad":
-            return tuple([dimension]+list(self._obj.shape))
+            return tuple([3]+list(self._obj.shape))
         else:
             return self._obj.shape
 
     def __hash__(self):
-        if self._type == "grad" and isinstance(self._obj[0], (TrialFunction, TestFunction)):
+        if self._type == "grad" and isinstance(self._obj, (TrialFunction, TestFunction)):
             return hash(str(self._obj)+"__grad")
         return super().__hash__()
     
@@ -182,10 +181,10 @@ class _Func(NGSFunctionBase):
                 else:
                     return fes.J.eval(fes)*x
                 
-            raise RuntimeError("grad is not implemented for " + str(type(self._obj[0])))
+            raise RuntimeError("grad is not implemented for " + str(type(self._obj)))
     
     def __str__(self):
-        return self._type + "(" + str(self._obj[0]) + ")"
+        return self._type + "(" + str(self._obj) + ")"
 
 
 class _MinMax(_Func):

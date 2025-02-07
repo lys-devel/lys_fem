@@ -50,7 +50,7 @@ class _Sol:
     
     def project(self, fes):
         x, v, a = fes.gridFunction(), fes.gridFunction(), fes.gridFunction()
-        for var in self._fes.model.variables:
+        for var in self._fes.variables:
             x.setComponent(var, util.SolutionFunction(var,self,0).eval(fes))
             v.setComponent(var, util.SolutionFunction(var,self,1).eval(fes))
             a.setComponent(var, util.SolutionFunction(var,self,2).eval(fes))
@@ -59,7 +59,7 @@ class _Sol:
     def error(self, var):
         val = util.grad(util.SolutionFunction(var, self, 0))
         grids = []
-        for d in range(util.dimension):
+        for d in range(3):
             g = self._fes.gridFunction()
             g.setComponent(var, val[d].eval(self._fes))
             g = g.toNGSFunctions(pre="_g")[var.name]
@@ -252,8 +252,8 @@ class SolverBase:
         return self._mat[expr].replace(d).integrate(self._fes)
 
     def updateMesh(self, mesh):
-        self._fes = util.FiniteElementSpace(self._model, mesh)
-        self._sols = _Solution(self._fes, self._model, old=self._sols)
+        self._fes = util.FiniteElementSpace(self._model.variables, mesh)
+        self._sols = _Solution(self._fes, old=self._sols)
         self._ops = [Operator(mesh, self._model, self._sols, step) for step in self._obj.steps]
         self._data.enableSaveMesh()
 
@@ -263,7 +263,7 @@ class SolverBase:
             return err**(-1/(1+p)) * p**(-1/(d*(1+p)))
 
         start = time.time()
-        size = compute_size_field(error, d=util.dimension)
+        size = compute_size_field(error, d=self._fes.dimension)
         m = self._fes.mesh.refinedMesh(size, self._obj.adaptive_mesh)
         refine = time.time()-start
         self.updateMesh(m)

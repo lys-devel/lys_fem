@@ -8,12 +8,12 @@ class HeatConductionParameters(FEMParameter):
         self.C_v = C_v # J/K m^3
         self.k = k # W/mK
 
-    def getParameters(self, dim):
+    def getParameters(self):
         res = {}
         if self.C_v is not None:
             res["C_v"] = self.C_v
         if self.k is not None:
-            res["k"] = np.array(self.k)[:dim,:dim].tolist()
+            res["k"] = np.array(self.k).tolist()
         return res
 
     @property

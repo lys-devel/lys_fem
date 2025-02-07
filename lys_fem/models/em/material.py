@@ -8,10 +8,10 @@ class ElectrostaticParameters(FEMParameter):
     def __init__(self, eps_r=np.eye(3).tolist()):
         self.eps_r = eps_r
 
-    def getParameters(self, dim):
+    def getParameters(self):
         res = {}
         if self.eps_r is not None:
-            res["eps_r"] = (np.array(self.eps_r))[:dim,:dim].tolist()
+            res["eps_r"] = (np.array(self.eps_r)).tolist()
         return res
 
     @property

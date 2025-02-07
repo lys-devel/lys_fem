@@ -10,7 +10,7 @@ class SemiconductorParameters(FEMParameter):
         self.N_d = N_d
         self.N_a = N_a
 
-    def getParameters(self, dim):
+    def getParameters(self):
         res = {}
         if self.mu_n is not None:
             res["mu_n"] = self.mu_n

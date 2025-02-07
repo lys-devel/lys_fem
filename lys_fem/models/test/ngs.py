@@ -118,7 +118,7 @@ class NGSTwoVarGradTestModel(NGSModel):
             x,test_x = vars["X"]
             y,test_y = vars["Y"]
             wf += (x.t*test_x + y.t*test_y) * dx
-            wf += x*test_x *dx + grad(x)*test_y*dx
+            wf += x*test_x *dx + grad(x)[0]*test_y*dx
         return wf
     
 

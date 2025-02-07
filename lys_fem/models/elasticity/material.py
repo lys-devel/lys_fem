@@ -15,15 +15,14 @@ class ElasticParameters(FEMParameter):
         self.d_h = d_h
         self.type = type
 
-    def getParameters(self, dim):
-        super().getParameters(dim)
+    def getParameters(self):
         res = {}
         if self.rho is not None:
             res["rho"] = self.rho
         if self.C is not None:
-            res["C"] = self.__getC(dim, self._constructC())
+            res["C"] = self.__getC(self._constructC())
         if self.alpha is not None:
-            res["alpha"] = np.array(self.alpha)[:dim,:dim].tolist()
+            res["alpha"] = np.array(self.alpha).tolist()
         if self.d_e is not None:
             res["d_e"] = self.d_e*1.60218e-19
         if self.d_h is not None:
@@ -75,9 +74,9 @@ class ElasticParameters(FEMParameter):
         elif self.type in ["monoclinic", "triclinic", "general"]:
             return self.C
 
-    def __getC(self, dim, C):
-        res = np.zeros((dim,dim,dim,dim)).tolist()
-        for i,j,k,l in itertools.product(range(dim),range(dim),range(dim),range(dim)):
+    def __getC(self, C):
+        res = np.zeros((3,3,3,3)).tolist()
+        for i,j,k,l in itertools.product(range(3),range(3),range(3),range(3)):
             res[i][j][k][l] = C[self.__map(i,j)][self.__map(k,l)]
         return res
     

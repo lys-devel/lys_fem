@@ -3,7 +3,55 @@ from .operators import NGSFunctionBase
 from .coef import NGSFunction
 
 
-class TrialFunction(NGSFunctionBase):
+class _TnTBase(NGSFunctionBase):
+    @property
+    def shape(self):
+        if self._var.isScalar:
+            return ()
+        else:
+            return (3,)
+        
+    @property
+    def isNonlinear(self):
+        return False
+
+    @property
+    def isTimeDependent(self):
+        return False
+
+    @property
+    def valid(self):
+        return True
+
+    def replace(self, d):
+        return d.get(self, self)
+    
+    def eval(self, fes):
+        if self._var.isScalar:
+            return self.value(fes)
+        else:
+            return ngsolve.CoefficientFunction(tuple(self.value(fes) + [0] * (3-self._var.size)), dims=self.shape)
+        
+    def grad(self, fes):
+        if self._var.isScalar:
+            return self._grad(fes, self.value(fes))
+        else:
+            v = self.value(fes) + [0] * (3-self._var.size)
+            return ngsolve.CoefficientFunction(tuple([self._grad(fes, t) for t in v]), dims=(3, 3)).TensorTranspose((1,0))
+
+    def _grad(self, fes, x):
+        if x == 0:
+            return ngsolve.CoefficientFunction((0,0,0))
+        else:
+            g = ngsolve.grad(x)
+            g = tuple([g[i] if i < fes.dimension else ngsolve.CoefficientFunction(0) for i in range(3)])
+            return ngsolve.CoefficientFunction(g)
+
+    def __contains__(self, item):
+        return self == item
+    
+
+class TrialFunction(_TnTBase):
     def __init__(self, var, dt=0):
         self._var = var
         self._dt = dt
@@ -23,13 +71,6 @@ class TrialFunction(NGSFunctionBase):
     @property
     def lhs(self):
         return self
-    
-    @property
-    def shape(self):
-        if self._var.isScalar:
-            return ()
-        else:
-            return (self._var.size,)
        
     def __hash__(self):
         return hash(self._var.name + "__" + str(self._dt))
@@ -48,66 +89,23 @@ class TrialFunction(NGSFunctionBase):
     @property
     def hasTrial(self):
         return True
-    
-    def eval(self, fes):
-        trial = fes.trial(self._var)
-        if isinstance(trial, list):
-            return ngsolve.CoefficientFunction(tuple(trial), dims=self.shape)
-        return trial
-        
-    def grad(self, fes):
-        trial = fes.trial(self._var)
-        if isinstance(trial, list):
-            return ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in trial]), dims=(len(trial), fes.dimension)).TensorTranspose((1,0))
-        return ngsolve.grad(trial)
-        
-    @property
-    def isNonlinear(self):
-        return False
 
-    @property
-    def isTimeDependent(self):
-        return False
+    def value(self, fes):
+        return fes.trial(self._var)
+            
 
-    @property
-    def valid(self):
-        return True
-
-    def replace(self, d):
-        return d.get(self, self)
-    
-    def __contains__(self, item):
-        return self == item
-        
-
-class TestFunction(NGSFunctionBase):
+class TestFunction(_TnTBase):
     def __init__(self, var):
         self._var = var
 
-    def eval(self, fes):
-        test = fes.test(self._var)
-        if isinstance(test, list):
-            return ngsolve.CoefficientFunction(tuple(test), dims=self.shape)
-        return test
-        
-    def grad(self, fes):
-        test = fes.test(self._var)
-        if isinstance(test, list):
-            return ngsolve.CoefficientFunction(tuple([ngsolve.grad(t) for t in test]), dims=(len(test), fes.dimension)).TensorTranspose((1,0))
-        return ngsolve.grad(test)
-        
+    def value(self, fes):
+        return fes.test(self._var)
+
     def __hash__(self):
         return hash(self._var.name)
     
     def __eq__(self, other):
         return hash(self) == hash(other)
-
-    @property
-    def shape(self):
-        if self._var.isScalar:
-            return ()
-        else:
-            return (self._var.size,)
 
     @property
     def lhs(self):
@@ -118,32 +116,14 @@ class TestFunction(NGSFunctionBase):
         return self
 
     @property
-    def isNonlinear(self):
-        return False
-
-    @property
-    def isTimeDependent(self):
-        return False
-
-    @property
-    def valid(self):
-        return True
-    
-    @property
     def hasTrial(self):
         return False
-
-    def replace(self, d):
-        return d.get(self, self)
-
-    def __contains__(self, item):
-        return self == item
     
     def __str__(self):
         return "test(" + self._var.name + ")"
 
 
-class SolutionFunction(NGSFunctionBase):
+class SolutionFunction(_TnTBase):
     """
     NGSFunction that provide the access to the present solution.
     Args:
@@ -162,40 +142,14 @@ class SolutionFunction(NGSFunctionBase):
             n += v.size
 
     @property
-    def shape(self):
-        if self._var.isScalar:
-            return ()
-        else:
-            return (self._var.size,)
-
-    @property
     def valid(self):
-        return True
-
-    def eval(self, fes):
-        v = self._var
-        g = self._sol[self._type]
-        if v.isScalar:
-            return ngsolve.CoefficientFunction(g.components[self._n])
-        else:
-            return ngsolve.CoefficientFunction(tuple(g.components[self._n:self._n+v.size]), dims=(v.size,))
-            
-    def grad(self, fes):
-        v = self._var
-        g = self._sol[self._type]
-
-        if v.isScalar:
-            return ngsolve.grad(g.components[self._n])
-        else:
-            g = [ngsolve.grad(g.components[i]) for i in range(self._n,self._n+v.size)]
-            print(v.size, fes.dimension, len(g), g[0].shape)
-            return ngsolve.CoefficientFunction(tuple(g), dims=(v.size, fes.dimension)).TensorTranspose((1,0))
+        return True    
     
-    def replace(self, d):
-        return d.get(self, self)
-
-    def __contains__(self, item):
-        return self == item
+    def value(self, fes):
+        if self._var.isScalar:
+            return self._sol[self._type].components[self._n]
+        else:
+            return list(self._sol[self._type].components[self._n:self._n+self._var.size])
 
     @property
     def hasTrial(self):
@@ -208,11 +162,7 @@ class SolutionFunction(NGSFunctionBase):
     @property
     def lhs(self):
         return NGSFunction()
-        
-    @property
-    def isNonlinear(self):
-        return False
-        
+               
     @property
     def isTimeDependent(self):
         return True

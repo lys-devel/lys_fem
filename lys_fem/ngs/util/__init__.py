@@ -15,4 +15,3 @@ dti = NGSFunction(ngsolve.Parameter(-1), name="dti", tdep=True)
 stepn = NGSFunction(ngsolve.Parameter(0), name = "step", tdep=True)
 dx = DifferentialSymbol(ngsolve.dx, name="dx")
 ds = DifferentialSymbol(ngsolve.ds, name="ds")
-dimension = 3

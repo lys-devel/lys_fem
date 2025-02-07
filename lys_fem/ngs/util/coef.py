@@ -14,9 +14,9 @@ class NGSFunction(NGSFunctionBase):
             self._tdep = False
             return
         if isinstance(obj, (int, float, complex, sp.Integer, sp.Float)):
-            obj = ngsolve.CoefficientFunction(obj)
             if name == "Undefined":
                 name = str(obj)
+            obj = ngsolve.CoefficientFunction(obj)
         if isinstance(obj, (list, tuple, np.ndarray)):
             self._obj = [value if isinstance(value, NGSFunctionBase) else NGSFunction(value) for value in obj]
             self._name = name

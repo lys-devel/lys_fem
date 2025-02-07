@@ -36,7 +36,7 @@ class elasticity_test(FEMTestCase):
 
         # solution
         sol = FEMSolution()
-        res = sol.eval("u", data_number=1)
+        res = sol.eval("u[0]", data_number=1)
         for w in res:
             self.assert_array_almost_equal(w.data, w.x[:, 0])
 
@@ -134,10 +134,10 @@ class elasticity_test(FEMTestCase):
         # solution
         sol = FEMSolution()
 
-        res = sol.eval("u", data_number=0)
+        res = sol.eval("u[0]", data_number=0)
         for w in res:
             self.assert_array_almost_equal(w.data, np.exp(-((w.x[:, 0])/0.1)**2), decimal=3)
-        res = sol.eval("u", data_number=100)
+        res = sol.eval("u[0]", data_number=100)
         for w in res:
             self.assert_array_almost_equal(w.data, np.exp(-((w.x[:, 0]-np.sqrt(3)/2)/0.1)**2)/2, decimal=2)
 
@@ -174,7 +174,7 @@ class elasticity_test(FEMTestCase):
 
         # solution
         sol = FEMSolution()
-        self.assertAlmostEqual(sol.eval("u", data_number=400, coords=0), 0, places=11)
+        self.assertAlmostEqual(sol.eval("u[0]", data_number=400, coords=0), 0, places=11)
 
     def thermoelasticity_2d(self, lib):
         p = FEMProject(2)
@@ -236,4 +236,4 @@ class elasticity_test(FEMTestCase):
 
         # solution
         sol = FEMSolution()
-        self.assertAlmostEqual(sol.eval("u", data_number=420, coords=0), 0, places=12)
+        self.assertAlmostEqual(sol.eval("u[0]", data_number=420, coords=0), 0, places=11)

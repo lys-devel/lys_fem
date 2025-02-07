@@ -42,13 +42,13 @@ class Materials(FEMObjectList):
             for p in m:
                 if p.name not in groups:
                     groups[p.name] = set()
-                groups[p.name] |= set(p.getParameters(dim).keys())
+                groups[p.name] |= set(p.getParameters().keys())
 
         # create coefficient for respective parameter
         res = {}
         for group, params in groups.items():
             for pname in params:
-                res[pname] = self.__generateCoefForParameter(pname, group, dim)
+                res[pname] = self.__generateCoefForParameter(pname, group)
         J = self.jacobi(dim)
         if J is not None:
             res["J_M"] = J
@@ -66,14 +66,14 @@ class Materials(FEMObjectList):
         else:
             return None
 
-    def __generateCoefForParameter(self, pname, group, dim):
+    def __generateCoefForParameter(self, pname, group):
         #coefs = {"default": self.defaultParameter(group, dim)[pname]}
         coefs = FEMCoefficient({}, geomType="Domain")
         for m in self:
             p = m[group]
             if p is not None:
                 for d in m.geometries:
-                    coefs.value[d] = p.getParameters(dim)[pname]
+                    coefs.value[d] = p.getParameters()[pname]
         return coefs 
 
 
@@ -131,7 +131,7 @@ class FEMParameter:
         d["paramsName"] = self.name
         return d
 
-    def getParameters(self, dim):
+    def getParameters(self):
         return {key: value for key, value in vars(self).items() if key[0] != "_" and value is not None}
 
     @staticmethod

@@ -16,7 +16,7 @@ class LLGParameters(FEMParameter):
         self.lam100 = lam100
         self.lam111 = lam111
 
-    def getParameters(self, dim):
+    def getParameters(self):
         res = {}
         if self.Ms is not None:
             res["Ms"] = self.Ms

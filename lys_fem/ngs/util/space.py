@@ -203,7 +203,10 @@ class GridFunction(ngsolve.GridFunction):
 
     def setComponent(self, var, value):
         if self.isSingle:
-            self.Set(value)
+            if var.isScalar:
+                self.Set(value)
+            else:
+                self.Set(value[:var.size])
         else:
             n = 0
             for v in self._fes.variables:
@@ -231,7 +234,8 @@ class GridFunction(ngsolve.GridFunction):
             if v.size == 1 and v.isScalar:
                 res[v.name] = NGSFunction(self.components[n], name=v.name+pre, tdep=True)
             else:
-                res[v.name] = NGSFunction(ngsolve.CoefficientFunction(tuple(self.components[n:n+v.size]), dims=(v.size,)), name=v.name+pre, tdep=True)
+                d = tuple(list(self.components[n:n+v.size]) + [0]*(3-v.size))
+                res[v.name] = NGSFunction(ngsolve.CoefficientFunction(d, dims=(3,)), name=v.name+pre, tdep=True)
             n+=v.size
         return res
 

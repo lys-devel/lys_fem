@@ -2,7 +2,7 @@ import numpy as np
 import ngsolve
 from netgen.meshing import Mesh, Element0D, Element1D, Element2D, Element3D, FaceDescriptor, Pnt, MeshPoint
 
-from . import mpi, util
+from . import mpi
 
 
 class NGSMesh(ngsolve.Mesh):
@@ -88,7 +88,6 @@ def generateMesh(fem, geom=None):
         mesh.ns = len(tags), nodes
     else:
         mesh.ns = len(coords), len(mesh.ngmesh.Points())
-    util.dimension = fem.dimension
     return mesh
 
 
