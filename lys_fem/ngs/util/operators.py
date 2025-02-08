@@ -462,7 +462,7 @@ class _Cross(_BinaryOper):
             return True
         else:
             return super().isNonlinear
-        
+
 
 class _Index(NGSFunctionBase):
     def __init__(self, obj, index):
@@ -532,6 +532,9 @@ class _Transpose(NGSFunctionBase):
 
     def __call__(self, obj):
         return _Transpose(obj)
+    
+    def __contains__(self, item):
+        return item in self._obj
 
     @property
     def lhs(self):

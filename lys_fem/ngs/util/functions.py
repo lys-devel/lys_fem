@@ -52,6 +52,10 @@ def max(x,y):
     return _MinMax(x, y, "max")
 
 
+def einsum(sign, *args):
+    return _Einsum(sign, *args)
+
+
 def diag(m):
     M = np.zeros(m.shape, dtype=object)
     for i in range(builtins.min(*m.shape)):
@@ -265,3 +269,63 @@ class _MinMax(_Func):
     
     def __str__(self):
         return self._type + "(" + str(self._obj[0]) + ", " + str(self._obj[1]) + ")"
+
+
+class _Einsum(NGSFunctionBase):
+    def __init__(self, sign, *kwargs):
+        self._sign = sign
+        self._objs = [obj if isinstance(obj, NGSFunctionBase) else NGSFunction(obj, str(obj)) for obj in kwargs]
+
+    @property
+    def valid(self):
+        return any([obj.valid for obj in self._objs])
+
+    def replace(self, d):
+        objs = []
+        for obj in self._objs:
+            replaced = obj.replace(d)
+            if replaced == 0:
+                replaced = NGSFunction()
+            objs.append(replaced)
+        return _Einsum(self._sign, *objs)
+    
+    def __contains__(self, item):
+        return any([item in obj for obj in self._objs])
+
+    @property
+    def isNonlinear(self):
+        return any([obj.isNonlinear for obj in self._objs])
+    
+    @property
+    def isTimeDependent(self):
+        return any([obj.isTimeDependent for obj in self._objs])
+        
+    @property
+    def hasTrial(self):
+        return any([obj.hasTrial for obj in self._objs])
+
+    @property
+    def shape(self):
+        pass
+
+    def eval(self, fes):
+        objs = [obj.eval(fes) for obj in self._objs]
+        return ngsolve.fem.Einsum(self._sign, *objs)
+
+    def __str__(self):
+        objs = [str(obj) for obj in self._objs]
+        return "einsum("+self._sign+","+ ",".join(objs) +")"
+
+    @property
+    def rhs(self):
+        if self.hasTrial:
+            return NGSFunction()
+        else:
+            return self
+
+    @property
+    def lhs(self):
+        if self.hasTrial:
+            return self
+        else:
+            return NGSFunction()
