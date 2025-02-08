@@ -5,7 +5,7 @@ from lys_fem import FEMParameter
 class LLGParameters(FEMParameter):
     name = "LLG"
 
-    def __init__(self, Ms=1e6, Aex=1e-11, alpha_LLG=0, Ku=None, u_Ku=None, Kc=None, beta_st=None, lam100=None, lam111=None):
+    def __init__(self, Ms=1e6, Aex=1e-11, alpha_LLG=0, Ku=None, u_Ku=None, Kc=None, beta_st=None, B1=None, B2=None):
         self.alpha_LLG = alpha_LLG
         self.Ms = Ms
         self.Aex = Aex
@@ -13,8 +13,8 @@ class LLGParameters(FEMParameter):
         self.u_Ku = u_Ku
         self.Kc = Kc
         self.beta_st = beta_st
-        self.lam100 = lam100
-        self.lam111 = lam111
+        self.B1 = B1
+        self.B2 = B2
 
     def getParameters(self):
         res = {}
@@ -32,10 +32,8 @@ class LLGParameters(FEMParameter):
             res["Kc"] = self._construct_Kc(self.Kc)
         if self.beta_st is not None:
             res["beta_st"] = self.beta_st
-        if self.lam100 is not None:
-            res["lam100"] = self.lam100
-        if self.lam111 is not None:
-            res["lam111"] = self.lam111
+        if self.B1 is not None and self.B2 is not None:
+            res["K_MS"] = self._construct_MS(self.B1, self.B2)
         return res
 
     @property
@@ -48,8 +46,8 @@ class LLGParameters(FEMParameter):
             "u_Ku": "Uniaxial anisotropy direction",
             "Kc": "Cubic anisotropy (J/m^3)",
             "beta_st": "Nonadiabasity of spin-transfer torque",
-            "lam100": "Magnetostriction coefficient",
-            "lam111": "Magnetostriction coefficient",
+            "B1": "Cubic magnetostriction coefficient (GPa)",
+            "B2": "Cubic magnetostriction coefficient (GPa)",
         }
 
     @property
@@ -62,8 +60,8 @@ class LLGParameters(FEMParameter):
             "u_Ku": [0,0,1],
             "Kc": 100,
             "beta_st": 0.1,
-            "lam100": 1e-6,
-            "lam111": 1e-6,
+            "B1": 0,
+            "B2": 0,
         }
 
     def _construct_Kc(self, Kc):

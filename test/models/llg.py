@@ -541,7 +541,7 @@ class LLG_test(FEMTestCase):
         Ms = 1e5
         l100, l111 = 1e-6, 2e-6
         rat = 1.2
-        B1, B2 = -3*l100*(C2-C1)/Ms, -6*l111*C4/Ms
+        B1, B2 = 3*l100*(C2-C1)/2, -3*l111*C4
         e11, e22, e33, e12, e23, e31 = 1e-2, rat*1e-2, 1e-2, (rat+1)/2*1e-2, (rat+1)/2*1e-2, 1e-2
 
         # geometry
@@ -549,7 +549,7 @@ class LLG_test(FEMTestCase):
         p.mesher.addSizeConstraint(geometries="all", size=1e-6)
 
         # material
-        param = llg.LLGParameters(alpha_LLG=20, Ms=Ms, lam100=l100, lam111=l111)
+        param = llg.LLGParameters(alpha_LLG=20, Ms=Ms, B1=B1, B2=B2)
         param2 = elasticity.ElasticParameters(C=[C1, C2, C4], type="cubic")
         param3 = llg.UserDefinedParameters(u=["1e-2*(x+y+z)", str(rat)+"e-2*(x+y+z)", "1e-2*(x+y+z)"])
         mat1 = Material([param, param2, param3], geometries="all")
@@ -562,20 +562,20 @@ class LLG_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        solver = RelaxationSolver(dt0=1e-14, dt_max=1e-9, dx=0.01, diff_expr="m", maxiter=30000, tolerance=1e-6, solver="pardiso")
+        solver = RelaxationSolver(dt0=1e-4, dt_max=1e-9, dx=0.01, diff_expr="m", maxiter=300, tolerance=1e-6, solver="pardiso")
         p.solvers.append(solver)
 
         # solve
         lib.run(p)
 
-        a,b,c = -B2*e12, -B2*e31-B1*e11+B1*e22, 2*B2*e12
+        a,b,c = -B2*e12, -B2*e31-2*B1*e11+2*B1*e22, 2*B2*e12
         r1, r2 = (-b+np.sqrt(b**2-4*a*c))/(2*a),(-b-np.sqrt(b**2-4*a*c))/(2*a)
 
         # solution
         sol = FEMSolution()
         s = sol.eval("m", data_number=-1)[0].data[0]
 
-        self.assert_allclose(r2, s[1]/s[0], rtol=1e-4)
+        self.assert_allclose(r1, s[1]/s[0], rtol=1e-4)
 
     def magnetoRotation(self, lib):
         p = FEMProject(3)

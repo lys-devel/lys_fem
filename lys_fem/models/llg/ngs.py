@@ -100,6 +100,14 @@ class NGSLLGModel(NGSModel):
                 B = -4/Ms*util.einsum("ijkl,j,k,l->i", Kc, m, m, m)
                 wf += -g*B.dot(test_m)*dx(cu.geometries)
 
+            for cms in self._model.domainConditions.get(CubicMagnetoStriction):
+                Ks = mat["K_MS"]
+                du = util.grad(mat[cms.values])
+                e = (du + du.T)/2
+                B = -2/Ms*util.einsum("ijkl,j,kl->i", Ks, m, e)
+                wf += -g*B.dot(test_m)*dx(cms.geometries)
+                #wf += g*m.dot(B)*m.t.dot(test_m)*theta/dti*dx(cms.geometries)
+
             for cms in self._model.domainConditions.get(CubicMagnetoRotationCoupling):
                 Kc = mat["Kc"]
                 du = util.grad(mat[cms.values])
@@ -113,15 +121,6 @@ class NGSLLGModel(NGSModel):
                 B = -mu0*grad(phi)
                 wf += -g*B.dot(test_m)*dx(sc.geometries)
                 #wf += g*m.dot(B)*m.t.dot(test_m)*theta/dti*dx(sc.geometries)
-
-            for cms in self._model.domainConditions.get(CubicMagnetoStriction):
-                C, l100, l111 = mat["C"], mat["lam100"], mat["lam111"]
-                du = util.grad(mat[cms.values])
-                e = (du + du.T)/2
-                B1, B2 = -3*l100*(C[1,1,0,0]-C[0,0,0,0])/Ms, - 6*l111*C[0,1,0,1]/Ms
-                B = B1*util.diag(e)*m + B2*util.offdiag(e)*m
-                wf += -g*B.dot(test_m)*dx(cms.geometries)
-                wf += g*m.dot(B)*m.t.dot(test_m)*theta/dti*dx(cms.geometries)
 
             for st in self._model.domainConditions.get(SpinTransferTorque):
                 beta = mat["beta_st"]
