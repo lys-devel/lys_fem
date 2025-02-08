@@ -154,6 +154,39 @@ class LLG_test(FEMTestCase):
         for w in res:
             self.assert_array_almost_equal(w.data, -np.ones(w.data.shape)/np.sqrt(2), decimal=2)
 
+    def anisC(self, lib):
+        p = FEMProject(1)
+
+        # geometry
+        p.geometries.add(geometry.Line(0, 0, 0, 1e-6, 0, 0))
+
+        # material
+        param = llg.LLGParameters(alpha_LLG=1, Ms=1e5, Kc=1e5)
+        mat1 = Material([param], geometries="all")
+        p.materials.append(mat1)
+
+        # model: boundary and initial conditions
+        model = llg.LLGModel(constraint="Alouges")
+        model.initialConditions.append(llg.InitialCondition([0.8, 0, 0.6], geometries="all"))
+        model.domainConditions.append(llg.CubicAnisotropy(geometries="all"))
+        p.models.append(model)
+
+        # solver
+        solver = RelaxationSolver(dt0=1e-14, dt_max=1e-12, dx=0.1, diff_expr="m", maxiter=3000, tolerance=1e-6, solver="pardiso")
+        p.solvers.append(solver)
+
+        # solve
+        lib.run(p)
+
+        # solution
+        sol = FEMSolution()
+        B = sol.eval("-4/Ms*einsum('ijkl,j,k,l->i', Kc, m, m, m)", data_number=0, coords=[0])
+        B_res = -2*np.array([0.8*0.6**2, 0, 0.6*0.8**2])
+        self.assert_array_almost_equal(B, B_res, decimal=2)
+
+        res = sol.eval("m", data_number=-1, coords=[0])
+        self.assert_array_almost_equal(res, [1,0,0], decimal=5)
+
     def deformation(self, lib):
         p = FEMProject(3)
 
@@ -387,7 +420,6 @@ class LLG_test(FEMTestCase):
         for w in res:
             self.assert_array_almost_equal(w.data, np.zeros(w.data.shape), decimal=2)
 
-
     def demagnetization_em(self, lib):
         r2 = 2
         p = FEMProject(3)
@@ -545,7 +577,6 @@ class LLG_test(FEMTestCase):
 
         self.assert_allclose(r2, s[1]/s[0], rtol=1e-4)
 
-
     def magnetoRotation(self, lib):
         p = FEMProject(3)
 
@@ -554,7 +585,7 @@ class LLG_test(FEMTestCase):
         p.mesher.addSizeConstraint(geometries="all", size=1e-6)
 
         # material
-        param = llg.LLGParameters(alpha_LLG=10, Ms=1e6, Kc=1e3, Aex=0, u_Kc=np.eye(3))
+        param = llg.LLGParameters(alpha_LLG=10, Ms=1e6, Kc=1e3, Aex=0)
         param2 = llg.UserDefinedParameters(u=["-z", "0", "x"])
         mat1 = Material([param, param2], geometries="all")
         p.materials.append(mat1)
@@ -567,7 +598,7 @@ class LLG_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        solver = RelaxationSolver(dt0=1e-14, dt_max=1e-9, dx=0.01, diff_expr="m", maxiter=30000, tolerance=1e-8, solver="pardiso")
+        solver = RelaxationSolver(dt0=1e-11, dt_max=1e-8, dx=0.01, diff_expr="m", maxiter=300, tolerance=1e-9, solver="pardiso")
         p.solvers.append(solver)
 
         # solve
@@ -575,6 +606,9 @@ class LLG_test(FEMTestCase):
 
         # solution
         sol = FEMSolution()
+        w = np.array(sol.eval("(grad(u*0.001).T-grad(u*0.001))/2", 0, coords=[(0,0,0)])).reshape((3,3))
+        self.assert_array_almost_equal(w, np.array([[0,0,-1], [0,0,0], [1,0,0]])*0.001)
+
         s = sol.eval("m", data_number=-1)[0].data[0]
         self.assertTrue(s[0]/s[2] < 0)
         self.assertAlmostEqual(abs(s[0]/s[2]), 1e-3, delta=1e-3)

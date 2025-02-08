@@ -96,12 +96,17 @@ class NGSLLGModel(NGSModel):
                 wf += g*m.dot(B)*m.t.dot(test_m)*theta/dti*dx(uni.geometries)
 
             for cu in self._model.domainConditions.get(CubicAnisotropy):
-                c1, c2, c3, Kc = mat["u_Kc[0]/norm(u_Kc[0])"], mat["u_Kc[1]/norm(u_Kc[1])"], mat["u_Kc[2]/norm(u_Kc[2])"], mat["Kc"]
-                B =  -2*Kc/Ms*(c2.dot(m)**2+c3.dot(m)**2)*c1.dot(m)*c1
-                B += -2*Kc/Ms*(c3.dot(m)**2+c1.dot(m)**2)*c2.dot(m)*c2
-                B += -2*Kc/Ms*(c1.dot(m)**2+c2.dot(m)**2)*c3.dot(m)*c3
+                Kc = mat["Kc"]
+                B = -4/Ms*util.einsum("ijkl,j,k,l->i", Kc, m, m, m)
                 wf += -g*B.dot(test_m)*dx(cu.geometries)
-                wf += g*m.dot(B)*m.t.dot(test_m)*theta/dti*dx(cu.geometries)
+
+            for cms in self._model.domainConditions.get(CubicMagnetoRotationCoupling):
+                Kc = mat["Kc"]
+                du = util.grad(mat[cms.values])
+                w = (du.T-du)/2
+                K = util.einsum("ijkl,Ii->Ijkl", Kc, w) + util.einsum("ijkl,Jj->iJkl", Kc, w) + util.einsum("ijkl,Kk->ijKl", Kc, w) + util.einsum("ijkl,Ll->ijkL", Kc, w)
+                B = -4/Ms*util.einsum("ijkl,j,k,l->i", K, m, m, m)
+                wf += -g*B.dot(test_m)*dx(cms.geometries)
 
             for sc in self._model.domainConditions.get(MagneticScalarPotential):
                 phi = mat[sc.values]
@@ -115,18 +120,6 @@ class NGSLLGModel(NGSModel):
                 e = (du + du.T)/2
                 B1, B2 = -3*l100*(C[1,1,0,0]-C[0,0,0,0])/Ms, - 6*l111*C[0,1,0,1]/Ms
                 B = B1*util.diag(e)*m + B2*util.offdiag(e)*m
-                wf += -g*B.dot(test_m)*dx(cms.geometries)
-                wf += g*m.dot(B)*m.t.dot(test_m)*theta/dti*dx(cms.geometries)
-
-            for cms in self._model.domainConditions.get(CubicMagnetoRotationCoupling):
-                c1, c2, c3, Kc = mat["u_Kc[0]/norm(u_Kc[0])"], mat["u_Kc[1]/norm(u_Kc[1])"], mat["u_Kc[2]/norm(u_Kc[2])"], mat["Kc"]
-                du = util.grad(mat[cms.values])
-                w = (du.T-du)/2
-                n1, n2, n3 = c1.dot(m), c2.dot(m), c3.dot(m)
-                B =  -2*Kc/Ms*(3*( n2*w[0,1]+n3*w[0,2])*n1**2 - w[0,1]*n2**3 - w[0,2]*n3**3)*c1
-                B += -2*Kc/Ms*(3*(-n1*w[0,1]+n3*w[2,1])*n2**2 - w[0,1]*n1**3 - w[1,2]*n3**3)*c2
-                B += -2*Kc/Ms*(3*(-n1*w[0,2]-n2*w[1,2])*n3**2 - w[0,2]*n1**3 - w[2,1]*n2**3)*c3
-
                 wf += -g*B.dot(test_m)*dx(cms.geometries)
                 wf += g*m.dot(B)*m.t.dot(test_m)*theta/dti*dx(cms.geometries)
 

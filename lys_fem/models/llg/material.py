@@ -1,17 +1,17 @@
+import numpy as np
 from lys_fem import FEMParameter
 
 
 class LLGParameters(FEMParameter):
     name = "LLG"
 
-    def __init__(self, Ms=1e6, Aex=1e-11, alpha_LLG=0, Ku=None, u_Ku=None, Kc=None, u_Kc=None, beta_st=None, lam100=None, lam111=None):
+    def __init__(self, Ms=1e6, Aex=1e-11, alpha_LLG=0, Ku=None, u_Ku=None, Kc=None, beta_st=None, lam100=None, lam111=None):
         self.alpha_LLG = alpha_LLG
         self.Ms = Ms
         self.Aex = Aex
         self.Ku = Ku
         self.u_Ku = u_Ku
         self.Kc = Kc
-        self.u_Kc = u_Kc
         self.beta_st = beta_st
         self.lam100 = lam100
         self.lam111 = lam111
@@ -29,9 +29,7 @@ class LLGParameters(FEMParameter):
         if self.u_Ku is not None:
             res["u_Ku"] = self.u_Ku
         if self.Kc is not None:
-            res["Kc"] = self.Kc
-        if self.u_Kc is not None:
-            res["u_Kc"] = self.u_Kc
+            res["Kc"] = self._construct_Kc(self.Kc)
         if self.beta_st is not None:
             res["beta_st"] = self.beta_st
         if self.lam100 is not None:
@@ -49,7 +47,6 @@ class LLGParameters(FEMParameter):
             "Ku": "Uniaxial anisotropy (J/m^3)",
             "u_Ku": "Uniaxial anisotropy direction",
             "Kc": "Cubic anisotropy (J/m^3)",
-            "u_Kc": "Cubic anisotropy directions",
             "beta_st": "Nonadiabasity of spin-transfer torque",
             "lam100": "Magnetostriction coefficient",
             "lam111": "Magnetostriction coefficient",
@@ -64,8 +61,51 @@ class LLGParameters(FEMParameter):
             "Ku": 1e3,
             "u_Ku": [0,0,1],
             "Kc": 100,
-            "u_Kc": [[1,0,0], [0,1,0], [0,1,0]],
             "beta_st": 0.1,
             "lam100": 1e-6,
             "lam111": 1e-6,
         }
+
+    def _construct_Kc(self, Kc):
+        res = np.zeros((3,3,3,3), dtype=object)
+        res[0,0,1,1] = Kc/6
+        res[0,0,2,2] = Kc/6
+        res[0,1,0,1] = Kc/6
+        res[0,1,1,0] = Kc/6
+        res[0,2,0,2] = Kc/6
+        res[0,2,2,0] = Kc/6
+
+        res[1,0,0,1] = Kc/6
+        res[1,0,1,0] = Kc/6
+        res[1,1,0,0] = Kc/6
+        res[1,1,2,2] = Kc/6
+        res[1,2,1,2] = Kc/6
+        res[1,2,2,1] = Kc/6
+
+        res[2,0,0,2] = Kc/6
+        res[2,0,2,0] = Kc/6
+        res[2,1,1,2] = Kc/6
+        res[2,1,2,1] = Kc/6
+        res[2,2,0,0] = Kc/6
+        res[2,2,1,1] = Kc/6
+
+        return res.tolist()
+
+    def _construct_MS(self, B1, B2):
+        K = np.zeros((3,3,3,3), dtype=object)
+        K[0,0,0,0] = B1
+        K[0,1,0,1] = B2/4
+        K[0,1,1,0] = B2/4
+        K[0,2,0,2] = B2/4
+        K[0,2,2,0] = B2/4
+        K[1,0,0,1] = B2/4
+        K[1,0,1,0] = B2/4
+        K[1,1,1,1] = B1
+        K[1,2,1,2] = B2/4
+        K[1,2,2,1] = B2/4
+        K[2,0,0,2] = B2/4
+        K[2,0,2,0] = B2/4
+        K[2,1,1,2] = B2/4
+        K[2,1,2,1] = B2/4
+        K[2,2,2,2] = B1
+        return K

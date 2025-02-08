@@ -17,6 +17,9 @@ class ngs_LLG_test(LLG_test):
     def test_anisU2(self):
         self.anisU(ngs, constraint="Alouges")
 
+    def test_anisC(self):
+        self.anisC(ngs)
+
     def test_DW(self):
         self.domainWall(ngs)
 
