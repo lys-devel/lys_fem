@@ -5,7 +5,7 @@ from lys_fem import FEMParameter
 class LLGParameters(FEMParameter):
     name = "LLG"
 
-    def __init__(self, Ms=1e6, Aex=1e-11, alpha_LLG=0, Ku=None, u_Ku=None, Kc=None, beta_st=None, B1=None, B2=None):
+    def __init__(self, Ms=1e6, Aex=1e-11, alpha_LLG=0, Ku=None, u_Ku=None, Kc=None, beta_st=None, B1=None, B2=None, **kwargs):
         self.alpha_LLG = alpha_LLG
         self.Ms = Ms
         self.Aex = Aex
@@ -66,6 +66,7 @@ class LLGParameters(FEMParameter):
 
     def _construct_Kc(self, Kc):
         res = np.zeros((3,3,3,3), dtype=object)
+        Kc = float(Kc)
         res[0,0,1,1] = Kc/6
         res[0,0,2,2] = Kc/6
         res[0,1,0,1] = Kc/6

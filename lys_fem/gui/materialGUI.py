@@ -106,10 +106,32 @@ class _MaterialWidget(QtWidgets.QWidget):
 
     def __initlayout(self, canvas, fem, mat):
         domain = GeometrySelector(canvas, fem, mat.geometries)
+
+        self._grp = QtWidgets.QGroupBox("Define parameters on material coordinate", checkable=True)
+        if mat.coordinate is not None:
+            m = mat.coordinate
+            self._grp.setChecked(True)
+        else:
+            m = np.eye(3)
+            self._grp.setChecked(False)
+        self._grp.toggled.connect(self.__changed)
+        self._xyz = MatrixFunctionWidget("Material coordinate XYZ", m)
+        self._xyz.valueChanged.connect(self.__changed)
+        l1 = QtWidgets.QHBoxLayout()
+        l1.addWidget(self._xyz)
+        self._grp.setLayout(l1)
+
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(domain)
+        layout.addWidget(self._grp)
         self.setLayout(layout)
+
+    def __changed(self):
+        if self._grp.isChecked():
+            self._material.coordinate = self._xyz.value()
+        else:
+            self._material.coordinate = None
 
 
 class _ParameterWidget(QtWidgets.QTreeWidget):
@@ -124,7 +146,7 @@ class _ParameterWidget(QtWidgets.QTreeWidget):
 
     def __initLayout(self, param):
         self._widgets = []
-        for key in param.getParameters(3).keys():
+        for key in param.getParameters().keys():
             self.__addItem(key)
 
     def __addItem(self, key):

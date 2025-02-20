@@ -59,8 +59,9 @@ class Materials(FEMObjectList):
         for m in self:
             R =  m.coordinate
             if R is not None:
+                R = np.array([[float(rr) for rr in r] for r in R])
                 for d in m.geometries:
-                    J.value[d] = R/np.linalg.norm(R, axis=0)
+                    J.value[d] = np.array([R[0]/np.linalg.norm(R[0]), R[1]/np.linalg.norm(R[1]), R[2]/np.linalg.norm(R[2])])
         if len(J.value) > 1:
             return J
         else:
@@ -105,6 +106,10 @@ class Material(FEMObject):
     @property
     def coordinate(self):
         return self._coord
+    
+    @coordinate.setter
+    def coordinate(self, value):
+        self._coord = value
 
     @geometries.setter
     def geometries(self, value):
@@ -145,8 +150,9 @@ class FEMParameter:
         return cls(**d)
 
     def widget(self, name):
+        from lys.Qt import QtWidgets
         from ..widgets import ScalarFunctionWidget, MatrixFunctionWidget, VectorFunctionWidget
-        param = self.getParameters(3)[name]
+        param = self.getParameters()[name]
         if np.shape(param) == ():
             return ScalarFunctionWidget(None, getattr(self, name), valueChanged=lambda x: setattr(self, name, x))
         elif len(np.shape(param)) == 1:
