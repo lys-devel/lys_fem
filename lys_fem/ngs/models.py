@@ -14,25 +14,41 @@ def generateModel(fem, mat):
     return CompositeModel([modelList[m.className](m, mat) for m in fem.models], mat)
 
 
+class InitialConditions:
+    def __init__(self, space, x, v):
+        self._sp = space
+        self._x = x
+        self._v = v
+
+    def value(self, vars):
+        coef = vars[self._x]
+        if coef is None:
+            raise RuntimeError("Invalid initial value for " + str(self._sp.name))
+        if not coef.valid:
+            coef = util.NGSFunction([0] * self._sp.size)
+        return coef
+    
+    def velocity(self, vars):
+        coef = vars[self._v]
+        if coef is None:
+            raise RuntimeError("Invalid initial velocity for " + str(self._sp.name))
+        if not coef.valid:
+            coef = util.NGSFunction([0] * self._sp.size)
+        return coef
+
+
 class NGSModel:
     def __init__(self, model, vars, addVariables=False):
         self._model = model
-        self._funcs = vars
         self._vars = []
+        self._inits = []
 
         if addVariables:
             for eq in model.equations:
                 self.addVariable(eq.variableName, eq.variableDimension, region=eq.geometries, order=model.order, isScalar=eq.isScalar, fetype=model.type)
 
     def addVariable(self, name, vdim, dirichlet="auto", initialValue="auto", initialVelocity=None, region=None, order=1, isScalar=False, type="x", fetype="H1"):
-        initialValue = self._funcs[self.__initialValue(vdim, initialValue)]
-        if initialValue is None:
-            raise RuntimeError("Invalid initial value for " + str(name))
-            
-        if initialVelocity is None:
-            initialVelocity = self._funcs[FEMCoefficient([0]*vdim)]
-
-        kwargs = {"fetype": fetype, "isScalar": isScalar, "order": order, "size": vdim}
+        kwargs = {"fetype": fetype, "isScalar": isScalar, "order": order, "size": vdim, "valtype": type}
         if region is not None:
             if region.selectionType() == "Selected":
                 kwargs["definedon"] = "|".join([region.geometryType.lower() + str(r) for r in region])
@@ -44,8 +60,9 @@ class NGSModel:
         if dirichlet is not None:
             kwargs["dirichlet"] = ["|".join(["boundary" + str(item) for item in dirichlet[i]]) for i in range(vdim)]
 
-        fes = util.FunctionSpace(**kwargs)
-        self._vars.append(util.NGSVariable(name, fes, initialValue, initialVelocity, type=type))
+        fes = util.FunctionSpace(name, **kwargs)
+        self._vars.append(fes)
+        self._inits.append(InitialConditions(fes, self.__initialValue(vdim, initialValue), self.__initialVelocity(vdim, initialVelocity)))
 
     def __dirichlet(self, coef, vdim):
         bdr_dir = [[] for _ in range(vdim)] 
@@ -69,7 +86,12 @@ class NGSModel:
         for type in self._model.initialConditionTypes[1:]:
             init.value.update(self._model.initialConditions.coef(type).value)
         return init
-    
+
+    def __initialVelocity(self, vdim, initialVelocity):
+        if initialVelocity is None:
+            initialVelocity = FEMCoefficient([0]*vdim)
+        return initialVelocity
+
     def discretize(self, tnt, sols, dti):
         d = {}
         for v in self.variables:
@@ -100,6 +122,10 @@ class NGSModel:
     @property
     def variables(self):
         return self._vars
+
+    @property
+    def initialConditions(self):
+        return self._inits
 
     @property
     def name(self):
@@ -163,8 +189,8 @@ class CompositeModel:
         return d
 
     def initialValue(self, fes):
-        x = fes.gridFunction([c for v in self.variables for c in v.value(fes)])
-        v = fes.gridFunction([c for v in self.variables for c in v.velocity(fes)])
+        x = fes.gridFunction([v.value(self._mat) for v in self.initialConditions])
+        v = fes.gridFunction([v.velocity(self._mat) for v in self.initialConditions])
         a = fes.gridFunction()
         return x, v, a
     
@@ -179,7 +205,11 @@ class CompositeModel:
     @property
     def variables(self):
         return sum([m.variables for m in self._models], [])
-    
+
+    @property
+    def initialConditions(self):
+        return sum([m.initialConditions for m in self._models], [])
+
     @property
     def TnT(self):
         return {v: (util.TrialFunction(v), util.TestFunction(v)) for v in self.variables}

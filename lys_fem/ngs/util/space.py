@@ -9,14 +9,20 @@ def prod(args):
 
 
 class FunctionSpace:
-    def __init__(self, fetype="H1", size=1, dirichlet=None, isScalar=True, **kwargs):
+    def __init__(self, name, fetype="H1", size=1, dirichlet=None, isScalar=True, valtype="x", **kwargs):
+        self._name = name
         self._type = fetype
         self._size = size
         self._scalar = isScalar
         if dirichlet is None:
             dirichlet = [None] * size
         self._dirichlet = dirichlet
+        self._valtype = valtype
         self._kwargs = dict(kwargs)
+
+    @property
+    def name(self):
+        return self._name
 
     @property
     def size(self):
@@ -25,6 +31,10 @@ class FunctionSpace:
     @property
     def isScalar(self):
         return self._scalar and self._size==1
+
+    @property
+    def type(self):
+        return self._valtype
 
     def eval(self, mesh):
         if self._type == "H1":
@@ -51,56 +61,6 @@ class L2(FunctionSpace):
         super().__init__("L2", **kwargs)
 
 
-class NGSVariable:
-    def __init__(self, name, fes, initialValue=None, initialVelocity=None, type="x"):
-        self._name = name
-        self._fes = fes
-        self._init = initialValue
-        self._vel = initialVelocity
-        self._type = type
-
-    @property
-    def name(self):
-        return self._name
-    
-    @property
-    def size(self):
-        return self._fes.size
-    
-    @property
-    def type(self):
-        return self._type
-
-    @property
-    def isScalar(self):
-        return self._fes.isScalar
-
-    def finiteElementSpace(self, mesh):
-        return self._fes.eval(mesh)
-    
-    def value(self, fes):
-        coef = self._init
-        if coef.valid:
-            coef = coef.eval(fes)
-        else:
-            coef = ngsolve.CoefficientFunction(tuple([0] * self.size))
-        if self.size == 1:
-            return [coef]
-        else:
-            return [coef[i] for i in range(coef.shape[0])]
-    
-    def velocity(self, fes):
-        coef = self._vel
-        if coef.valid:
-            coef = coef.eval(fes)
-        else:
-            coef = ngsolve.CoefficientFunction(tuple([0] * self.size))
-        if self.size == 1:
-            return [coef]
-        else:
-            return [coef[i] for i in range(coef.shape[0])]
-
-
 class FiniteElementSpace:
     def __init__(self, vars, mesh, symbols=None, symmetric=False, condense=False, jacobi={}):
         self._mesh = mesh
@@ -109,11 +69,11 @@ class FiniteElementSpace:
         self._symmetric = symmetric
         self._condense = condense
         if symbols is None:
-            self._fes = prod([v.finiteElementSpace(mesh) for v in vars])
+            self._fes = prod([v.eval(mesh) for v in vars])
             self._tnt = self.__TnT_dict(vars, self._fes)
         else:
-            self._fes_glb = prod([v.finiteElementSpace(mesh) for v in vars])
-            self._fes = prod([v.finiteElementSpace(mesh) for v in vars if v.name in symbols])
+            self._fes_glb = prod([v.eval(mesh) for v in vars])
+            self._fes = prod([v.eval(mesh) for v in vars if v.name in symbols])
             self._tnt = self.__TnT_dict([v for v in vars if v.name in symbols], self._fes)
             self._mask = self.__mask(self._fes_glb, symbols)
         self._jacobi = {key: value.eval(self) for key, value in jacobi.items()}
@@ -191,14 +151,15 @@ class GridFunction(ngsolve.GridFunction):
         super().__init__(fes._fes)
         self._fes = fes
         if value is not None:
-            self.set(value)
+            self._set(value)
 
-    def set(self, value):
+    def _set(self, value):
         if self.isSingle:
-            self.Set(*value)
+            self.Set(*[v.eval(self._fes) for v in value])
         else:
+            value = [val if v.isScalar else val[i] for v, val in zip(self._fes.variables, value) for i in range(v.size)]
             for ui, i in zip(self.components, value):
-                ui.Set(i)
+                ui.Set(i.eval(self._fes))
 
     def setComponent(self, var, value):
         if self.isSingle:

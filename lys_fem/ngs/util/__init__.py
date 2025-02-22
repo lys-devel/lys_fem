@@ -5,7 +5,7 @@ from .coef import NGSFunction, DomainWiseFunction
 from .trials import TrialFunction, TestFunction, SolutionFunction, DifferentialSymbol
 from .fields import VolumeField, SolutionFieldFunction, RandomFieldFunction
 from .functions import det, inv, diag, offdiag, grad, sin, cos, tan, step, min, max, exp, sqrt, norm, einsum
-from .space import FunctionSpace, H1, L2, NGSVariable, FiniteElementSpace
+from .space import FunctionSpace, H1, L2, FiniteElementSpace
 
 def eval(expr, dic={}):
     return builtins.eval(expr, globals(), dic)
