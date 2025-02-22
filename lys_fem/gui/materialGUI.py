@@ -160,7 +160,7 @@ class _ParameterWidget(QtWidgets.QTreeWidget):
 
     def _buildContextMenu(self):
         self._menu = QtWidgets.QMenu()
-        params = self._param.getParameters(3)
+        params = self._param.getParameters()
         sub = self._menu.addMenu("Add")
         for key, desc in self._param.description.items():
             if key not in params:

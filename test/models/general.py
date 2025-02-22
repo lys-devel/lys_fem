@@ -159,7 +159,7 @@ class poisson_test(FEMTestCase):
         p.mesher.setRefinement(1)
 
         # model: boundary and initial conditions
-        model = general.PoissonModel()
+        model = general.PoissonModel(J="J")
         model.initialConditions.append(general.InitialCondition(0, geometries="all"))
         model.domainConditions.append(general.Source(1, geometries=[1,2,9,10,11,12,13,14]))
         model.boundaryConditions.append(general.DirichletBoundary([True], geometries=[31,36,39,42,43,44]))

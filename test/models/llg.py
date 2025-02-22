@@ -207,7 +207,7 @@ class LLG_test(FEMTestCase):
         p.materials.append(mat1)
 
         # poisson equation for infinite boundary
-        model = em.MagnetostaticsModel()
+        model = em.MagnetostaticsModel(J="J")
         model.initialConditions.append(em.MagnetostaticInitialCondition(0, geometries="all"))
         model.boundaryConditions.append(em.DirichletBoundary([True], geometries=infBdr))
         p.models.append(model)
@@ -439,7 +439,7 @@ class LLG_test(FEMTestCase):
         p.materials.append(Material([param], geometries=domain))
 
         # poisson equation for infinite boundary
-        model1 = em.MagnetostaticsModel()
+        model1 = em.MagnetostaticsModel(J="J")
         model1.initialConditions.append(em.InitialCondition(0, geometries="all"))
         model1.boundaryConditions.append(em.DirichletBoundary(True, geometries=infBdr))
         model1.domainConditions.append(em.DivSource("Ms*m", geometries=domain))

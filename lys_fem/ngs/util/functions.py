@@ -198,8 +198,7 @@ class _Grad(_Func):
     
     def eval(self, fes):
         if hasattr(self._obj, "grad"):
-            x = self._obj.grad(fes)
-            return applyJacobian(x, fes.jacobi())
+            return self._obj.grad(fes)
         raise RuntimeError("grad is not implemented for " + str(type(self._obj)))
     
     def __str__(self):

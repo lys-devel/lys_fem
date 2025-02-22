@@ -1,4 +1,4 @@
-from lys_fem.ngs import NGSModel, dx, grad
+from lys_fem.ngs import NGSModel, dx, grad, det
 from .. import Source, DivSource
 
 
@@ -13,10 +13,19 @@ class NGSPoissonModel(NGSModel):
         for eq in self._model.equations:
             u, v = vars[eq.variableName]
 
-            gu = grad(u)
+            J = mat[eq.J]
+            if J is not None:
+                gu = J.dot(grad(u))
+                gv = J.dot(grad(v))
+                d = det(J)
+            else:
+                gu = grad(u)
+                gv = grad(v)
+                d = 1
+
             if self._coef is not None:
                 gu = mat[self._coef].dot(gu)
-            wf += gu.dot(grad(v)) * dx
+            wf += gu.dot(gv)/d * dx
 
             for s in self._model.domainConditions.get(Source):
                 f = mat[s.values]

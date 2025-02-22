@@ -91,6 +91,7 @@ class LLGParameters(FEMParameter):
         return res.tolist()
 
     def _construct_MS(self, B1, B2):
+        B1, B2 = float(B1), float(B2)
         K = np.zeros((3,3,3,3), dtype=object)
         K[0,0,0,0] = B1
         K[0,1,0,1] = B2/4
@@ -108,3 +109,10 @@ class LLGParameters(FEMParameter):
         K[2,1,2,1] = B2/4
         K[2,2,2,2] = B1
         return K
+    
+    def widget(self, name):
+        from lys_fem.widgets import ScalarFunctionWidget
+        if name in ["Kc", "B1", "B2"]:
+            return ScalarFunctionWidget(None, getattr(self, name), valueChanged=lambda x: setattr(self, name, x))
+        else:
+            return super().widget(name)

@@ -179,10 +179,10 @@ class DifferentialSymbol(NGSFunctionBase):
 
     def eval(self, fes):
         from .functions import det
-        if fes.jacobi() is None:
-            J = None
-        else:
-            J = det(fes.jacobi())
+        #if fes.jacobi() is None:
+        J = None
+        #else:
+        #   J = det(fes.jacobi())
         if self._geom is None:
             return _MultDiffSimbol(self._obj, J)
         else:

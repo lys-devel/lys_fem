@@ -144,7 +144,10 @@ class CompositeModel:
     def __initial(self, wf, sols):
         d = {}
         for v, (trial, test) in self.TnT.items():
-            d.update({trial: sols.X(v), trial.t: sols.V(v), trial.tt: trial, util.grad(trial): util.grad(sols.X(v))})
+            if trial.tt in wf:
+                d.update({trial: sols.X(v), trial.t: sols.V(v), trial.tt: trial, util.grad(trial): util.grad(sols.X(v))})
+            else:
+                d.update({trial: sols.X(v), trial.t: sols.V(v), util.grad(trial): util.grad(sols.X(v)), test: 0, util.grad(test): 0})
         return wf.replace(d)
     
     def discretize(self, sols):
