@@ -34,7 +34,7 @@ class testProblems_test(FEMTestCase):
 
         # solution
         sol = FEMSolution()
-        res = sol.eval("x", data_number=1)
+        res = sol.eval("X", data_number=1)
         for w in res:
             self.assert_array_almost_equal(w.data, w.x[:, 0])
 
@@ -61,7 +61,7 @@ class testProblems_test(FEMTestCase):
 
         # solution
         sol = FEMSolution()
-        res = sol.eval("x", data_number=1)
+        res = sol.eval("X", data_number=1)
         for w in res:
             self.assert_array_almost_equal(w.data, w.x[:, 0])
 
@@ -74,11 +74,10 @@ class testProblems_test(FEMTestCase):
         p.mesher.setRefinement(5)
 
         # model: boundary and initial conditions
-        x = sp.Symbol("x")
         model = test.NonlinearTestModel()
         model.boundaryConditions.append(test.DirichletBoundary([True], geometries=[1, 3]))
-        model.initialConditions.append(test.InitialCondition(x, geometries=[1]))
-        model.initialConditions.append(test.InitialCondition(x, geometries=[2]))
+        model.initialConditions.append(test.InitialCondition("x", geometries=[1]))
+        model.initialConditions.append(test.InitialCondition("x", geometries=[2]))
         p.models.append(model)
 
         # solver
@@ -90,11 +89,11 @@ class testProblems_test(FEMTestCase):
 
         # solution
         sol = FEMSolution()
-        res = sol.eval("x", data_number=1)
+        res = sol.eval("X", data_number=1)
         for w in res:
             assert_array_almost_equal(w.data, np.sqrt(2 * w.x[:, 0]), decimal=2)
         c = np.array([0.5,0.6,0.7])
-        assert_array_almost_equal(sol.eval("x", data_number=1, coords=c), np.sqrt(2*c))
+        assert_array_almost_equal(sol.eval("X", data_number=1, coords=c), np.sqrt(2*c))
 
     def smallGeom(self, lib):
         p = FEMProject(1)
@@ -120,7 +119,7 @@ class testProblems_test(FEMTestCase):
 
         # solution
         sol = FEMSolution()
-        res = sol.eval("x", data_number=1)
+        res = sol.eval("X", data_number=1)
         for w in res:
             self.assert_array_almost_equal(w.data*1e-9, w.x[:, 0])
 
@@ -145,8 +144,8 @@ class testProblems_test(FEMTestCase):
         # solution
         sol = FEMSolution()
         t = np.linspace(0,0.1,101)
-        x = [sol.eval("x", coords=0, data_number=i) for i in range(101)]
-        y = [sol.eval("y", coords=0, data_number=i) for i in range(101)]
+        x = [sol.eval("X", coords=0, data_number=i) for i in range(101)]
+        y = [sol.eval("Y", coords=0, data_number=i) for i in range(101)]
         self.assert_array_almost_equal(x, (np.exp(-2*t)+1)/2, decimal=4)
         self.assert_array_almost_equal(y, (1-np.exp(-2*t))/2, decimal=4)
 
@@ -162,7 +161,7 @@ class testProblems_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        steps = [SolverStep(["x"]), SolverStep(["y"], solver="cg", prec="gamg")]
+        steps = [SolverStep(["X"]), SolverStep(["Y"], solver="cg", prec="gamg")]
         stationary = TimeDependentSolver(0.001, 0.1, steps=steps)
         p.solvers.append(stationary)
 
@@ -172,8 +171,8 @@ class testProblems_test(FEMTestCase):
         # solution
         sol = FEMSolution()
         t = np.linspace(0,0.1,101)
-        x = [sol.eval("x", coords=0, data_number=i) for i in range(101)]
-        y = [sol.eval("y", coords=0, data_number=i) for i in range(101)]
+        x = [sol.eval("X", coords=0, data_number=i) for i in range(101)]
+        y = [sol.eval("Y", coords=0, data_number=i) for i in range(101)]
         self.assert_array_almost_equal(x, (np.exp(-2*t)+1)/2, decimal=4)
         self.assert_array_almost_equal(y, (1-np.exp(-2*t))/2, decimal=4)
 
@@ -193,7 +192,7 @@ class testProblems_test(FEMTestCase):
         p.models.append(model2)
 
         # solver
-        stationary = TimeDependentSolver(0.001, 0.1, steps=[SolverStep(["y"])])
+        stationary = TimeDependentSolver(0.001, 0.1, steps=[SolverStep(["Y"])])
         p.solvers.append(stationary)
 
         # solve
@@ -202,7 +201,7 @@ class testProblems_test(FEMTestCase):
         # solution
         sol = FEMSolution()
         t = np.linspace(0,0.1,101)
-        y = [sol.eval("y", coords=0.5, data_number=i) for i in range(101)]
+        y = [sol.eval("Y", coords=0.5, data_number=i) for i in range(101)]
         self.assert_array_almost_equal(y, -0.5*t, decimal=4)
 
     def consts(self, lib):
@@ -230,7 +229,7 @@ class testProblems_test(FEMTestCase):
 
         # solution
         sol = FEMSolution()
-        res = sol.eval("x", data_number=1)
+        res = sol.eval("X", data_number=1)
         for w in res:
             self.assert_array_almost_equal(w.data, w.x[:, 0])
 
@@ -262,7 +261,7 @@ class testProblems_test(FEMTestCase):
 
         # solution
         sol = FEMSolution()
-        res = sol.eval("x", data_number=1)
+        res = sol.eval("X", data_number=1)
         for w in res:
             self.assert_array_almost_equal(w.data, w.x[:, 0]/2)
 
@@ -295,7 +294,7 @@ class testProblems_test(FEMTestCase):
 
         # solution
         sol = FEMSolution()
-        res = sol.eval("x", data_number=1)
+        res = sol.eval("X", data_number=1)
         for w in res:
             self.assert_array_almost_equal(w.data, w.x[:, 0])
 
@@ -308,7 +307,7 @@ class testProblems_test(FEMTestCase):
         p.mesher.setRefinement(3)
 
         # solution fields
-        p.solutionFields.add("x0", "../run1", "x")
+        p.solutionFields.add("x0", "../run1", "X")
 
         # model: boundary and initial conditions
         model = test.LinearTestModel()
@@ -325,7 +324,7 @@ class testProblems_test(FEMTestCase):
 
         # solution
         sol = FEMSolution()
-        res = sol.eval("x", data_number=0)
+        res = sol.eval("X", data_number=0)
         for w in res:
             self.assert_array_almost_equal(w.data, w.x[:, 0])
 
@@ -356,7 +355,7 @@ class testProblems_test(FEMTestCase):
         # solution
         sol = FEMSolution()
         t = np.linspace(0,0.1,101)
-        x = [sol.eval("x", coords=0, data_number=i) for i in range(101)]
+        x = [sol.eval("X", coords=0, data_number=i) for i in range(101)]
         self.assert_array_almost_equal(x, np.exp(-t), decimal=4)
 
         # second calculation
@@ -367,7 +366,7 @@ class testProblems_test(FEMTestCase):
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
 
         # solution fields
-        p.solutionFields.add("x", "../run1", "x", index=None)
+        p.solutionFields.add("X", "../run1", "X", index=None)
 
         # model: boundary and initial conditions
         model = test.TdepFieldTestModel()
@@ -383,7 +382,7 @@ class testProblems_test(FEMTestCase):
 
         # solution
         sol = FEMSolution()
-        y = [sol.eval("y", coords=0, data_number=i) for i in range(101)]
+        y = [sol.eval("Y", coords=0, data_number=i) for i in range(101)]
         self.assert_array_almost_equal(y, np.exp(-t)-1, decimal=4)
 
     def scale(self, lib):
@@ -410,11 +409,11 @@ class testProblems_test(FEMTestCase):
 
         # solution
         sol = FEMSolution()
-        res = sol.eval("x", data_number=1)
+        res = sol.eval("X", data_number=1)
         for w in res:
             assert_array_almost_equal(w.data, np.sqrt(2 * w.x[:, 0]), decimal=2)
         c = np.array([0.5,0.6,0.7])
-        assert_array_almost_equal(sol.eval("x", data_number=1, coords=c), np.sqrt(2*c))
+        assert_array_almost_equal(sol.eval("X", data_number=1, coords=c), np.sqrt(2*c))
 
     def twoVars_grad(self, lib):
         p = FEMProject(1)
@@ -465,7 +464,7 @@ class testProblems_test(FEMTestCase):
 
         # solution
         sol = FEMSolution()
-        res = sol.eval("x", data_number=1)
+        res = sol.eval("X", data_number=1)
         for w in res:
             self.assert_array_almost_equal(w.data, w.x[:, 0], decimal=2)
 
@@ -486,7 +485,7 @@ class testProblems_test(FEMTestCase):
 
         # solver
         stationary = StationarySolver()
-        stationary.setAdaptiveMeshRefinement("x", 1500)
+        stationary.setAdaptiveMeshRefinement("X", 1500)
         p.solvers.append(stationary)
 
         # solve
@@ -494,11 +493,11 @@ class testProblems_test(FEMTestCase):
 
         # solution
         sol = FEMSolution()
-        res = sol.eval("x", data_number=-1)
+        res = sol.eval("X", data_number=-1)
         for w in res:
             assert_array_almost_equal(w.data, np.sqrt(2 * w.x[:, 0]), decimal=2)
         c = np.array([0.5,0.6,0.7])
-        assert_array_almost_equal(sol.eval("x", data_number=-1, coords=c), np.sqrt(2*c))
+        assert_array_almost_equal(sol.eval("X", data_number=-1, coords=c), np.sqrt(2*c))
     
     def random(self, lib):
         p = FEMProject(1)
@@ -523,6 +522,6 @@ class testProblems_test(FEMTestCase):
 
         # solution
         sol = FEMSolution()
-        w = sol.eval("x", data_number=-1)[0]
+        w = sol.eval("X", data_number=-1)[0]
         self.assertTrue(abs(np.mean(w.data)) < 1)
         self.assertTrue(80 < np.var(w.data) < 120)

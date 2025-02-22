@@ -4,47 +4,47 @@ from . import DirichletBoundary, DomainCondition, InitialCondition
 class LinearTestEquation(Equation):
     className = "Linear Test Equation"
     isScalar = True
-    def __init__(self, varName="x", **kwargs):
+    def __init__(self, varName="X", **kwargs):
         super().__init__(varName, **kwargs)
 
 
 class NonlinearTestEquation(Equation):
     className = "Nonlinear Test Equation"
     isScalar = True
-    def __init__(self, varName="x", **kwargs):
+    def __init__(self, varName="X", **kwargs):
         super().__init__(varName, **kwargs)
 
 
 class TwoVariableTestEquation(Equation):
     className = "Two Variable Test"
-    def __init__(self, varName="x", **kwargs):
+    def __init__(self, varName="X", **kwargs):
         super().__init__(varName, **kwargs)
 
 
 class ExpTestEquation(Equation):
     className = "Exp Test"
     isScalar = True
-    def __init__(self, varName="x", **kwargs):
+    def __init__(self, varName="X", **kwargs):
         super().__init__(varName, **kwargs)
 
 
 class TdepFieldTestEquation(Equation):
     className = "TdepField Test"
     isScalar = True
-    def __init__(self, varName="y", **kwargs):
+    def __init__(self, varName="Y", **kwargs):
         super().__init__(varName, **kwargs)
 
 
 class TwoVarGradTestEquation(Equation):
     className = "Two Variable Grad Test"
-    def __init__(self, varName="x", **kwargs):
+    def __init__(self, varName="X", **kwargs):
         super().__init__(varName, **kwargs)
 
 
 class RandomWalkEquation(Equation):
     className = "Random Walk Test Equation"
     isScalar = True
-    def __init__(self, varName="x", **kwargs):
+    def __init__(self, varName="X", **kwargs):
         super().__init__(varName, **kwargs)
 
 

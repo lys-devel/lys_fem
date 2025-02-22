@@ -38,14 +38,14 @@ class NGSTwoVariableTestModel(NGSModel):
             dirichlet = ["auto", "auto"]
 
         for eq in model.equations:
-            self.addVariable("x", 1, dirichlet[0], init[0], region = eq.geometries, order=1, isScalar=True)
-            self.addVariable("y", 1, dirichlet[1], init[1], region = eq.geometries, order=1, isScalar=True)
+            self.addVariable("X", 1, dirichlet[0], init[0], region = eq.geometries, order=1, isScalar=True)
+            self.addVariable("Y", 1, dirichlet[1], init[1], region = eq.geometries, order=1, isScalar=True)
 
     def weakform(self, vars, mat):
         wf = 0
         for eq in self._model.equations:
-            x,test_x = vars["x"]
-            y,test_y = vars["y"]
+            x,test_x = vars["X"]
+            y,test_y = vars["Y"]
             wf += (x.t*test_x + y.t*test_y) * dx
             wf += (x-y)*test_x *dx + (y-x)*test_y*dx
         return wf
@@ -59,7 +59,7 @@ class NGSExpTestModel(NGSModel):
     def weakform(self, vars, mat):
         wf = 0
         for eq in self._model.equations:
-            x,test_x = vars["x"]
+            x,test_x = vars["X"]
             wf += (x.t + x)*test_x * dx
         return wf
 
@@ -72,8 +72,8 @@ class NGSTdepFieldTestModel(NGSModel):
     def weakform(self, vars, mat):
         wf = 0
         for eq in self._model.equations:
-            y,test_y = vars["y"]
-            wf += (y.t + mat["x"])*test_y * dx
+            y,test_y = vars["Y"]
+            wf += (y.t + mat["X"])*test_y * dx
         return wf
     
 
