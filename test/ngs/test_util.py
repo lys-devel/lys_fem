@@ -20,25 +20,36 @@ class test_util(FEMTestCase):
     def test_space(self):
         m = self._make_mesh()
 
-        obj = util.H1(size = 1, order = 1, isScalar=True)
+        obj = util.H1("u", size = 1, order = 1, isScalar=True)
         self.assertEqual(obj.size, 1)
         self.assertTrue(obj.isScalar)
 
         h1 = obj.eval(m)
         self.assertEqual(sum(h1.FreeDofs()), m.nodes)
 
-        h1 = util.H1(size = 1, order = 2).eval(m)
+        h1 = util.H1("u", size = 1, order = 2).eval(m)
         self.assertEqual(sum(h1.FreeDofs()), m.nodes*2-1)
 
-        h1 = util.H1(size = 1, order = 1, dirichlet=["boundary1"]).eval(m)
+        h1 = util.H1("u", size = 1, order = 1, dirichlet=["boundary1"]).eval(m)
         self.assertEqual(sum(h1.FreeDofs()), m.nodes-1)
 
-        h1 = util.H1(size = 1, order = 1, definedon="domain1").eval(m)
+        h1 = util.H1("u", size = 1, order = 1, definedon="domain1").eval(m)
         self.assertEqual(sum(h1.FreeDofs()), m.nodes//2+1)
 
-        h1 = util.H1(size = 2, order = 1).eval(m)
+        h1 = util.H1("u", size = 2, order = 1).eval(m)
         self.assertEqual(sum(h1.FreeDofs()), m.nodes*2)
 
+    def test_poisson(self):
+        m = self._make_mesh()
+
+        s = util.H1("H1")
+        fes = util.FiniteElementSpace([s], m)
+        
+        u, v = util.TrialFunction(s), util.TestFunction(s)
+        wf = util.grad(u).dot(util.grad(v))*util.dx
+
+        g = fes.gridFunction()
+        util.Solver(fes, wf, linear={"solver": "pardiso"}).solve(g)
 
     def test_NGSFunction(self):
         return

@@ -1,12 +1,110 @@
 import time
+import numpy as np
 
 import ngsolve
 import ngsolve.ngs2petsc as n2p
 import petsc4py.PETSc as psc
 
+from .space import CompressedFESpace
+
+
+class Solver:
+    def __init__(self, fes, wf, linear, nonlinear={}, parallel=False):
+        self._fes = fes
+        self._linear = linear
+        self._nonlinear = nonlinear
+
+        self._blf = fes.BilinearForm(wf.lhs, linear.get("condense",False), linear.get("symmetric",False))
+        self._lf = fes.LinearForm(wf.rhs)
+        self._inv = LinearSolver(fes, self._blf, parallel=parallel, **linear)
+        self._nl = NonlinearSolver(**nonlinear)
+
+    def solve(self, x):
+        msg = self.__update()
+        xi = self._fes.gridFunction()
+        self.__syncGridFunction(x, "->", xi)
+        xi.vec.data = self._nl.newton(self, xi.vec.CreateVector(copy=True))
+        self.__syncGridFunction(x, "<-", xi)
+        msg += self._nl.msg
+        return msg
+
+    def __update(self):
+        self._lf.update()
+        start = time.time()
+        if self._blf.update():
+            self._inv.update()
+            return "\t[Assemble] Time = {:.2f}\n".format(time.time()-start)
+        return ""
+
+    def __syncGridFunction(self, glb, direction, loc):
+        if not isinstance(self._fes, CompressedFESpace):
+            if direction == "->":
+                loc.vec.data = glb.vec
+            elif direction == "<-":
+                glb.vec.data = loc.vec
+        else:
+            if direction == "->":
+                loc.vec.FV().NumPy()[:] = glb.vec.FV().NumPy()[self._fes.mask]
+            elif direction == "<-":
+                glb.vec.FV().NumPy()[self._fes.mask] = loc.vec.FV().NumPy()
+
+    def __call__(self, x):
+        return self._blf * x + self._lf
+
+    def Jacobian(self, x):
+        if self._blf.linearize(x):
+            self._inv.update()
+        return self._inv
+
+    @property
+    def isNonlinear(self):
+        return self._blf.isNonlinear
+
+    def __str__(self):
+        res = ""
+        res += "\t\tTotal degree of freedoms: " + str(self._fes.ndof) + "\n"
+        res += "\t\tNonlinear: " + str(self.isNonlinear) + "\n"
+        res += "\t\tTime dependent: LHS = " + str(self._blf.isTimeDependent) + ", RHS = " + str(self._lf.isTimeDependent) + "\n" 
+        if isinstance(self._fes, CompressedFESpace):
+            res += "\t\tSymbols: " + str(self._fes.symbols) + "\n"
+        res += "\t\tLinear Solver: " + self._linear.get("solver") + "\n"
+        res += "\t\tStatic condensation: " + str(self._linear.get("condense", False)) + "\n"
+        res += "\t\tSymmetric: " + str(self._linear.get("symmetric", False)) + "\n"
+        if "prec" in self._linear:
+            res += "\t\tPreconditioner: " + str(self._linear.get("prec")) + "\n"
+            res += "\t\tMax iteration:" + str(self._linear.get("iter")) + "\n"
+            res += "\t\tRelative tolerance:" + str(self._linear.get("rtol")) + "\n"
+        return res
+
+
+class NonlinearSolver:
+    def __init__(self, eps=1e-5, max_iter=30, gamma=1):
+        self._eps = eps
+        self._iter = max_iter
+        self._gamma = gamma
+
+    def newton(self, F, x):
+        self.msg = ""
+        max_iter = 1 if not F.isNonlinear else self._iter
+        dx = x.CreateVector()
+        for i in range(max_iter):
+            J = F.Jacobian(x)
+            dx.data = J*F(x)
+            dx.data *= self._gamma
+            x -= dx
+            R = np.sqrt(np.divide(dx.InnerProduct(dx), x.InnerProduct(x)))
+            self.msg += "\t"+J.msg + "\n"+"\tResidual R = {:.2e}\n".format(R)
+            if R < self._eps:
+                if i!=0:
+                    self.msg += "\t[Newton solver] Converged in " + str(i) + " steps.\n"
+                return x
+        if max_iter !=1:
+            raise ConvergenceError("[Newton solver] NOT Converged in " + str(i) + " steps.")
+        return x
+
 
 class LinearSolver:
-    def __init__(self, fes, blf, solver, prec=None, iter=None, rtol=None, parallel=False):
+    def __init__(self, fes, blf, solver, prec=None, iter=None, rtol=None, parallel=False, **kwargs):
         self._fes = fes
         self._blf = blf
         self._solver = solver
@@ -92,9 +190,9 @@ class _petsc:
         ma, mi = self._ksp.computeExtremeSingularValues()
         self.msg = "[Iterative solver] Iter = "+ str(self._ksp.its)+", Condition = {:.2f}".format(ma/mi) + ", Time = {:.2f}".format(time.time()-start)
         if self._ksp.its == self._iter:
-            raise NGSConvergenceError("[Iterative solver] NOT converged.")
+            raise ConvergenceError("[Iterative solver] NOT converged.")
         return gfu.vec
 
 
-class NGSConvergenceError(RuntimeError):
+class ConvergenceError(RuntimeError):
     pass

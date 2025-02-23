@@ -52,13 +52,13 @@ class FunctionSpace:
 
 
 class H1(FunctionSpace):
-    def __init__(self, **kwargs):
-        super().__init__("H1", **kwargs)
+    def __init__(self, name, **kwargs):
+        super().__init__(name, "H1", **kwargs)
 
 
 class L2(FunctionSpace):
-    def __init__(self, **kwargs):
-        super().__init__("L2", **kwargs)
+    def __init__(self, name, **kwargs):
+        super().__init__(name, "L2", **kwargs)
 
 
 class FiniteElementSpace:
@@ -131,6 +131,7 @@ class FiniteElementSpace:
 
 class CompressedFESpace(FiniteElementSpace):
     def __init__(self, parent, symbols):
+        self._symbols = symbols
         self._mesh = parent.mesh
         self._vars = parent.variables
         self._jacobi = parent._jacobi
@@ -151,6 +152,10 @@ class CompressedFESpace(FiniteElementSpace):
     @property
     def mask(self):
         return self._mask
+    
+    @property
+    def symbols(self):
+        return self._symbols
     
 
 class LinearForm:

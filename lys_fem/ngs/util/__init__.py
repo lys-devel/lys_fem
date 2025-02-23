@@ -6,7 +6,7 @@ from .trials import TrialFunction, TestFunction, SolutionFunction, DifferentialS
 from .fields import VolumeField, SolutionFieldFunction, RandomFieldFunction
 from .functions import det, inv, diag, offdiag, grad, sin, cos, tan, step, min, max, exp, sqrt, norm, einsum
 from .space import FunctionSpace, H1, L2, FiniteElementSpace
-from .solver import LinearSolver
+from .solver import Solver, ConvergenceError
 
 def eval(expr, dic={}):
     return builtins.eval(expr, globals(), dic)

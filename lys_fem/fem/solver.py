@@ -31,6 +31,14 @@ class SolverStep:
         self._rtol = rtol
 
     @property
+    def linear(self):
+        return {"solver": self._solver, "prec": self._prec, "iter": self._iter, "rtol": self._rtol, "symmetric": self._sym, "condense": self._cond}
+
+    @property
+    def nonlinear(self):
+        return {"eps": self._eps, "gamma": self._damping, "max_iter": self._maxiter}
+
+    @property
     def variables(self):
         return self._vars
 

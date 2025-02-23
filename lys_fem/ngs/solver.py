@@ -4,7 +4,6 @@ import shutil
 import numpy as np
 
 from . import mpi, util
-from .operator import Operator, ConvergenceError
 
 def generateSolver(fem, mesh, model):
     solvers = {"Stationary Solver": StationarySolver, "Relaxation Solver": RelaxationSolver, "Time Dependent Solver": TimeDependentSolver}
@@ -127,7 +126,7 @@ class _Solution:
         if op is not None:
             mpi.print_("\t======= Initial value calculation =======")
             mpi.print_(op)
-            op.solve(self._sols[0][2])
+            mpi.print_(op.solve(self._sols[0][2]))
 
     def reset(self):
         zero = self._fes.gridFunction()
@@ -210,11 +209,13 @@ class SolverBase:
         self._sols = _Solution(self._fes)
         use_a = any([v.tt in model.weakforms() for v, _ in model.TnT.values()]) and timeDep
         if use_a:
-            op = Operator(self._fes, model, self._sols, obj.steps[0], type="initial")
+            step = obj.steps[0]
+            wf = model.weakforms(type="initial", sols=self._sols, symbols=step.variables)
+            op = util.Solver(self._fes.compress(step.variables), wf, step.linear, step.nonlinear)
         else:
             op = None
         self._sols.initialize(model, op)
-        self._ops = [Operator(self._fes, model, self._sols, step) for step in obj.steps]
+        self._ops = [util.Solver(self._fes.compress(step.variables), model.weakforms("discretized", sols=self._sols, symbols=step.variables), step.linear, step.nonlinear) for step in obj.steps]
         self._data = _DataStorage(self._sols, "Solutions/" + dirname)
 
     @np.errstate(divide='ignore', invalid="ignore")
@@ -238,8 +239,7 @@ class SolverBase:
         x = self._sols[0].copy()
         for i, (op, step) in enumerate(zip(self._ops, self._obj.steps)):
             mpi.print_("\t=======Solver step", i+1, "=======")
-            op.solve(x)
-            mpi.print_()
+            mpi.print_(op.solve(x))
         self.solutions.updateSolution(self._model, x)
         self._data.save(self._index+1)
 
@@ -253,7 +253,7 @@ class SolverBase:
     def updateMesh(self, mesh):
         self._fes = util.FiniteElementSpace(self._model.variables, mesh, jacobi=self._mat.jacobi)
         self._sols = _Solution(self._fes, old=self._sols)
-        self._ops = [Operator(self._fes, self._model, self._sols, step) for step in self._obj.steps]
+        self._ops = [util.Solver(self._fes.compress(step.variables), self._model.weakforms(type="discretized", sols=self._sols, symbols=step.variables), step.linear, step.nonlinear) for step in self._obj.steps]
         self._data.enableSaveMesh()
 
     def refineMesh(self, error):
@@ -350,7 +350,7 @@ class RelaxationSolver(SolverBase):
     def _solve(self, dt):
         try:
             return self.solve(1/dt), dt
-        except ConvergenceError:
+        except util.ConvergenceError:
             mpi.print_("Convergence problem detected. Time step is changed to " + str(dt/2))
             self._index -= 1
             return self._solve(dt/2)
