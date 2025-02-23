@@ -3,8 +3,8 @@ from . import DirichletBoundary, InitialCondition
 
 
 class NGSSemiconductorModel(NGSModel):
-    def __init__(self, model, vars, order=2):
-        super().__init__(model, vars)
+    def __init__(self, model, order=2):
+        super().__init__(model)
         self._model = model
 
         init = self._model.initialConditions.coef(InitialCondition)

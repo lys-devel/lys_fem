@@ -11,7 +11,7 @@ def addNGSModel(name, model):
 
 
 def generateModel(fem, mat):
-    return CompositeModel([modelList[m.className](m, mat) for m in fem.models], mat)
+    return CompositeModel([modelList[m.className](m) for m in fem.models], mat)
 
 
 class InitialConditions:
@@ -38,7 +38,7 @@ class InitialConditions:
 
 
 class NGSModel:
-    def __init__(self, model, vars, addVariables=False):
+    def __init__(self, model, addVariables=False):
         self._model = model
         self._vars = []
         self._inits = []

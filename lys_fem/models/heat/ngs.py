@@ -3,8 +3,8 @@ from . import NeumannBoundary
 
 
 class NGSHeatConductionModel(NGSModel):
-    def __init__(self, model, vars):
-        super().__init__(model, vars, addVariables=True)
+    def __init__(self, model):
+        super().__init__(model, addVariables=True)
         self._model = model
 
     def weakform(self, vars, mat):
