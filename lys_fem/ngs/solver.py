@@ -210,11 +210,11 @@ class SolverBase:
         self._sols = _Solution(self._fes)
         use_a = any([v.tt in model.weakforms() for v, _ in model.TnT.values()]) and timeDep
         if use_a:
-            op = Operator(mesh, model, self._sols, obj.steps[0], type="initial")
+            op = Operator(self._fes, model, self._sols, obj.steps[0], type="initial")
         else:
             op = None
         self._sols.initialize(model, op)
-        self._ops = [Operator(mesh, model, self._sols, step) for step in obj.steps]
+        self._ops = [Operator(self._fes, model, self._sols, step) for step in obj.steps]
         self._data = _DataStorage(self._sols, "Solutions/" + dirname)
 
     @np.errstate(divide='ignore', invalid="ignore")
@@ -253,7 +253,7 @@ class SolverBase:
     def updateMesh(self, mesh):
         self._fes = util.FiniteElementSpace(self._model.variables, mesh, jacobi=self._mat.jacobi)
         self._sols = _Solution(self._fes, old=self._sols)
-        self._ops = [Operator(mesh, self._model, self._sols, step) for step in self._obj.steps]
+        self._ops = [Operator(self._fes, self._model, self._sols, step) for step in self._obj.steps]
         self._data.enableSaveMesh()
 
     def refineMesh(self, error):

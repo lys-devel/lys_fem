@@ -62,23 +62,14 @@ class L2(FunctionSpace):
 
 
 class FiniteElementSpace:
-    def __init__(self, vars, mesh, symbols=None, symmetric=False, condense=False, jacobi={}):
+    def __init__(self, vars, mesh, jacobi={}):
         self._mesh = mesh
         self._vars = vars
-        self._symbols = symbols
-        self._symmetric = symmetric
-        self._condense = condense
-        if symbols is None:
-            self._fes = prod([v.eval(mesh) for v in vars])
-            self._tnt = self.__TnT_dict(vars, self._fes)
-        else:
-            self._fes_glb = prod([v.eval(mesh) for v in vars])
-            self._fes = prod([v.eval(mesh) for v in vars if v.name in symbols])
-            self._tnt = self.__TnT_dict([v for v in vars if v.name in symbols], self._fes)
-            self._mask = self.__mask(self._fes_glb, symbols)
+        self._fes = prod([v.eval(mesh) for v in vars])
+        self._tnt = self._TnT_dict(vars, self._fes)
         self._jacobi = {key: value.eval(self) for key, value in jacobi.items()}
 
-    def __TnT_dict(self, vars, fes):
+    def _TnT_dict(self, vars, fes):
         if isinstance(fes, (ngsolve.ProductSpace, ngsolve.comp.Compress)):
             trials, tests = fes.TnT()
         else:
@@ -95,15 +86,6 @@ class FiniteElementSpace:
             n+=var.size
         return res
 
-    def __mask(self, fes, symbols):
-        dofs = ngsolve.BitArray(fes.FreeDofs())
-        n = 0
-        for v in self.variables:
-            for j in range(n, n+v.size):
-                dofs[fes.Range(j)]=v.name in symbols
-            n += v.size
-        return dofs
-
     @property
     def mesh(self):
         return self._mesh
@@ -112,12 +94,13 @@ class FiniteElementSpace:
     def variables(self):
         return self._vars
     
-    @property
-    def mask(self):
-        return self._mask
-    
     def jacobi(self, name="J"):
         return self._jacobi.get(name)
+    
+    def compress(self, symbols):
+        if symbols is None:
+            return self
+        return CompressedFESpace(self, symbols)
     
     @property
     def dimension(self):
@@ -136,14 +119,117 @@ class FiniteElementSpace:
     def test(self, var):
         return self._tnt[var][1]
     
-    def BilinearForm(self):
-        return ngsolve.BilinearForm(self._fes, condense=self._condense, symmetric=self._symmetric)
+    def BilinearForm(self, blf, condense=False, symmetric=False):
+        return BilinearForm(self, blf, condense=condense, symmetric=symmetric)
 
-    def LinearForm(self):
-        return ngsolve.LinearForm(self._fes)
+    def LinearForm(self, lf):
+        return LinearForm(self, lf)
     
-    def FreeDofs(self):
-        return self._fes.FreeDofs(self._condense)
+    def FreeDofs(self, condense=False):
+        return self._fes.FreeDofs(condense)
+
+
+class CompressedFESpace(FiniteElementSpace):
+    def __init__(self, parent, symbols):
+        self._mesh = parent.mesh
+        self._vars = parent.variables
+        self._jacobi = parent._jacobi
+
+        self._fes = prod([v.eval(self._mesh) for v in self._vars if v.name in symbols])
+        self._tnt = self._TnT_dict([v for v in self._vars if v.name in symbols], self._fes)
+        self._mask = self.__mask(parent._fes, symbols)
+
+    def __mask(self, fes, symbols):
+        dofs = ngsolve.BitArray(fes.FreeDofs())
+        n = 0
+        for v in self.variables:
+            for j in range(n, n+v.size):
+                dofs[fes.Range(j)]=v.name in symbols
+            n += v.size
+        return dofs
+
+    @property
+    def mask(self):
+        return self._mask
+    
+
+class LinearForm:
+    def __init__(self, fes, wf):
+        self._obj = ngsolve.LinearForm(fes._fes)
+        if wf.valid:
+            self._obj += wf.eval(fes)
+        self._init = False
+        self._tdep = wf.isTimeDependent
+
+    def update(self):
+        if not self._init or self._tdep:
+            self._obj.Assemble()
+
+    def __add__(self, other):
+        return other + self._obj.vec
+    
+    def __radd__(self, other):
+        return self+other
+
+    @property
+    def isTimeDependent(self):
+        return self._tdep
+
+
+class BilinearForm:
+    def __init__(self, fes, wf, condense=False, symmetric=False):
+        self._obj = ngsolve.BilinearForm(fes._fes, condense=condense, symmetric=symmetric)
+        if wf.valid:
+            self._obj += wf.eval(fes)
+        self._init = False
+        self._tdep = wf.isTimeDependent
+        self._nl = wf.isNonlinear
+
+    def update(self):
+        if (self._tdep or not self._init) and not self._nl:
+            self._obj.Assemble()
+            return True
+        return False
+    
+    def linearize(self, x):
+        if self._nl:
+            self._obj.AssembleLinearization(x)
+            return True
+        return False
+
+    def __mul__(self, x):
+        if self._nl or self._obj.condense:
+            return self._obj.Apply(x)
+        else:
+            return self._obj.mat * x
+
+    @property
+    def condense(self):
+        return self._obj.condense
+    
+    @property
+    def mat(self):
+        return self._obj.mat
+    
+    @property
+    def harmonic_extension(self):
+        return self._obj.harmonic_extension
+
+    @property
+    def harmonic_extension_trans(self):
+        return self._obj.harmonic_extension_trans
+
+    @property
+    def inner_solve(self):
+        return self._obj.inner_solve
+    
+    @property
+    def isTimeDependent(self):
+        return self._tdep
+    
+    @property
+    def isNonlinear(self):
+        return self._nl
 
 
 class GridFunction(ngsolve.GridFunction):
