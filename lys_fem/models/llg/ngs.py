@@ -136,32 +136,32 @@ class NGSLLGModel(NGSModel):
 
         return wf
 
-    def discretize(self, tnt, sols, dti):
+    def discretize(self, dti):
         if self._model.constraint == "Alouges":
             d = {}
             for v in self.variables:
                 if "_lam" in v.name:
                     continue
-                trial, _ = tnt[v]
-                mn = sols.X(v)
+                trial = util.trial(v)
+                mn = util.prev(trial)
                 d[trial] = mn
                 d[trial.t] = trial
             return d
             
-        return super().discretize(tnt, sols, dti)
+        return super().discretize(dti)
 
-    def updater(self, tnt, sols, dti):
-        d = super().updater(tnt, sols, dti)
+    def updater(self, dti):
+        d = super().updater(dti)
         if self._model.constraint == "Projection":
             for v in self.variables:
-                trial, _ = tnt[v]
+                trial = util.trial(v)
                 d[trial] = trial/util.norm(trial)
         elif self._model.constraint == "Alouges":
             for v in self.variables:
                 if "_lam" in v.name:
                     continue
-                trial = tnt[v][0]
-                m = sols.X(v) + trial/dti
+                trial = util.trial(v)
+                m = util.prev(trial) + trial/dti
                 d[trial] = m/util.norm(m)
                 d[trial.t] = trial
         return d

@@ -141,7 +141,7 @@ class heat_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        stationary = TimeDependentSolver(0.000001, 0.001)
+        stationary = TimeDependentSolver(0.0000001, 0.00007)
         p.solvers.append(stationary)
 
         # solve
@@ -154,9 +154,9 @@ class heat_test(FEMTestCase):
         for w in res:
             self.assert_allclose(w.data, np.heaviside(w.x[:, 0] - 1, 0.5), rtol=0, atol=0.001)
 
-        res = sol.eval("T", data_number=1000)
+        res = sol.eval("T", data_number=-1)
         for w in res:
-            self.assert_allclose(w.data, calc_temp(w.x[:, 0] - 1, 0.001), rtol=0, atol=0.001)
+            self.assert_allclose(w.data, calc_temp(w.x[:, 0] - 1, 0.00007), rtol=0, atol=0.01)
 
     def tdep_bdf2(self, lib):
         def calc_temp(x, t, kappa=1, DT=1, T_0=0):

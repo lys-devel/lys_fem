@@ -16,6 +16,10 @@ def grad(f):
     return _Grad(f)
 
 
+def prev(x, n=0):
+    return _Prev(x, n)
+
+
 def exp(x):
     return _Func(x, "exp")
 
@@ -328,3 +332,61 @@ class _Einsum(NGSFunctionBase):
             return self
         else:
             return NGSFunction()
+
+
+class _Prev(NGSFunctionBase):
+    def __init__(self, x, n):
+        self._x = x
+        self._n = n
+
+    def replace(self, d):
+        return d.get(self, self)
+    
+    def eval(self, fes):
+        raise RuntimeError("Implementation Error: prev function should be replaced by SolutionFunction.")
+        
+    def grad(self, fes):
+        raise RuntimeError("Implementation Error: prev function should be replaced by SolutionFunction.")
+
+    def __contains__(self, item):
+        return self == item
+    
+    def __hash__(self):
+        return hash(str(self._x)+"__prev"+str(self._n))
+    
+    def __eq__(self, other):
+        return hash(self) == hash(other)
+        
+    @property
+    def shape(self):
+        return self._x.shape
+        
+    @property
+    def isNonlinear(self):
+        return False
+
+    @property
+    def isTimeDependent(self):
+        return True
+
+    @property
+    def valid(self):
+        return True
+
+    @property
+    def hasTrial(self):
+        return False
+    
+    @property
+    def rhs(self):
+        return self
+
+    @property
+    def lhs(self):
+        return NGSFunction()
+               
+    def __str__(self):
+        res = "prev(" + str(self._x)
+        if self._n != 0:
+            res += "," + str(self._n)
+        return  res + ")"

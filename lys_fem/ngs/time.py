@@ -2,9 +2,9 @@ from . import util
 
 class ForwardEuler:
     @staticmethod
-    def generateWeakforms(v, trial, sols, dti):
+    def generateWeakforms(trial, dti):
         d = {}
-        x0, v0, g0 = sols.X(v), sols.V(v), sols.grad(v)
+        x0, v0, g0 = util.prev(trial), util.prev(trial.t), util.grad(util.prev(trial))
         d[trial.t] = (trial - x0)*dti
         d[trial.tt] = (trial - x0)*dti**2 - v0*dti
         d[trial] = x0
@@ -15,9 +15,9 @@ class ForwardEuler:
 
 class BackwardEuler: 
     @staticmethod
-    def generateWeakforms(v, trial, sols, dti):
+    def generateWeakforms(trial, dti):
         d = {}
-        x0, v0 = sols.X(v), sols.V(v)
+        x0, v0 = util.prev(trial), util.prev(trial.t)
         d[trial.t] = (trial - x0)*dti
         d[trial.tt] = (trial - x0)*dti**2 - v0*dti
         return d
@@ -25,19 +25,19 @@ class BackwardEuler:
 
 class BDF2:
     @staticmethod
-    def generateWeakforms(v, trial, sols, dti):
+    def generateWeakforms(trial, dti):
         n = util.min(util.stepn, 1)
-        x0, x1 = sols.X(v), sols.X(v,1)
+        x0, x1 = util.prev(trial), util.prev(trial, 1)
         d = {trial.t: ((2+n)*trial-(2+2*n)*x0+n*x1)/2*dti}
         return d
 
 
 class NewmarkBeta:       
     @staticmethod
-    def generateWeakforms(v, trial, sols, dti):
+    def generateWeakforms(trial, dti):
         b, g = [1/4, 1/2]
         d = {}
-        x0, v0, a0 = sols.X(v), sols.V(v), sols.A(v)
+        x0, v0, a0 = util.prev(trial), util.prev(trial.t), util.prev(trial.tt)
         d[trial.t] = (trial - x0)*(g/b)*dti + v0*(1-g/b) + a0*(1-0.5*g/b)/dti
         d[trial.tt] = (trial - x0)*(1/b)*dti*dti - v0*(1/b)*dti + a0*(1-0.5/b)
         return d

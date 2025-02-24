@@ -92,27 +92,27 @@ class NGSModel:
             initialVelocity = FEMCoefficient([0]*vdim)
         return initialVelocity
 
-    def discretize(self, tnt, sols, dti):
+    def discretize(self, dti):
         d = {}
         for v in self.variables:
-            trial = tnt[v][0]
+            trial = util.trial(v)
             if self._model.discretization == "ForwardEuler":
-                d.update(time.BackwardEuler.generateWeakforms(v, trial, sols, dti))
+                d.update(time.ForwardEuler.generateWeakforms(trial, dti))
             elif self._model.discretization == "BackwardEuler":
-                d.update(time.BackwardEuler.generateWeakforms(v, trial, sols, dti))
+                d.update(time.BackwardEuler.generateWeakforms(trial, dti))
             elif self._model.discretization == "BDF2":
-                d.update(time.BDF2.generateWeakforms(v, trial, sols, dti))
+                d.update(time.BDF2.generateWeakforms(trial, dti))
             elif self._model.discretization == "NewmarkBeta":
-                d.update(time.NewmarkBeta.generateWeakforms(v, trial, sols, dti))
+                d.update(time.NewmarkBeta.generateWeakforms(trial, dti))
             else:
                 raise RuntimeError("Unknown discretization: "+self._model.discretization)
         return d
 
-    def updater(self, tnt, sols, dti):
-        d = self.discretize(tnt, sols, dti)
+    def updater(self, dti):
+        d = self.discretize(dti)
         res = {}
         for v in self.variables:
-            trial = tnt[v][0]
+            trial = util.trial(v)
             if trial.t in d:
                 res[trial.t] = d[trial.t]
             if trial.tt in d:
@@ -151,46 +151,51 @@ class CompositeModel:
         self._mat.update({v.name: util.TrialFunction(v) for v in self.variables})
 
     def weakforms(self, type="raw", sols=None, symbols=None):
-        tnt = {v.name: tnt for v, tnt in self.TnT.items()}
+        tnt = {v.name: (util.trial(v), util.test(v)) for v in self.variables}
         wf = sum([model.weakform(tnt, self._mat) for model in self._models])
         if type == "discretized":
-            wf = self.__discretizeWeakform(wf, sols, symbols)
+            wf = self.__discretizeWeakform(wf, symbols)
         if type == "initial":
-            wf = self.__initial(wf, sols)
+            wf = self.__initial(wf)
+        if sols is not None:
+            wf = wf.replace(sols.prevDict)
         return wf
 
-    def __discretizeWeakform(self, wf, sols, symbols):
-        d = dict(self.discretize(sols))
+    def __discretizeWeakform(self, wf, symbols):
+        d = dict(self.discretize())
         if symbols is not None:
-            for v, (trial, test) in self.TnT.items():
+            for v in self.variables:
+                trial, test = util.trial(v), util.test(v)
                 if v.name not in symbols:
-                    d.update({trial: sols.X(v), trial.t: sols.V(v), trial.tt: sols.A(v), test:0, util.grad(test): 0})
+                    d.update({trial: util.prev(trial), trial.t: util.prev(trial.t), trial.tt: util.prev(trial.tt), test:0, util.grad(test): 0})
         return wf.replace(d)
 
-    def __initial(self, wf, sols):
+    def __initial(self, wf):
         d = {}
-        for v, (trial, test) in self.TnT.items():
+        for v in self.variables:
+            trial, test = util.trial(v), util.test(v)
             if trial.tt in wf:
-                d.update({trial: sols.X(v), trial.t: sols.V(v), trial.tt: trial, util.grad(trial): util.grad(sols.X(v))})
+                d.update({trial: util.prev(trial), trial.t: util.prev(trial.t), trial.tt: trial, util.grad(trial): util.grad(util.prev(trial))})
             else:
-                d.update({trial: sols.X(v), trial.t: sols.V(v), util.grad(trial): util.grad(sols.X(v)), test: 0, util.grad(test): 0})
+                d.update({trial: util.prev(trial), trial.t: util.prev(trial.t), util.grad(trial): util.grad(util.prev(trial.t)), test: 0, util.grad(test): 0})
         return wf.replace(d)
     
-    def discretize(self, sols):
+    def discretize(self):
         d = {}
         for m in self._models:
-            d.update(m.discretize(self.TnT, sols, self._mat.const.dti))
+            d.update(m.discretize(util.dti))
         return d
 
-    def updater(self, sols):
+    def updater(self):
         d = {}
         for m in self._models:
-            d.update(m.updater(self.TnT, sols, self._mat.const.dti))
+            d.update(m.updater(util.dti))
         return d
 
     def initialValue(self, fes):
-        x = fes.gridFunction([v.value(self._mat) for v in self.initialConditions])
-        v = fes.gridFunction([v.velocity(self._mat) for v in self.initialConditions])
+        inits = sum([m.initialConditions for m in self._models], [])
+        x = fes.gridFunction([v.value(self._mat) for v in inits])
+        v = fes.gridFunction([v.velocity(self._mat) for v in inits])
         a = fes.gridFunction()
         return x, v, a
     
@@ -205,12 +210,3 @@ class CompositeModel:
     @property
     def variables(self):
         return sum([m.variables for m in self._models], [])
-
-    @property
-    def initialConditions(self):
-        return sum([m.initialConditions for m in self._models], [])
-
-    @property
-    def TnT(self):
-        return {v: (util.TrialFunction(v), util.TestFunction(v)) for v in self.variables}
-    

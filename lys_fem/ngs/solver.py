@@ -134,14 +134,15 @@ class _Solution:
             self.__update(_Sol((self._sols[0][0], zero, zero)))
 
     def updateSolution(self, model, x0):
-        tdep = model.updater(self)
+        tdep = model.updater()
         fes = self._fes
 
         x, v, a = fes.gridFunction(), fes.gridFunction(), fes.gridFunction()
         x.vec.data = x0.vec
 
         fs = x0.toNGSFunctions("_new")
-        d = {util.TrialFunction(v): fs[v.name] for v in self._fes.variables}
+        d = self.prevDict
+        d.update({util.TrialFunction(v): fs[v.name] for v in self._fes.variables})
 
         for var in self._fes.variables:
             trial = util.TrialFunction(var)
@@ -163,14 +164,16 @@ class _Solution:
             self._sols[-n].set(self._sols[-n+1])
         self._sols[0].set(xva)
 
-    def X(self, var, n=0):
-        return util.SolutionFunction(var, self._sols[n], 0)
-
-    def V(self, var, n=0):
-        return util.SolutionFunction(var, self._sols[n], 1)
-
-    def A(self, var, n=0):
-        return util.SolutionFunction(var, self._sols[n], 2)
+    @property
+    def prevDict(self):
+        res = {}
+        for v in self._fes.variables:
+            x = util.TrialFunction(v)
+            for n in range(self._nlog):
+                res[util.prev(x,n)] = util.SolutionFunction(v, self._sols[n], 0)
+                res[util.prev(x.t,n)] = util.SolutionFunction(v, self._sols[n], 1)
+                res[util.prev(x.tt,n)] = util.SolutionFunction(v, self._sols[n], 2)
+        return res
 
 
 class _DataStorage:
@@ -207,7 +210,7 @@ class SolverBase:
 
         self._fes = util.FiniteElementSpace(model.variables, mesh, jacobi=self._mat.jacobi)
         self._sols = _Solution(self._fes)
-        use_a = any([v.tt in model.weakforms() for v, _ in model.TnT.values()]) and timeDep
+        use_a = any([util.trial(v).tt in model.weakforms() for v in model.variables]) and timeDep
         if use_a:
             step = obj.steps[0]
             wf = model.weakforms(type="initial", sols=self._sols, symbols=step.variables)
