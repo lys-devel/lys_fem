@@ -40,19 +40,19 @@ class _Sol:
         g = self._fes.gridFunction()
         for v in self._fes.variables:
             if v.type == "x":
-                g.setComponent(v, util.SolutionFunction(v, self, 0).eval(self._fes))
+                g.setComponent(v, util.SolutionFunction(v, self, 0))
             if v.type == "v":
-                g.setComponent(v, util.SolutionFunction(v, self, 1).eval(self._fes))
+                g.setComponent(v, util.SolutionFunction(v, self, 1))
             if v.type == "a":
-                g.setComponent(v, util.SolutionFunction(v, self, 2).eval(self._fes))
+                g.setComponent(v, util.SolutionFunction(v, self, 2))
         return g
     
     def project(self, fes):
         x, v, a = fes.gridFunction(), fes.gridFunction(), fes.gridFunction()
         for var in self._fes.variables:
-            x.setComponent(var, util.SolutionFunction(var,self,0).eval(fes))
-            v.setComponent(var, util.SolutionFunction(var,self,1).eval(fes))
-            a.setComponent(var, util.SolutionFunction(var,self,2).eval(fes))
+            x.setComponent(var, util.SolutionFunction(var,self,0))
+            v.setComponent(var, util.SolutionFunction(var,self,1))
+            a.setComponent(var, util.SolutionFunction(var,self,2))
         return x,v,a
 
     def error(self, var):
@@ -60,7 +60,7 @@ class _Sol:
         grids = []
         for d in range(3):
             g = self._fes.gridFunction()
-            g.setComponent(var, val[d].eval(self._fes))
+            g.setComponent(var, val[d])
             g = g.toNGSFunctions(pre="_g")[var.name]
             grids.append(g)
         grids = util.NGSFunction(grids)
@@ -146,15 +146,15 @@ class _Solution:
         for var in self._fes.variables:
             trial = util.TrialFunction(var)
             if trial in tdep:
-                x.setComponent(var, tdep[trial].replace(d).eval(fes))
+                x.setComponent(var, tdep[trial].replace(d))
         for var in self._fes.variables:
             trial = util.TrialFunction(var)
             if trial.t in tdep:
-                v.setComponent(var, tdep[trial.t].replace(d).eval(fes))
+                v.setComponent(var, tdep[trial.t].replace(d))
         for var in self._fes.variables:
             trial = util.TrialFunction(var)
             if trial.tt in tdep:
-                a.setComponent(var, tdep[trial.tt].replace(d).eval(fes))
+                a.setComponent(var, tdep[trial.tt].replace(d))
 
         self.__update(_Sol((x,v,a)))
 
@@ -237,7 +237,7 @@ class SolverBase:
 
     def _step(self):
         x = self._sols[0].copy()
-        for i, (op, step) in enumerate(zip(self._ops, self._obj.steps)):
+        for i, op  in enumerate(self._ops):
             mpi.print_("\t=======Solver step", i+1, "=======")
             mpi.print_(op.solve(x))
         self.solutions.updateSolution(self._model, x)

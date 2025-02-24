@@ -253,6 +253,7 @@ class GridFunction(ngsolve.GridFunction):
                 ui.Set(i.eval(self._fes))
 
     def setComponent(self, var, value):
+        value = value.eval(self._fes)
         if self.isSingle:
             if var.isScalar:
                 self.Set(value)
