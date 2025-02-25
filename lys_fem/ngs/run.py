@@ -62,7 +62,7 @@ def createSolver(fem):
     model = generateModel(fem, mats)
     mpi.print_("NGS Models generated in ", '{:.2f}'.format(time.time()-start), "seconds :")
     for m in model.models:
-        mpi.print_("\t"+m.name+":", {v.name: v.size for v in m.variables}, "Discretization:", m.discretization)
+        mpi.print_(m)
     mpi.print_()
 
     start = time.time()

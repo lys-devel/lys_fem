@@ -214,11 +214,11 @@ class SolverBase:
         if use_a:
             step = obj.steps[0]
             wf = model.weakforms(type="initial", sols=self._sols, symbols=step.variables)
-            op = util.Solver(self._fes.compress(step.variables), wf, step.linear, step.nonlinear)
+            op = util.Solver(self._fes.compress(step.variables), wf, step.linear, step.nonlinear, parallel=mpi.isParallel())
         else:
             op = None
         self._sols.initialize(model, op)
-        self._ops = [util.Solver(self._fes.compress(step.variables), model.weakforms("discretized", sols=self._sols, symbols=step.variables), step.linear, step.nonlinear) for step in obj.steps]
+        self._ops = [util.Solver(self._fes.compress(step.variables), model.weakforms("discretized", sols=self._sols, symbols=step.variables), step.linear, step.nonlinear, parallel=mpi.isParallel()) for step in obj.steps]
         self._data = _DataStorage(self._sols, "Solutions/" + dirname)
 
     @np.errstate(divide='ignore', invalid="ignore")
@@ -256,7 +256,7 @@ class SolverBase:
     def updateMesh(self, mesh):
         self._fes = util.FiniteElementSpace(self._model.variables, mesh, jacobi=self._mat.jacobi)
         self._sols = _Solution(self._fes, old=self._sols)
-        self._ops = [util.Solver(self._fes.compress(step.variables), self._model.weakforms(type="discretized", sols=self._sols, symbols=step.variables), step.linear, step.nonlinear) for step in self._obj.steps]
+        self._ops = [util.Solver(self._fes.compress(step.variables), self._model.weakforms(type="discretized", sols=self._sols, symbols=step.variables), step.linear, step.nonlinear, parallel=mpi.isParallel()) for step in self._obj.steps]
         self._data.enableSaveMesh()
 
     def refineMesh(self, error):

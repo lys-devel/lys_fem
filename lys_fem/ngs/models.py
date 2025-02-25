@@ -127,21 +127,11 @@ class NGSModel:
     def initialConditions(self):
         return self._inits
 
-    @property
-    def name(self):
-        return self._model.name
-    
-    @property
-    def discretization(self):
-        return self._model.discretization
-    
-    @property
-    def scale(self):
-        return 1
-    
-    @property
-    def residualScale(self):
-        return 1
+    def __str__(self):
+        res = "\t"+self._model.className+": discretization = " + self._model.discretization + "\n"
+        for i, v in enumerate(self.variables):
+            res += "\t\tVariable " + str(1+i) + ": " + str(v) 
+        return res
 
 
 class CompositeModel:
@@ -209,4 +199,4 @@ class CompositeModel:
     
     @property
     def variables(self):
-        return sum([m.variables for m in self._models], [])
+        return sum([m.variables for m in self._models], [])       

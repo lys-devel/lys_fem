@@ -14,7 +14,7 @@ class Solver:
         self._linear = linear
         self._nonlinear = nonlinear
 
-        self._blf = fes.BilinearForm(wf.lhs, linear.get("condense",False), linear.get("symmetric",False))
+        self._blf = fes.BilinearForm(wf.lhs, condense = linear.get("condense",False), symmetric = linear.get("symmetric",False))
         self._lf = fes.LinearForm(wf.rhs)
         self._inv = LinearSolver(fes, self._blf, parallel=parallel, **linear)
         self._nl = NonlinearSolver(**nonlinear)
