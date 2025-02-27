@@ -16,6 +16,9 @@ class test_util(FEMTestCase):
         p.geometries.add(geometry.Line(1, 0, 0, 2, 0, 0))
 
         return mesh.generateMesh(p)
+    
+    def test_mpi(self):
+        self.assertFalse(util.mpi.isParallel())
 
     def test_space(self):
         m = self._make_mesh()
@@ -42,13 +45,16 @@ class test_util(FEMTestCase):
     def test_poisson(self):
         m = self._make_mesh()
 
-        s = util.H1("H1")
-        fes = util.FiniteElementSpace([s], m)
-        
-        u, v = util.TrialFunction(s), util.TestFunction(s)
+        # H1 space and weakform of Poisson equation.
+        fs = util.H1("H1")
+        u, v = fs.trial, fs.test
         wf = util.grad(u).dot(util.grad(v))*util.dx
 
+        # Make finite element space with a mesh, and make grid function on it.
+        fes = util.FiniteElementSpace(fs, m)
         g = fes.gridFunction()
+
+        # Solve Poisson equation on given finite element space.
         util.Solver(fes, wf, linear={"solver": "pardiso"}).solve(g)
 
     def test_NGSFunction(self):

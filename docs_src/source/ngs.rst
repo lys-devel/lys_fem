@@ -5,5 +5,4 @@ ngs module
    :maxdepth: 1
    :caption: Contents:
 
-   ngs/functions
    ngs/util

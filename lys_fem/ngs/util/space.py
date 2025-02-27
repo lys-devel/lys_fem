@@ -1,5 +1,6 @@
 import ngsolve
 from .coef import NGSFunction
+from .trials import TestFunction, TrialFunction
 
 def prod(args):
     res = args[0]
@@ -50,6 +51,14 @@ class FunctionSpace:
                 fess.append(space(mesh, dirichlet=self._dirichlet[i], **self._kwargs))
         return prod(fess)
     
+    @property
+    def trial(self):
+        return TrialFunction(self)
+    
+    @property
+    def test(self):
+        return TestFunction(self)
+    
     def __str__(self):
         return "symbol = " + self._name + ", space = " + self._type + ", size = " + str(self._size) + ", order = " + str(self._kwargs.get("order", 1))
 
@@ -65,11 +74,19 @@ class L2(FunctionSpace):
 
 
 class FiniteElementSpace:
+    """
+    Finite-element space composed of multiple :class:`FunctionSpace` and mesh.
+
+    Args:
+        vars(FunctionSpace or list of FunctionSpace): The functions spaces.
+        mesh(aaa): The mesh object.
+
+    """
     def __init__(self, vars, mesh, jacobi={}):
         self._mesh = mesh
-        self._vars = vars
-        self._fes = prod([v.eval(mesh) for v in vars])
-        self._tnt = self._TnT_dict(vars, self._fes)
+        self._vars = [vars] if isinstance(vars, FunctionSpace) else vars
+        self._fes = prod([v.eval(mesh) for v in self._vars])
+        self._tnt = self._TnT_dict(self._vars, self._fes)
         self._jacobi = {key: value.eval(self) for key, value in jacobi.items()}
 
     def _TnT_dict(self, vars, fes):
@@ -107,6 +124,12 @@ class FiniteElementSpace:
     
     @property
     def dimension(self):
+        """
+        Return spatial dimension of the given mesh.
+
+        Returns:
+            int: The dimension of the mesh.
+        """
         return self._mesh.dim
     
     def gridFunction(self, value=None):
@@ -123,10 +146,10 @@ class FiniteElementSpace:
         return self._tnt[var][1]
     
     def BilinearForm(self, blf, condense=False, symmetric=False):
-        return BilinearForm(self, blf, condense=condense, symmetric=symmetric)
+        return _BilinearForm(self, blf, condense=condense, symmetric=symmetric)
 
     def LinearForm(self, lf):
-        return LinearForm(self, lf)
+        return _LinearForm(self, lf)
     
     def FreeDofs(self, condense=False):
         return self._fes.FreeDofs(condense)
@@ -161,7 +184,7 @@ class CompressedFESpace(FiniteElementSpace):
         return self._symbols
     
 
-class LinearForm:
+class _LinearForm:
     def __init__(self, fes, wf):
         self._obj = ngsolve.LinearForm(fes._fes)
         if wf.valid:
@@ -184,7 +207,7 @@ class LinearForm:
         return self._tdep
 
 
-class BilinearForm:
+class _BilinearForm:
     def __init__(self, fes, wf, condense=False, symmetric=False):
         self._obj = ngsolve.BilinearForm(fes._fes, condense=condense, symmetric=symmetric)
         if wf.valid:
