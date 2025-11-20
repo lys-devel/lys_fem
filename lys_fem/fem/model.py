@@ -97,7 +97,7 @@ class FEMModel(FEMObject):
         init = InitialConditions.loadFromDictionary(d["init"], cls.initialConditionTypes)
         bdr = BoundaryConditions.loadFromDictionary(d.get("bdr", []), cls.boundaryConditionTypes)
         domain = DomainConditions.loadFromDictionary(d.get("domain", []), cls.domainConditionTypes)
-        return {"equations": eqs, "initialConditions": init, "boundaryConditions": bdr, "domainConditions": domain, "discretization": d["discretization"], "order": d.get("order", 2), "type": d.get("type", "H1")}
+        return {"equations": eqs, "initialConditions": init, "boundaryConditions": bdr, "domainConditions": domain, "discretization": d.get("discretization", "BackwardEuler"), "order": d.get("order", 2), "type": d.get("type", "H1")}
 
     def widget(self, fem, canvas):
         from ..gui import FEMModelWidget

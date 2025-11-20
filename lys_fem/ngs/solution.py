@@ -15,7 +15,7 @@ class NGSSolution:
         self._fem = fem
         self._dirname = dirname
         self._index = None
-        self._mats = generateMaterial(fem)
+        self._mats = generateMaterial(fem, solutions=False)
         self._model = generateModel(fem, self._mats)
 
     @property
@@ -58,10 +58,10 @@ class NGSSolution:
         else:
             if not hasattr(coords, "__iter__"):
                 mip = self.__coordsToMIP(np.array([coords]))
-                return np.array([f(mi) for mi in mip])[0].squeeze()
+                return np.vectorize(f)(mip)[0].squeeze()
             else:
                 mip = self.__coordsToMIP(np.array(coords))
-                return np.array([f(mi) for mi in mip]).squeeze()
+                return np.array(np.vectorize(f)(mip)).squeeze()
             
     def integrate(self, expression, index, **kwargs):
         f = self.coef(expression, index)

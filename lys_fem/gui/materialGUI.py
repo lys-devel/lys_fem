@@ -146,8 +146,9 @@ class _ParameterWidget(QtWidgets.QTreeWidget):
 
     def __initLayout(self, param):
         self._widgets = []
-        for key in param.getParameters().keys():
-            self.__addItem(key)
+        for key in param.description.keys():
+            if getattr(param, key) is not None:
+                self.__addItem(key)
 
     def __addItem(self, key):
         child = QtWidgets.QTreeWidgetItem(["", ""])

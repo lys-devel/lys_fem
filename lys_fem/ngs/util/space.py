@@ -195,6 +195,7 @@ class _LinearForm:
     def update(self):
         if not self._init or self._tdep:
             self._obj.Assemble()
+            self._init = True
 
     def __add__(self, other):
         return other + self._obj.vec
@@ -219,6 +220,7 @@ class _BilinearForm:
     def update(self):
         if (self._tdep or not self._init) and not self._nl:
             self._obj.Assemble()
+            self._init = True
             return True
         return False
     

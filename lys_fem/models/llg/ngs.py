@@ -1,5 +1,5 @@
 from lys_fem.ngs import NGSModel, grad, dx, util
-from . import ExternalMagneticField, UniaxialAnisotropy, CubicAnisotropy, MagneticScalarPotential, CubicMagnetoStriction, SpinTransferTorque, ThermalFluctuation, CubicMagnetoRotationCoupling
+from . import ExternalMagneticField, UniaxialAnisotropy, CubicAnisotropy, MagneticScalarPotential, CubicMagnetoStriction, SpinTransferTorque, ThermalFluctuation, CubicMagnetoRotationCoupling, BarnettEffect
 
 class NGSLLGModel(NGSModel):
     def __init__(self, model):
@@ -115,6 +115,12 @@ class NGSLLGModel(NGSModel):
                 K = util.einsum("ijkl,Ii->Ijkl", Kc, w) + util.einsum("ijkl,Jj->iJkl", Kc, w) + util.einsum("ijkl,Kk->ijKl", Kc, w) + util.einsum("ijkl,Ll->ijkL", Kc, w)
                 B = -4/Ms*util.einsum("ijkl,j,k,l->i", K, m, m, m)
                 wf += -g*B.dot(test_m)*dx(cms.geometries)
+
+            for bar in self._model.domainConditions.get(BarnettEffect):
+                u = mat[bar.values]
+                rut = util.rot(u.t)/2
+                wf += -rut.dot(test_m) * dx(bar.geometries)
+                #wf += g*m.dot(B)*m.t.dot(test_m)*theta/dti*dx(bar.geometries)
 
             for sc in self._model.domainConditions.get(MagneticScalarPotential):
                 phi = mat[sc.values]

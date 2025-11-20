@@ -24,9 +24,9 @@ class ElasticParameters(FEMParameter):
         if self.alpha is not None:
             res["alpha"] = np.array(self.alpha).tolist()
         if self.d_e is not None:
-            res["d_e"] = self.d_e*1.60218e-19
+            res["d_e"] = self.d_e
         if self.d_h is not None:
-            res["d_h"] = self.d_h*1.60218e-19
+            res["d_h"] = self.d_h
         return res
 
     @property

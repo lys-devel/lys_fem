@@ -16,6 +16,14 @@ def grad(f):
     return _Grad(f)
 
 
+def rot(f):
+    """
+    Calculate rotation of a function f.
+    f should be a 3-dimensional vector field.
+    """
+    return _Rot(f)
+
+
 def prev(x, n=0):
     return _Prev(x, n)
 
@@ -207,6 +215,38 @@ class _Grad(_Func):
     
     def __str__(self):
         return "grad(" + str(self._obj) + ")"
+
+
+class _Rot(_Func):
+    def __init__(self, obj):
+        if not isinstance(obj, NGSFunctionBase):
+            obj = NGSFunction(obj, str(obj))
+        self._obj = obj
+
+    def __call__(self, obj1):
+        return _Rot(obj1)
+    
+    @property
+    def isNonlinear(self):
+        return self._obj.isNonlinear
+
+    @property
+    def shape(self):
+        return tuple(list(self._obj.shape))
+   
+    def eval(self, fes):
+        grad = self._obj.grad(fes)
+        # Levi Civita symbol
+        eijk = np.zeros((3, 3, 3))
+        eijk[0, 1, 2] = eijk[1, 2, 0] = eijk[2, 0, 1] = 1
+        eijk[0, 2, 1] = eijk[2, 1, 0] = eijk[1, 0, 2] = -1
+        eijk = tuple([tuple([tuple(ek) for ek in ejk]) for ejk in eijk])
+        eijk = ngsolve.CoefficientFunction(eijk, dims=(3,3,3))
+
+        return ngsolve.fem.Einsum("ijk,jk->i", eijk, grad)
+
+    def __str__(self):
+        return "rot(" + str(self._obj) + ")"
 
 
 class _MinMax(_Func):

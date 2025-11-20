@@ -6,9 +6,10 @@ from lys_fem.fem import FEMCoefficient
 from . import util
 
 
-def generateMaterial(fem):
+def generateMaterial(fem, solutions=True):
     sols = {str(key): util.NGSFunction(value) for key, value in fem.parameters.getSolved().items()}
-    sols.update({key: util.SolutionFieldFunction(coef.get(), tdep=coef.index is None) for key, coef in fem.solutionFields.items()})
+    if solutions:
+        sols.update({key: util.SolutionFieldFunction(coef.get(), tdep=coef.index is None) for key, coef in fem.solutionFields.items()})
     sols.update({key: util.RandomFieldFunction(item.type, item.shape, item.tdep, name=key) for key, item in fem.randomFields.items()})
     res = NGSParams(fem, sols)
     return res

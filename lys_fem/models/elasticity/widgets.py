@@ -118,15 +118,16 @@ class DeformationPotentialWidget(QtWidgets.QWidget):
     def __init__(self, cond, fem, canvas):
         super().__init__()
         self._cond = cond
+        print(self._cond.values)
         self.__initlayout(fem, canvas)
 
     def __initlayout(self, fem, canvas):
         self._selector = GeometrySelector(canvas, fem, self._cond.geometries)
         self._varName1 = QtWidgets.QLineEdit()
-        self._varName1.setText(self._cond.varNames[0])
+        self._varName1.setText(self._cond.values[0])
         self._varName1.textChanged.connect(self.__textChanged)
         self._varName2 = QtWidgets.QLineEdit()
-        self._varName2.setText(self._cond.varNames[1])
+        self._varName2.setText(self._cond.values[1])
         self._varName2.textChanged.connect(self.__textChanged)
 
         h1 = QtWidgets.QGridLayout()
@@ -142,4 +143,4 @@ class DeformationPotentialWidget(QtWidgets.QWidget):
         self.setLayout(layout)
 
     def __textChanged(self, txt):
-        self._cond.varNames = [self._varName1.text(), self._varName2.text()]
+        self._cond.values = [self._varName1.text(), self._varName2.text()]

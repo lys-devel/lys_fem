@@ -23,7 +23,7 @@ class DeformationPotential(DomainCondition):
     className = "DeformationPotential"
 
     def __init__(self, values=["n_e", "n_h"], *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(values=values, *args, **kwargs)
 
     def widget(self, fem, canvas):
         from .widgets import DeformationPotentialWidget

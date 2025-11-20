@@ -190,7 +190,7 @@ class _petsc:
         ma, mi = self._ksp.computeExtremeSingularValues()
         self.msg = "[Iterative solver] Iter = "+ str(self._ksp.its)+", Condition = {:.2f}".format(ma/mi) + ", Time = {:.2f}".format(time.time()-start)
         if self._ksp.its == self._iter:
-            raise ConvergenceError("[Iterative solver] NOT converged.")
+            raise ConvergenceError("[Iterative solver] NOT converged. Condition = {:.2f}".format(ma/mi))
         return gfu.vec
 
 

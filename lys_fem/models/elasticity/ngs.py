@@ -1,3 +1,4 @@
+import numpy as np
 from lys_fem.ngs import NGSModel, grad, dx
 from . import ThermoelasticStress, DeformationPotential
 
@@ -22,7 +23,8 @@ class NGSElasticModel(NGSModel):
                 wf += T*C.ddot(alpha).ddot(gv)*dx(te.geometries)
 
             for df in self._model.domainConditions.get(DeformationPotential):
-                d_n, d_p = mat["d_e"], mat["d_h"]
-                n,p = mat[df.values]
-                wf += (d_n*n - d_p*p).ddot(gv)*dx(df.geometries)
+                d_n, d_p = mat["-d_e*e"], mat["-d_h*e"]
+                n,p = mat[df.values[0]], mat[df.values[1]]
+                I = mat[np.eye(3)]
+                wf += (d_n*n - d_p*p)*gv.ddot(I)*dx(df.geometries)
         return wf

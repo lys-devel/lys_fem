@@ -130,7 +130,7 @@ class NGSModel:
     def __str__(self):
         res = "\t"+self._model.className+": discretization = " + self._model.discretization + "\n"
         for i, v in enumerate(self.variables):
-            res += "\t\tVariable " + str(1+i) + ": " + str(v) 
+            res += "\t\tVariable " + str(1+i) + ": " + str(v)  + "\n"
         return res
 
 

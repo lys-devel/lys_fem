@@ -11,11 +11,22 @@ class PoissonEquation(Equation):
     def widget(self, fem, canvas):
         from .widgets import PoissonEquationWidget
         return PoissonEquationWidget(self, fem, canvas)
+
+
+class AxialPoissonEquation(Equation):
+    className = "Axial Poisson Equation"
+    isScalar = True
+    def __init__(self, varName="phi", **kwargs):
+        super().__init__(varName, **kwargs)
+
+    def widget(self, fem, canvas):
+        from .widgets import PoissonEquationWidget
+        return PoissonEquationWidget(self, fem, canvas)
     
 
 class PoissonModel(FEMFixedModel):
     className = "Poisson"
-    equationTypes = [PoissonEquation]
+    equationTypes = [PoissonEquation, AxialPoissonEquation]
     domainConditionTypes = [Source, DivSource]
     boundaryConditionTypes = [DirichletBoundary, NeumannBoundary]
 
