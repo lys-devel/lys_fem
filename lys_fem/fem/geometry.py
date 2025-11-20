@@ -141,7 +141,14 @@ class GeometryGenerator(FEMObject):
     @property
     def scale(self):
         if self._scale == "auto":
-            return min([min([abs(cc) for cc in c.args if cc != 0]) for c in self.commands])
+            def flatten(x):
+                for item in x:
+                    if hasattr(item, "__iter__"):
+                        yield from flatten(item)
+                    else:
+                        yield item
+            args = flatten([cc for c in self.commands for cc in c.args])
+            return min([arg for arg in args if arg!=0])
         else:
             return self._scale
         
@@ -159,7 +166,7 @@ class GeometryGenerator(FEMObject):
     @staticmethod
     def loadFromDictionary(d):
         order = [FEMGeometry.loadFromDictionary(dic) for dic in d.get("geometries", [])]
-        return GeometryGenerator(order, scale=d.get("scale", 1))
+        return GeometryGenerator(order, scale=d.get("scale", "auto"))
 
 
 class TransGeom:
