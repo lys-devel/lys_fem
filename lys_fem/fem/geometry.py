@@ -146,7 +146,7 @@ class GeometryGenerator(FEMObject):
                     if hasattr(item, "__iter__"):
                         yield from flatten(item)
                     else:
-                        yield item
+                        yield abs(item)
             args = flatten([cc for c in self.commands for cc in c.args])
             return min([arg for arg in args if arg!=0])
         else:

@@ -17,6 +17,7 @@ class NGSSolution:
         self._index = None
         self._mats = generateMaterial(fem, solutions=False)
         self._model = generateModel(fem, self._mats)
+        self._last = (None, None, None)
 
     @property
     def maxIndex(self):
@@ -52,7 +53,10 @@ class NGSSolution:
         return self._mats[expression].replace(d).eval(self._fes)
 
     def eval(self, expression, index, coords=None):
-        f = self.coef(expression, index)
+        if self._last[1] != expression or self._last[2] != index:
+            f = self.coef(expression, index)
+            self._last = (f, expression, index)
+        f = self._last[0]
         if coords is None:
             return self.__getDomainValues(f)
         else:
