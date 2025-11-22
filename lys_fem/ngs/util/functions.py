@@ -3,7 +3,7 @@ import numpy as np
 import ngsolve
 
 from .operators import NGSFunctionBase
-from .coef import NGSFunction, applyJacobian
+from .coef import NGSFunction
 from .trials import TrialFunction, TestFunction
 
 

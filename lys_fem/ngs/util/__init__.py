@@ -6,7 +6,7 @@ from .coef import NGSFunction, DomainWiseFunction
 from .trials import TrialFunction, TestFunction, DifferentialSymbol
 from .trials import TrialFunction as trial
 from .trials import TestFunction as test
-from .fields import VolumeField, SolutionFieldFunction, RandomFieldFunction
+from .fields import GridField, VolumeField, SolutionFieldFunction, RandomFieldFunction
 from .functions import det, inv, diag, offdiag, grad, rot, sin, cos, tan, step, min, max, exp, sqrt, norm, einsum, prev
 from .space import FunctionSpace, H1, L2, FiniteElementSpace
 from .solver import Solver, ConvergenceError

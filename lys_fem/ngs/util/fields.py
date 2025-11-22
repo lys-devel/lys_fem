@@ -5,6 +5,90 @@ from .operators import NGSFunctionBase
 from .coef import NGSFunction
 
 
+class GridField(NGSFunctionBase):
+    """
+    NGSFunction that provide the access to a component of the grid function.
+    Args:
+        grid(GridFunction): The original grid function
+        var(FunctionSpace): The symbol to be used.
+    """
+    def __init__(self, grid, var):
+        self._grid = grid
+        self._var = var
+        n = 0
+        for v in grid.finiteElementSpace.variables:
+            if v == var:
+                self._n = n
+            n += v.size
+
+    def replace(self, d):
+        return d.get(self, self)
+    
+    def eval(self, fes):
+        if self._var.isScalar:
+            return self._value()
+        else:
+            return ngsolve.CoefficientFunction(tuple(self._value() + [0] * (3-self._var.size)), dims=self.shape)
+        
+    def grad(self, fes):
+        if self._var.isScalar:
+            return self._grad(fes, self._value())
+        else:
+            v = self._value() + [0] * (3-self._var.size)
+            return ngsolve.CoefficientFunction(tuple([self._grad(fes, t) for t in v]), dims=(3, 3)).TensorTranspose((1,0))
+
+    def _grad(self, fes, x):
+        if x == 0:
+            return ngsolve.CoefficientFunction((0,0,0))
+        else:
+            g = ngsolve.grad(x)
+            g = tuple([g[i] if i < fes.dimension else ngsolve.CoefficientFunction(0) for i in range(3)])
+            return ngsolve.CoefficientFunction(g)
+
+    def __contains__(self, item):
+        return self == item
+
+    @property
+    def shape(self):
+        if self._var.isScalar:
+            return ()
+        else:
+            return (3,)
+        
+    @property
+    def isNonlinear(self):
+        return False
+
+    @property
+    def valid(self):
+        return True    
+    
+    @property
+    def hasTrial(self):
+        return False
+    
+    @property
+    def rhs(self):
+        return self
+
+    @property
+    def lhs(self):
+        return NGSFunction()
+               
+    @property
+    def isTimeDependent(self):
+        return True
+
+    def _value(self):
+        if self._var.isScalar:
+            return self._grid.components[self._n]
+        else:
+            return list(self._grid.components[self._n:self._n+self._var.size])
+
+    def __str__(self):
+        return self._var.name + "_grid"
+    
+
 class RandomFieldFunction(NGSFunctionBase):
     """
     NGSFunction that provide the access to the present solution.

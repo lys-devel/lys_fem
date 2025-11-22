@@ -145,8 +145,6 @@ class CompositeModel:
         wf = sum([model.weakform(tnt, self._mat) for model in self._models])
         if type == "discretized":
             wf = self.__discretizeWeakform(wf, symbols)
-        if type == "initial":
-            wf = self.__initial(wf)
         if sols is not None:
             wf = wf.replace(sols.prevDict)
         return wf
@@ -158,16 +156,6 @@ class CompositeModel:
                 trial, test = util.trial(v), util.test(v)
                 if v.name not in symbols:
                     d.update({trial: util.prev(trial), trial.t: util.prev(trial.t), trial.tt: util.prev(trial.tt), test:0, util.grad(test): 0})
-        return wf.replace(d)
-
-    def __initial(self, wf):
-        d = {}
-        for v in self.variables:
-            trial, test = util.trial(v), util.test(v)
-            if trial.tt in wf:
-                d.update({trial: util.prev(trial), trial.t: util.prev(trial.t), trial.tt: trial, util.grad(trial): util.grad(util.prev(trial))})
-            else:
-                d.update({trial: util.prev(trial), trial.t: util.prev(trial.t), util.grad(trial): util.grad(util.prev(trial.t)), test: 0, util.grad(test): 0})
         return wf.replace(d)
     
     def discretize(self):

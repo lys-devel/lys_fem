@@ -1,5 +1,4 @@
 import ngsolve
-from .coef import NGSFunction
 from .trials import TestFunction, TrialFunction
 
 def prod(args):
@@ -306,18 +305,6 @@ class GridFunction(ngsolve.GridFunction):
     @property
     def isSingle(self):
         return not isinstance(self.space, ngsolve.ProductSpace)
-
-    def toNGSFunctions(self, pre=""):
-        res = {}
-        n = 0
-        for v in self._fes.variables:
-            if v.size == 1 and v.isScalar:
-                res[v.name] = NGSFunction(self.components[n], name=v.name+pre, tdep=True)
-            else:
-                d = tuple(list(self.components[n:n+v.size]) + [0]*(3-v.size))
-                res[v.name] = NGSFunction(ngsolve.CoefficientFunction(d, dims=(3,)), name=v.name+pre, tdep=True)
-            n+=v.size
-        return res
 
     @property
     def finiteElementSpace(self):
