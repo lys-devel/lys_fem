@@ -2,6 +2,7 @@ import os
 import time
 import shutil
 import numpy as np
+import ngsolve
 
 from . import mpi, util
 
@@ -40,23 +41,23 @@ class _Sol:
         g = self._fes.gridFunction()
         for v in self._fes.variables:
             if v.type == "x":
-                g.setComponent(v, util.SolutionFunction(v, self, 0))
+                g.setComponent(v, SolutionFunction(v, self, 0))
             if v.type == "v":
-                g.setComponent(v, util.SolutionFunction(v, self, 1))
+                g.setComponent(v, SolutionFunction(v, self, 1))
             if v.type == "a":
-                g.setComponent(v, util.SolutionFunction(v, self, 2))
+                g.setComponent(v, SolutionFunction(v, self, 2))
         return g
     
     def project(self, fes):
         x, v, a = fes.gridFunction(), fes.gridFunction(), fes.gridFunction()
         for var in self._fes.variables:
-            x.setComponent(var, util.SolutionFunction(var,self,0))
-            v.setComponent(var, util.SolutionFunction(var,self,1))
-            a.setComponent(var, util.SolutionFunction(var,self,2))
+            x.setComponent(var, SolutionFunction(var,self,0))
+            v.setComponent(var, SolutionFunction(var,self,1))
+            a.setComponent(var, SolutionFunction(var,self,2))
         return x,v,a
 
     def error(self, var):
-        val = util.grad(util.SolutionFunction(var, self, 0))
+        val = util.grad(SolutionFunction(var, self, 0))
         grids = []
         for d in range(3):
             g = self._fes.gridFunction()
@@ -100,7 +101,7 @@ class _Sol:
         """
         Returns a dictionary that replace trial functions with corresponding solutions.
         """
-        return {util.TrialFunction(v): util.SolutionFunction(v, self, 0) for v in self._fes.variables}
+        return {util.TrialFunction(v): SolutionFunction(v, self, 0) for v in self._fes.variables}
 
 
 class _Solution:
@@ -170,9 +171,9 @@ class _Solution:
         for v in self._fes.variables:
             x = util.TrialFunction(v)
             for n in range(self._nlog):
-                res[util.prev(x,n)] = util.SolutionFunction(v, self._sols[n], 0)
-                res[util.prev(x.t,n)] = util.SolutionFunction(v, self._sols[n], 1)
-                res[util.prev(x.tt,n)] = util.SolutionFunction(v, self._sols[n], 2)
+                res[util.prev(x,n)] = SolutionFunction(v, self._sols[n], 0)
+                res[util.prev(x.t,n)] = SolutionFunction(v, self._sols[n], 1)
+                res[util.prev(x.tt,n)] = SolutionFunction(v, self._sols[n], 2)
         return res
 
 
@@ -380,3 +381,87 @@ class TimeDependentSolver(SolverBase):
                 mpi.print_()
 
 
+
+class SolutionFunction(util.NGSFunctionBase):
+    """
+    NGSFunction that provide the access to the present solution.
+    Args:
+        name(str): The symbol name
+        sol(Solution): The solution object
+        type(int): The type of the solution. 0:x, 1:x.t, 2:x.tt
+    """
+    def __init__(self, var, sol, type):
+        self._sol = sol
+        self._var = var
+        self._type = type
+        n = 0
+        for v in sol.finiteElementSpace.variables:
+            if v == var:
+                self._n = n
+            n += v.size
+    @property
+    def shape(self):
+        if self._var.isScalar:
+            return ()
+        else:
+            return (3,)
+        
+    @property
+    def isNonlinear(self):
+        return False
+
+    def replace(self, d):
+        return d.get(self, self)
+    
+    def eval(self, fes):
+        if self._var.isScalar:
+            return self.value(fes)
+        else:
+            return ngsolve.CoefficientFunction(tuple(self.value(fes) + [0] * (3-self._var.size)), dims=self.shape)
+        
+    def grad(self, fes):
+        if self._var.isScalar:
+            return self._grad(fes, self.value(fes))
+        else:
+            v = self.value(fes) + [0] * (3-self._var.size)
+            return ngsolve.CoefficientFunction(tuple([self._grad(fes, t) for t in v]), dims=(3, 3)).TensorTranspose((1,0))
+
+    def _grad(self, fes, x):
+        if x == 0:
+            return ngsolve.CoefficientFunction((0,0,0))
+        else:
+            g = ngsolve.grad(x)
+            g = tuple([g[i] if i < fes.dimension else ngsolve.CoefficientFunction(0) for i in range(3)])
+            return ngsolve.CoefficientFunction(g)
+
+    def __contains__(self, item):
+        return self == item
+
+    @property
+    def valid(self):
+        return True    
+    
+    def value(self, fes):
+        if self._var.isScalar:
+            return self._sol[self._type].components[self._n]
+        else:
+            return list(self._sol[self._type].components[self._n:self._n+self._var.size])
+
+    @property
+    def hasTrial(self):
+        return False
+    
+    @property
+    def rhs(self):
+        return self
+
+    @property
+    def lhs(self):
+        return util.NGSFunction()
+               
+    @property
+    def isTimeDependent(self):
+        return True
+
+    def __str__(self):
+        return self._var.name + "_n"

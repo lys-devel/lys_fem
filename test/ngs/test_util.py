@@ -1,6 +1,7 @@
 from netgen.geom2d import unit_square
 
-
+import ngsolve
+from numpy.testing import assert_almost_equal
 from lys_fem import geometry
 from lys_fem.fem import FEMProject
 from lys_fem.ngs import util, mesh
@@ -17,9 +18,6 @@ class test_util(FEMTestCase):
 
         return mesh.generateMesh(p)
     
-    def test_mpi(self):
-        self.assertFalse(util.mpi.isParallel())
-
     def test_space(self):
         m = self._make_mesh()
 
@@ -41,6 +39,29 @@ class test_util(FEMTestCase):
 
         h1 = util.H1("u", size = 2, order = 1).eval(m)
         self.assertEqual(sum(h1.FreeDofs()), m.nodes*2)
+
+    def test_grid(self):
+        import numpy as np
+        p = FEMProject(1)
+        p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
+        m = mesh.generateMesh(p)
+
+        sp = util.H1("u", size = 1, order = 2, isScalar=True)
+        fes = util.FiniteElementSpace(sp, m)
+        x = util.NGSFunction(ngsolve.x, name="x")
+
+        f = fes.gridFunction([x*x])
+        g = ngsolve.grad(f)
+
+        x_list = np.linspace(0,1,100)
+        f_calc = [xx**2 for xx in x_list]
+        f_eval = [f(m(xx)) for xx in x_list]
+        g_calc = [2*xx for xx in x_list]
+        g_eval = np.array([g(m(xx)) for xx in x_list])
+
+        assert_almost_equal(f_calc, f_eval)
+        assert_almost_equal(g_calc, g_eval[:,0])
+
 
     def test_poisson(self):
         m = self._make_mesh()

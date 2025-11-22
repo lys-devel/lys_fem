@@ -123,54 +123,6 @@ class TestFunction(_TnTBase):
         return "test(" + self._var.name + ")"
 
 
-class SolutionFunction(_TnTBase):
-    """
-    NGSFunction that provide the access to the present solution.
-    Args:
-        name(str): The symbol name
-        sol(Solution): The solution object
-        type(int): The type of the solution. 0:x, 1:x.t, 2:x.tt
-    """
-    def __init__(self, var, sol, type):
-        self._sol = sol
-        self._var = var
-        self._type = type
-        n = 0
-        for v in sol.finiteElementSpace.variables:
-            if v == var:
-                self._n = n
-            n += v.size
-
-    @property
-    def valid(self):
-        return True    
-    
-    def value(self, fes):
-        if self._var.isScalar:
-            return self._sol[self._type].components[self._n]
-        else:
-            return list(self._sol[self._type].components[self._n:self._n+self._var.size])
-
-    @property
-    def hasTrial(self):
-        return False
-    
-    @property
-    def rhs(self):
-        return self
-
-    @property
-    def lhs(self):
-        return NGSFunction()
-               
-    @property
-    def isTimeDependent(self):
-        return True
-
-    def __str__(self):
-        return self._var.name + "_n"
-
-
 class DifferentialSymbol(NGSFunctionBase):
     def __init__(self, obj, geom=None, name=""):
         self._obj = obj

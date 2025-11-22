@@ -1,8 +1,9 @@
 import builtins
 import ngsolve
 
+from .operators import NGSFunctionBase
 from .coef import NGSFunction, DomainWiseFunction
-from .trials import TrialFunction, TestFunction, SolutionFunction, DifferentialSymbol
+from .trials import TrialFunction, TestFunction, DifferentialSymbol
 from .trials import TrialFunction as trial
 from .trials import TestFunction as test
 from .fields import VolumeField, SolutionFieldFunction, RandomFieldFunction
