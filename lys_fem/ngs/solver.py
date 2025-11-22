@@ -4,6 +4,7 @@ import shutil
 import numpy as np
 
 from . import mpi, util
+from .solution import Solution
 
 def generateSolver(fem, mesh, model):
     solvers = {"Stationary Solver": StationarySolver, "Relaxation Solver": RelaxationSolver, "Time Dependent Solver": TimeDependentSolver}
@@ -15,191 +16,6 @@ def generateSolver(fem, mesh, model):
     return result
 
 
-class _Sol:
-    def __init__(self, value):
-        if isinstance(value, util.FiniteElementSpace):
-            self._fes = value
-            self._sols = (self._fes.gridFunction(), self._fes.gridFunction(), self._fes.gridFunction())
-        else:
-            self._fes = value[0].finiteElementSpace
-            self._sols = value
-
-    def __getitem__(self, index):
-        return self._sols[index]
-    
-    def set(self, xva):
-        if isinstance(xva, _Sol):
-            xva = xva._sols
-        for xi, yi in zip(self._sols, xva):
-            if yi is not None:
-                xi.vec.data = yi.vec
-            else:
-                xi.vec.data *= 0
-
-    def copy(self):
-        g = self._fes.gridFunction()
-        for v in self._fes.variables:
-            if v.type == "x":
-                g.setComponent(v, util.GridField(self._sols[0], v))
-            if v.type == "v":
-                g.setComponent(v, util.GridField(self._sols[1], v))
-            if v.type == "a":
-                g.setComponent(v, util.GridField(self._sols[2], v))
-        return g
-    
-    def project(self, fes):
-        x, v, a = fes.gridFunction(), fes.gridFunction(), fes.gridFunction()
-        for var in self._fes.variables:
-            x.setComponent(var, util.GridField(self._sols[0], var))
-            v.setComponent(var, util.GridField(self._sols[1], var))
-            a.setComponent(var, util.GridField(self._sols[2], var))
-        return x,v,a
-
-    def error(self, var):
-        val = util.grad(util.GridField(self._sols[0], var))
-        grids = []
-        for d in range(3):
-            g = self._fes.gridFunction()
-            g.setComponent(var, val[d])
-            g = util.GridField(g, var)
-            grids.append(g)
-        grids = util.NGSFunction(grids)
-        err = np.sqrt(((grids-val)**2).integrate(self._fes, element_wise=True).NumPy())
-        err = mpi.gatherArray(err)
-        if mpi.isRoot:
-            return np.concatenate(err)
-        else:
-            return [0]
-
-    def save(self, path, mesh=False):
-        self._sols[0].Save(path, parallel=mpi.isParallel())
-        self._sols[1].Save(path+"_v", parallel=mpi.isParallel())
-        self._sols[2].Save(path+"_a", parallel=mpi.isParallel())
-        if mesh:
-            self._fes.mesh.save(path+"_mesh.msh")
-
-    @staticmethod
-    def load(fes, path, parallel=None):
-        if parallel is None:
-            parallel = mpi.isParallel()
-        x, v, a = (fes.gridFunction(), fes.gridFunction(), fes.gridFunction())
-        if os.path.exists(path):
-            x.Load(path, parallel)
-        if os.path.exists(path+"_v"):
-            v.Load(path+"_v", parallel)
-        if os.path.exists(path+"_a"):
-            a.Load(path+"_a", parallel)
-        return _Sol((x,v,a))
-
-    @property
-    def finiteElementSpace(self):
-        return self._fes
-
-    @property
-    def replaceDict(self):
-        """
-        Returns a dictionary that replace trial functions with corresponding solutions.
-        """
-        return {util.TrialFunction(v): util.GridField(self._sols[0], v) for v in self._fes.variables}
-
-
-class _Solution:
-    """
-    Solution class stores the solutions and the time derivatives as grid function.
-    The NGSFunctions based on the grid function is also provided by this class.
-    """
-    def __init__(self, fes, value=None, nlog=2, old=None):
-        self._fes = fes
-        self._sols = [_Sol(fes) for _ in range(nlog)]
-        self._nlog = nlog
-
-        if value is not None:
-            self.__update(_Sol(value))
-
-        if old is not None:
-            for i, s in enumerate(self._sols):
-                s.set(old[i].project(self._fes))
-
-    def __getitem__(self, index):
-        return self._sols[index]
-
-    def initialize(self, op):
-        if op is not None:
-            mpi.print_("\t======= Initial value calculation =======")
-            mpi.print_(op)
-            mpi.print_(op.solve(self._sols[0][2]))
-
-    def reset(self):
-        zero = self._fes.gridFunction()
-        for _ in range(len(self._sols)):
-            self.__update(_Sol((self._sols[0][0], zero, zero)))
-
-    def updateSolution(self, model, x0):
-        tdep = model.updater()
-        fes = self._fes
-
-        x, v, a = fes.gridFunction(), fes.gridFunction(), fes.gridFunction()
-        x.vec.data = x0.vec
-
-        d = self.prevDict
-        d.update({util.TrialFunction(v): util.GridField(x0, v) for v in self._fes.variables})
-
-        for var in self._fes.variables:
-            trial = util.TrialFunction(var)
-            if trial in tdep:
-                x.setComponent(var, tdep[trial].replace(d))
-        for var in self._fes.variables:
-            trial = util.TrialFunction(var)
-            if trial.t in tdep:
-                v.setComponent(var, tdep[trial.t].replace(d))
-        for var in self._fes.variables:
-            trial = util.TrialFunction(var)
-            if trial.tt in tdep:
-                a.setComponent(var, tdep[trial.tt].replace(d))
-
-        self.__update(_Sol((x,v,a)))
-
-    def __update(self, xva):
-        for n in range(1, len(self._sols)):
-            self._sols[-n].set(self._sols[-n+1])
-        self._sols[0].set(xva)
-
-    @property
-    def prevDict(self):
-        res = {}
-        for v in self._fes.variables:
-            x = util.TrialFunction(v)
-            for n in range(self._nlog):
-                res[util.prev(x,n)] = util.GridField(self._sols[n][0], v)
-                res[util.prev(x.t,n)] = util.GridField(self._sols[n][1], v)
-                res[util.prev(x.tt,n)] = util.GridField(self._sols[n][2], v)
-        return res
-
-
-class _DataStorage:
-    def __init__(self, sols, dirname):
-        self._sols = sols
-        if dirname is not None:
-            self._dirname = dirname
-        else:
-            self._dirname = None
-        self._savemesh = False
-        self.__init()
-        self.save(0)
-
-    def __init(self):
-        if mpi.isRoot and self._dirname is not None:
-            if os.path.exists(self._dirname):
-                shutil.rmtree(self._dirname, ignore_errors=True)
-            os.makedirs(self._dirname, exist_ok=True)
-
-    def enableSaveMesh(self, b=True):
-        self._savemesh=b
-
-    def save(self, index):
-        self._sols[0].save(self._dirname + "/ngs" + str(index), mesh=self._savemesh)
-
-
 class SolverBase:
     def __init__(self, obj, mesh, model, dirname, timeDep=False, variableStep=False):
         self._obj = obj
@@ -209,11 +25,11 @@ class SolverBase:
         self._index = -1
 
         self._fes = util.FiniteElementSpace(model.variables, mesh, jacobi=self._mat.jacobi)
-        self._sols = self._initializeSolution(obj, model, timeDep)
-        self._ops = [util.Solver(self._fes.compress(step.variables), model.weakforms("discretized", sols=self._sols, symbols=step.variables), step.linear, step.nonlinear, parallel=mpi.isParallel()) for step in obj.steps]
+        self._sols = self._initializeSolution(obj.steps[0], model, timeDep)
+        self._ops = [self._initializeSolver(self._fes, model, self._sols, step) for step in obj.steps]
         self._data = _DataStorage(self._sols, "Solutions/" + dirname)
 
-    def _initializeSolution(self, obj, model, timeDep):
+    def _initializeSolution(self, step, model, timeDep):
         x, v, a = model.initialValue(self._fes)
         wf = model.weakforms()
         if any([util.trial(var).tt in wf for var in model.variables]) and timeDep:
@@ -225,13 +41,29 @@ class SolverBase:
                     d.update({trial: X, trial.t: V, util.grad(trial): util.grad(X), trial.tt: trial})
                 else:
                     d.update({trial: X, trial.t: V, util.grad(trial): util.grad(X), test: 0, util.grad(test): 0})
-            step = obj.steps[0]
             op = util.Solver(self._fes.compress(step.variables), wf.replace(d), step.linear, step.nonlinear, parallel=mpi.isParallel())
 
             mpi.print_("\t======= Initial value calculation =======")
             mpi.print_(op)
             mpi.print_(op.solve(a))
-        return _Solution(self._fes, (x,v,a))
+        return Solution(self._fes, (x,v,a))
+    
+    def _initializeSolver(self, fes, model, sols, step):
+        wf = model.weakforms()
+
+        # discretize time derivative of the weakform
+        d = dict(model.discretize())
+        if step.variables is not None:
+            for v in fes.variables:
+                trial, test = util.trial(v), util.test(v)
+                if v.name not in step.variables:
+                    d.update({trial: util.prev(trial), trial.t: util.prev(trial.t), trial.tt: util.prev(trial.tt), test:0, util.grad(test): 0})
+        wf = wf.replace(d)
+
+        # Replace previous values by the present solution
+        wf = wf.replace(sols.replaceDict(trial=False, prev=True))
+
+        return util.Solver(fes.compress(step.variables), wf, step.linear, step.nonlinear, parallel=mpi.isParallel())
 
     @np.errstate(divide='ignore', invalid="ignore")
     def solve(self, dti=0):
@@ -251,7 +83,7 @@ class SolverBase:
         return np.divide(np.linalg.norm(E-E0), np.linalg.norm(E))
 
     def _step(self):
-        x = self._sols[0].copy()
+        x = self._sols.copyVector()
         for i, op  in enumerate(self._ops):
             mpi.print_("\t=======Solver step", i+1, "=======")
             mpi.print_(op.solve(x))
@@ -262,14 +94,14 @@ class SolverBase:
         expr = self._obj.diff_expr
         if expr is None or expr=="":
             expr = self._model.variables[0].name
-        d = self._sols[0].replaceDict
+        d = self._sols.replaceDict()
         return self._mat[expr].replace(d).integrate(self._fes)
 
     def updateMesh(self, mesh):
         self._fes = util.FiniteElementSpace(self._model.variables, mesh, jacobi=self._mat.jacobi)
-        self._sols = _Solution(self._fes, old=self._sols)
-        self._ops = [util.Solver(self._fes.compress(step.variables), self._model.weakforms(type="discretized", sols=self._sols, symbols=step.variables), step.linear, step.nonlinear, parallel=mpi.isParallel()) for step in self._obj.steps]
-        self._data.enableSaveMesh()
+        self._sols = Solution(self._fes, old=self._sols)
+        self._ops = [self._initializeSolver(self._fes, self._model, self._sols, step) for step in self._obj.steps]
+        self._data.update(self._sols, True)
 
     def refineMesh(self, error):
         def compute_size_field(err, p=2, d=2):
@@ -305,19 +137,44 @@ class SolverBase:
         return res
 
 
+class _DataStorage:
+    def __init__(self, sols, dirname):
+        self._sols = sols
+        if dirname is not None:
+            self._dirname = dirname
+        else:
+            self._dirname = None
+        self._savemesh = False
+        self.__init()
+        self.save(0)
+
+    def __init(self):
+        if mpi.isRoot and self._dirname is not None:
+            if os.path.exists(self._dirname):
+                shutil.rmtree(self._dirname, ignore_errors=True)
+            os.makedirs(self._dirname, exist_ok=True)
+
+    def update(self, sols, updateMesh=True):
+        self._sols = sols
+        self._savemesh=updateMesh
+
+    def save(self, index):
+        self._sols.save(self._dirname + "/ngs" + str(index), mesh=self._savemesh)
+
+
 class StationarySolver(SolverBase):
     def execute(self):
         self.solve()
 
         if self._obj.adaptive_mesh is not None:
             var = [v for v in self._model.variables if v.name==self._obj.adaptive_mesh.varName][0]
-            error = self.solutions[0].error(var)
+            error = self.solutions.error(var)
             mpi.print_("\t[AMR] Adaptive Mesh Refinement started. Initial error (max,min,mean) = {:.3e}, {:.3e}, {:.3e}".format(np.max(error), np.min(error), np.mean(error)))
 
             for n in range(self._obj.adaptive_mesh.maxiter):
                 self.refineMesh(error)
                 self.solve()
-                error = self.solutions[0].error(var)
+                error = self.solutions.error(var)
 
                 mpi.print_("\t[AMR] Step "+str(n+2)+": Error (max,min,mean) = {:.3e}, {:.3e}, {:.3e}".format(np.max(error), np.min(error), np.mean(error)))
 
@@ -332,14 +189,14 @@ class RelaxationSolver(SolverBase):
         if self._tSolver.adaptive_mesh is None:
             return
         var = [v for v in self._model.variables if v.name==self._obj.adaptive_mesh.varName][0]
-        error = self.solutions[0].error(var)
+        error = self.solutions.error(var)
         mpi.print_("\t[AMR] Adaptive Mesh Refinement started. Initial error (max,min,mean) = {:.3e}, {:.3e}, {:.3e}".format(np.max(error), np.min(error), np.mean(error)))
         mpi.print_()
 
         for n in range(self._obj.adaptive_mesh.maxiter):
             self.refineMesh(error)
             self._relax()
-            error = self.solutions[0].error(var)
+            error = self.solutions.error(var)
 
             mpi.print_("\t[AMR] Step "+str(n+2)+": Error (max,min,mean) = {:.3e}, {:.3e}, {:.3e}".format(np.max(error), np.min(error), np.mean(error)))
             mpi.print_()
@@ -385,7 +242,7 @@ class TimeDependentSolver(SolverBase):
             mpi.print_("Timestep", i, ", t = {:3e}".format(t), ", dx = {:3e}".format(dx))
             if self._tSolver.adaptive_mesh is not None:
                 var = [v for v in self._model.variables if v.name==self._obj.adaptive_mesh.varName][0]
-                error = self.solutions[0].error(var)
+                error = self.solutions.error(var)
 
                 mpi.print_("\t[AMR] Error (max,min,mean) = {:.3e}, {:.3e}, {:.3e}".format(np.max(error), np.min(error), np.mean(error)))
                 self.refineMesh(error)

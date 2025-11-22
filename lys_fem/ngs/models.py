@@ -140,23 +140,9 @@ class CompositeModel:
         self._mat = mat
         self._mat.update({v.name: util.TrialFunction(v) for v in self.variables})
 
-    def weakforms(self, type="raw", sols=None, symbols=None):
+    def weakforms(self):
         tnt = {v.name: (util.trial(v), util.test(v)) for v in self.variables}
-        wf = sum([model.weakform(tnt, self._mat) for model in self._models])
-        if type == "discretized":
-            wf = self.__discretizeWeakform(wf, symbols)
-        if sols is not None:
-            wf = wf.replace(sols.prevDict)
-        return wf
-
-    def __discretizeWeakform(self, wf, symbols):
-        d = dict(self.discretize())
-        if symbols is not None:
-            for v in self.variables:
-                trial, test = util.trial(v), util.test(v)
-                if v.name not in symbols:
-                    d.update({trial: util.prev(trial), trial.t: util.prev(trial.t), trial.tt: util.prev(trial.tt), test:0, util.grad(test): 0})
-        return wf.replace(d)
+        return sum([model.weakform(tnt, self._mat) for model in self._models])
     
     def discretize(self):
         d = {}
