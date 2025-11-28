@@ -181,6 +181,13 @@ class RandomFieldFunction(NGSFunctionBase):
     def __str__(self):
         return self._name
 
+    def to_dict(self):
+        return {"name": self._name, "type": self._type, "tdep": self._tdep, "shape": self._shape}
+    
+    @classmethod
+    def from_dict(cls, d):
+        return cls(**d)
+
 
 class VolumeField(NGSFunctionBase):
     """

@@ -1,6 +1,8 @@
 import sympy as sp
 from sympy.parsing.sympy_parser import parse_expr
 
+from lys_fem import util
+
 
 class Parameters(dict):
     def getSolved(self):
@@ -12,6 +14,9 @@ class Parameters(dict):
             return sol
         else:
             return {key: value for key, value in zip(self.keys(), sol[0])}
+
+    def eval(self):
+        return {str(key): util.NGSFunction(value) for key, value in self.getSolved().items()}
 
     def __setitem__(self, key, value):
         if isinstance(key, str):
@@ -33,33 +38,12 @@ class Parameters(dict):
 
 class RandomFields(dict):
     def add(self, name, type, shape=(), tdep=False):
-        self[name] = RandomField(type, shape, tdep)
+        self[name] = util.RandomFieldFunction(type, shape, tdep, name=name)
 
     def saveAsDictionary(self):
-        return {key: value.saveAsDictionary() for key, value in self.items()}
+        return {key: value.to_dict() for key, value in self.items()}
     
     @classmethod
     def loadFromDictionary(cls, d):
-        res = RandomFields()
-        for key, value in d.items():
-            res[key] = RandomField.loadFromDictionary(value)
-        return res
+        return RandomFields({key: util.RandomFieldFunction.from_dict(value) for key, value in d.items()})
     
-
-class RandomField:
-    def __init__(self, type, shape, tdep):
-        self.type = type
-        self.tdep = tdep
-        self.shape = shape
-
-    def set(self, type, shape, tdep):
-        self.type = type
-        self.tdep = tdep
-        self.shape = shape
-
-    def saveAsDictionary(self):
-        return {"type": self.type, "tdep": self.tdep, "shape": self.shape}
-    
-    @classmethod
-    def loadFromDictionary(cls, d):
-        return RandomField(d["type"], d.get("shape", ()), d["tdep"])

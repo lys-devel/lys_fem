@@ -1,6 +1,11 @@
+from lys_fem import util
+
 class SolutionFields(dict):
     def add(self, name, path, expression, index=-1):
         self[name] = SolutionField(path, expression, index)
+
+    def eval(self):
+        return {key: util.SolutionFieldFunction(coef.get(), tdep=coef.index is None) for key, coef in self.items()}
 
     def saveAsDictionary(self):
         return {key: value.saveAsDictionary() for key, value in self.items()}
