@@ -38,8 +38,14 @@ class NGSTwoVariableTestModel(NGSModel):
             dirichlet = ["auto", "auto"]
 
         for eq in model.equations:
-            self.addVariable("X", 1, dirichlet[0], init[0], region = eq.geometries, order=1, isScalar=True)
-            self.addVariable("Y", 1, dirichlet[1], init[1], region = eq.geometries, order=1, isScalar=True)
+            self.addVariable("X", 1, self._pick(dirichlet, 0), self._pick(init, 0), region = eq.geometries, order=1, isScalar=True)
+            self.addVariable("Y", 1, self._pick(dirichlet, 1), self._pick(init, 1), region = eq.geometries, order=1, isScalar=True)
+
+    def _pick(self, coef, index):
+        if isinstance(coef, dict):
+            return {key: value[index] for key, value in coef.items()}
+        else:
+            return coef[index]
 
     def weakform(self, vars, mat):
         wf = 0
@@ -109,9 +115,15 @@ class NGSTwoVarGradTestModel(NGSModel):
             dirichlet = ["auto", "auto"]
 
         for eq in model.equations:
-            self.addVariable("X", 1, dirichlet[0], init[0], region = eq.geometries, order=1, isScalar=True)
-            self.addVariable("Y", 1, dirichlet[1], init[1], region = eq.geometries, order=1, isScalar=True)
+            self.addVariable("X", 1, self._pick(dirichlet, 0), self._pick(init, 0), region = eq.geometries, order=1, isScalar=True)
+            self.addVariable("Y", 1, self._pick(dirichlet, 1), self._pick(init, 1), region = eq.geometries, order=1, isScalar=True)
 
+    def _pick(self, coef, index):
+        if isinstance(coef, dict):
+            return {key: value[index] for key, value in coef.items()}
+        else:
+            return coef[index]
+        
     def weakform(self, vars, mat):
         wf = 0
         for eq in self._model.equations:

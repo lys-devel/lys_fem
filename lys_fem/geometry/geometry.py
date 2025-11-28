@@ -1,7 +1,6 @@
 import numpy as np
 import sympy as sp
 from lys_fem import addGeometry, FEMGeometry, util
-from lys_fem.fem import FEMCoefficient
 
 
 class Box(FEMGeometry):

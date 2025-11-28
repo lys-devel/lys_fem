@@ -1,5 +1,5 @@
 import numpy as np
-from .base import FEMObject, FEMObjectList, FEMCoefficient
+from .base import FEMObject, FEMObjectList
 from .geometry import GeometrySelection
 
 
@@ -17,8 +17,7 @@ class ModelConditionBase(FEMObjectList):
         for c in self.get(cls):
             for d in c.geometries:
                 coefs[d] = c.values
-            typ = c.geometries.geometryType
-        return FEMCoefficient(coefs, typ)
+        return coefs
 
     def saveAsDictionary(self):
         return [item.saveAsDictionary() for item in self]

@@ -1,4 +1,3 @@
-from .base import FEMCoefficient
 from .FEM import FEMProject
 from .geometry import FEMGeometry, GeometrySelection
 from .mesh import OccMesher

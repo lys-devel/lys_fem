@@ -1,4 +1,3 @@
-from lys_fem.fem import FEMCoefficient
 from . import util, time
 from ..models.common import DirichletBoundary
 
@@ -21,7 +20,7 @@ class InitialConditions:
         self._v = v
 
     def value(self, vars):
-        coef = vars[self._x]
+        coef = util.eval(self._x, vars, geom="domain")
         if coef is None:
             raise RuntimeError("Invalid initial value for " + str(self._sp.name))
         if not coef.valid:
@@ -29,7 +28,7 @@ class InitialConditions:
         return coef
     
     def velocity(self, vars):
-        coef = vars[self._v]
+        coef = util.eval(self._v, vars, geom="domain")
         if coef is None:
             raise RuntimeError("Invalid initial velocity for " + str(self._sp.name))
         if not coef.valid:
@@ -68,7 +67,7 @@ class NGSModel:
         bdr_dir = [[] for _ in range(vdim)] 
         if coef is None:
             return bdr_dir
-        for key, value in coef.value.items():
+        for key, value in coef.items():
             for i, bdr in enumerate(bdr_dir):
                 if hasattr(value, "__iter__"):
                     if value[i]:
@@ -79,17 +78,17 @@ class NGSModel:
 
     def __initialValue(self, vdim, initialValue):
         if initialValue is None:
-            return FEMCoefficient([0]*vdim)
+            return [0]*vdim
         if initialValue != "auto":
             return initialValue
         init = self._model.initialConditions.coef(self._model.initialConditionTypes[0])
         for type in self._model.initialConditionTypes[1:]:
-            init.value.update(self._model.initialConditions.coef(type).value)
+            init.update(self._model.initialConditions.coef(type).value)
         return init
 
     def __initialVelocity(self, vdim, initialVelocity):
         if initialVelocity is None:
-            initialVelocity = FEMCoefficient([0]*vdim)
+            initialVelocity = [0]*vdim
         return initialVelocity
 
     def discretize(self, dti):

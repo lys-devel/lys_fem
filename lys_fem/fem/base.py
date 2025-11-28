@@ -54,38 +54,3 @@ class FEMObjectList(list, FEMObject):
     def append(self, item):
         super().append(item)
         item.setParent(self)
-
-
-class FEMCoefficient:
-    """
-    String expression coefficient object for FEM.
-    value is string expression, list of string expression, or dict of them.
-    """
-    def __init__(self, value=0, geomType="Domain"):
-        super().__init__()
-        if not isinstance(value, dict):
-            geomType = "Const"
-        self._type = geomType
-        self._value = value
-
-    @property
-    def value(self):
-        return self._value
-
-    @property
-    def geometryType(self):
-        return self._type
-
-    @property
-    def default(self):
-        if not isinstance(self._value, dict):
-            return None
-        if "default" not in self._value:
-            return None
-        return self._value["default"]
-    
-    def __getitem__(self, index):
-        if isinstance(self._value, dict):
-            return FEMCoefficient({key: value[index] for key, value in self._value.items()}, geomType=self._type)
-        return FEMCoefficient(self.value[index], geomType=self._type)
-      

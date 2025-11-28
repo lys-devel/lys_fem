@@ -13,8 +13,11 @@ class NGSSemiconductorModel(NGSModel):
             dirichlet = ["auto", "auto"]
 
         for eq in model.equations:
-            self.addVariable(eq.variableName+"_e", 1, dirichlet[0], init[0], region = eq.geometries, order=order, isScalar=True)
-            self.addVariable(eq.variableName+"_h", 1, dirichlet[1], init[1], region = eq.geometries, order=order, isScalar=True)
+            self.addVariable(eq.variableName+"_e", 1, self._pick(dirichlet, 0), self._pick(init, 0), region = eq.geometries, order=order, isScalar=True)
+            self.addVariable(eq.variableName+"_h", 1, self._pick(dirichlet, 1), self._pick(init, 1), region = eq.geometries, order=order, isScalar=True)
+
+    def _pick(self, coef, index):
+        return {key: value[index] for key, value in coef.items()}
 
     def weakform(self, vars, mat):
         q, kB = 1.602176634e-19, 1.3806488e-23
