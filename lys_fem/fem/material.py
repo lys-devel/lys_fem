@@ -5,18 +5,6 @@ from .geometry import GeometrySelection
 
 materialParameters = {}
 
-def  _getParameters(name=None):
-    """
-    Get dictionary that contains material parameter classes.
-    Example: {"Heat Conduction": HeatConductionParameters, "Elasticity": ElasticityParameters}
-    """
-    cls_list = set(sum(materialParameters.values(), []))
-    cls_dict = {value.name: value for value in cls_list}
-    if name is None:
-        return cls_dict
-    else:
-        return cls_dict[name]
-
 
 class Materials(FEMObjectList):
     def __init__(self, parent, materials):
@@ -30,10 +18,6 @@ class Materials(FEMObjectList):
                 i += 1
             material.objName = "Material" + str(i)
         super().append(material)
-
-    def defaultParameter(self, groupName, dim):
-        default = _getParameters(groupName)()
-        return default.getParameters(dim)
 
     def materialDict(self, dim):
         # find all parameter names and their groups

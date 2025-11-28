@@ -7,7 +7,8 @@ from . import util
 
 
 def generateMaterial(fem, solutions=True):
-    sols = fem.parameters.eval()
+    sols = dict(NGSConstants())
+    sols.update(fem.parameters.eval())
     if solutions:
         sols.update(fem.solutionFields.eval())
     sols.update(fem.randomFields)
@@ -19,16 +20,13 @@ class NGSParams(dict):
     def __init__(self, fem, sols):
         super().__init__(sols)
         self._fem = fem
-        self._const = NGSConstants()
         for key, value in fem.materials.materialDict(fem.dimension).items():
             self[key] = _generateCoefficient(value, name=key, dic=self, J="R" if key != "R" else None)
         for key, value in fem.geometries.geometryParameters().items():
             self[key] = _generateCoefficient(value, name=key, dic=self)
 
     def __getitem__(self, expr):
-        d = dict(self._const)
-        d.update(self)
-        return _generateCoefficient(expr, dic=d, name=str(expr))
+        return _generateCoefficient(expr, dic=dict(self), name=str(expr))
     
     @property
     def jacobi(self):
@@ -48,7 +46,7 @@ class NGSParams(dict):
 
     @property
     def const(self):
-        return self._const
+        return NGSConstants()
 
 
 class NGSConstants(dict):
