@@ -131,9 +131,13 @@ class NGSFunction(NGSFunctionBase):
 
 
 class DomainWiseFunction(NGSFunctionBase):
-    def __init__(self, obj=None, default=None, geomType="domain", name="Undefined", J=None):
-        self._obj = {key: value if isinstance(value, NGSFunctionBase) else NGSFunction(value) for key, value in obj.items()}
-        self._default = default
+    def __init__(self, obj=None, geomType="domain", name="Undefined", J=None):
+        self._obj = {key: value if isinstance(value, NGSFunctionBase) else NGSFunction(value) for key, value in obj.items() if key!="default"}
+        if "default" in obj:
+            d = obj["default"]
+            self._default = d if isinstance(d, NGSFunctionBase) else NGSFunction(d)
+        else:
+            self._default = None
         self._geom = geomType
         self._name = name
         self._J = J
@@ -174,11 +178,10 @@ class DomainWiseFunction(NGSFunctionBase):
             return fes.mesh.BoundaryCF(coefs, default=default)
     
     def replace(self, d):
-        if self._default is None:
-            default = None
-        else:
-            default = self._default.replace(d)
-        return DomainWiseFunction({key: value.replace(d) for key, value in self._obj.items()}, name=self._name, default=default, geomType=self._geom, J=self._J)
+        value = {key: value.replace(d) for key, value in self._obj.items()}
+        if self._default is not None:
+            value["default"] = self._default.replace(d)
+        return DomainWiseFunction(value, name=self._name, geomType=self._geom, J=self._J)
 
     def __contains__(self, item):
         default = False if self._default is None else item in self._default

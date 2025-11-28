@@ -133,6 +133,6 @@ class NGSRandomWalkModel(NGSModel):
             u,v = vars[eq.variableName]
 
             for f in self._model.domainConditions.get(RandomForce):
-                R = mat[f.values]*util.sqrt(mat.const.dti) # Euler-Maruyama formula
+                R = mat[f.values]*util.sqrt(util.dti) # Euler-Maruyama formula
                 wf += (u.t.dot(v) - R.dot(v)) * dx(f.geometries)
         return wf

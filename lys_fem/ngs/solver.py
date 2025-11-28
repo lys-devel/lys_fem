@@ -21,7 +21,7 @@ class SolverBase:
         self._obj = obj
         self._model = model
         self._mat = model.materials
-        self._mat.const.dti.isTimeDependent = variableStep
+        util.dti.isTimeDependent = variableStep
         self._index = -1
 
         self._fes = util.FiniteElementSpace(model.variables, mesh, jacobi=self._mat.jacobi)
@@ -72,7 +72,7 @@ class SolverBase:
             self._sols.reset()
         self._index += 1
         self._mat.updateSolutionFields(self._index)
-        self._mat.const.dti.set(dti)
+        util.dti.set(dti)
         util.stepn.set(self._index)
 
         E0 = self.__calcDiff()

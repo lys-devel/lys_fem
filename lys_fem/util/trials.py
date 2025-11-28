@@ -130,19 +130,14 @@ class DifferentialSymbol(NGSFunctionBase):
         self._name = name
 
     def eval(self, fes):
-        from .functions import det
-        #if fes.jacobi() is None:
-        J = None
-        #else:
-        #   J = det(fes.jacobi())
         if self._geom is None:
-            return _MultDiffSimbol(self._obj, J)
+            return _MultDiffSimbol(self._obj, None)
         else:
             if self._obj == ngsolve.dx:
                 g = fes.mesh.Materials(self._geom)
             else:
                 g = fes.mesh.Boundaries(self._geom)
-            return _MultDiffSimbol(self._obj(definedon=g), J)
+            return _MultDiffSimbol(self._obj(definedon=g), None)
 
     @property
     def hasTrial(self):

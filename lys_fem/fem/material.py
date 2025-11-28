@@ -1,6 +1,7 @@
 import numpy as np
 
-from .base import FEMObject, FEMObjectList, FEMCoefficient
+from lys_fem import util
+from .base import FEMObject, FEMObjectList
 from .geometry import GeometrySelection
 
 materialParameters = {}
@@ -19,7 +20,13 @@ class Materials(FEMObjectList):
             material.objName = "Material" + str(i)
         super().append(material)
 
-    def materialDict(self, dim):
+    def eval(self, d):
+        res = {}
+        for key, value in self._materialDict().items():
+            res[key] = util.eval(value, d, name=key, geom="domain", J="R" if key != "R" else None)
+        return res
+
+    def _materialDict(self):
         # find all parameter names and their groups
         groups = {}
         for m in self:
@@ -33,32 +40,31 @@ class Materials(FEMObjectList):
         for group, params in groups.items():
             for pname in params:
                 res[pname] = self.__generateCoefForParameter(pname, group)
-        J = self.jacobi(dim)
+        J = self._jacobi()
         if J is not None:
             res["R"] = J
         return res
 
-    def jacobi(self, dim):
-        J = FEMCoefficient({"default": np.eye(3).tolist()}, geomType="Domain")
+    def _jacobi(self):
+        J = {"default": np.eye(3).tolist()}
         for m in self:
             R =  m.coordinate
             if R is not None:
                 R = np.array([[float(rr) for rr in r] for r in R])
                 for d in m.geometries:
-                    J.value[d] = np.array([R[0]/np.linalg.norm(R[0]), R[1]/np.linalg.norm(R[1]), R[2]/np.linalg.norm(R[2])])
-        if len(J.value) > 1:
+                    J[d] = np.array([R[0]/np.linalg.norm(R[0]), R[1]/np.linalg.norm(R[1]), R[2]/np.linalg.norm(R[2])])
+        if len(J) > 1:
             return J
         else:
             return None
 
     def __generateCoefForParameter(self, pname, group):
-        #coefs = {"default": self.defaultParameter(group, dim)[pname]}
-        coefs = FEMCoefficient({}, geomType="Domain")
+        coefs = {}
         for m in self:
             p = m[group]
             if p is not None:
                 for d in m.geometries:
-                    coefs.value[d] = p.getParameters()[pname]
+                    coefs[d] = p.getParameters()[pname]
         return coefs 
 
 

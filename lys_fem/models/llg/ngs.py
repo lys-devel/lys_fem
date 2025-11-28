@@ -1,4 +1,5 @@
 from lys_fem.ngs import NGSModel, grad, dx, util
+from lys_fem.util import g_e, e, mu_B, mu_0, dti, k_B, Ve
 from . import ExternalMagneticField, UniaxialAnisotropy, CubicAnisotropy, MagneticScalarPotential, CubicMagnetoStriction, SpinTransferTorque, ThermalFluctuation, CubicMagnetoRotationCoupling, BarnettEffect
 
 class NGSLLGModel(NGSModel):
@@ -25,8 +26,8 @@ class NGSLLGModel(NGSModel):
             return self._weakform_default(vars, mat)
 
     def _weakform_default(self, vars, mat):
-        g, e, mu_B, mu0, Ms = mat.const.g_e, mat.const.e, mat.const.mu_B, mat.const.mu_0, mat["Ms"]
-        A = 2*mat["Aex"] * g / Ms
+        Ms = mat["Ms"]
+        A = 2*mat["Aex"] * g_e / Ms
         alpha = mat["alpha_LLG"]
 
         wf = 0
@@ -40,22 +41,22 @@ class NGSLLGModel(NGSModel):
 
             if self._model.constraint == "Lagrange":
                 lam, test_lam = vars[eq.variableName+"_lam"]
-                scale = util.max(mat.const.dti, 1)#1e11
+                scale = util.max(dti, 1)#1e11
                 wf += 2*lam*m.dot(test_m)*scale*dx
                 wf += (-1e-5*lam + (m.dot(m)-1))*test_lam*scale*dx
 
             for ex in self._model.domainConditions.get(ExternalMagneticField):
                 B = mat[ex.values]
-                wf += g*m.cross(B).dot(test_m)*dx(ex.geometries)
+                wf += g_e*m.cross(B).dot(test_m)*dx(ex.geometries)
             
             for uni in self._model.domainConditions.get(UniaxialAnisotropy):
                 u, Ku = mat["u_Ku/norm(u_Ku)"], mat["Ku"]
                 B = 2*Ku/Ms*m.dot(u)*u
-                wf += g*m.cross(B).dot(test_m)*dx(uni.geometries)
+                wf += g_e*m.cross(B).dot(test_m)*dx(uni.geometries)
 
             for sc in self._model.domainConditions.get(MagneticScalarPotential):
                 phi = mat[sc.values]
-                wf += g*m.cross(-mu0*grad(phi)).dot(test_m)*dx(sc.geometries)
+                wf += g_e*m.cross(-mu_0*grad(phi)).dot(test_m)*dx(sc.geometries)
 
             for st in self._model.domainConditions.get(SpinTransferTorque):
                 beta = mat["beta_st"]
@@ -65,8 +66,8 @@ class NGSLLGModel(NGSModel):
         return wf
 
     def _weakform_alouges(self, vars, mat):
-        g, e, mu_B, mu0, Ms, kB, dti = mat.const.g_e, mat.const.e, mat.const.mu_B, mat.const.mu_0, mat["Ms"], mat.const.k_B, mat.const.dti
-        A = 2*mat["Aex"] * g / Ms
+        Ms = mat["Ms"]
+        A = 2*mat["Aex"] * g_e / Ms
         alpha = mat["alpha_LLG"]
 
         wf = 0
@@ -86,26 +87,26 @@ class NGSLLGModel(NGSModel):
 
             for ex in self._model.domainConditions.get(ExternalMagneticField):
                 B = mat[ex.values]
-                wf += -g*B.dot(test_m)*dx(ex.geometries)
-                wf += g*m.dot(B)*m.t.dot(test_m)*theta/dti*dx(ex.geometries)
+                wf += -g_e*B.dot(test_m)*dx(ex.geometries)
+                wf += g_e*m.dot(B)*m.t.dot(test_m)*theta/dti*dx(ex.geometries)
 
             for uni in self._model.domainConditions.get(UniaxialAnisotropy):
                 u, Ku = mat["u_Ku/norm(u_Ku)"], mat["Ku"]
                 B = 2*Ku/Ms*m.dot(u)*u
-                wf += -g*B.dot(test_m)*dx(uni.geometries)
-                wf += g*m.dot(B)*m.t.dot(test_m)*theta/dti*dx(uni.geometries)
+                wf += -g_e*B.dot(test_m)*dx(uni.geometries)
+                wf += g_e*m.dot(B)*m.t.dot(test_m)*theta/dti*dx(uni.geometries)
 
             for cu in self._model.domainConditions.get(CubicAnisotropy):
                 Kc = mat["Kc"]
                 B = -4/Ms*util.einsum("ijkl,j,k,l->i", Kc, m, m, m)
-                wf += -g*B.dot(test_m)*dx(cu.geometries)
+                wf += -g_e*B.dot(test_m)*dx(cu.geometries)
 
             for cms in self._model.domainConditions.get(CubicMagnetoStriction):
                 Ks = mat["K_MS"]
                 du = util.grad(mat[cms.values])
                 e = (du + du.T)/2
                 B = -2/Ms*util.einsum("ijkl,j,kl->i", Ks, m, e)
-                wf += -g*B.dot(test_m)*dx(cms.geometries)
+                wf += -g_e*B.dot(test_m)*dx(cms.geometries)
                 #wf += g*m.dot(B)*m.t.dot(test_m)*theta/dti*dx(cms.geometries)
 
             for cms in self._model.domainConditions.get(CubicMagnetoRotationCoupling):
@@ -114,7 +115,7 @@ class NGSLLGModel(NGSModel):
                 w = (du.T-du)/2
                 K = util.einsum("ijkl,Ii->Ijkl", Kc, w) + util.einsum("ijkl,Jj->iJkl", Kc, w) + util.einsum("ijkl,Kk->ijKl", Kc, w) + util.einsum("ijkl,Ll->ijkL", Kc, w)
                 B = -4/Ms*util.einsum("ijkl,j,k,l->i", K, m, m, m)
-                wf += -g*B.dot(test_m)*dx(cms.geometries)
+                wf += -g_e*B.dot(test_m)*dx(cms.geometries)
 
             for bar in self._model.domainConditions.get(BarnettEffect):
                 u = mat[bar.values]
@@ -125,7 +126,7 @@ class NGSLLGModel(NGSModel):
             for sc in self._model.domainConditions.get(MagneticScalarPotential):
                 phi = mat[sc.values]
                 B = -mu0*grad(phi)
-                wf += -g*B.dot(test_m)*dx(sc.geometries)
+                wf += -g_e*B.dot(test_m)*dx(sc.geometries)
                 #wf += g*m.dot(B)*m.t.dot(test_m)*theta/dti*dx(sc.geometries)
 
             for st in self._model.domainConditions.get(SpinTransferTorque):
@@ -135,10 +136,10 @@ class NGSLLGModel(NGSModel):
                 wf += -(m.cross(w) + beta*w).dot(test_m)*dx(st.geometries)
 
             for th in self._model.domainConditions.get(ThermalFluctuation):
-                T, R, Ve = mat[th.T], mat[th.R], mat.const.Ve
-                D = alpha*kB*T*dti/(Ms*g*Ve)
+                T, R, Ve = mat[th.T], mat[th.R], Ve
+                D = alpha*kB*T*dti/(Ms*g_e*Ve)
                 B = util.sqrt(2*D)*R
-                wf += -g*B.dot(test_m)*dx(th.geometries)
+                wf += -g_e*B.dot(test_m)*dx(th.geometries)
 
         return wf
 

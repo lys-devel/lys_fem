@@ -1,6 +1,6 @@
 import numpy as np
 import sympy as sp
-from lys_fem import addGeometry, FEMGeometry
+from lys_fem import addGeometry, FEMGeometry, util
 from lys_fem.fem import FEMCoefficient
 
 
@@ -102,7 +102,7 @@ class InfiniteVolume(FEMGeometry):
                     ids[5] = grp
         J = {ids[i]: self._constructJ(i) for i in range(6)}
         J["default"] = np.eye(3)
-        return {"J": FEMCoefficient(J)}
+        return {"J": util.eval(J, name="J", geom="domain")}
 
     def _constructJ(self, domain):
         a,b,c,A,B,C = np.array(self.args)
@@ -217,7 +217,7 @@ class InfinitePlane(FEMGeometry):
                     ids[3] = grp
         J = {ids[i]: self._constructJ(i) for i in range(4)}
         J["default"] = np.eye(2)
-        return {"J": FEMCoefficient(J)}
+        return {"J": util.eval(J, name="J", geom="domain")}
 
     def _constructJ(self, domain):
         a,b,A,B = self.args

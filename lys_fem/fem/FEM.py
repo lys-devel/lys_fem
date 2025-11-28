@@ -1,3 +1,5 @@
+from lys_fem import util
+
 from .base import FEMObjectList
 from .parameters import Parameters, RandomFields
 from .geometry import GeometryGenerator
@@ -114,6 +116,16 @@ class FEMProject:
     @property
     def randomFields(self):
         return self._randoms
+
+    def evaluator(self, solutions=True):
+        d = dict(util.consts.asdict())
+        d.update(self.parameters.eval())
+        if solutions:
+            d.update(self.solutionFields.eval())
+        d.update(self.randomFields)
+        d.update(self.materials.eval(d))
+        d.update(self.geometries.geometryParameters())
+        return d
 
     @property
     def domainAttributes(self):
