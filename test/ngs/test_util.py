@@ -31,10 +31,7 @@ class test_util(FEMTestCase):
         h1 = util.H1("u", size = 1, order = 2).eval(m)
         self.assertEqual(sum(h1.FreeDofs()), m.nodes*2-1)
 
-        h1 = util.H1("u", size = 1, order = 1, dirichlet=["boundary1"]).eval(m)
-        self.assertEqual(sum(h1.FreeDofs()), m.nodes-1)
-
-        h1 = util.H1("u", size = 1, order = 1, definedon="domain1").eval(m)
+        h1 = util.H1("u", size = 1, order = 1, geometries=[1]).eval(m)
         self.assertEqual(sum(h1.FreeDofs()), m.nodes//2+1)
 
         h1 = util.H1("u", size = 2, order = 1).eval(m)

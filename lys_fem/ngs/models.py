@@ -50,14 +50,14 @@ class NGSModel:
         kwargs = {"fetype": fetype, "isScalar": isScalar, "order": order, "size": vdim, "valtype": type}
         if region is not None:
             if region.selectionType() == "Selected":
-                kwargs["definedon"] = "|".join([region.geometryType.lower() + str(r) for r in region])
+                kwargs["geometries"] = list(region)
 
         if dirichlet == "auto":
             dirichlet = self._model.boundaryConditions.coef(DirichletBoundary)
         dirichlet = self.__dirichlet(dirichlet, vdim)
 
         if dirichlet is not None:
-            kwargs["dirichlet"] = ["|".join(["boundary" + str(item) for item in dirichlet[i]]) for i in range(vdim)]
+            kwargs["dirichlet"] = [dirichlet[i] for i in range(vdim)]
 
         fes = util.FunctionSpace(name, **kwargs)
         self._vars.append(fes)

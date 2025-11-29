@@ -9,7 +9,7 @@ def prod(args):
 
 
 class FunctionSpace:
-    def __init__(self, name, fetype="H1", size=1, dirichlet=None, isScalar=True, valtype="x", **kwargs):
+    def __init__(self, name, fetype="H1", size=1, dirichlet=None, isScalar=True, valtype="x", geometries=None, order=1):
         self._name = name
         self._type = fetype
         self._size = size
@@ -18,7 +18,8 @@ class FunctionSpace:
             dirichlet = [None] * size
         self._dirichlet = dirichlet
         self._valtype = valtype
-        self._kwargs = dict(kwargs)
+        self._geom = geometries
+        self._order = order
 
     @property
     def name(self):
@@ -42,12 +43,17 @@ class FunctionSpace:
         elif self._type == "L2":
             space = ngsolve.L2
 
+        kwargs = {"order": self._order}
+        if self._geom is not None:
+            kwargs["definedon"] = "|".join(["domain" + str(r) for r in self._geom])
+
         fess = []
         for i in range(self.size):
             if self._dirichlet[i] is None:
-                fess.append(space(mesh, **self._kwargs))
+                fess.append(space(mesh, **kwargs))
             else:
-                fess.append(space(mesh, dirichlet=self._dirichlet[i], **self._kwargs))
+                dirichlet = "|".join(["boundary" + str(r) for r in self._dirichlet[i]])
+                fess.append(space(mesh, dirichlet=dirichlet, **kwargs))
         return prod(fess)
     
     @property
@@ -59,7 +65,7 @@ class FunctionSpace:
         return TestFunction(self)
     
     def __str__(self):
-        return "symbol = " + self._name + ", space = " + self._type + ", size = " + str(self._size) + ", order = " + str(self._kwargs.get("order", 1))
+        return "symbol = " + self._name + ", space = " + self._type + ", size = " + str(self._size) + ", order = " + str(self._order)
 
 
 class H1(FunctionSpace):
