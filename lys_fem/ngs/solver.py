@@ -24,7 +24,7 @@ class SolverBase:
         util.dti.isTimeDependent = variableStep
         self._index = -1
 
-        self._fes = util.FiniteElementSpace(model.variables, mesh, jacobi=self._mat.jacobi)
+        self._fes = util.FiniteElementSpace(model.variables, mesh)
         self._sols = self._initializeSolution(obj.steps[0], model, timeDep)
         self._ops = [self._initializeSolver(self._fes, model, self._sols, step) for step in obj.steps]
         self._data = _DataStorage(self._sols, "Solutions/" + dirname)
@@ -98,7 +98,7 @@ class SolverBase:
         return self._mat[expr].replace(d).integrate(self._fes)
 
     def updateMesh(self, mesh):
-        self._fes = util.FiniteElementSpace(self._model.variables, mesh, jacobi=self._mat.jacobi)
+        self._fes = util.FiniteElementSpace(self._model.variables, mesh)
         self._sols = Solution(self._fes, old=self._sols)
         self._ops = [self._initializeSolver(self._fes, self._model, self._sols, step) for step in self._obj.steps]
         self._data.update(self._sols, True)

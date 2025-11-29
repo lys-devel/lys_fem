@@ -52,7 +52,7 @@ class NGSFunction(NGSFunctionBase):
         elif isinstance(self._obj, list):
             res = ngsolve.CoefficientFunction(tuple([obj.eval(fes) for obj in self._obj]), dims=self.shape)
         if self._J is not None and len(res.shape) > 0:
-            res = applyJacobian(res, fes.jacobi(self._J))
+            res = applyJacobian(res, self._J.eval(fes))
         return res
 
     def grad(self, fes):
@@ -163,7 +163,7 @@ class DomainWiseFunction(NGSFunctionBase):
             res = fes.mesh.BoundaryCF(coefs, default=default)
 
         if self._J is not None:
-            res = applyJacobian(res, fes.jacobi(self._J))
+            res = applyJacobian(res, self._J.eval(fes))
         return res
 
     def grad(self, fes):

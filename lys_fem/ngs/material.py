@@ -14,15 +14,6 @@ class NGSParams(dict):
     def __getitem__(self, expr):
         return util.eval(expr, dict(self), name=str(expr))
     
-    @property
-    def jacobi(self):
-        res = {}
-        if "J" in self:
-            res["J"] = self["J"].T
-        if "R" in self:
-            res["R"] = self["R"]
-        return res
-
     def updateSolutionFields(self, step):
         for key, f in self.items():
             if isinstance(f, util.SolutionFieldFunction) and f.isTimeDependent:

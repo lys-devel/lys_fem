@@ -22,8 +22,9 @@ class Materials(FEMObjectList):
 
     def eval(self, d):
         res = {}
+        R = self._jacobi()
         for key, value in self._materialDict().items():
-            res[key] = util.eval(value, d, name=key, geom="domain", J="R" if key != "R" else None)
+            res[key] = util.eval(value, d, name=key, geom="domain", J=R if key != "R" else None)
         return res
 
     def _materialDict(self):
@@ -40,9 +41,6 @@ class Materials(FEMObjectList):
         for group, params in groups.items():
             for pname in params:
                 res[pname] = self.__generateCoefForParameter(pname, group)
-        J = self._jacobi()
-        if J is not None:
-            res["R"] = J
         return res
 
     def _jacobi(self):
@@ -54,7 +52,7 @@ class Materials(FEMObjectList):
                 for d in m.geometries:
                     J[d] = np.array([R[0]/np.linalg.norm(R[0]), R[1]/np.linalg.norm(R[1]), R[2]/np.linalg.norm(R[2])])
         if len(J) > 1:
-            return J
+            return util.eval(J, name="R", geom="domain")
         else:
             return None
 

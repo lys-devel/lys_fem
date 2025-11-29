@@ -81,12 +81,11 @@ class FiniteElementSpace:
         mesh(aaa): The mesh object.
 
     """
-    def __init__(self, vars, mesh, jacobi={}):
+    def __init__(self, vars, mesh):
         self._mesh = mesh
         self._vars = [vars] if isinstance(vars, FunctionSpace) else vars
         self._fes = prod([v.eval(mesh) for v in self._vars])
         self._tnt = self._TnT_dict(self._vars, self._fes)
-        self._jacobi = {key: value.eval(self) for key, value in jacobi.items()}
 
     def _TnT_dict(self, vars, fes):
         if isinstance(fes, (ngsolve.ProductSpace, ngsolve.comp.Compress)):
@@ -112,10 +111,7 @@ class FiniteElementSpace:
     @property
     def variables(self):
         return self._vars
-    
-    def jacobi(self, name="J"):
-        return self._jacobi.get(name)
-    
+        
     def compress(self, symbols):
         if symbols is None:
             return self
@@ -159,7 +155,6 @@ class CompressedFESpace(FiniteElementSpace):
         self._symbols = symbols
         self._mesh = parent.mesh
         self._vars = parent.variables
-        self._jacobi = parent._jacobi
 
         self._fes = prod([v.eval(self._mesh) for v in self._vars if v.name in symbols])
         self._tnt = self._TnT_dict([v for v in self._vars if v.name in symbols], self._fes)

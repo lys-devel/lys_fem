@@ -1,4 +1,6 @@
 import numpy as np
+
+from lys_fem import util
 from .base import FEMObject, FEMObjectList
 from .geometry import GeometrySelection
 
@@ -91,6 +93,9 @@ class ConditionBase(FEMObject):
             return value
         else:
             return str(value)
+        
+    def eval(self, key, dic):
+        return util.eval(self._values.get(key, None), dic, name=key)
 
     def __getattr__(self, key):
         return self._values.get(key, None)
