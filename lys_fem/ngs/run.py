@@ -2,7 +2,6 @@ import time
 import ngsolve
 from . import mpi
 from .mesh import generateMesh
-from .material import generateMaterial
 from .models import generateModel
 from .solver import generateSolver
 
@@ -53,7 +52,7 @@ def createSolver(fem):
     mpi.print_()
 
     start = time.time()
-    mats = generateMaterial(fem)
+    mats = fem.evaluator()
     mpi.print_("NGS Variables generated in", '{:.2f}'.format(time.time()-start), "seconds :")
     mpi.print_("\tParameters:", {key: value.shape if len(value.shape)>0 else "scalar" for key, value in mats.items()})
     mpi.print_()

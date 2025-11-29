@@ -118,7 +118,11 @@ class FEMProject:
         return self._randoms
 
     def evaluator(self, solutions=True):
-        d = dict(util.consts.asdict())
+        class FEMParameters(dict):
+            def __getitem__(self, expr):
+                return util.eval(expr, dict(self), name=str(expr))
+
+        d = FEMParameters(util.consts.asdict())
         d.update(self.parameters.eval())
         if solutions:
             d.update(self.solutionFields.eval())

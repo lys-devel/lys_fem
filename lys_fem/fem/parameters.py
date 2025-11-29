@@ -40,6 +40,11 @@ class RandomFields(dict):
     def add(self, name, type, shape=(), tdep=False):
         self[name] = util.RandomFieldFunction(type, shape, tdep, name=name)
 
+    def update(self):
+        for f in self.values():
+            if f.isTimeDependent:
+                f.update()
+
     def saveAsDictionary(self):
         return {key: value.to_dict() for key, value in self.items()}
     

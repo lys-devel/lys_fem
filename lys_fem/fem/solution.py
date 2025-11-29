@@ -7,6 +7,11 @@ class SolutionFields(dict):
     def eval(self):
         return {key: util.SolutionFieldFunction(coef.get(), tdep=coef.index is None) for key, coef in self.items()}
 
+    def update(self, step):
+        for f in self.values():
+            if f.index is None:
+                f.update(step)
+
     def saveAsDictionary(self):
         return {key: value.saveAsDictionary() for key, value in self.items()}
 

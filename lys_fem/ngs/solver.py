@@ -71,7 +71,8 @@ class SolverBase:
         if dti==0:
             self._sols.reset()
         self._index += 1
-        self._mat.updateSolutionFields(self._index)
+        self._obj.fem.randomFields.update()
+        self._obj.fem.solutionFields.update(self._index)
         util.dti.set(dti)
         util.stepn.set(self._index)
 

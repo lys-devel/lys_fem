@@ -5,7 +5,6 @@ import ngsolve
 
 from . import mpi, util
 from .mesh import generateMesh
-from .material import generateMaterial
 from .models import generateModel
 
 
@@ -14,7 +13,7 @@ class NGSSolution:
         self._fem = fem
         self._dirname = dirname
         self._index = None
-        self._mats = generateMaterial(fem, solutions=False)
+        self._mats = fem.evaluator(solutions=False)
         self._model = generateModel(fem, self._mats)
         self._last = (None, None, None)
 
