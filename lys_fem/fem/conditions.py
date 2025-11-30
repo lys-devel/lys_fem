@@ -56,6 +56,33 @@ class BoundaryConditions(ModelConditionBase):
             condition.objName = condition.className + str(i)
         super().append(condition)
 
+    @property
+    def dirichlet(self):
+        from ..models.common import DirichletBoundary
+        dirichlet = self.coef(DirichletBoundary)
+        if dirichlet is None:
+            return None
+        if isinstance(list(dirichlet.values())[0], bool):
+            size = 1
+        else:
+            size = len(list(dirichlet.values())[0])
+        dirichlet = self.__dirichlet(dirichlet, size)
+        return [dirichlet[i] for i in range(size)]
+
+    def __dirichlet(self, coef, vdim):
+        bdr_dir = [[] for _ in range(vdim)] 
+        if coef is None:
+            return bdr_dir
+        for key, value in coef.items():
+            for i, bdr in enumerate(bdr_dir):
+                if hasattr(value, "__iter__"):
+                    if value[i]:
+                        bdr.append(key)
+                elif value:
+                    bdr.append(key)
+        return list(bdr_dir)
+
+
 
 class InitialConditions(ModelConditionBase):
     def append(self, condition):

@@ -279,6 +279,12 @@ class LLG_test(FEMTestCase):
 
         # solution
         sol = FEMSolution()
+        res = sol.eval("m[0]", data_number=0)
+        for w in res:
+            self.assert_array_almost_equal(w.data, np.ones(w.data.shape), decimal=2)
+        res = sol.eval("m[1]", data_number=0)
+        for w in res:
+            self.assert_array_almost_equal(w.data, np.zeros(w.data.shape), decimal=3)
         res = sol.eval("m[0]", data_number=25*factor)
         for w in res:
             self.assert_array_almost_equal(w.data, np.zeros(w.data.shape), decimal=2)
@@ -446,7 +452,7 @@ class LLG_test(FEMTestCase):
         p.models.append(model1)
 
         # model: boundary and initial conditions
-        model2 = llg.LLGModel([llg.LLGEquation(geometries=domain)])
+        model2 = llg.LLGModel(geometries=domain)
         model2.initialConditions.append(llg.InitialCondition([0, 0, 1], geometries=domain))
         p.models.append(model2)
 

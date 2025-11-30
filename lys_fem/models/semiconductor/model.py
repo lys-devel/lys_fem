@@ -1,22 +1,7 @@
 import numpy as np
-from lys_fem import FEMFixedModel, Equation, DomainCondition
+from lys_fem import FEMFixedModel, util
 from .. import common
 from . import DirichletBoundary
-
-class SemiconductorDriftDiffusionEquation(Equation):
-    className = "Semiconductor Drift Diffusion Equation"
-    def __init__(self, varName="n", potential="phi", temperature=None, **kwargs):
-        super().__init__(varName, **kwargs)
-        self._potName=potential
-        self._temp = temperature
-
-    @property
-    def potName(self):
-        return self._potName
-    
-    @property
-    def tempName(self):
-        return self._temp
 
 
 class InitialCondition(common.InitialCondition):
@@ -39,9 +24,25 @@ class InitialCondition(common.InitialCondition):
 
 class SemiconductorModel(FEMFixedModel):
     className = "Semiconductor"
-    equationTypes = [SemiconductorDriftDiffusionEquation]
     initialConditionTypes = [InitialCondition]
     boundaryConditionTypes = [DirichletBoundary]
 
     def __init__(self, *args, **kwargs):
-        super().__init__(2, *args, **kwargs)
+        super().__init__(2, *args, varName="n", **kwargs)
+        self.phi = "phi"
+        self.T = None
+
+    def functionSpaces(self):
+        dirichlet = self.boundaryConditions.dirichlet
+        if dirichlet is None:
+            dirichlet = [None, None]
+        kwargs = {"size": 1, "isScalar": True, "order": self.order, "geometries": self.geometries}
+        return [util.FunctionSpace(self.variableName+"_e", dirichlet=[dirichlet[0]], **kwargs), util.FunctionSpace(self.variableName+"_h", dirichlet=[dirichlet[1]], **kwargs)]
+    
+    def initialValues(self, params):
+        x = super().initialValues(params)[0]
+        return [x[0], x[1]]
+
+    def initialVelocities(self, params):
+        v = super().initialVelocities(params)[0]
+        return [v[0], v[1]]

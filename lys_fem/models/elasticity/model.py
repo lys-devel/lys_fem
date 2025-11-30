@@ -1,11 +1,5 @@
-from lys_fem import FEMModel, Equation, DomainCondition
+from lys_fem import FEMModel, DomainCondition
 from . import InitialCondition, DirichletBoundary
-
-
-class ChristffelEquation(Equation):
-    className = "Christffel Equation"
-    def __init__(self, varName="u", **kwargs):
-        super().__init__(varName, **kwargs)
 
 
 class ThermoelasticStress(DomainCondition):
@@ -32,12 +26,11 @@ class DeformationPotential(DomainCondition):
 
 class ElasticModel(FEMModel):
     className = "Elasticity"
-    equationTypes = [ChristffelEquation]
     boundaryConditionTypes = [DirichletBoundary]
     domainConditionTypes = [ThermoelasticStress, DeformationPotential]
     initialConditionTypes = [InitialCondition]
 
     def __init__(self, nvar=3, discretization="NewmarkBeta", *args, **kwargs):
-        super().__init__(nvar, *args, discretization=discretization, **kwargs)
+        super().__init__(nvar, *args, varName="u", discretization=discretization, **kwargs)
 
 

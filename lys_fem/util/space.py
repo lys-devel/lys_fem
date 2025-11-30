@@ -65,7 +65,7 @@ class FunctionSpace:
         return TestFunction(self)
     
     def __str__(self):
-        return "symbol = " + self._name + ", space = " + self._type + ", size = " + str(self._size) + ", order = " + str(self._order)
+        return "symbol = " + self._name + ", space = " + self._type + ", size = " + str(self._size) + ", order = " + str(self._order) + ", valtype = " + str(self._valtype)
 
 
 class H1(FunctionSpace):

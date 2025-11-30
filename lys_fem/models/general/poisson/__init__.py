@@ -1,2 +1,2 @@
-from .model import PoissonModel, PoissonEquation, AxialPoissonEquation
+from .model import PoissonModel
 from .ngs import NGSPoissonModel

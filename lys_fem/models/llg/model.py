@@ -1,12 +1,7 @@
 
 
-from lys_fem import FEMFixedModel, Equation, DomainCondition, GeometrySelection
+from lys_fem import FEMFixedModel, DomainCondition, util
 from . import DirichletBoundary
-
-class LLGEquation(Equation):
-    className = "LLG Equation"
-    def __init__(self, varName="m", **kwargs):
-        super().__init__(varName, **kwargs)
 
 
 class ExternalMagneticField(DomainCondition):
@@ -97,12 +92,12 @@ class ThermalFluctuation(DomainCondition):
 
 class LLGModel(FEMFixedModel):
     className = "LLG"
-    equationTypes = [LLGEquation]
     domainConditionTypes = [ExternalMagneticField, UniaxialAnisotropy, CubicAnisotropy, MagneticScalarPotential, CubicMagnetoStriction, CubicMagnetoRotationCoupling, BarnettEffect, SpinTransferTorque, ThermalFluctuation]
     boundaryConditionTypes = [DirichletBoundary]
 
     def __init__(self, *args, constraint="Lagrange", order=2, **kwargs):
-        super().__init__(3, order=order, *args, **kwargs)
+        valtype = "v" if constraint=="Alouges" else "x"
+        super().__init__(3, *args, order=order, varName="m", valType=valtype, **kwargs)
         self._constraint = constraint
 
     @property
@@ -112,6 +107,31 @@ class LLGModel(FEMFixedModel):
     @property
     def constraint(self):
         return self._constraint
+
+    def functionSpaces(self):
+        fes = super().functionSpaces()[0]
+
+        kwargs = {"size": 1, "isScalar": True}
+        if self.constraint == "Alouges":
+            kwargs.update({"order": self.order-1, "fetype": self.fetype})
+        elif self.constraint == "Lagrange":
+            kwargs.update({"order": 0, "fetype": "L2"})
+        else:
+            return [fes]
+
+        return [fes, util.FunctionSpace(self.variableName+"_lam", geometries=self.geometries, **kwargs)]
+
+    def initialValues(self, params):
+        x0 = super().initialValues(params)
+        if self.constraint in ["Alouges", "Lagrange"]:
+            x0.append(util.eval(0))
+        return x0
+
+    def initialVelocities(self, params):
+        v0 = super().initialVelocities(params)
+        if self.constraint in ["Alouges", "Lagrange"]:
+            v0.append(util.eval(0))
+        return v0
 
     @classmethod
     def loadFromDictionary(cls, d):
