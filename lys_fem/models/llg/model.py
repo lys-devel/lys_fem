@@ -96,120 +96,48 @@ class LLGModel(FEMFixedModel):
     domainConditionTypes = [ExternalMagneticField, UniaxialAnisotropy, CubicAnisotropy, MagneticScalarPotential, CubicMagnetoStriction, CubicMagnetoRotationCoupling, BarnettEffect, SpinTransferTorque, ThermalFluctuation]
     boundaryConditionTypes = [DirichletBoundary]
 
-    def __init__(self, *args, constraint="Lagrange", order=2, **kwargs):
-        valtype = "v" if constraint=="Alouges" else "x"
-        super().__init__(3, *args, order=order, varName="m", valType=valtype, **kwargs)
-        self._constraint = constraint
-
-    @property
-    def discretizationTypes(self):
-        return ["LLG Asym"] + super().discretizationTypes
-
-    @property
-    def constraint(self):
-        return self._constraint
+    def __init__(self, *args, order=2, **kwargs):
+        super().__init__(3, *args, order=order, varName="m", valType="v", **kwargs)
 
     def functionSpaces(self):
         fes = super().functionSpaces()[0]
 
-        kwargs = {"size": 1, "isScalar": True}
-        if self.constraint == "Alouges":
-            kwargs.update({"order": self.order-1, "fetype": self.fetype})
-        elif self.constraint == "Lagrange":
-            kwargs.update({"order": 0, "fetype": "L2"})
-        else:
-            return [fes]
-
+        kwargs = {"size": 1, "isScalar": True, "order": self.order-1, "fetype": self.fetype}
         return [fes, util.FunctionSpace(self.variableName+"_lam", geometries=self.geometries, **kwargs)]
 
     def initialValues(self, params):
         x0 = super().initialValues(params)
-        if self.constraint in ["Alouges", "Lagrange"]:
-            x0.append(util.eval(0))
+        x0.append(util.eval(0))
         return x0
 
     def initialVelocities(self, params):
         v0 = super().initialVelocities(params)
-        if self.constraint in ["Alouges", "Lagrange"]:
-            v0.append(util.eval(0))
+        v0.append(util.eval(0))
         return v0
 
     def discretize(self, dti):
-        if self.constraint == "Alouges":
-            d = {}
-            for v in self.functionSpaces():
-                if "_lam" in v.name:
-                    continue
-                trial = util.trial(v)
-                mn = util.prev(trial)
-                d[trial] = mn
-                d[trial.t] = trial
-            return d
-            
-        return super().discretize(dti)
+        d = {}
+        for v in self.functionSpaces():
+            if "_lam" in v.name:
+                continue
+            trial = util.trial(v)
+            mn = util.prev(trial)
+            d[trial] = mn
+            d[trial.t] = trial
+        return d
 
     def updater(self, dti):
         d = super().updater(dti)
-        if self.constraint == "Projection":
-            for v in self.functionSpaces():
-                trial = util.trial(v)
-                d[trial] = trial/util.norm(trial)
-        elif self.constraint == "Alouges":
-            for v in self.functionSpaces():
-                if "_lam" in v.name:
-                    continue
-                trial = util.trial(v)
-                m = util.prev(trial) + trial/dti
-                d[trial] = m/util.norm(m)
-                d[trial.t] = trial
+        for v in self.functionSpaces():
+            if "_lam" in v.name:
+                continue
+            trial = util.trial(v)
+            m = util.prev(trial) + trial/dti
+            d[trial] = m/util.norm(m)
+            d[trial.t] = trial
         return d
 
     def weakform(self, vars, mat):
-        if self.constraint == "Alouges":
-            return self._weakform_alouges(vars, mat)
-        else:
-            return self._weakform_default(vars, mat)
-
-    def _weakform_default(self, vars, mat):
-        Ms = mat["Ms"]
-        A = 2*mat["Aex"] * g_e / Ms
-        alpha = mat["alpha_LLG"]
-
-        wf = 0
-        m, test_m = vars[self.variableName]
-
-        # Left-hand side, normalization, exchange term
-        wf += m.t.dot(test_m)*dx
-        wf += A * grad(m).cross(m).ddot(grad(test_m))*dx
-        wf += -alpha * m.cross(m.t).dot(test_m)*dx
-
-        if self.constraint == "Lagrange":
-            lam, test_lam = vars[self.variableName+"_lam"]
-            scale = util.max(dti, 1)#1e11
-            wf += 2*lam*m.dot(test_m)*scale*dx
-            wf += (-1e-5*lam + (m.dot(m)-1))*test_lam*scale*dx
-
-        for ex in self.domainConditions.get(ExternalMagneticField):
-            B = mat[ex.values]
-            wf += g_e*m.cross(B).dot(test_m)*dx(ex.geometries)
-        
-        for uni in self.domainConditions.get(UniaxialAnisotropy):
-            u, Ku = mat["u_Ku/norm(u_Ku)"], mat["Ku"]
-            B = 2*Ku/Ms*m.dot(u)*u
-            wf += g_e*m.cross(B).dot(test_m)*dx(uni.geometries)
-
-        for sc in self.domainConditions.get(MagneticScalarPotential):
-            phi = mat[sc.values]
-            wf += g_e*m.cross(-mu_0*grad(phi)).dot(test_m)*dx(sc.geometries)
-
-        for st in self.domainConditions.get(SpinTransferTorque):
-            beta = mat["beta_st"]
-            u = mu_B/e*Ms * mat[st.values]
-            wf += u.dot(grad(m)).dot(test_m) - beta * m.cross(u.dtot(grad(m))).dot(test_m)
-
-        return wf
-
-    def _weakform_alouges(self, vars, mat):
         Ms = mat["Ms"]
         A = 2*mat["Aex"] * g_e / Ms
         alpha = mat["alpha_LLG"]
@@ -285,18 +213,6 @@ class LLGModel(FEMFixedModel):
             wf += -g_e*B.dot(test_m)*dx(th.geometries)
 
         return wf
-
-    @classmethod
-    def loadFromDictionary(cls, d):
-        m = super().loadFromDictionary(d)
-        if "constraint" in d:
-            m._constraint = d["constraint"]
-        return m
-
-    def saveAsDictionary(self):
-        d = super().saveAsDictionary()
-        d["constraint"] = self._constraint
-        return d
 
     def widget(self, fem, canvas):
         from .widgets import LLGModelWidget

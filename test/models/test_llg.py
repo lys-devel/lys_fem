@@ -11,7 +11,7 @@ g = 1.760859770e11
 T = 2*np.pi/g
 
 class LLG_test(FEMTestCase):
-    def test_domainWall(self, constraint="Alouges", discretization="BackwardEuler"):
+    def test_domainWall(self, discretization="BackwardEuler"):
         p = FEMProject(1)
 
         # geometry
@@ -27,7 +27,7 @@ class LLG_test(FEMTestCase):
 
         # model: boundary and initial conditions
         x,y,z = sp.symbols("x,y,z")
-        model = llg.LLGModel(constraint=constraint, discretization=discretization)
+        model = llg.LLGModel(constraint="Alouges", discretization=discretization)
 
         mz = -(x-1e-6)/1e-6
         my = sp.sqrt(1 - mz**2)
@@ -37,11 +37,7 @@ class LLG_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        if constraint == "Alouges":
-            solver = RelaxationSolver(dt0=1e-12, dt_max=1e-8, dx=0.2, diff_expr="m", solver="pardiso")
-        else:
-            solver = RelaxationSolver(dt0=1e-12, dt_max=1e-8, dx=0.2, damping=0.99, maxiter=300, diff_expr="m")
-        
+        solver = RelaxationSolver(dt0=1e-12, dt_max=1e-8, dx=0.2, diff_expr="m", solver="pardiso")        
         p.solvers.append(solver)
 
         # solve
@@ -62,7 +58,7 @@ class LLG_test(FEMTestCase):
         for w in res:
             self.assert_array_almost_equal(w.data, -np.sin(solution(w.x[:,0]-1e-6, 1e-11, 1e3)), decimal=2)
 
-    def test_anisU(self, constraint="Alouges", discretization="BackwardEuler"):
+    def test_anisU(self, discretization="BackwardEuler"):
         p = FEMProject(1)
 
         # geometry
@@ -74,7 +70,7 @@ class LLG_test(FEMTestCase):
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
-        model = llg.LLGModel(constraint=constraint, discretization=discretization)
+        model = llg.LLGModel(constraint="Alouges", discretization=discretization)
         model.initialConditions.append(llg.InitialCondition([0, 0, -1], geometries="all"))
         model.domainConditions.append(llg.UniaxialAnisotropy(geometries="all"))
         p.models.append(model)
@@ -128,7 +124,7 @@ class LLG_test(FEMTestCase):
         res = sol.eval("m", data_number=-1, coords=[0])
         self.assert_array_almost_equal(res, [1,0,0], decimal=5)
 
-    def test_precession(self, constraint="Alouges", discretization="BackwardEuler"):
+    def test_precession(self, discretization="BackwardEuler"):
         factor = 10
         p = FEMProject(1)
 
@@ -143,16 +139,13 @@ class LLG_test(FEMTestCase):
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
-        model = llg.LLGModel(constraint=constraint, discretization=discretization, type="L2")
+        model = llg.LLGModel(constraint="Alouges", discretization=discretization, type="L2")
         model.initialConditions.append(llg.InitialCondition([1, 0, 0], geometries="all"))
         model.domainConditions.append(llg.ExternalMagneticField([0,0,1], geometries="all"))
         p.models.append(model)
 
         # solver
-        if constraint == "Alouges":
-            solver = TimeDependentSolver(T/100/factor, T/2, steps=[SolverStep(solver="pardiso")])
-        else:
-            solver = TimeDependentSolver(T/100/factor, T/2, steps=[SolverStep(solver="sparsecholesky")])
+        solver = TimeDependentSolver(T/100/factor, T/2, steps=[SolverStep(solver="pardiso")])
         p.solvers.append(solver)
 
         # solve
@@ -193,7 +186,7 @@ class LLG_test(FEMTestCase):
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
-        model = llg.LLGModel(contraint="Alouges", discretization="BackwardEuler")
+        model = llg.LLGModel(constraint="Alouges", discretization="BackwardEuler")
         model.initialConditions.append(llg.InitialCondition([1, 0, 0], geometries="all"))
         model.domainConditions.append(llg.ExternalMagneticField([0,0,1], geometries="all"))
         p.models.append(model)
@@ -270,7 +263,7 @@ class LLG_test(FEMTestCase):
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
-        model1 = llg.LLGModel(contraint="Alouges", discretization="BackwardEuler", type="L2")
+        model1 = llg.LLGModel(constraint="Alouges", discretization="BackwardEuler", type="L2")
         model1.initialConditions.append(llg.InitialCondition([1, 0, 0], geometries="all"))
         model1.domainConditions.append(llg.MagneticScalarPotential("phi", geometries="all"))
         p.models.append(model1)
@@ -369,7 +362,7 @@ class LLG_test(FEMTestCase):
         p.materials.append(Material([param], geometries="all"))
 
         # model: boundary and initial conditions
-        model = llg.LLGModel([llg.LLGEquation(geometries="all")], constraint="Alouges", type="H1", order=1)
+        model = llg.LLGModel([llg.LLGEquation(geometries="all")], type="H1", order=1)
         model.initialConditions.append(llg.InitialCondition([1, 0, 0], geometries="all"))
         model.domainConditions.append(llg.ThermalFluctuation(T=100, R="R", geometries="all"))
         p.models.append(model)
