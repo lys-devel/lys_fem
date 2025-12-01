@@ -42,6 +42,7 @@ def info():
         print_("MPI: No MPI. Run in serial mode.")
         print_()
 
+
 def wait():
     if not isParallel():
         return

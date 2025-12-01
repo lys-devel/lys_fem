@@ -33,7 +33,7 @@ class poisson_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         def solution(r):
             return rho*np.where(r<=-1, -(r+3), np.where(r>=1, r-3, r**2/2-2.5))
@@ -69,7 +69,7 @@ class poisson_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         def solution(r):
             return rho/4*np.where(r<=1, r**2-1-2*np.log(r0), 2*np.log(r/r0))
@@ -105,7 +105,7 @@ class poisson_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         def solution(r):
             return rho/4*np.where(r<=1, r**2-1-2*np.log(r0), 2*np.log(r/r0))
@@ -137,7 +137,7 @@ class poisson_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         def solution(r, a, r0, rho):
             return np.where(r<=a, rho*(-r**2/6+a**2/2-a**3/(3*r0)), rho*(-a**3/(3*r0)+a**3/(3*r)))
@@ -170,7 +170,7 @@ class poisson_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         def solution(r, a, rho):
             return rho*np.where(r<=a, -r**2/6+a**2/2, a**3/(3*r))

@@ -32,7 +32,7 @@ class magnetostatistics_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         def solution(r):
             return rho/4*np.where(r<=1, r**2-1-2*np.log(r0), 2*np.log(r/r0))
@@ -73,7 +73,7 @@ class magnetostatistics_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         def solution(x, y, z, a, Ms):
             r = np.sqrt(x**2+y**2+z**2)-1e-16

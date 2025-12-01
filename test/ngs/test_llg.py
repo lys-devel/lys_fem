@@ -1,6 +1,6 @@
-from lys_fem import ngs
 from ..models import LLG_test
 
+ngs = 1
 class ngs_LLG_test(LLG_test):
     def test_precession1(self):
         self.precession(ngs)

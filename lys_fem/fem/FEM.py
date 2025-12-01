@@ -4,6 +4,7 @@ from .base import FEMObjectList
 from .parameters import Parameters, RandomFields
 from .geometry import GeometryGenerator
 from .mesh import OccMesher
+from .mesh_impl import generateMesh
 from .material import Material, Materials
 from .model import loadModel
 from .solver import FEMSolver
@@ -137,6 +138,10 @@ class FEMProject:
         return CompositeModel(self._models)
 
     @property
+    def mesh(self):
+        return generateMesh(self)
+
+    @property
     def domainAttributes(self):
         return self.geometries.geometryAttributes(self._dim)
 
@@ -152,6 +157,10 @@ class FEMProject:
         else:
             mesher = self._mesher
         return mesher.getMeshWave(self._geom.generateGeometry(), dim=dim)
+
+    def run(self):
+        from .run import run
+        run(self)
 
 
 class CompositeModel:

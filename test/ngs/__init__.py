@@ -3,7 +3,7 @@ import numpy as np
 import sympy as sp
 import lys
 
-from lys_fem import geometry, ngs
+from lys_fem import geometry
 
 from ..base import FEMTestCase
 

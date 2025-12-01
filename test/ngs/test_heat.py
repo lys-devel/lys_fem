@@ -1,6 +1,6 @@
-from lys_fem import ngs
 from ..models import heat_test
 
+ngs = 1
 class ngs_heat_test(heat_test):
     def test_1d_dirichlet(self):
         self.dirichlet_1d(ngs)

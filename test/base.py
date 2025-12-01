@@ -3,7 +3,7 @@ import os
 import shutil
 import gmsh
 
-from lys_fem import ngs
+from lys_fem.fem import mpi
 from numpy.testing import assert_array_equal, assert_array_almost_equal, assert_allclose
 
 
@@ -11,17 +11,17 @@ class FEMTestCase(unittest.TestCase):
     path = "test/run"
 
     def setUp(self):
-        if ngs.mpi.isRoot:
+        if mpi.isRoot:
             os.makedirs(self.path, exist_ok=True)
-        ngs.mpi.wait()
+        mpi.wait()
         self._cwd = os.getcwd()
         os.chdir(self.path)
-        ngs.mpi.wait()
+        mpi.wait()
 
     def tearDown(self):
-        ngs.mpi.wait()
+        mpi.wait()
         os.chdir(self._cwd)
-        if ngs.mpi.isRoot:
+        if mpi.isRoot:
             shutil.rmtree(self.path)
 
     def assert_array_equal(self, *args, **kwargs):

@@ -45,7 +45,7 @@ class LLG_test(FEMTestCase):
         p.solvers.append(solver)
 
         # solve
-        lib.run(p)
+        p.run()
 
         def solution(x, A, K):
             return 2*np.arctan(np.exp(np.sqrt(K/A)*x))-np.pi/2
@@ -101,7 +101,7 @@ class LLG_test(FEMTestCase):
 
         try:
             # solve
-            lib.run(p)
+            p.run()
         except:
             pass
 
@@ -143,7 +143,7 @@ class LLG_test(FEMTestCase):
         p.solvers.append(solver)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -176,7 +176,7 @@ class LLG_test(FEMTestCase):
         p.solvers.append(solver)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -230,7 +230,7 @@ class LLG_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         def solution(x, y, z, a, Ms):
             r = np.sqrt(x**2+y**2+z**2)-1e-16
@@ -275,7 +275,7 @@ class LLG_test(FEMTestCase):
         p.solvers.append(solver)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -322,7 +322,7 @@ class LLG_test(FEMTestCase):
         p.solvers.append(solver)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -356,7 +356,7 @@ class LLG_test(FEMTestCase):
         p.solvers.append(solver)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -403,7 +403,7 @@ class LLG_test(FEMTestCase):
         p.solvers.append(solver)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -461,7 +461,7 @@ class LLG_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         def solution(x, y, z, a, Ms):
             r = np.sqrt(x**2+y**2+z**2)-1e-16
@@ -502,7 +502,7 @@ class LLG_test(FEMTestCase):
         p.solvers.append(solver)
 
         # solve
-        lib.run(p)
+        p.run()
 
         sol = FEMSolution()
         res = np.array(sol.integrate("m[2]", data_number=-1, element_wise=True))/1e-24
@@ -533,7 +533,7 @@ class LLG_test(FEMTestCase):
         p.solvers.append(solver)
 
         # solve
-        lib.run(p)
+        p.run()
 
         sol = FEMSolution()
         import matplotlib.pyplot as plt
@@ -572,7 +572,7 @@ class LLG_test(FEMTestCase):
         p.solvers.append(solver)
 
         # solve
-        lib.run(p)
+        p.run()
 
         a,b,c = -B2*e12, -B2*e31-2*B1*e11+2*B1*e22, 2*B2*e12
         r1, r2 = (-b+np.sqrt(b**2-4*a*c))/(2*a),(-b-np.sqrt(b**2-4*a*c))/(2*a)
@@ -608,7 +608,7 @@ class LLG_test(FEMTestCase):
         p.solvers.append(solver)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()

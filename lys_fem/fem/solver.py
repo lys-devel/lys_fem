@@ -1,6 +1,7 @@
 import numpy as np
-from .base import FEMObject
 
+from .base import FEMObject
+from .solver_impl import _RelaxationSolver, _TimeDependentSolver, _StationarySolver
 
 class SolverStep:
     """
@@ -170,12 +171,16 @@ class FEMSolver(FEMObject):
         return solver(**d)
 
 
+
 class StationarySolver(FEMSolver):
     className = "Stationary Solver"
 
     def widget(self, fem):
         from ..gui import StationarySolverWidget
         return StationarySolverWidget(fem, self)
+
+    def solver(self, mesh, model, mat, dirname):
+        return _StationarySolver(self, mesh, model, mat, dirname=dirname, timeDep=False)
 
 
 class RelaxationSolver(FEMSolver):
@@ -228,6 +233,9 @@ class RelaxationSolver(FEMSolver):
         d["tolerance"] = self._tolerance
         return d
 
+    def solver(self, mesh, model, mat, dirname):
+        return _RelaxationSolver(self, mesh, model, mat, dirname=dirname)
+
 
 class TimeDependentSolver(FEMSolver):
     className = "Time Dependent Solver"
@@ -249,6 +257,9 @@ class TimeDependentSolver(FEMSolver):
         d["step"] = self._step
         d["stop"] = self._stop
         return d
+
+    def solver(self, mesh, model, mat, dirname):
+        return _TimeDependentSolver(self, mesh, model, mat, dirname=dirname)
 
 
 solvers = {"Stationary": [StationarySolver, RelaxationSolver], "Time dependent": [TimeDependentSolver]}

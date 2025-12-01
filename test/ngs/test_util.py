@@ -4,7 +4,7 @@ import ngsolve
 from numpy.testing import assert_almost_equal
 from lys_fem import geometry
 from lys_fem.fem import FEMProject
-from lys_fem.ngs import util, mesh
+from lys_fem import util
 
 from ..base import FEMTestCase
 
@@ -16,7 +16,7 @@ class test_util(FEMTestCase):
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
         p.geometries.add(geometry.Line(1, 0, 0, 2, 0, 0))
 
-        return mesh.generateMesh(p)
+        return p.mesh
     
     def test_space(self):
         m = self._make_mesh()
@@ -41,7 +41,7 @@ class test_util(FEMTestCase):
         import numpy as np
         p = FEMProject(1)
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
-        m = mesh.generateMesh(p)
+        m = p.mesh
 
         sp = util.H1("u", size = 1, order = 2, isScalar=True)
         fes = util.FiniteElementSpace(sp, m)

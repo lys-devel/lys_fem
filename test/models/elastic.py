@@ -32,7 +32,7 @@ class elasticity_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -65,7 +65,7 @@ class elasticity_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -97,7 +97,7 @@ class elasticity_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -129,7 +129,7 @@ class elasticity_test(FEMTestCase):
         p.solvers.append(solver)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -170,7 +170,7 @@ class elasticity_test(FEMTestCase):
         p.solvers.append(solver)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -205,7 +205,7 @@ class elasticity_test(FEMTestCase):
         p.solvers.append(solver)
 
         # solve
-        lib.run(p)
+        p.run()
 
     def thermoelasticity_time(self, lib):
         p = FEMProject(1)
@@ -232,7 +232,7 @@ class elasticity_test(FEMTestCase):
         p.solvers.append(solver)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -267,7 +267,7 @@ class elasticity_test(FEMTestCase):
         p.solvers.append(solver)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()

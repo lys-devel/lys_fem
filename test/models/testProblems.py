@@ -5,7 +5,7 @@ import sympy as sp
 from numpy.testing import assert_array_almost_equal
 
 from lys_fem import geometry
-from lys_fem.fem import FEMProject, StationarySolver, TimeDependentSolver, FEMSolution, SolverStep, Material
+from lys_fem.fem import FEMProject, StationarySolver, TimeDependentSolver, FEMSolution, SolverStep, Material, mpi
 from lys_fem.models import test
 
 from ..base import FEMTestCase
@@ -30,7 +30,7 @@ class testProblems_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -57,7 +57,7 @@ class testProblems_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -85,7 +85,7 @@ class testProblems_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -115,7 +115,7 @@ class testProblems_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -139,7 +139,7 @@ class testProblems_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -166,7 +166,7 @@ class testProblems_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -196,7 +196,7 @@ class testProblems_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -225,7 +225,7 @@ class testProblems_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -257,7 +257,7 @@ class testProblems_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -266,10 +266,10 @@ class testProblems_test(FEMTestCase):
             self.assert_array_almost_equal(w.data, w.x[:, 0]/2)
 
     def loadInitial_1d(self, lib):
-        if lib.mpi.isRoot:
+        if mpi.isRoot:
             os.makedirs("run1", exist_ok=True)
             os.makedirs("run2", exist_ok=True)
-        lib.mpi.wait()
+        mpi.wait()
         os.chdir("run1")
 
         p = FEMProject(1)
@@ -290,7 +290,7 @@ class testProblems_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -320,7 +320,7 @@ class testProblems_test(FEMTestCase):
         p.solvers.append(solver)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -329,10 +329,10 @@ class testProblems_test(FEMTestCase):
             self.assert_array_almost_equal(w.data, w.x[:, 0])
 
     def tdepField(self, lib):
-        if lib.mpi.isRoot:
+        if mpi.isRoot:
             os.makedirs("run1", exist_ok=True)
             os.makedirs("run2", exist_ok=True)
-        lib.mpi.wait()
+        mpi.wait()
         os.chdir("run1")
 
         p = FEMProject(1)
@@ -350,7 +350,7 @@ class testProblems_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -378,7 +378,7 @@ class testProblems_test(FEMTestCase):
         p.solvers.append(solver)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -405,7 +405,7 @@ class testProblems_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -432,7 +432,7 @@ class testProblems_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -460,7 +460,7 @@ class testProblems_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -490,7 +490,7 @@ class testProblems_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -519,7 +519,7 @@ class testProblems_test(FEMTestCase):
         p.solvers.append(solver)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()

@@ -1,4 +1,4 @@
-from lys_fem import geometry, ngs
+from lys_fem import geometry
 from lys_fem.fem import FEMProject, StationarySolver, TimeDependentSolver, FEMSolution, SolverStep, Material
 from lys_fem.models import test
 
@@ -25,7 +25,7 @@ class solution_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        ngs.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()

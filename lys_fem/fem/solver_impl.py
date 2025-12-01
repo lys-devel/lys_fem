@@ -3,30 +3,21 @@ import time
 import shutil
 import numpy as np
 
-from . import mpi, util
+from lys_fem import util
 from .solution import Solution
-
-def generateSolver(fem, mesh, model, mat):
-    solvers = {"Stationary Solver": StationarySolver, "Relaxation Solver": RelaxationSolver, "Time Dependent Solver": TimeDependentSolver}
-    result = []
-    for i, s in enumerate(fem.solvers):
-        sol = solvers[s.className]
-        solver = sol(s, mesh, model, mat, dirname="Solver" + str(i))
-        result.append(solver)
-    return result
+from . import mpi
 
 
-class SolverBase:
-    def __init__(self, obj, mesh, model, mat, dirname, timeDep=False, variableStep=False):
+class FEMEngine:
+    def __init__(self, obj, mesh, model, mat, dirname, timeDep=False):
         self._obj = obj
         self._model = model
         self._mat = mat
-        util.dti.isTimeDependent = variableStep
         self._index = -1
 
         self._fes = util.FiniteElementSpace(model.variables, mesh)
         self._sols = self._initializeSolution(obj.steps[0], model, timeDep)
-        self._ops = [self._initializeSolver(self._fes, model, self._sols, step) for step in obj.steps]
+        self._ops = _MultiStepSolver(self._fes, model, mat, self._sols, obj.steps)
         self._data = _DataStorage(self._sols, "Solutions/" + dirname)
 
     def _initializeSolution(self, step, model, timeDep):
@@ -48,26 +39,8 @@ class SolverBase:
             mpi.print_(op.solve(a))
         return Solution(self._fes, (x,v,a))
     
-    def _initializeSolver(self, fes, model, sols, step):
-        wf = model.weakforms(self._mat)
-
-        # discretize time derivative of the weakform
-        d = dict(model.discretize())
-        if step.variables is not None:
-            for v in fes.variables:
-                trial, test = util.trial(v), util.test(v)
-                if v.name not in step.variables:
-                    d.update({trial: util.prev(trial), trial.t: util.prev(trial.t), trial.tt: util.prev(trial.tt), test:0, util.grad(test): 0})
-        wf = wf.replace(d)
-
-        # Replace previous values by the present solution
-        wf = wf.replace(sols.replaceDict(trial=False, prev=True))
-
-        return util.Solver(fes.compress(step.variables), wf, step.linear, step.nonlinear, parallel=mpi.isParallel())
-
     @np.errstate(divide='ignore', invalid="ignore")
     def solve(self, dti=0):
-        start = time.time()
         if dti==0:
             self._sols.reset()
         self._index += 1
@@ -76,32 +49,14 @@ class SolverBase:
         util.dti.set(dti)
         util.stepn.set(self._index)
 
-        E0 = self.__calcDiff()
-        self._step()
-        E = self.__calcDiff()
-        mpi.print_("\tTotal step time: {:.2f}".format(time.time()-start))
-        mpi.print_()
-        return np.divide(np.linalg.norm(E-E0), np.linalg.norm(E))
-
-    def _step(self):
-        x = self._sols.copyVector()
-        for i, op  in enumerate(self._ops):
-            mpi.print_("\t=======Solver step", i+1, "=======")
-            mpi.print_(op.solve(x))
-        self.solutions.updateSolution(self._model, x)
+        diff = self._ops.solve(self._sols)
         self._data.save(self._index+1)
-
-    def __calcDiff(self):
-        expr = self._obj.diff_expr
-        if expr is None or expr=="":
-            expr = self._model.variables[0].name
-        d = self._sols.replaceDict()
-        return self._mat[expr].replace(d).integrate(self._fes)
+        return diff
 
     def updateMesh(self, mesh):
         self._fes = util.FiniteElementSpace(self._model.variables, mesh)
         self._sols = Solution(self._fes, old=self._sols)
-        self._ops = [self._initializeSolver(self._fes, self._model, self._sols, step) for step in self._obj.steps]
+        self._ops = _MultiStepSolver(self._fes, self._model, self._mat, self._sols, self._obj.steps)
         self._data.update(self._sols, True)
 
     def refineMesh(self, error):
@@ -125,11 +80,58 @@ class SolverBase:
     @property
     def name(self):
         return self._obj.className
-
-    @property
-    def obj(self):
-        return self._obj
     
+    def __str__(self):
+        return str(self._ops)
+
+
+class _MultiStepSolver:
+    def __init__(self, fes, model, mat, sols, steps):
+        self._model = model
+        self._mat = mat
+        self._fes = fes
+
+        self._ops = [self._initializeSolver(fes, model, mat, sols, step) for step in steps]
+
+    def _initializeSolver(self, fes, model, mat, sols, step):
+        wf = model.weakforms(mat)
+
+        # discretize time derivative of the weakform
+        d = dict(model.discretize())
+        if step.variables is not None:
+            for v in fes.variables:
+                trial, test = util.trial(v), util.test(v)
+                if v.name not in step.variables:
+                    d.update({trial: util.prev(trial), trial.t: util.prev(trial.t), trial.tt: util.prev(trial.tt), test:0, util.grad(test): 0})
+        wf = wf.replace(d)
+
+        # Replace previous values by the present solution
+        wf = wf.replace(sols.replaceDict(trial=False, prev=True))
+
+        return util.Solver(fes.compress(step.variables), wf, step.linear, step.nonlinear, parallel=mpi.isParallel())
+
+    def solve(self, sols, diff_expr=None):
+        start = time.time()
+        E0 = self.__calcDiff(sols, diff_expr)
+
+        x = sols.copyVector()
+        for i, op  in enumerate(self._ops):
+            mpi.print_("\t=======Solver step", i+1, "=======")
+            mpi.print_(op.solve(x))
+        sols.updateSolution(self._model, x)
+
+        E = self.__calcDiff(sols, diff_expr)
+        mpi.print_("\tTotal step time: {:.2f}".format(time.time()-start))
+        mpi.print_()
+        return np.divide(np.linalg.norm(E-E0), np.linalg.norm(E))
+
+    def __calcDiff(self, sols, diff_expr):
+        expr = diff_expr
+        if expr is None or expr=="":
+            expr = self._model.variables[0].name
+        d = sols.replaceDict()
+        return self._mat[expr].replace(d).integrate(self._fes)
+
     def __str__(self):
         res = ""
         for i, op in enumerate(self._ops):
@@ -163,26 +165,37 @@ class _DataStorage:
         self._sols.save(self._dirname + "/ngs" + str(index), mesh=self._savemesh)
 
 
-class StationarySolver(SolverBase):
+class _StationarySolver:
+    name = "Stationary Solver"
+
+    def __init__(self, obj, mesh, model, mat, **kwargs):
+        self._obj = obj
+        util.dti.isTimeDependent = False
+        self._engine = FEMEngine(obj, mesh, model, mat, **kwargs)
+
+
     def execute(self):
-        self.solve()
+        self._engine.solve()
 
         if self._obj.adaptive_mesh is not None:
             var = [v for v in self._model.variables if v.name==self._obj.adaptive_mesh.varName][0]
-            error = self.solutions.error(var)
+            error = self._engine.solutions.error(var)
             mpi.print_("\t[AMR] Adaptive Mesh Refinement started. Initial error (max,min,mean) = {:.3e}, {:.3e}, {:.3e}".format(np.max(error), np.min(error), np.mean(error)))
 
             for n in range(self._obj.adaptive_mesh.maxiter):
-                self.refineMesh(error)
-                self.solve()
+                self._engine.refineMesh(error)
+                self._engine.solve()
                 error = self.solutions.error(var)
 
                 mpi.print_("\t[AMR] Step "+str(n+2)+": Error (max,min,mean) = {:.3e}, {:.3e}, {:.3e}".format(np.max(error), np.min(error), np.mean(error)))
 
 
-class RelaxationSolver(SolverBase):
+class _RelaxationSolver:
+    name = "Relaxation Solver"
+
     def __init__(self, obj, mesh, model, mat, **kwargs):
-        super().__init__(obj, mesh, model, mat, timeDep=True, variableStep=True, **kwargs)
+        util.dti.isTimeDependent = True
+        self._engine = FEMEngine(obj, mesh, model, mat, timeDep=True, **kwargs)
         self._tSolver = obj
 
     def execute(self):
@@ -190,14 +203,14 @@ class RelaxationSolver(SolverBase):
         if self._tSolver.adaptive_mesh is None:
             return
         var = [v for v in self._model.variables if v.name==self._obj.adaptive_mesh.varName][0]
-        error = self.solutions.error(var)
+        error = self._engine.solutions.error(var)
         mpi.print_("\t[AMR] Adaptive Mesh Refinement started. Initial error (max,min,mean) = {:.3e}, {:.3e}, {:.3e}".format(np.max(error), np.min(error), np.mean(error)))
         mpi.print_()
 
         for n in range(self._obj.adaptive_mesh.maxiter):
             self.refineMesh(error)
             self._relax()
-            error = self.solutions.error(var)
+            error = self._engine.solutions.error(var)
 
             mpi.print_("\t[AMR] Step "+str(n+2)+": Error (max,min,mean) = {:.3e}, {:.3e}, {:.3e}".format(np.max(error), np.min(error), np.mean(error)))
             mpi.print_()
@@ -222,23 +235,27 @@ class RelaxationSolver(SolverBase):
 
     def _solve(self, dt):
         try:
-            return self.solve(1/dt), dt
+            return self._engine.solve(1/dt), dt
         except util.ConvergenceError:
             mpi.print_("Convergence problem detected. Time step is changed to " + str(dt/2))
             self._index -= 1
             return self._solve(dt/2)
 
 
-class TimeDependentSolver(SolverBase):
+class _TimeDependentSolver:
+    name = "Time Dependent Solver"
+
     def __init__(self, obj, mesh, model, mat, **kwargs):
-        super().__init__(obj, mesh, model, mat, timeDep=True, **kwargs)
+        util.dti.isTimeDependent = False
+        self._engine = FEMEngine(obj, mesh, model, mat, timeDep=True, **kwargs)
         self._tSolver = obj
+        self._model = model
 
     def execute(self):
         t = 0
         for i, dt in enumerate(self._tSolver.getStepList()):
             util.t.set(t)
-            dx = self.solve(1/dt)
+            dx = self._engine.solve(1/dt)
             t = t + dt
             mpi.print_("Timestep", i, ", t = {:3e}".format(t), ", dx = {:3e}".format(dx))
             if self._tSolver.adaptive_mesh is not None:
@@ -248,5 +265,3 @@ class TimeDependentSolver(SolverBase):
                 mpi.print_("\t[AMR] Error (max,min,mean) = {:.3e}, {:.3e}, {:.3e}".format(np.max(error), np.min(error), np.mean(error)))
                 self.refineMesh(error)
                 mpi.print_()
-
-

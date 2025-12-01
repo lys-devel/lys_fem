@@ -1,6 +1,6 @@
-from lys_fem import ngs
 from ..models import elasticity_test
 
+ngs = 1
 class ngs_elasticity_test(elasticity_test):
     def test_1d_dirichlet(self):
         self.dirichlet_1d(ngs)

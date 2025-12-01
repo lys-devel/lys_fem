@@ -1,8 +1,6 @@
 import time
 import ngsolve
-from . import mpi
-from .mesh import generateMesh
-from .solver import generateSolver
+from lys_fem.fem import mpi
 
 
 def run(fem, run=True, save=True, output=True, nthreads=16):
@@ -46,7 +44,7 @@ def initialize(fem, save, output, nthreads):
 
 def createSolver(fem):
     start = time.time()
-    mesh = generateMesh(fem)
+    mesh = fem.mesh
     mpi.print_("NGS Mesh generated in", '{:.2f}'.format(time.time()-start) ,"seconds : ", mesh.elements, "elements, ", mesh.nodes, "nodes,", len(mesh.GetMaterials()), "domains, ", len(mesh.GetBoundaries()), "boundaries.")
     mpi.print_()
 
@@ -64,7 +62,7 @@ def createSolver(fem):
     mpi.print_()
 
     start = time.time()
-    solvers = generateSolver(fem, mesh, model, mats)
+    solvers = [s.solver(mesh, model, mats, dirname="Solver" + str(i)) for i, s in enumerate(fem.solvers)]
     mpi.print_("NGS Solvers generated in ", '{:.2f}'.format(time.time()-start), "seconds :")
     for i, s in enumerate(solvers):
         mpi.print_("\tSolver", i+1, "(",s.name,"):")

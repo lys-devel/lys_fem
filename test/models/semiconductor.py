@@ -50,7 +50,7 @@ class semiconductor_test(FEMTestCase):
         p.solvers.append(solver)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         kB, q = 1.3806488e-23, 1.602176634e-19

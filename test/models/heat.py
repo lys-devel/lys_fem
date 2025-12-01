@@ -33,7 +33,7 @@ class heat_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -66,7 +66,7 @@ class heat_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -103,7 +103,7 @@ class heat_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -145,7 +145,7 @@ class heat_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
@@ -187,7 +187,7 @@ class heat_test(FEMTestCase):
         p.solvers.append(stationary)
 
         # solve
-        lib.run(p)
+        p.run()
 
         # solution
         sol = FEMSolution()
