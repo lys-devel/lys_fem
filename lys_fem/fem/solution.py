@@ -44,12 +44,12 @@ class SolutionField:
 
     def get(self):
         if self._index is None:
-            return self.solution.obj.coef(self.expression, -1)
+            return self.solution.coef(self.expression, -1)
         else:
-            return self.solution.obj.coef(self.expression, self.index)
+            return self.solution.coef(self.expression, self.index)
 
     def update(self, step):
-        self.solution.obj.update(step)
+        self.solution.update(step)
     
     @property
     def solution(self):
@@ -81,27 +81,10 @@ class FEMSolution:
     def __init__(self, path=".", solver="Solver0"):
         from .FEM import FEMProject
         self._fem = FEMProject.fromFile(path + "/input.dic")
-        self._path = path
-        self._sol = NGSSolution(self._fem, path+"/Solutions/"+solver)
-
-    def eval(self, varName, data_number=0, coords=None):
-        return self._sol.eval(varName, data_number, coords)
-    
-    def integrate(self, expr, data_number=0, **kwargs):
-        return self._sol.integrate(expr, data_number, **kwargs)
-
-    @property
-    def obj(self):
-        return self._sol
-
-
-class NGSSolution:
-    def __init__(self, fem, dirname):
-        self._fem = fem
-        self._dirname = dirname
+        self._dirname = path+"/Solutions/"+solver
         self._index = None
-        self._mats = fem.evaluator(solutions=False)
-        self._model = fem.compositeModel
+        self._mats = self._fem.evaluator(solutions=False)
+        self._model = self._fem.compositeModel
         self._last = (None, None, None)
 
     @property
@@ -136,10 +119,10 @@ class NGSSolution:
         d = self._sol.replaceDict()
         return self._mats[expression].replace(d).eval(self._fes)
 
-    def eval(self, expression, index, coords=None):
-        if self._last[1] != expression or self._last[2] != index:
-            f = self.coef(expression, index)
-            self._last = (f, expression, index)
+    def eval(self, expression, data_number, coords=None):
+        if self._last[1] != expression or self._last[2] != data_number:
+            f = self.coef(expression, data_number)
+            self._last = (f, expression, data_number)
         f = self._last[0]
         if coords is None:
             return self.__getDomainValues(f)
@@ -151,8 +134,8 @@ class NGSSolution:
                 mip = self.__coordsToMIP(np.array(coords))
                 return np.array(np.vectorize(f)(mip)).squeeze()
             
-    def integrate(self, expression, index, **kwargs):
-        f = self.coef(expression, index)
+    def integrate(self, expression, data_number, **kwargs):
+        f = self.coef(expression, data_number)
         return ngsolve.Integrate(f, self._mesh, **kwargs)
 
     def __getDomainValues(self, f):

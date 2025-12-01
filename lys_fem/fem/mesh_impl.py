@@ -51,6 +51,7 @@ def generateMesh(fem, geom=None):
             fem.mesher.generate(geom)
         else:
             gmesh, _ = ReadGmsh2(geom.model, fem.dimension)
+            a
         gmesh.Scale(fem.geometries.scale)
         nodes = len(gmesh.Coordinates())
 

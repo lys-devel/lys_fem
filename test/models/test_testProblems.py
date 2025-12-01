@@ -520,3 +520,33 @@ class testProblems_test(FEMTestCase):
         w = sol.eval("X", data_number=-1)[0]
         self.assertTrue(abs(np.mean(w.data)) < 1)
         self.assertTrue(80 < np.var(w.data) < 120)
+
+    def test_group(self):
+        p = FEMProject(1)
+
+        # geometry
+        p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
+        p.geometries.add(geometry.Line(1, 0, 0, 2, 0, 0))
+        p.geometries.addGroup("Boundary", "edge", [1,3])
+        p.geometries.addGroup("Domain", "D1", [1])
+        p.geometries.addGroup("Domain", "D2", [2])
+
+        # model: boundary and initial conditions
+        model = test.LinearTestModel()
+        model.boundaryConditions.append(test.DirichletBoundary([True], geometries="edge"))
+        model.initialConditions.append(test.InitialCondition(0.0, geometries="D1"))
+        model.initialConditions.append(test.InitialCondition(2.0, geometries="D2"))
+        p.models.append(model)
+
+        # solver
+        stationary = StationarySolver(steps=[SolverStep()])
+        p.solvers.append(stationary)
+
+        # solve
+        p.run()
+
+        # solution
+        sol = FEMSolution()
+        res = sol.eval("X", data_number=1)
+        for w in res:
+            self.assert_array_almost_equal(w.data, w.x[:, 0])

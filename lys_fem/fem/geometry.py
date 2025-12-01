@@ -95,7 +95,7 @@ class GmshGeometry:
 
 
 class GeometryGenerator(FEMObject):
-    def __init__(self, order=None, scale="auto"):
+    def __init__(self, order=None, scale="auto", groups=None):
         super().__init__()
         self._scale = scale
         if order is None:
@@ -103,6 +103,9 @@ class GeometryGenerator(FEMObject):
         self._order = []
         for ord in order:
             self.add(ord)
+        if groups is None:
+            groups = {"Domain": {}, "Boundary": {}, "Volume": {}, "Surface": {}, "Edge": {}, "Point": {}}
+        self._groups = groups
         self._default = None
         self._partial = None
         self._updated = True
@@ -115,6 +118,12 @@ class GeometryGenerator(FEMObject):
     def remove(self, command):
         self._order.remove(command)
         self._updated=True
+
+    def addGroup(self, type, name, tags):
+        self._groups[type][name] = tags
+
+    def removeGroup(self, type, name):
+        del self._groups[type][name]
 
     def _update(self):
         self._updated=True
@@ -160,13 +169,17 @@ class GeometryGenerator(FEMObject):
     def commands(self):
         return self._order
 
+    @property
+    def groups(self):
+        return self._groups
+
     def saveAsDictionary(self):
-        return {"geometries": [c.saveAsDictionary() for c in self.commands], "scale": self._scale}
+        return {"geometries": [c.saveAsDictionary() for c in self.commands], "scale": self._scale, "groups": self._groups}
 
     @staticmethod
     def loadFromDictionary(d):
         order = [FEMGeometry.loadFromDictionary(dic) for dic in d.get("geometries", [])]
-        return GeometryGenerator(order, scale=d.get("scale", "auto"))
+        return GeometryGenerator(order, scale=d.get("scale", "auto"), groups=d.get("groups"))
 
 
 class TransGeom:
@@ -231,12 +244,6 @@ class GeometrySelection(FEMObject):
             self._selection = list(selection)
         if parent is not None:
             self.setParent(parent)
-
-    def check(self, item):
-        if self._selection == "all":
-            return True
-        else:
-            return item in self._selection
         
     def __getitem__(self, index):
         return self._selection[index]
@@ -281,7 +288,15 @@ class GeometrySelection(FEMObject):
             attrs = self.fem.geometries.geometryAttributes(1)
         elif self._geom == "Point":
             attrs = self.fem.geometries.geometryAttributes(0)
-        return [attr for attr in attrs if self.check(attr)]
+        return [attr for attr in attrs if self._check(attr)]
+
+    def _check(self, item):
+        if self._selection == "all":
+            return True
+        elif isinstance(self._selection, str):
+            return item in self.fem.geometries.groups[self._geom][self._selection]
+        else:
+            return item in self._selection
 
     @property
     def geometryType(self):
