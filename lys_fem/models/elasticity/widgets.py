@@ -118,7 +118,6 @@ class DeformationPotentialWidget(QtWidgets.QWidget):
     def __init__(self, cond, fem, canvas):
         super().__init__()
         self._cond = cond
-        print(self._cond.values)
         self.__initlayout(fem, canvas)
 
     def __initlayout(self, fem, canvas):

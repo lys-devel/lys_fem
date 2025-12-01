@@ -27,7 +27,7 @@ class LLG_test(FEMTestCase):
 
         # model: boundary and initial conditions
         x,y,z = sp.symbols("x,y,z")
-        model = llg.LLGModel(constraint="Alouges", discretization=discretization)
+        model = llg.LLGModel(discretization=discretization)
 
         mz = -(x-1e-6)/1e-6
         my = sp.sqrt(1 - mz**2)
@@ -70,7 +70,7 @@ class LLG_test(FEMTestCase):
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
-        model = llg.LLGModel(constraint="Alouges", discretization=discretization)
+        model = llg.LLGModel(discretization=discretization)
         model.initialConditions.append(llg.InitialCondition([0, 0, -1], geometries="all"))
         model.domainConditions.append(llg.UniaxialAnisotropy(geometries="all"))
         p.models.append(model)
@@ -103,7 +103,7 @@ class LLG_test(FEMTestCase):
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
-        model = llg.LLGModel(constraint="Alouges")
+        model = llg.LLGModel()
         model.initialConditions.append(llg.InitialCondition([0.8, 0, 0.6], geometries="all"))
         model.domainConditions.append(llg.CubicAnisotropy(geometries="all"))
         p.models.append(model)
@@ -139,7 +139,7 @@ class LLG_test(FEMTestCase):
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
-        model = llg.LLGModel(constraint="Alouges", discretization=discretization, type="L2")
+        model = llg.LLGModel(discretization=discretization, type="L2")
         model.initialConditions.append(llg.InitialCondition([1, 0, 0], geometries="all"))
         model.domainConditions.append(llg.ExternalMagneticField([0,0,1], geometries="all"))
         p.models.append(model)
@@ -186,7 +186,7 @@ class LLG_test(FEMTestCase):
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
-        model = llg.LLGModel(constraint="Alouges", discretization="BackwardEuler")
+        model = llg.LLGModel(discretization="BackwardEuler")
         model.initialConditions.append(llg.InitialCondition([1, 0, 0], geometries="all"))
         model.domainConditions.append(llg.ExternalMagneticField([0,0,1], geometries="all"))
         p.models.append(model)
@@ -220,7 +220,7 @@ class LLG_test(FEMTestCase):
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
-        model1 = llg.LLGModel(constraint="Alouges", discretization="BackwardEuler", type="L2")
+        model1 = llg.LLGModel(discretization="BackwardEuler", type="H1", order=1)
         model1.initialConditions.append(llg.InitialCondition([1, 0, 0], geometries="all"))
         model1.domainConditions.append(llg.MagneticScalarPotential(z/1.25663706e-6, geometries="all"))
         p.models.append(model1)
@@ -263,13 +263,13 @@ class LLG_test(FEMTestCase):
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
-        model1 = llg.LLGModel(constraint="Alouges", discretization="BackwardEuler", type="L2")
+        model1 = llg.LLGModel(discretization="BackwardEuler", type="H1", order=1)
         model1.initialConditions.append(llg.InitialCondition([1, 0, 0], geometries="all"))
         model1.domainConditions.append(llg.MagneticScalarPotential("phi", geometries="all"))
         p.models.append(model1)
 
         model2 = em.MagnetostaticsModel()
-        model2.initialConditions.append(em.InitialCondition(z/1.25663706e-6, geometries="all"))
+        model2.initialConditions.append(em.InitialCondition("z/1.25663706e-6", geometries="all"))
         p.models.append(model2)
 
         # solver
@@ -326,7 +326,7 @@ class LLG_test(FEMTestCase):
         p.models.append(model1)
 
         # model: boundary and initial conditions
-        model2 = llg.LLGModel(constraint="Alouges", geometries=domain)
+        model2 = llg.LLGModel(geometries=domain)
         model2.initialConditions.append(llg.InitialCondition([0, 0, 1], geometries=domain))
         p.models.append(model2)
 
@@ -401,7 +401,7 @@ class LLG_test(FEMTestCase):
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
-        model = llg.LLGModel(constraint="Alouges", order=1)
+        model = llg.LLGModel(order=1)
         model.initialConditions.append(llg.InitialCondition([1/np.sqrt(3), 1/np.sqrt(3), 1/np.sqrt(3)], geometries="all"))
         model.domainConditions.append(llg.CubicMagnetoStriction("u", geometries="all"))
         p.models.append(model)
@@ -436,7 +436,7 @@ class LLG_test(FEMTestCase):
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
-        model = llg.LLGModel(constraint="Alouges", order=1)
+        model = llg.LLGModel(order=1)
         model.initialConditions.append(llg.InitialCondition([0, 0, 1], geometries="all"))
         model.domainConditions.append(llg.CubicAnisotropy(geometries="all"))
         model.domainConditions.append(llg.CubicMagnetoRotationCoupling("u*1e-3", geometries="all"))
