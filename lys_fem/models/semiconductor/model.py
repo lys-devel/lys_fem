@@ -1,5 +1,6 @@
 import numpy as np
 from lys_fem import FEMFixedModel, util
+from lys_fem.util import grad, dx
 from .. import common
 from . import DirichletBoundary
 
@@ -46,3 +47,26 @@ class SemiconductorModel(FEMFixedModel):
     def initialVelocities(self, params):
         v = super().initialVelocities(params)[0]
         return [v[0], v[1]]
+
+    def weakform(self, vars, mat):
+        q, kB = 1.602176634e-19, 1.3806488e-23
+        mu_n, mu_p, Nd, Na = mat["mu_n"], mat["mu_p"] , mat["N_d"], mat["N_a"]
+
+        wf = 0
+        n, test_n = vars[self.variableName+"_e"]
+        p, test_p = vars[self.variableName+"_h"]
+        phi, test_phi = vars[self.phi]
+        if self.T is None:
+            T = mat["T"]
+        else:
+            T = vars[self.T][0]
+        D_n, D_p = mu_n*kB*T/q, mu_p*kB*T/q
+
+        # lhs, drift current, diffusion current terms
+        wf += (n.t.dot(test_n) + p.t.dot(test_p))*dx
+        wf += grad(phi).dot(-n*mu_n*grad(test_n) + p*mu_p*grad(test_p))*dx
+        wf += D_n*grad(n).dot(grad(test_n))*dx + D_p*grad(p).dot(grad(test_p))*dx
+
+        wf -= q*(p-n+Nd-Na)*test_phi * dx 
+
+        return wf

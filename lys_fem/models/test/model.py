@@ -1,4 +1,5 @@
 from lys_fem import FEMFixedModel, util
+from lys_fem.util import grad, dx
 from . import DirichletBoundary, DomainCondition, InitialCondition
 
 
@@ -14,7 +15,13 @@ class LinearTestModel(FEMFixedModel):
     def __init__(self, *args, **kwargs):
         super().__init__(1, *args, varName="X", isScalar=True, **kwargs)
 
-        
+    def weakform(self, vars, mat):
+        wf = 0
+        u,v = vars[self.variableName]
+        wf += grad(u).dot(grad(v)) * dx
+        return wf
+
+
 class NonlinearTestModel(FEMFixedModel):
     className = "Nonlinear Test"
     boundaryConditionTypes = [DirichletBoundary]
@@ -22,6 +29,12 @@ class NonlinearTestModel(FEMFixedModel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(1, *args, varName="X", isScalar=True, **kwargs)
+
+    def weakform(self, vars, mat):
+        wf = 0
+        u,v = vars[self.variableName]
+        wf += u * grad(u).dot(grad(v)) * dx
+        return wf
 
 
 class TwoVariableTestModel(FEMFixedModel):
@@ -44,6 +57,15 @@ class TwoVariableTestModel(FEMFixedModel):
         v = super().initialVelocities(params)[0]
         return [v[0], v[1]]
 
+    def weakform(self, vars, mat):
+        x,test_x = vars["X"]
+        y,test_y = vars["Y"]
+
+        wf = 0
+        wf += (x.t*test_x + y.t*test_y) * dx
+        wf += (x-y)*test_x *dx + (y-x)*test_y*dx
+        return wf
+
 
 class ExpTestModel(FEMFixedModel):
     className = "Exp Test"
@@ -52,6 +74,12 @@ class ExpTestModel(FEMFixedModel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(1, *args, varName="X", isScalar=True, **kwargs)
+
+    def weakform(self, vars, mat):
+        wf = 0
+        x,test_x = vars["X"]
+        wf += (x.t + x)*test_x * dx
+        return wf
 
 
 class TdepFieldTestModel(FEMFixedModel):
@@ -62,6 +90,12 @@ class TdepFieldTestModel(FEMFixedModel):
     def __init__(self, *args, **kwargs):
         super().__init__(1, *args, varName="Y", isScalar=True, **kwargs)
 
+    def weakform(self, vars, mat):
+        wf = 0
+        y,test_y = vars["Y"]
+        wf += (y.t + mat["X"])*test_y * dx
+        return wf
+
 
 class ScaleTestModel(FEMFixedModel):
     className = "Scale Test"
@@ -70,6 +104,12 @@ class ScaleTestModel(FEMFixedModel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(1, *args, varName="X", isScalar=True, **kwargs)
+
+    def weakform(self, vars, mat):
+        wf = 0
+        u,v = vars[self._model.variableName]
+        wf += u * grad(u).dot(grad(v)) * dx
+        return wf
 
 
 class TwoVarGradTestModel(FEMFixedModel):
@@ -91,6 +131,15 @@ class TwoVarGradTestModel(FEMFixedModel):
         v = super().initialVelocities(params)[0]
         return [v[0], v[1]]
 
+    def weakform(self, vars, mat):
+        x,test_x = vars["X"]
+        y,test_y = vars["Y"]
+
+        wf = 0
+        wf += (x.t*test_x + y.t*test_y) * dx
+        wf += x*test_x *dx + grad(x)[0]*test_y*dx
+        return wf
+
 
 class RandomWalkModel(FEMFixedModel):
     className = "Random Walk Test"
@@ -99,3 +148,12 @@ class RandomWalkModel(FEMFixedModel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(1, *args, varName="X", isScalar=True, **kwargs)
+
+    def weakform(self, vars, mat):
+        wf = 0
+        u,v = vars[self.variableName]
+
+        for f in self.domainConditions.get(RandomForce):
+            R = mat[f.values]*util.sqrt(util.dti) # Euler-Maruyama formula
+            wf += (u.t.dot(v) - R.dot(v)) * dx(f.geometries)
+        return wf

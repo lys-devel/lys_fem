@@ -67,6 +67,14 @@ class FunctionSpace:
     def __str__(self):
         return "symbol = " + self._name + ", space = " + self._type + ", size = " + str(self._size) + ", order = " + str(self._order) + ", valtype = " + str(self._valtype)
 
+    def __eq__(self, other):
+        if not isinstance(other, FunctionSpace):
+            return False
+        return hash(self) == hash(other)
+
+    def __hash__(self):
+        return hash(self._name)
+
 
 class H1(FunctionSpace):
     def __init__(self, name, **kwargs):

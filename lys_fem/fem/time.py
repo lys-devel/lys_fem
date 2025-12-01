@@ -1,4 +1,4 @@
-from . import util
+from lys_fem import util
 
 class ForwardEuler:
     @staticmethod

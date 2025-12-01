@@ -1,5 +1,6 @@
 import numpy as np
 from lys_fem import util
+from . import time
 from .base import FEMObject
 from .conditions import DomainConditions, BoundaryConditions, InitialConditions, InitialCondition
 from .geometry import GeometrySelection
@@ -52,7 +53,34 @@ class FEMModel(FEMObject):
         for type in self.initialConditionTypes[1:]:
             init.update(self.initialConditions.coef(type).value)
         return init
-    
+
+    def discretize(self, dti):
+        d = {}
+        for v in self.functionSpaces():
+            trial = util.trial(v)
+            if self.discretization == "ForwardEuler":
+                d.update(time.ForwardEuler.generateWeakforms(trial, dti))
+            elif self.discretization == "BackwardEuler":
+                d.update(time.BackwardEuler.generateWeakforms(trial, dti))
+            elif self.discretization == "BDF2":
+                d.update(time.BDF2.generateWeakforms(trial, dti))
+            elif self.discretization == "NewmarkBeta":
+                d.update(time.NewmarkBeta.generateWeakforms(trial, dti))
+            else:
+                raise RuntimeError("Unknown discretization: "+self.discretization)
+        return d
+
+    def updater(self, dti):
+        d = self.discretize(dti)
+        res = {}
+        for v in self.functionSpaces():
+            trial = util.trial(v)
+            if trial.t in d:
+                res[trial.t] = d[trial.t]
+            if trial.tt in d:
+                res[trial.tt] = d[trial.tt]
+        return res
+
     def setVariableDimension(self, dim):
         self._nvar = dim
         for i in self._init:
@@ -121,6 +149,12 @@ class FEMModel(FEMObject):
         bdr = BoundaryConditions.loadFromDictionary(d.get("bdr", []), cls.boundaryConditionTypes)
         domain = DomainConditions.loadFromDictionary(d.get("domain", []), cls.domainConditionTypes)
         return {"equation": eqs, "initialConditions": init, "boundaryConditions": bdr, "domainConditions": domain, "discretization": d.get("discretization", "BackwardEuler")}
+
+    def __str__(self):
+        res = "\t"+self.className+": discretization = " + self.discretization + "\n"
+        for i, v in enumerate(self.functionSpaces()):
+            res += "\t\tVariable " + str(1+i) + ": " + str(v)  + "\n"
+        return res
 
     def widget(self, fem, canvas):
         from ..gui import FEMModelWidget

@@ -2,7 +2,6 @@ import time
 import ngsolve
 from . import mpi
 from .mesh import generateMesh
-from .models import generateModel
 from .solver import generateSolver
 
 
@@ -58,14 +57,14 @@ def createSolver(fem):
     mpi.print_()
 
     start = time.time()
-    model = generateModel(fem, mats)
+    model = fem.compositeModel
     mpi.print_("NGS Models generated in ", '{:.2f}'.format(time.time()-start), "seconds :")
     for m in model.models:
         mpi.print_(m)
     mpi.print_()
 
     start = time.time()
-    solvers = generateSolver(fem, mesh, model)
+    solvers = generateSolver(fem, mesh, model, mats)
     mpi.print_("NGS Solvers generated in ", '{:.2f}'.format(time.time()-start), "seconds :")
     for i, s in enumerate(solvers):
         mpi.print_("\tSolver", i+1, "(",s.name,"):")

@@ -6,21 +6,21 @@ import numpy as np
 from . import mpi, util
 from .solution import Solution
 
-def generateSolver(fem, mesh, model):
+def generateSolver(fem, mesh, model, mat):
     solvers = {"Stationary Solver": StationarySolver, "Relaxation Solver": RelaxationSolver, "Time Dependent Solver": TimeDependentSolver}
     result = []
     for i, s in enumerate(fem.solvers):
         sol = solvers[s.className]
-        solver = sol(s, mesh, model, dirname="Solver" + str(i))
+        solver = sol(s, mesh, model, mat, dirname="Solver" + str(i))
         result.append(solver)
     return result
 
 
 class SolverBase:
-    def __init__(self, obj, mesh, model, dirname, timeDep=False, variableStep=False):
+    def __init__(self, obj, mesh, model, mat, dirname, timeDep=False, variableStep=False):
         self._obj = obj
         self._model = model
-        self._mat = model.materials
+        self._mat = mat
         util.dti.isTimeDependent = variableStep
         self._index = -1
 
@@ -30,8 +30,8 @@ class SolverBase:
         self._data = _DataStorage(self._sols, "Solutions/" + dirname)
 
     def _initializeSolution(self, step, model, timeDep):
-        x, v, a = model.initialValue(self._fes)
-        wf = model.weakforms()
+        x, v, a = model.initialValue(self._fes, self._mat)
+        wf = model.weakforms(self._mat)
         if any([util.trial(var).tt in wf for var in model.variables]) and timeDep:
             d = {}
             for var in model.variables:
@@ -49,7 +49,7 @@ class SolverBase:
         return Solution(self._fes, (x,v,a))
     
     def _initializeSolver(self, fes, model, sols, step):
-        wf = model.weakforms()
+        wf = model.weakforms(self._mat)
 
         # discretize time derivative of the weakform
         d = dict(model.discretize())
@@ -181,8 +181,8 @@ class StationarySolver(SolverBase):
 
 
 class RelaxationSolver(SolverBase):
-    def __init__(self, obj, mesh, model, **kwargs):
-        super().__init__(obj, mesh, model, timeDep=True, variableStep=True, **kwargs)
+    def __init__(self, obj, mesh, model, mat, **kwargs):
+        super().__init__(obj, mesh, model, mat, timeDep=True, variableStep=True, **kwargs)
         self._tSolver = obj
 
     def execute(self):
@@ -230,8 +230,8 @@ class RelaxationSolver(SolverBase):
 
 
 class TimeDependentSolver(SolverBase):
-    def __init__(self, obj, mesh, model, **kwargs):
-        super().__init__(obj, mesh, model, timeDep=True, **kwargs)
+    def __init__(self, obj, mesh, model, mat, **kwargs):
+        super().__init__(obj, mesh, model, mat, timeDep=True, **kwargs)
         self._tSolver = obj
 
     def execute(self):

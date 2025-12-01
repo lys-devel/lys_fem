@@ -129,7 +129,12 @@ class FEMProject:
         d.update(self.randomFields)
         d.update(self.materials.eval(d))
         d.update(self.geometries.geometryParameters())
+        d.update({v.name: util.TrialFunction(v) for v in self.compositeModel.variables})
         return d
+
+    @property
+    def compositeModel(self):
+        return CompositeModel(self._models)
 
     @property
     def domainAttributes(self):
@@ -148,3 +153,39 @@ class FEMProject:
             mesher = self._mesher
         return mesher.getMeshWave(self._geom.generateGeometry(), dim=dim)
 
+
+class CompositeModel:
+    def __init__(self, models):
+        self._models = models
+
+    def weakforms(self, mat):
+        tnt = {v.name: (util.trial(v), util.test(v)) for v in self.variables}
+        return sum([model.weakform(tnt, mat) for model in self._models])
+    
+    def discretize(self):
+        d = {}
+        for m in self._models:
+            d.update(m.discretize(util.dti))
+        return d
+
+    def updater(self):
+        d = {}
+        for m in self._models:
+            d.update(m.updater(util.dti))
+        return d
+
+    def initialValue(self, fes, mat):
+        x0 = sum([m.initialValues(mat) for m in self._models], [])
+        v0 = sum([m.initialVelocities(mat) for m in self._models], [])
+        x = fes.gridFunction(x0)
+        v = fes.gridFunction(v0)
+        a = fes.gridFunction()
+        return x, v, a
+    
+    @property
+    def models(self):
+        return self._models
+    
+    @property
+    def variables(self):
+        return sum([m.functionSpaces() for m in self._models], [])      
