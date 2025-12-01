@@ -8,7 +8,7 @@ from lys_fem.models import elasticity, heat
 from ..base import FEMTestCase
 
 class elasticity_test(FEMTestCase):
-    def dirichlet_1d(self, lib):
+    def test_dirichlet_1d(self):
         p = FEMProject(1)
 
         # geometry
@@ -40,7 +40,7 @@ class elasticity_test(FEMTestCase):
         for w in res:
             self.assert_array_almost_equal(w.data, w.x[:, 0])
 
-    def dirichlet_2d(self, lib):
+    def test_dirichlet_2d(self):
         p = FEMProject(2)
         p.geometries.scale = 100
 
@@ -73,7 +73,7 @@ class elasticity_test(FEMTestCase):
         for w in res:
             self.assert_array_almost_equal(w.data, w.x[:, 0])
 
-    def dirichlet_3d(self, lib):
+    def test_dirichlet_3d(self):
         p = FEMProject(3)
 
         # geometry
@@ -105,7 +105,7 @@ class elasticity_test(FEMTestCase):
         for w in res:
             self.assert_array_almost_equal(w.data, w.x[:, 0])
 
-    def tdep_1d(self, lib):
+    def test_tdep_1d(self):
         p = FEMProject(1)
 
         # geometry
@@ -141,7 +141,7 @@ class elasticity_test(FEMTestCase):
         for w in res:
             self.assert_array_almost_equal(w.data, np.exp(-((w.x[:, 0]-np.sqrt(3)/2)/0.1)**2)/2, decimal=2)
 
-    def thermoelasticity_1d(self, lib):
+    def test_thermoelasticity_1d(self):
         p = FEMProject(1)
 
         # geometry
@@ -176,7 +176,7 @@ class elasticity_test(FEMTestCase):
         sol = FEMSolution()
         self.assertAlmostEqual(sol.eval("u[0]", data_number=400, coords=0), 0, places=11)
 
-    def thermoelasticity_2d(self, lib):
+    def test_thermoelasticity_2d(self):
         p = FEMProject(2)
 
         # geometry
@@ -207,7 +207,7 @@ class elasticity_test(FEMTestCase):
         # solve
         p.run()
 
-    def thermoelasticity_time(self, lib):
+    def test_thermoelasticity_time(self):
         p = FEMProject(1)
 
         # geometry
@@ -238,7 +238,7 @@ class elasticity_test(FEMTestCase):
         sol = FEMSolution()
         self.assertAlmostEqual(sol.eval("u[0]", data_number=420, coords=0), 0, places=11)
 
-    def rotation_1d(self, lib):
+    def test_rotation_1d(self):
         p = FEMProject(1)
 
         # geometry

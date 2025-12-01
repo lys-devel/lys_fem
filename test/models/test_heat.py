@@ -7,7 +7,7 @@ from lys_fem.models import heat
 from ..base import FEMTestCase
 
 class heat_test(FEMTestCase):     
-    def dirichlet_1d(self, lib):
+    def test_dirichlet_1d(self):
         p = FEMProject(1)
 
         # geometry
@@ -41,7 +41,7 @@ class heat_test(FEMTestCase):
         for w in res:
             self.assert_array_almost_equal(w.data, w.x[:, 0])
 
-    def neumann_1d(self, lib):
+    def test_neumann_1d(self):
         p = FEMProject(1)
 
         # geometry
@@ -74,7 +74,7 @@ class heat_test(FEMTestCase):
         for w in res:
             self.assert_array_almost_equal(w.data, w.x[:, 0] / 2)
 
-    def tdep_1d(self, lib):
+    def test_tdep_1d(self):
         def calc_temp(x, t, kappa=1, DT=1, T_0=0):
             return T_0 + DT * special.erfc(-x / np.sqrt(4 * kappa * t)) / 2
 
@@ -116,7 +116,7 @@ class heat_test(FEMTestCase):
         for w in res:
             self.assert_allclose(w.data, calc_temp(w.x[:, 0] - 1, 0.01), rtol=0, atol=0.001)
 
-    def tdep_forward(self, lib):
+    def test_tdep_forward(self):
         def calc_temp(x, t, kappa=1, DT=1, T_0=0):
             return T_0 + DT * special.erfc(-x / np.sqrt(4 * kappa * t)) / 2
 
@@ -158,7 +158,7 @@ class heat_test(FEMTestCase):
         for w in res:
             self.assert_allclose(w.data, calc_temp(w.x[:, 0] - 1, 0.00007), rtol=0, atol=0.01)
 
-    def tdep_bdf2(self, lib):
+    def test_tdep_bdf2(self):
         def calc_temp(x, t, kappa=1, DT=1, T_0=0):
             return T_0 + DT * special.erfc(-x / np.sqrt(4 * kappa * t)) / 2
 

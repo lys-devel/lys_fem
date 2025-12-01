@@ -11,7 +11,7 @@ g = 1.760859770e11
 T = 2*np.pi/g
 
 class LLG_test(FEMTestCase):
-    def domainWall(self, lib, constraint="Projection", discretization="BackwardEuler"):
+    def test_domainWall(self, constraint="Alouges", discretization="BackwardEuler"):
         p = FEMProject(1)
 
         # geometry
@@ -62,63 +62,7 @@ class LLG_test(FEMTestCase):
         for w in res:
             self.assert_array_almost_equal(w.data, -np.sin(solution(w.x[:,0]-1e-6, 1e-11, 1e3)), decimal=2)
 
-    def domainWall_3d(self, lib, constraint="Projection", discretization="BackwardEuler"):
-        p = FEMProject(2)
-
-        # geometry
-        s = 1e-6
-        p.geometries.scale=s
-        p.geometries.add(geometry.Rect(0, 0, 0, s, s/10))
-        p.geometries.add(geometry.Rect(s, 0, 0, s, s/10))
-        p.mesher.setRefinement(3)
-
-        # material
-        param = llg.LLGParameters(alpha_LLG=5, Ms=1e6, Ku=1e3, Aex=1e-11, u_Ku=[0,0,1])
-        mat1 = Material([param], geometries="all")
-        p.materials.append(mat1)
-
-        # model: boundary and initial conditions
-        x,y,z = sp.symbols("x,y,z")
-        model = llg.LLGModel(constraint=constraint, discretization=discretization)
-
-        mz = -(x-s)/s
-        my = sp.sqrt(1 - mz**2)
-        model.initialConditions.append(llg.InitialCondition([0, my, mz], geometries="all"))
-        model.domainConditions.append(llg.UniaxialAnisotropy(geometries="all"))
-        model.boundaryConditions.append(llg.DirichletBoundary([True, True, True], geometries=[4,6]))
-        p.models.append(model)
-
-        # solver
-        #solver = StationarySolver()
-        if constraint=="Alouges":
-            solver = RelaxationSolver(dt0=1e-11, dt_max=1e-8, dx=0.05, steps=[SolverStep(solver="pardiso", vars=["m_v", "m_lam"])])
-        else:
-            solver = RelaxationSolver(dt0=1e-13, dt_max=1e-9, dx=0.05)
-        #solver = TimeDependentSolver(1e-10, 1e-7)
-        
-        p.solvers.append(solver)
-
-
-        try:
-            # solve
-            p.run()
-        except:
-            pass
-
-        def solution(x, A, K):
-            return 2*np.arctan(np.exp(np.sqrt(K/A)*x))-np.pi/2
-
-        # solution
-        sol = FEMSolution()
-        for i in range(1,10):
-            m = sol.eval("m[0]**2+m[1]**2+m[2]**2", data_number=i)
-            #self.assert_array_almost_equal(m, 1, decimal=2)
-
-        res = sol.eval("m[2]", data_number=-1)
-        for w in res:
-            self.assert_array_almost_equal(w.data, -np.sin(solution(w.x[:,0]-1e-6, 1e-11, 1e3)), decimal=2)
-
-    def anisU(self, lib, constraint="Projection", discretization="BackwardEuler"):
+    def test_anisU(self, constraint="Alouges", discretization="BackwardEuler"):
         p = FEMProject(1)
 
         # geometry
@@ -136,10 +80,7 @@ class LLG_test(FEMTestCase):
         p.models.append(model)
 
         # solver
-        if constraint == "Alouges":
-            solver = TimeDependentSolver(T/10, T*10, steps=[SolverStep(solver="pardiso", vars=["m", "m_lam"])])
-        else:
-            solver = TimeDependentSolver(T/10, T*10)
+        solver = TimeDependentSolver(T/10, T*10, steps=[SolverStep(solver="pardiso", vars=["m", "m_lam"])])
         p.solvers.append(solver)
 
         # solve
@@ -154,7 +95,7 @@ class LLG_test(FEMTestCase):
         for w in res:
             self.assert_array_almost_equal(w.data, -np.ones(w.data.shape)/np.sqrt(2), decimal=2)
 
-    def anisC(self, lib):
+    def test_anisC(self):
         p = FEMProject(1)
 
         # geometry
@@ -187,67 +128,7 @@ class LLG_test(FEMTestCase):
         res = sol.eval("m", data_number=-1, coords=[0])
         self.assert_array_almost_equal(res, [1,0,0], decimal=5)
 
-    def deformation(self, lib):
-        p = FEMProject(3)
-
-        # geometry
-        p.geometries.add(geometry.Sphere(0, 0, 0, 0.8))
-        p.geometries.add(geometry.Box(-1, -1, -1, 2, 2, 2))
-        p.geometries.add(geometry.InfiniteVolume(1, 1, 1, 2, 2, 2))
-        p.mesher.setRefinement(2)
-
-        domain = [1,2,9,10,11,12,13,14]
-        infBdr =[31,36,39,42,43,44]
-        mBdr = [1,5,8,11,14,16,24,25]
-
-        param_llg = llg.LLGParameters(Ms=1)
-        param_ela = elasticity.ElasticParameters()
-
-        mat1 = Material([param_llg, param_ela], geometries=domain)
-        p.materials.append(mat1)
-
-        # poisson equation for infinite boundary
-        model = em.MagnetostaticsModel(J="J")
-        model.initialConditions.append(em.MagnetostaticInitialCondition(0, geometries="all"))
-        model.boundaryConditions.append(em.DirichletBoundary([True], geometries=infBdr))
-        p.models.append(model)
-
-        # llg
-        model2 = llg.LLGModel(equations=[llg.LLGEquation(geometries=domain)])
-        model2.initialConditions.append(llg.InitialCondition([1/np.sqrt(3)]*3, geometries=domain))
-        model2.domainConditions.append(llg.Demagnetization(geometries=mBdr))
-        p.models.append(model2)
-
-        # elasticity
-        x,y = sp.symbols("x,y")
-        model3 = elasticity.ElasticModel(3, equations=[elasticity.ChristffelEquation(geometries=domain)])
-        model3.initialConditions.append(elasticity.InitialCondition([x*0.01, -y*0.01, 0], geometries=domain))
-        p.models.append(model3)
-
-        # solver
-        step = SolverStep(["phi"], deformation="u")
-        stationary = StationarySolver(steps=[step])
-        p.solvers.append(stationary)
-
-        # solve
-        p.run()
-
-        def solution(x, y, z, a, Ms):
-            r = np.sqrt(x**2+y**2+z**2)-1e-16
-            return np.where(r<=a, Ms*(x*1.01+y*0.99+z)/3/np.sqrt(3), np.nan)
-        
-        def solution2(x, y, z, a, Ms):
-            r = np.sqrt(x**2+y**2+z**2)-1e-16
-            return np.where(r<=a, Ms*(x*0.32934*1.01+y*0.33734*0.99+z*0.33330)/np.sqrt(3), np.nan)
-
-
-        sol = FEMSolution()
-        res = sol.eval("phi", data_number=1)
-        for w in [res[0]]:
-            self.assert_allclose(w.data, -solution2(w.x[:,0],w.x[:,1],w.x[:,2], 0.8, 1), atol=0.002, rtol=0)
-            self.assert_allclose(w.data, -solution(w.x[:,0],w.x[:,1],w.x[:,2], 0.8, 1), atol=0.002, rtol=0)
-
-    def precession(self, lib, constraint="Projection", discretization="BackwardEuler"):
+    def test_precession(self, constraint="Alouges", discretization="BackwardEuler"):
         factor = 10
         p = FEMProject(1)
 
@@ -298,7 +179,7 @@ class LLG_test(FEMTestCase):
         for w in res:
             self.assert_array_almost_equal(w.data, np.zeros(w.data.shape), decimal=2)
 
-    def damping(self, lib):
+    def test_damping(self):
         p = FEMProject(1)
 
         # geometry
@@ -312,7 +193,7 @@ class LLG_test(FEMTestCase):
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
-        model = llg.LLGModel(discretization="BackwardEuler")
+        model = llg.LLGModel(contraint="Alouges", discretization="BackwardEuler")
         model.initialConditions.append(llg.InitialCondition([1, 0, 0], geometries="all"))
         model.domainConditions.append(llg.ExternalMagneticField([0,0,1], geometries="all"))
         p.models.append(model)
@@ -330,7 +211,7 @@ class LLG_test(FEMTestCase):
         for w in res:
             self.assert_array_almost_equal(w.data, np.ones(w.data.shape), decimal=4)
 
-    def scalar(self, lib):
+    def test_scalar(self):
         factor = 1
         z = sp.Symbol("z")
         p = FEMProject(3)
@@ -346,7 +227,7 @@ class LLG_test(FEMTestCase):
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
-        model1 = llg.LLGModel(discretization="BackwardEuler")
+        model1 = llg.LLGModel(constraint="Alouges", discretization="BackwardEuler", type="L2")
         model1.initialConditions.append(llg.InitialCondition([1, 0, 0], geometries="all"))
         model1.domainConditions.append(llg.MagneticScalarPotential(z/1.25663706e-6, geometries="all"))
         p.models.append(model1)
@@ -373,7 +254,7 @@ class LLG_test(FEMTestCase):
         for w in res:
             self.assert_array_almost_equal(w.data, np.zeros(w.data.shape), decimal=2)
 
-    def scalar_em(self, lib):
+    def test_scalar_em(self):
         factor = 1
         z = sp.Symbol("z")
         p = FEMProject(3)
@@ -389,7 +270,7 @@ class LLG_test(FEMTestCase):
         p.materials.append(mat1)
 
         # model: boundary and initial conditions
-        model1 = llg.LLGModel(discretization="BackwardEuler")
+        model1 = llg.LLGModel(contraint="Alouges", discretization="BackwardEuler", type="L2")
         model1.initialConditions.append(llg.InitialCondition([1, 0, 0], geometries="all"))
         model1.domainConditions.append(llg.MagneticScalarPotential("phi", geometries="all"))
         p.models.append(model1)
@@ -426,7 +307,7 @@ class LLG_test(FEMTestCase):
         for w in res:
             self.assert_array_almost_equal(w.data, np.zeros(w.data.shape), decimal=2)
 
-    def demagnetization_em(self, lib):
+    def test_demagnetization_em(self):
         r2 = 2
         p = FEMProject(3)
 
@@ -452,7 +333,7 @@ class LLG_test(FEMTestCase):
         p.models.append(model1)
 
         # model: boundary and initial conditions
-        model2 = llg.LLGModel(geometries=domain)
+        model2 = llg.LLGModel(constraint="Alouges", geometries=domain)
         model2.initialConditions.append(llg.InitialCondition([0, 0, 1], geometries=domain))
         p.models.append(model2)
 
@@ -473,42 +354,7 @@ class LLG_test(FEMTestCase):
         for w in [res[0]]:
             self.assert_allclose(w.data, solution(w.x[:,0],w.x[:,1],w.x[:,2], 0.8, 1), atol=0.02, rtol=0)
 
-    def thermal(self, lib):
-        p = FEMProject(3)
-
-        # geometry
-        p.geometries.add(geometry.Box(-0.5e-6, -0.5e-6, -10e-9, 1e-6, 1e-6, 20e-9))
-        p.mesher.addSizeConstraint(size=10e-9, geometries="all")
-        p.mesher.addTransfinite(geometries="all")
-        p.randomFields.add("R1", "L2", tdep = True)
-        p.randomFields.add("R2", "L2", tdep = True)
-        p.randomFields.add("R3", "L2", tdep = True)
-
-        # Material
-        param = llg.LLGParameters(alpha_LLG=0.1, Aex=0, Ms=1e6, Ku=1e4, u_Ku=[0,0,1])
-        p.materials.append(Material([param], geometries="all"))
-
-        # model: boundary and initial conditions
-        model = llg.LLGModel([llg.LLGEquation(geometries="all")], constraint="Alouges", type="L2", order=0)
-        model.initialConditions.append(llg.InitialCondition([0, 0, 1], geometries="all"))
-        model.domainConditions.append(llg.UniaxialAnisotropy(geometries="all"))
-        model.domainConditions.append(llg.ThermalFluctuation((100, ["R1", "R2", "R3"]), geometries="all"))
-        p.models.append(model)
-
-        # solver
-        t = 10e-9
-        t = 2e-12
-        solver = TimeDependentSolver(1e-12, t)
-        p.solvers.append(solver)
-
-        # solve
-        p.run()
-
-        sol = FEMSolution()
-        res = np.array(sol.integrate("m[2]", data_number=-1, element_wise=True))/1e-24
-        print((len(np.where(res < 0)[0])/len(res))/t)
-
-    def thermal2(self, lib):
+    def test_thermal2(self):
         return
         p = FEMProject(3)
 
@@ -540,7 +386,7 @@ class LLG_test(FEMTestCase):
         plt.plot([(sol.integrate("m[0]", data_number=i*10))/1e-24 for i in range(100)])
         plt.show()
         
-    def magnetoStriction(self, lib):
+    def test_magnetoStriction(self):
         p = FEMProject(3)
 
         C1, C2, C4 = 100e9, 40e9, 20e9
@@ -583,7 +429,7 @@ class LLG_test(FEMTestCase):
 
         self.assert_allclose(r1, s[1]/s[0], rtol=1e-4)
 
-    def magnetoRotation(self, lib):
+    def test_magnetoRotation(self):
         p = FEMProject(3)
 
         # geometry

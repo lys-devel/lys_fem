@@ -8,7 +8,7 @@ from lys_fem.models import em
 from ..base import FEMTestCase
 
 class magnetostatistics_test(FEMTestCase):
-    def dirichlet_2d(self, lib):
+    def test_dirichlet_2d(self):
         p = FEMProject(2)
 
         r0 = 3
@@ -43,7 +43,7 @@ class magnetostatistics_test(FEMTestCase):
             r = np.sqrt(w.x[:,0]**2+w.x[:,1]**2)
             self.assert_allclose(w.data, solution(r), atol=1e-3, rtol=0)
 
-    def demagnetization(self, lib):
+    def test_demagnetization(self):
         r2 = 2
         p = FEMProject(3)
 

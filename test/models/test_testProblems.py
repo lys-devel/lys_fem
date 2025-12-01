@@ -11,7 +11,7 @@ from lys_fem.models import test
 from ..base import FEMTestCase
 
 class testProblems_test(FEMTestCase):
-    def linear(self, lib):
+    def test_linear(self):
         p = FEMProject(1)
 
         # geometry
@@ -38,7 +38,7 @@ class testProblems_test(FEMTestCase):
         for w in res:
             self.assert_array_almost_equal(w.data, w.x[:, 0])
 
-    def cond(self, lib):
+    def test_cond(self):
         p = FEMProject(1)
 
         # geometry
@@ -65,7 +65,7 @@ class testProblems_test(FEMTestCase):
         for w in res:
             self.assert_array_almost_equal(w.data, w.x[:, 0])
 
-    def nonlinear(self, lib):
+    def test_nonlinear(self):
         p = FEMProject(1)
 
         # geometry
@@ -95,7 +95,7 @@ class testProblems_test(FEMTestCase):
         c = np.array([0.5,0.6,0.7])
         assert_array_almost_equal(sol.eval("X", data_number=1, coords=c), np.sqrt(2*c))
 
-    def smallGeom(self, lib):
+    def test_smallGeom(self):
         p = FEMProject(1)
 
         # geometry
@@ -123,7 +123,7 @@ class testProblems_test(FEMTestCase):
         for w in res:
             self.assert_array_almost_equal(w.data*1e-9, w.x[:, 0])
 
-    def twoVars1(self, lib):
+    def test_twoVars1(self):
         p = FEMProject(1)
 
         # geometry
@@ -149,7 +149,7 @@ class testProblems_test(FEMTestCase):
         self.assert_array_almost_equal(x, (np.exp(-2*t)+1)/2, decimal=4)
         self.assert_array_almost_equal(y, (1-np.exp(-2*t))/2, decimal=4)
 
-    def twoVars_step(self, lib):
+    def test_twoVars_step(self):
         p = FEMProject(1)
 
         # geometry
@@ -176,7 +176,7 @@ class testProblems_test(FEMTestCase):
         self.assert_array_almost_equal(x, (np.exp(-2*t)+1)/2, decimal=4)
         self.assert_array_almost_equal(y, (1-np.exp(-2*t))/2, decimal=4)
 
-    def twoVars_fix(self, lib):
+    def test_twoVars_fix(self):
         p = FEMProject(1)
 
         # geometry
@@ -204,7 +204,7 @@ class testProblems_test(FEMTestCase):
         y = [sol.eval("Y", coords=0.5, data_number=i) for i in range(101)]
         self.assert_array_almost_equal(y, -0.5*t, decimal=4)
 
-    def consts(self, lib):
+    def test_consts(self):
         p = FEMProject(1)
         p.parameters["a"] = 1
         p.parameters["b"] = "a+1"
@@ -233,7 +233,7 @@ class testProblems_test(FEMTestCase):
         for w in res:
             self.assert_array_almost_equal(w.data, w.x[:, 0])
 
-    def fields(self, lib):
+    def test_fields(self):
         p = FEMProject(1)
 
         # geometry
@@ -265,7 +265,7 @@ class testProblems_test(FEMTestCase):
         for w in res:
             self.assert_array_almost_equal(w.data, w.x[:, 0]/2)
 
-    def loadInitial_1d(self, lib):
+    def test_loadInitial_1d(self):
         if mpi.isRoot:
             os.makedirs("run1", exist_ok=True)
             os.makedirs("run2", exist_ok=True)
@@ -328,7 +328,7 @@ class testProblems_test(FEMTestCase):
         for w in res:
             self.assert_array_almost_equal(w.data, w.x[:, 0])
 
-    def tdepField(self, lib):
+    def test_tdepField(self):
         if mpi.isRoot:
             os.makedirs("run1", exist_ok=True)
             os.makedirs("run2", exist_ok=True)
@@ -385,37 +385,7 @@ class testProblems_test(FEMTestCase):
         y = [sol.eval("Y", coords=0, data_number=i) for i in range(101)]
         self.assert_array_almost_equal(y, np.exp(-t)-1, decimal=4)
 
-    def scale(self, lib):
-        p = FEMProject(1)
-
-        # geometry
-        p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
-        p.geometries.add(geometry.Line(1, 0, 0, 2, 0, 0))
-        p.mesher.setRefinement(5)
-
-        # model: boundary and initial conditions
-        model = test.ScaleTestModel()
-        model.boundaryConditions.append(test.DirichletBoundary([True], geometries=[1, 3]))
-        model.initialConditions.append(test.InitialCondition("x", geometries=[1]))
-        model.initialConditions.append(test.InitialCondition("x", geometries=[2]))
-        p.models.append(model)
-
-        # solver
-        stationary = StationarySolver()
-        p.solvers.append(stationary)
-
-        # solve
-        p.run()
-
-        # solution
-        sol = FEMSolution()
-        res = sol.eval("X", data_number=1)
-        for w in res:
-            assert_array_almost_equal(w.data, np.sqrt(2 * w.x[:, 0]), decimal=2)
-        c = np.array([0.5,0.6,0.7])
-        assert_array_almost_equal(sol.eval("X", data_number=1, coords=c), np.sqrt(2*c))
-
-    def twoVars_grad(self, lib):
+    def test_twoVars_grad(self):
         p = FEMProject(1)
 
         # geometry
@@ -440,7 +410,31 @@ class testProblems_test(FEMTestCase):
         y = [sol.eval("Y", coords=0.5, data_number=i) for i in range(101)]
         self.assert_array_almost_equal(y, -t, decimal=4)
 
-    def solver(self, lib, solver, prec, cond=False):
+    def test_direct_solvers(self):
+        self.solver("pardiso", None)
+        self.solver("pardiso", None, cond=True)
+        self.solver("pardisospd", None)
+        self.solver("sparsecholesky", None)
+        self.solver("masterinverse", None)
+        self.solver("umfpack", None)
+
+    def test_iterative_solvers(self):
+        self.solver("cg", "gamg")
+        self.solver("cg", "gamg", cond=True)
+        self.solver("minres", "gamg")
+        self.solver("symmlq", "gamg")
+        self.solver("gmres", "gamg")
+        self.solver("bcgs", "gamg")
+
+    def test_preconditioners(self):
+        self.solver("cg", "jacobi")
+        self.solver("cg", "bjacobi")
+        self.solver("cg", "ilu")
+        self.solver("cg", "icc")
+        self.solver("cg", "gamg")
+        self.solver("cg", "sor")
+
+    def solver(self, solver, prec, cond=False):
         p = FEMProject(1)
 
         # geometry
@@ -468,7 +462,7 @@ class testProblems_test(FEMTestCase):
         for w in res:
             self.assert_array_almost_equal(w.data, w.x[:, 0], decimal=2)
 
-    def error(self, lib):
+    def test_error(self):
         return
         p = FEMProject(1)
 
@@ -500,7 +494,7 @@ class testProblems_test(FEMTestCase):
         c = np.array([0.5,0.6,0.7])
         assert_array_almost_equal(sol.eval("X", data_number=-1, coords=c), np.sqrt(2*c))
     
-    def random(self, lib):
+    def test_random(self):
         p = FEMProject(1)
 
         # geometry

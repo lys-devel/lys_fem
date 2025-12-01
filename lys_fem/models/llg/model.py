@@ -268,7 +268,7 @@ class LLGModel(FEMFixedModel):
 
         for sc in self.domainConditions.get(MagneticScalarPotential):
             phi = mat[sc.values]
-            B = -mu0*grad(phi)
+            B = -mu_0*grad(phi)
             wf += -g_e*B.dot(test_m)*dx(sc.geometries)
             #wf += g*m.dot(B)*m.t.dot(test_m)*theta/dti*dx(sc.geometries)
 
