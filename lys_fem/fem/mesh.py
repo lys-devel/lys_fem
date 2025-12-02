@@ -221,7 +221,6 @@ class OccMesher(FEMObject):
         mesh.optimize()
         mesh.field.remove(field)
         nodes = len(mesh.getNodes()[0])
-        
         gmsh.view.remove(view)
 
         return (nodes/amr.nodes)**(1/self.fem.dimension), nodes, size

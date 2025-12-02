@@ -6,7 +6,6 @@ import ngsolve
 
 from lys_fem import util
 from . import mpi
-from . mesh_impl import generateMesh
 
 
 class SolutionFields(dict):
@@ -97,7 +96,7 @@ class FEMSolution:
         mpath = self._dirname+"/ngs"+str(index)+"_mesh.msh"
         if os.path.exists(mpath):
             if index!=self._index:
-                m = generateMesh(self._fem, mpath)
+                m = util.Mesh(mpath, self._fem.dimension, self._fem.geometries.scale)
                 self.__generate(m)
         else:
             if self._index is None:
@@ -108,7 +107,7 @@ class FEMSolution:
 
     def __generate(self, mesh=None):
         if mesh is None:
-            self._mesh = generateMesh(self._fem)
+            self._mesh = self._fem.mesh
         else:
             self._mesh = mesh
         self._fes = util.FiniteElementSpace(self._model.variables, self._mesh)
@@ -274,7 +273,8 @@ class Solution:
         return res
 
     def error(self, var):
-        return util.GridField(self._sols[0][0], var).error()
+        g = util.GridField(self._sols[0][0], var).error()
+        return lambda x: g(self._fes, x)
 
     def save(self, path, mesh=False):
         self._sols[0].save(path, mesh=mesh)

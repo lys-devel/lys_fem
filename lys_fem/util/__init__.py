@@ -2,6 +2,7 @@ import builtins
 import ngsolve
 import numpy as np
 
+from .mesh import Mesh
 from .operators import NGSFunctionBase
 from .coef import NGSFunction, DomainWiseFunction
 from .trials import TrialFunction, TestFunction, DifferentialSymbol

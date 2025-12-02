@@ -146,17 +146,21 @@ class NGSFunctionBase(Base):
     
     def __call__(self, fes, coords):
         f = self.eval(fes)
+        g = lambda x: f(x) if x is not None else np.nan
         mip = self.__coordsToMIP(fes.dimension-1, fes.mesh, np.array(coords))
-        return np.array(np.vectorize(f)(mip)).squeeze()
+        return np.array(np.vectorize(g)(mip)).squeeze()
 
     def __coordsToMIP(self, dim, mesh, coords):
         if len(coords.shape) > dim:
             return [self.__coordsToMIP(dim, mesh, c) for c in coords]
         else:
             if dim == 0:
-                return mesh(coords)
+                if mesh.Contains(coords):
+                    return mesh(coords)
             else:
-                return mesh(*coords)
+                if mesh.Contains(*coords):
+                    return mesh(*coords)
+            return None
 
 
 class _BinaryOper(NGSFunctionBase):

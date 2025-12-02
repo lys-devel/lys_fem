@@ -6,7 +6,7 @@ import numpy as np
 from lys_fem import util
 from .solution import Solution
 from . import mpi
-
+ 
 
 class FEMEngine:
     def __init__(self, obj, mesh, model, mat, dirname, timeDep=False):
@@ -60,18 +60,25 @@ class FEMEngine:
         self._data.update(self._sols, True)
 
     def refineMesh(self, error):
-        def compute_size_field(err, p=2, d=2):
-            err = np.array(err)/np.median(err)
-            return err**(-1/(1+p)) * p**(-1/(d*(1+p)))
+        def get_error(x=None):
+            x = mpi.bcast(np.array(x))
+            res = np.nan_to_num(error(x), 0)
+            return mpi.allreduce(res)
+        
+        fem = self._obj.fem
+        geom = fem.geometries.generateGeometry()
 
-        start = time.time()
-        size = compute_size_field(error, d=self._fes.dimension)
-        m = self._fes.mesh.refinedMesh(size, self._obj.adaptive_mesh)
-        refine = time.time()-start
-        self.updateMesh(m)
-        total = time.time()-start
-        mpi.print_("\t[AMR] Mesh updated: Num. of nodes =", self._fes.mesh.nodes, ", Time for refinement = {:.2f}".format(refine), ", Time for update = {:.2f}".format(total-refine))
-        mpi.print_()
+        if mpi.isRoot:
+            pos = geom.elementPositions#/self._fem.geometries.scale
+            err = get_error(list(pos.values()))
+            size = 0.2*(err/np.median(err) + 1e-6)**(0.4)
+            mesh_new = fem.mesher.refinedMesh(geom, list(pos.keys()), np.array([size]).T, self._obj.adaptive_mesh).model
+        else:
+            err = get_error()
+            mesh_new = None
+        m = util.Mesh(mesh_new, fem.dimension, fem.geometries.scale)
+        mpi.print_("\t[AMR]: Error (max,min,mean) = {:.3e}, {:.3e}, {:.3e}".format(np.max(err), np.min(err), np.mean(err)))
+        return m
 
     @property
     def solutions(self):
@@ -181,14 +188,10 @@ class _StationarySolver:
         if self._obj.adaptive_mesh is not None:
             var = [v for v in self._model.variables if v.name==self._obj.adaptive_mesh.varName][0]
             error = self._engine.solutions.error(var)
-            mpi.print_("\t[AMR] Adaptive Mesh Refinement started. Initial error (max,min,mean) = {:.3e}, {:.3e}, {:.3e}".format(np.max(error), np.min(error), np.mean(error)))
-
             for n in range(self._obj.adaptive_mesh.maxiter):
                 self._engine.refineMesh(error)
                 self._engine.solve()
-                error = self.solutions.error(var)
-
-                mpi.print_("\t[AMR] Step "+str(n+2)+": Error (max,min,mean) = {:.3e}, {:.3e}, {:.3e}".format(np.max(error), np.min(error), np.mean(error)))
+                error = self._engine.solutions.error(var)
 
 
 class _RelaxationSolver:

@@ -1,116 +1,59 @@
 import numpy as np
 import ngsolve
-from netgen.meshing import Mesh, Element0D, Element1D, Element2D, Element3D, FaceDescriptor, Pnt, MeshPoint
 
+from netgen.meshing import Element0D, Element1D, Element2D, Element3D, FaceDescriptor, Pnt, MeshPoint
+from netgen.meshing import Mesh as netgenMesh
 from . import mpi
 
-
-class NGSMesh(ngsolve.Mesh):
-    def __init__(self, gmesh, geom, fem=None, tags=None):
-        super().__init__(gmesh)
-        self._geom = geom
-        self._fem = fem
-        self.tags = tags
-    
-    def refinedMesh(self, size, amr):
+class Mesh(ngsolve.Mesh):
+    def __init__(self, model, dimension, scale=1.0):
+        self._model = model
         if mpi.isRoot:
-            h = self._geom.mesh.getElementQualities(self.tags, "minEdge")
-            size = h * size
-            size = size*np.median(h)/np.median(size)
+            if isinstance(model, str):
+                gmesh, _ = ReadGmshFile(model, dimension) # from file
+            else:
+                gmesh, _ = ReadGmshModel(model, dimension) # from python model
+            gmesh.Scale(scale)
+            self._nodes = len(gmesh.Coordinates())
+            if dimension == 1:
+                self._elems = len(gmesh.Elements1D())
+            if dimension == 2:
+                self._elems = len(gmesh.Elements2D())
+            if dimension == 3:
+                self._elems = len(gmesh.Elements3D())
 
-            size /=  (amr.nodes/self.nodes)**(1/self._fem.dimension)
-            mesh_new = self._fem.mesher.refinedMesh(self._geom, self.tags, np.array([size]).T, amr)
-            m = generateMesh(self._fem, mesh_new)
+        if mpi.isParallel():
+            comm = ngsolve.MPI_Init()
+            if mpi.isRoot:
+                pmesh = gmesh.Distribute(comm)
+            else:
+                pmesh = netgenMesh.Receive(comm)
         else:
-            m = generateMesh(self._fem, None)
-        return m
+            pmesh = gmesh
+
+        super().__init__(pmesh)
+
+    @property
+    def elements(self):
+        if mpi.isRoot:
+            return self._elems
+        else:
+            return 0
+
+    @property
+    def nodes(self):
+        if mpi.isRoot:
+            return self._nodes
+        else:
+            return 0
 
     def save(self, path):
         if mpi.isRoot:
             self._geom.export(path)
 
-    @property
-    def nodes(self):
-        return self.ns[1]
-    
-    @property
-    def elements(self):
-        return self.ns[0]
 
-
-def generateMesh(fem, geom=None):
-    if mpi.isRoot:
-        if geom is None:
-            geom = fem.geometries.generateGeometry()
-            fem.mesher.generate(geom)
-            geom.export("mesh.msh")
-            geom = "mesh.msh"
-        if isinstance(geom, str):
-            gmesh, _ = ReadGmsh(geom, fem.dimension)
-            geom = fem.geometries.generateGeometry()
-            fem.mesher.generate(geom)
-        else:
-            gmesh, _ = ReadGmsh2(geom.model, fem.dimension)
-            a
-        gmesh.Scale(fem.geometries.scale)
-        nodes = len(gmesh.Coordinates())
-
-    if mpi.isParallel():
-        comm = ngsolve.MPI_Init()
-        if mpi.isRoot:
-            mesh = NGSMesh(gmesh.Distribute(comm), geom, fem)
-        else:
-            mesh = NGSMesh(Mesh.Receive(comm), geom, fem)
-    else:
-        mesh = NGSMesh(gmesh, geom, fem)
-
-    # create global element mapping for adaptive mesh refinement
-    pts = np.array(mesh.ngmesh.Coordinates())/fem.geometries.scale
-    if fem.dimension == 1:
-        elms = mesh.ngmesh.Elements1D()
-    elif fem.dimension == 2:
-        elms = mesh.ngmesh.Elements2D()
-    else:
-        elms = mesh.ngmesh.Elements3D()
-    coords = np.array([np.array([pts[p.nr-1] for p in el.vertices]).mean(axis=0) for el in elms])
-    coords_list = mpi.gatherArray(coords.flatten())
-
-    co = [0]*(3-fem.dimension)
-    tags = []
-    if mpi.isRoot:
-        for coords in coords_list:
-            coords = coords.reshape(-1, fem.dimension)
-            for c in coords:
-                tags.append(geom.mesh.getElementByCoordinates(*c,*co)[0])
-    mesh.tags = tags
-
-    # set num of nodes and elements
-    if mpi.isRoot:
-        mesh.ns = len(tags), nodes
-    else:
-        mesh.ns = len(coords), len(mesh.ngmesh.Points())
-    return mesh
-
-
-def __parseElements(type, nodes, index):
-    if type == 15: # point
-        return [Element0D(index, index) for n in nodes]
-    elif type == 1: # line
-        return [Element1D(index=index, vertices=n.tolist()) for n in nodes.reshape(-1, 2)]
-    elif type == 2: # triangle
-        return [Element2D(index, n) for n in nodes.reshape(-1, 3)]
-    elif type == 3: # quad
-        return [Element2D(index, n) for n in nodes.reshape(-1, 4)]
-    elif type == 4: # tetra
-        return [Element3D(index, n) for n in nodes.reshape(-1, 4)]
-    elif type == 5: # hex
-        return [Element3D(index, n[[0,1,5,4,3,2,6,7]]) for n in nodes.reshape(-1, 8)]
-    else:
-        raise RuntimeError("error!", type, nodes, index)
-
-
-def ReadGmsh2(geom, meshdim): #from netgen.read_gmsh import ReadGmsh
-    mesh = Mesh(dim=meshdim)
+def ReadGmshModel(geom, meshdim): #from netgen.read_gmsh import ReadGmsh
+    mesh = netgenMesh(dim=meshdim)
     __loadGroups(mesh, geom, meshdim)
     _tag = __loadMesh(mesh, geom, meshdim)
     return mesh, _tag
@@ -154,13 +97,29 @@ def __loadMesh(mesh, geom, meshdim):
                     mesh.Add(el)
 
 
+def __parseElements(type, nodes, index):
+    if type == 15: # point
+        return [Element0D(index, index) for n in nodes]
+    elif type == 1: # line
+        return [Element1D(index=index, vertices=n.tolist()) for n in nodes.reshape(-1, 2)]
+    elif type == 2: # triangle
+        return [Element2D(index, n) for n in nodes.reshape(-1, 3)]
+    elif type == 3: # quad
+        return [Element2D(index, n) for n in nodes.reshape(-1, 4)]
+    elif type == 4: # tetra
+        return [Element3D(index, n) for n in nodes.reshape(-1, 4)]
+    elif type == 5: # hex
+        return [Element3D(index, n[[0,1,5,4,3,2,6,7]]) for n in nodes.reshape(-1, 8)]
+    else:
+        raise RuntimeError("error!", type, nodes, index)
 
-def ReadGmsh(filename, meshdim): #from netgen.read_gmsh import ReadGmsh
+
+def ReadGmshFile(filename, meshdim): #from netgen.read_gmsh import ReadGmsh
     if not filename.endswith(".msh"):
         filename += ".msh"
 
     f = open(filename, 'r')
-    mesh = Mesh(dim=meshdim)
+    mesh = netgenMesh(dim=meshdim)
 
     tags = []
     pointmap, facedescriptormap, materialmap, bbcmap = {}, {}, {}, {}

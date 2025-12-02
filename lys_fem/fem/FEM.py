@@ -139,7 +139,10 @@ class FEMProject:
 
     @property
     def mesh(self):
-        return generateMesh(self)
+        geom = self.geometries.generateGeometry()
+        self.mesher.generate(geom)
+        geom.export("mesh.msh")
+        return util.Mesh("mesh.msh", self.dimension, self.geometries.scale)
 
     @property
     def domainAttributes(self):

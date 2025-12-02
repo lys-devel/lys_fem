@@ -73,6 +73,22 @@ class GmshGeometry:
     def mesh(self):
         self._model.setCurrent(self._name)
         return self._model.mesh
+    
+    @property
+    def elementPositions(self):
+        mesh = self.mesh
+        dim = self._fem.dimension
+
+        res = {}
+        for etype, etags, enodes in zip(*mesh.getElements(dim=dim)):
+            nnodes = mesh.getElementProperties(etype)[3]
+            enodes = np.array(enodes).reshape(-1, nnodes)
+
+            for elem_id, nodes in zip(etags, enodes):
+                coords = [mesh.getNode(n)[0] for n in nodes]
+                coords = np.array(coords).reshape(-1, 3).mean(axis=0)[:dim]
+                res[elem_id] = coords
+        return res
 
     def geometryParameters(self):
         self._model.setCurrent(self._name)
