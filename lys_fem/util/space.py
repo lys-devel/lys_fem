@@ -162,6 +162,14 @@ class FiniteElementSpace:
     
     def FreeDofs(self, condense=False):
         return self._fes.FreeDofs(condense)
+    
+    def __str__(self):
+        res = "Class: FiniteElementSpace\n"
+        res += "Mesh: " + str(self.mesh.nodes) + " nodes, " + str(self.mesh.elements) + "elements\n"
+        res += "FunctionSpaces:\n"
+        for v in self._vars:
+            res += str(v)
+        return res
 
 
 class CompressedFESpace(FiniteElementSpace):

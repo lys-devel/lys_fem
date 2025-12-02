@@ -76,6 +76,7 @@ class GmshGeometry:
     
     @property
     def elementPositions(self):
+        self._model.setCurrent(self._name)
         mesh = self.mesh
         dim = self._fem.dimension
 

@@ -1,5 +1,7 @@
+import shutil
 import numpy as np
 import ngsolve
+import gmsh
 
 from netgen.meshing import Element0D, Element1D, Element2D, Element3D, FaceDescriptor, Pnt, MeshPoint
 from netgen.meshing import Mesh as netgenMesh
@@ -12,7 +14,12 @@ class Mesh(ngsolve.Mesh):
             if isinstance(model, str):
                 gmesh, _ = ReadGmshFile(model, dimension) # from file
             else:
-                gmesh, _ = ReadGmshModel(model, dimension) # from python model
+                gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
+                gmsh.write("tmp.msh")
+
+                self._name = self._model.getCurrent()
+                gmesh, _ = ReadGmshFile("tmp.msh", dimension) # from python model
+
             gmesh.Scale(scale)
             self._nodes = len(gmesh.Coordinates())
             if dimension == 1:
@@ -49,7 +56,12 @@ class Mesh(ngsolve.Mesh):
 
     def save(self, path):
         if mpi.isRoot:
-            self._geom.export(path)
+            if isinstance(self._model, str):
+                shutil.copy(self._model, path)  
+            else:
+                self._model.setCurrent(self._name)
+                gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
+                gmsh.write(path)
 
 
 def ReadGmshModel(geom, meshdim): #from netgen.read_gmsh import ReadGmsh

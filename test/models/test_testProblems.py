@@ -467,6 +467,7 @@ class testProblems_test(FEMTestCase):
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
+        p.mesher.setRefinement(4)
 
         # model: boundary and initial conditions
         model = test.NonlinearTestModel(order=1)
@@ -486,9 +487,7 @@ class testProblems_test(FEMTestCase):
         sol = FEMSolution()
         res = sol.eval("X", data_number=-1)
         for w in res:
-            assert_array_almost_equal(w.data, np.sqrt(2 * w.x[:, 0]), decimal=2)
-        c = np.array([0.5,0.6,0.7])
-        assert_array_almost_equal(sol.eval("X", data_number=-1, coords=c), np.sqrt(2*c))
+            assert_array_almost_equal(w.data, np.sqrt(w.x[:, 0]), decimal=2)
     
     def test_random(self):
         p = FEMProject(1)

@@ -4,7 +4,6 @@ from .base import FEMObjectList
 from .parameters import Parameters, RandomFields
 from .geometry import GeometryGenerator
 from .mesh import OccMesher
-from .mesh_impl import generateMesh
 from .material import Material, Materials
 from .model import loadModel
 from .solver import FEMSolver

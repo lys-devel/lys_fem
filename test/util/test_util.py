@@ -1,3 +1,4 @@
+import numpy as np
 from netgen.geom2d import unit_square
 
 import ngsolve
@@ -9,8 +10,9 @@ from lys_fem import util
 from ..base import FEMTestCase
 
 class test_util(FEMTestCase):
-    def _make_mesh(self):
+    def _make_mesh(self, refine=0):
         p = FEMProject(1)
+        p.mesher.setRefinement(refine)
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
@@ -59,6 +61,26 @@ class test_util(FEMTestCase):
         assert_almost_equal(f_calc, f_eval)
         assert_almost_equal(g_calc, g_eval[:,0])
 
+    def test_grid_mesh(self):
+        # Check if we can project grid function between different mesh.
+        m1 = self._make_mesh(refine=0)
+        m2 = self._make_mesh(refine=2)
+
+        sp = util.H1("u", size = 1, order = 2, isScalar=True)
+        fes1 = util.FiniteElementSpace(sp, m1)
+        fes2 = util.FiniteElementSpace(sp, m2)
+        x = util.NGSFunction(ngsolve.x, name="x")
+
+        f1 = fes1.gridFunction([x*x])
+        f2 = fes2.gridFunction()
+
+        f2.setComponent(sp, util.GridField(f1, sp))
+        g2 = util.GridField(f2, sp)
+
+        x_list = np.linspace(0,1)
+        res = g2(fes2, x_list)
+
+        assert_almost_equal(res, x_list**2)
 
     def test_poisson(self):
         m = self._make_mesh()

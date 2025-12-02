@@ -64,19 +64,22 @@ class FEMEngine:
             x = mpi.bcast(np.array(x))
             res = np.nan_to_num(error(x), 0)
             return mpi.allreduce(res)
-        
+
         fem = self._obj.fem
-        geom = fem.geometries.generateGeometry()
+        if not hasattr(self, "_geom"):
+            self._geom = fem.geometries.generateGeometry()            
 
         if mpi.isRoot:
-            pos = geom.elementPositions#/self._fem.geometries.scale
+            pos = self._geom.elementPositions#/self._fem.geometries.scale
             err = get_error(list(pos.values()))
-            size = 0.2*(err/np.median(err) + 1e-6)**(0.4)
-            mesh_new = fem.mesher.refinedMesh(geom, list(pos.keys()), np.array([size]).T, self._obj.adaptive_mesh).model
+            size = 0.2*(err/np.median(err) + 1e-6)**(-0.4)
+            self._geom = fem.mesher.refinedMesh(self._geom, list(pos.keys()), np.array([size]).T, self._obj.adaptive_mesh)
+            mesh_new = self._geom.model
         else:
             err = get_error()
             mesh_new = None
         m = util.Mesh(mesh_new, fem.dimension, fem.geometries.scale)
+        self.updateMesh(m)
         mpi.print_("\t[AMR]: Error (max,min,mean) = {:.3e}, {:.3e}, {:.3e}".format(np.max(err), np.min(err), np.mean(err)))
         return m
 
@@ -193,6 +196,8 @@ class _StationarySolver:
                 self._engine.solve()
                 error = self._engine.solutions.error(var)
 
+    def __str__(self):
+        return str(self._engine)
 
 class _RelaxationSolver:
     name = "Relaxation Solver"
@@ -269,3 +274,6 @@ class _TimeDependentSolver:
                 mpi.print_("\t[AMR] Error (max,min,mean) = {:.3e}, {:.3e}, {:.3e}".format(np.max(error), np.min(error), np.mean(error)))
                 self.refineMesh(error)
                 mpi.print_()
+
+    def __str__(self):
+        return str(self._engine)
