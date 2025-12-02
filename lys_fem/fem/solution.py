@@ -274,20 +274,7 @@ class Solution:
         return res
 
     def error(self, var):
-        val = util.grad(util.GridField(self._sols[0][0], var))
-        grids = []
-        for d in range(3):
-            g = self._fes.gridFunction()
-            g.setComponent(var, val[d])
-            g = util.GridField(g, var)
-            grids.append(g)
-        grids = util.NGSFunction(grids)
-        err = np.sqrt(((grids-val)**2).integrate(self._fes, element_wise=True).NumPy())
-        err = mpi.gatherArray(err)
-        if mpi.isRoot:
-            return np.concatenate(err)
-        else:
-            return [0]
+        return util.GridField(self._sols[0][0], var).error()
 
     def save(self, path, mesh=False):
         self._sols[0].save(path, mesh=mesh)

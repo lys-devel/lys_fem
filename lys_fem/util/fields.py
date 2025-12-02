@@ -3,6 +3,8 @@ import ngsolve
 
 from .operators import NGSFunctionBase
 from .coef import NGSFunction
+from .functions import grad
+from .space import FiniteElementSpace, L2
 
 
 class GridField(NGSFunctionBase):
@@ -36,6 +38,22 @@ class GridField(NGSFunctionBase):
         else:
             v = self._value() + [0] * (3-self._var.size)
             return ngsolve.CoefficientFunction(tuple([self._grad(fes, t) for t in v]), dims=(3, 3)).TensorTranspose((1,0))
+        
+    def error(self):
+        val = grad(self)
+        mesh = self._grid.finiteElementSpace.mesh
+        fes = FiniteElementSpace([self._var], mesh)
+
+        grids = [GridField(fes.gridFunction([val[d]]), self._var) for d in range(3)]
+        grids = NGSFunction(grids)
+        err = ((grids-val)**2).integrate(fes, element_wise=True)
+
+        fes_L2 =  L2("err", size = 1, order = 0, isScalar=True)
+        fes = FiniteElementSpace(fes_L2, mesh)
+        g = fes.gridFunction()
+        g.vec.data = err.NumPy()
+
+        return GridField(g, fes_L2)
 
     def _grad(self, fes, x):
         if x == 0:

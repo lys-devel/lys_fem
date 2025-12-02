@@ -170,6 +170,7 @@ class _StationarySolver:
 
     def __init__(self, obj, mesh, model, mat, **kwargs):
         self._obj = obj
+        self._model = model
         util.dti.isTimeDependent = False
         self._engine = FEMEngine(obj, mesh, model, mat, **kwargs)
 

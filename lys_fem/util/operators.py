@@ -144,6 +144,20 @@ class NGSFunctionBase(Base):
     def T(self):
         return _Transpose(self)
     
+    def __call__(self, fes, coords):
+        f = self.eval(fes)
+        mip = self.__coordsToMIP(fes.dimension-1, fes.mesh, np.array(coords))
+        return np.array(np.vectorize(f)(mip)).squeeze()
+
+    def __coordsToMIP(self, dim, mesh, coords):
+        if len(coords.shape) > dim:
+            return [self.__coordsToMIP(dim, mesh, c) for c in coords]
+        else:
+            if dim == 0:
+                return mesh(coords)
+            else:
+                return mesh(*coords)
+
 
 class _BinaryOper(NGSFunctionBase):
     def __init__(self, obj1, obj2):

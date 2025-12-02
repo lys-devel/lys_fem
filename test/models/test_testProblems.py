@@ -463,19 +463,15 @@ class testProblems_test(FEMTestCase):
             self.assert_array_almost_equal(w.data, w.x[:, 0], decimal=2)
 
     def test_error(self):
-        return
         p = FEMProject(1)
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
-        p.geometries.add(geometry.Line(1, 0, 0, 2, 0, 0))
 
         # model: boundary and initial conditions
-        x = sp.Symbol("x")
         model = test.NonlinearTestModel(order=1)
-        model.boundaryConditions.append(test.DirichletBoundary([True], geometries=[1, 3]))
-        model.initialConditions.append(test.InitialCondition(x, geometries=[1]))
-        model.initialConditions.append(test.InitialCondition(x, geometries=[2]))
+        model.boundaryConditions.append(test.DirichletBoundary([True], geometries="all"))
+        model.initialConditions.append(test.InitialCondition("x", geometries="all"))
         p.models.append(model)
 
         # solver
