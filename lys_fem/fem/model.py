@@ -33,6 +33,9 @@ class FEMModel(FEMObject):
         self._dcs = DomainConditions(self, domainConditions)
         self._disc = discretization
 
+    def __getattr__(self, key):
+        return self._eq.__getattr__(key)
+
     def functionSpaces(self):
         return [self._eq.functionSpaces(self.boundaryConditions.dirichlet)]
 

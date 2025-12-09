@@ -83,7 +83,6 @@ class BoundaryConditions(ModelConditionBase):
         return list(bdr_dir)
 
 
-
 class InitialConditions(ModelConditionBase):
     def append(self, condition):
         if condition.objName is None:
@@ -120,10 +119,7 @@ class ConditionBase(FEMObject):
             return value
         else:
             return str(value)
-        
-    def eval(self, key, dic):
-        return util.eval(self._values.get(key, None), dic, name=key)
-
+     
     def __getattr__(self, key):
         return self._values.get(key, None)
     
