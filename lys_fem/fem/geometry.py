@@ -305,9 +305,9 @@ class GeometrySelection(FEMObject):
             attrs = self.fem.geometries.geometryAttributes(1)
         elif self._geom == "Point":
             attrs = self.fem.geometries.geometryAttributes(0)
-        return [attr for attr in attrs if self._check(attr)]
+        return [attr for attr in attrs if self.check(attr)]
 
-    def _check(self, item):
+    def check(self, item):
         if self._selection == "all":
             return True
         elif isinstance(self._selection, str):

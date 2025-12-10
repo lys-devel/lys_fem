@@ -94,10 +94,7 @@ class FEMModel(FEMObject):
 
     @property
     def geometries(self):
-        geom = self._eq.geometries
-        if geom is None:
-            return None
-        return list(geom)
+        return self._eq.geometries
     
     @property
     def size(self):
@@ -161,7 +158,7 @@ class FEMModel(FEMObject):
 
     def widget(self, fem, canvas):
         from ..gui import FEMModelWidget
-        return FEMModelWidget(self)
+        return FEMModelWidget(self, fem, canvas)
 
 
 class Equation(FEMObject):
@@ -248,7 +245,7 @@ class FEMFixedModel(FEMModel):
 
     def widget(self, fem, canvas):
         from ..gui import FEMFixedModelWidget
-        return FEMFixedModelWidget(self)
+        return FEMFixedModelWidget(self, fem, canvas)
 
 
 def loadModel(d):

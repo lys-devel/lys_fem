@@ -1,6 +1,6 @@
 from lys.Qt import QtWidgets
 from ..fem.model import models
-from ..widgets import FEMTreeItem
+from ..widgets import FEMTreeItem, GeometrySelector
 
 
 class ModelTree(FEMTreeItem):
@@ -34,7 +34,7 @@ class ModelTree(FEMTreeItem):
 
 class _ModelGUI(FEMTreeItem):
     def __init__(self, model, parent):
-        super().__init__(parent, children=[_EquationGUI(model, self), _DomainGUI(model, self), _BoundaryGUI(model, self), _InitialConditionGUI(model, self)])
+        super().__init__(parent, children=[_DomainGUI(model, self), _BoundaryGUI(model, self), _InitialConditionGUI(model, self)])
         self._model = model
 
     @ property
@@ -50,32 +50,6 @@ class _ModelGUI(FEMTreeItem):
         menu = self.parent.menu
         menu.addAction(QtWidgets.QAction("Remove", self.treeWidget(), triggered=lambda: self.parent.remove(self)))
         return menu
-
-
-class _EquationGUI(FEMTreeItem):
-    def __init__(self, model, parent):
-        super().__init__(parent, children=[_EquationCondition(d, self) for d in model.equations])
-        self._model = model
-
-    def append(self, type):
-        eq = type()
-        self._model.equations.append(eq)
-        super().append(_EquationCondition(eq, self))
-
-    def remove(self, init):
-        i = super().remove(init)
-        self._model.equations.remove(self._model.equations[i])
-
-    @ property
-    def name(self):
-        return "Equations"
-
-    @ property
-    def menu(self):
-        self._menu = QtWidgets.QMenu()
-        for i in self._model.equationTypes:
-            self._menu.addAction(QtWidgets.QAction("Add " + i.className, self.treeWidget(), triggered=lambda x, y=i: self.append(y)))
-        return self._menu
 
 
 class _DomainGUI(FEMTreeItem):
@@ -155,25 +129,6 @@ class _InitialConditionGUI(FEMTreeItem):
             self._menu.addAction(QtWidgets.QAction("Add " + i.className, self.treeWidget(), triggered=lambda x, y=i: self.append(y)))
         return self._menu
 
-class _EquationCondition(FEMTreeItem):
-    def __init__(self, cond, parent):
-        super().__init__(parent)
-        self._cond = cond
-
-    @ property
-    def name(self):
-        return self._cond.objName
-
-    @ property
-    def widget(self):
-        return self._cond.widget(self.fem(), self.canvas())
-
-    @ property
-    def menu(self):
-        self._menu = QtWidgets.QMenu()
-        self._menu.addAction(QtWidgets.QAction("Remove", self.treeWidget(), triggered=lambda: self.parent.remove(self)))
-        return self._menu
-
 
 class _DomainCondition(FEMTreeItem):
     def __init__(self, cond, parent):
@@ -236,12 +191,13 @@ class _InitialCondition(FEMTreeItem):
 
 
 class FEMModelWidget(QtWidgets.QWidget):
-    def __init__(self, model):
+    def __init__(self, model, fem, canvas):
         super().__init__()
         self.__model = model
-        self.__initlayout(model)
+        self.__initlayout(model, fem, canvas)
 
-    def __initlayout(self, model):
+    def __initlayout(self, model, fem, canvas):
+        self._geom = GeometrySelector(canvas, fem, model.geometries)
         self._method = MethodComboBox(model)
         self._dim = QtWidgets.QSpinBox()
         self._dim.setRange(1, 3)
@@ -259,7 +215,11 @@ class FEMModelWidget(QtWidgets.QWidget):
         layout.addWidget(self._dim, 0, 1)
         layout.addWidget(self._order, 1, 1)
         layout.addWidget(self._method, 2, 1)
-        self.setLayout(layout)
+
+        v1 = QtWidgets.QVBoxLayout()
+        v1.addWidget(self._geom)
+        v1.addLayout(layout)
+        self.setLayout(v1)
 
     def __changeDim(self, value):
         self.__model.setVariableDimension(self._dim.value())
@@ -269,12 +229,13 @@ class FEMModelWidget(QtWidgets.QWidget):
 
 
 class FEMFixedModelWidget(QtWidgets.QWidget):
-    def __init__(self, model):
+    def __init__(self, model, fem, canvas):
         super().__init__()
-        self.__initLayout(model)
+        self.__initLayout(model, fem, canvas)
         self._model = model
 
-    def __initLayout(self, model):
+    def __initlayout(self, model, fem, canvas):
+        self._geom = GeometrySelector(canvas, fem, model.geometries)
         self._method = MethodComboBox(model)
         self._order = QtWidgets.QSpinBox()
         self._order.setValue(model.order)
@@ -285,7 +246,11 @@ class FEMFixedModelWidget(QtWidgets.QWidget):
         layout.addWidget(QtWidgets.QLabel("Element Order"), 1, 0)
         layout.addWidget(self._method, 0, 1)
         layout.addWidget(self._order, 1, 1)
-        self.setLayout(layout)
+
+        v1 = QtWidgets.QVBoxLayout()
+        v1.addWidget(self._geom)
+        v1.addLayout(layout)
+        self.setLayout(v1)
 
     def __change(self):
         self._model.order = self._order.value()

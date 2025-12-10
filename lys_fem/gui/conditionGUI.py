@@ -47,6 +47,4 @@ class ConditionWidget(QtWidgets.QWidget):
 
 
 
-class EquationWidget(GeometrySelector):
-    def __init__(self, eq, fem, canvas):
-        super().__init__(canvas, fem, eq.geometries)
+
