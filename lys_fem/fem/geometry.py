@@ -1,5 +1,6 @@
 import weakref
 import gmsh
+import json
 import numpy as np
 import sympy as sp
 from .base import FEMObject
@@ -121,8 +122,10 @@ class GeometryGenerator(FEMObject):
         for ord in order:
             self.add(ord)
         if groups is None:
-            groups = {"Domain": {}, "Boundary": {}, "Volume": {}, "Surface": {}, "Edge": {}, "Point": {}}
+            groups = {}
         self._groups = groups
+        for value in groups.values():
+            value.setParent(self)
         self._default = None
         self._partial = None
         self._updated = True
@@ -136,11 +139,15 @@ class GeometryGenerator(FEMObject):
         self._order.remove(command)
         self._updated=True
 
-    def addGroup(self, type, name, tags):
-        self._groups[type][name] = tags
+    def clear(self):
+        for ord in self._order:
+            self.remove(ord)
 
-    def removeGroup(self, type, name):
-        del self._groups[type][name]
+    def addGroup(self, type, name, value=[]):
+        self._groups[name] = GeometrySelection(type, value, parent=self)
+
+    def removeGroup(self, name):
+        del self._groups[name]
 
     def _update(self):
         self._updated=True
@@ -191,12 +198,27 @@ class GeometryGenerator(FEMObject):
         return self._groups
 
     def saveAsDictionary(self):
-        return {"geometries": [c.saveAsDictionary() for c in self.commands], "scale": self._scale, "groups": self._groups}
+        groups = {key: g.saveAsDictionary() for key, g in self._groups.items()}
+        return {"geometries": [c.saveAsDictionary() for c in self.commands], "scale": self._scale, "groups": groups}
 
     @staticmethod
     def loadFromDictionary(d):
         order = [FEMGeometry.loadFromDictionary(dic) for dic in d.get("geometries", [])]
-        return GeometryGenerator(order, scale=d.get("scale", "auto"), groups=d.get("groups"))
+        groups = {key: GeometrySelection.loadFromDictionary(val) for key, val in d.get("groups", {}).items()}
+        return GeometryGenerator(order, scale=d.get("scale", "auto"), groups=groups)
+
+    def save(self, path):
+        with open(path, "w") as f:
+            json.dump(self.saveAsDictionary(), f)
+
+    def load(self, path):
+        self.clear()
+        with open(path) as f:
+            g = GeometryGenerator.loadFromDictionary(json.load(f))
+        self.scale = g._scale
+        self._groups = g._groups
+        for order in g.commands:
+            self.add(order)
 
 
 class TransGeom:
@@ -311,7 +333,8 @@ class GeometrySelection(FEMObject):
         if self._selection == "all":
             return True
         elif isinstance(self._selection, str):
-            return item in self.fem.geometries.groups[self._geom][self._selection]
+            grp =  self.fem.geometries.groups[self._selection]
+            return item in self.fem.geometries.groups[self._selection]
         else:
             return item in self._selection
 
