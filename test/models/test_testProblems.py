@@ -99,7 +99,6 @@ class testProblems_test(FEMTestCase):
         p = FEMProject(1)
 
         # geometry
-        p.geometries.scale = 1e-9
         p.geometries.add(geometry.Line(0, 0, 0, 1e-9, 0, 0))
         p.geometries.add(geometry.Line(1e-9, 0, 0, 2e-9, 0, 0))
 

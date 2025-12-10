@@ -42,7 +42,6 @@ class elasticity_test(FEMTestCase):
 
     def test_dirichlet_2d(self):
         p = FEMProject(2)
-        p.geometries.scale = 100
 
         # geometry
         p.geometries.add(geometry.Rect(0, 0, 0, 1, 1))
@@ -145,7 +144,6 @@ class elasticity_test(FEMTestCase):
         p = FEMProject(1)
 
         # geometry
-        p.geometries.scale=1e-9
         p.geometries.add(geometry.Line(0, 0, 0, 0.1e-6, 0, 0))
         p.mesher.setRefinement(4)
 
@@ -180,7 +178,6 @@ class elasticity_test(FEMTestCase):
         p = FEMProject(2)
 
         # geometry
-        p.geometries.scale=1e-9
         p.geometries.add(geometry.Rect(0, 0, 0, 0.1e-6, 1e-6))
         p.mesher.setRefinement(2)
 
@@ -211,7 +208,6 @@ class elasticity_test(FEMTestCase):
         p = FEMProject(1)
 
         # geometry
-        p.geometries.scale=1e-9
         p.geometries.add(geometry.Line(0, 0, 0, 0.1e-6, 0, 0))
         p.mesher.setRefinement(4)
 

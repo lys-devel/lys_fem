@@ -1,6 +1,47 @@
+import weakref
 import numpy as np
 import sympy as sp
-from lys_fem import addGeometry, FEMGeometry, util
+from lys_fem import util
+
+geometryCommands = {}
+
+
+def addGeometry(group, geom):
+    if group not in geometryCommands:
+        geometryCommands[group] = []
+    geometryCommands[group].append(geom)
+
+
+class FEMGeometry(object):
+    def __init__(self, args):
+        self._args = args
+        self._method = None
+
+    @property
+    def args(self):
+        return self._args
+
+    @args.setter
+    def args(self, value):
+        self._args = value
+        if self._method is not None:
+            if self._method() is not None:
+                self._method()()
+
+    def setCallback(self, method):
+        self._method = weakref.ref(method)
+
+    def saveAsDictionary(self):
+        return {"type": self.type, "args": self.args}
+
+    @staticmethod
+    def loadFromDictionary(d):
+        for t in sum(geometryCommands.values(), []):
+            if t.type == d["type"]:
+                return t(*d["args"])
+
+    def generateParameters(self, model, scale):
+        return {}
 
 
 class Box(FEMGeometry):

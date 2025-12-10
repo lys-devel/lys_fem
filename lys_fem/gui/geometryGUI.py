@@ -1,7 +1,8 @@
 from lys.Qt import QtWidgets
 from lys.widgets import ScientificSpinBox
 
-from ..fem.geometry import geometryCommands, GeometrySelection
+from lys_fem.geometry import geometryCommands
+from ..fem.geometry import GeometrySelection
 from ..fem import OccMesher
 from ..widgets import FEMTreeItem, TreeStyleEditor, GeometrySelector
 

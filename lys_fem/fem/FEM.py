@@ -141,7 +141,7 @@ class FEMProject:
         geom = self.geometries.generateGeometry()
         self.mesher.generate(geom)
         geom.export("mesh.msh")
-        return util.Mesh("mesh.msh", self.dimension, self.geometries.scale)
+        return util.Mesh("mesh.msh", self.dimension, geom.scale)
 
     @property
     def domainAttributes(self):

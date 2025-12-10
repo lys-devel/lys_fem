@@ -19,7 +19,6 @@ class semiconductor_test(FEMTestCase):
         T = 300
 
         # geometry
-        p.geometries.scale=1e-9
         p.geometries.add(geometry.Line(0, 0, 0, scale*1e-6, 0, 0))
         p.geometries.add(geometry.Line(scale*1e-6, 0, 0, scale*2e-6, 0, 0))
         p.mesher.setRefinement(8)

@@ -11,7 +11,6 @@ class heat_test(FEMTestCase):
         p = FEMProject(1)
 
         # geometry
-        p.geometries.scale = 100
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
         p.geometries.add(geometry.Line(1, 0, 0, 2, 0, 0))
         p.mesher.setRefinement(5)
@@ -45,7 +44,6 @@ class heat_test(FEMTestCase):
         p = FEMProject(1)
 
         # geometry
-        p.geometries.scale = 100
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
         p.geometries.add(geometry.Line(1, 0, 0, 2, 0, 0))
 
@@ -81,7 +79,6 @@ class heat_test(FEMTestCase):
         p = FEMProject(1)
 
         # geometry
-        #p.geometries.scale=100
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
         p.geometries.add(geometry.Line(1, 0, 0, 2, 0, 0))
 
@@ -123,7 +120,6 @@ class heat_test(FEMTestCase):
         p = FEMProject(1)
 
         # geometry
-        #p.geometries.scale=100
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
         p.geometries.add(geometry.Line(1, 0, 0, 2, 0, 0))
 
@@ -165,7 +161,6 @@ class heat_test(FEMTestCase):
         p = FEMProject(1)
 
         # geometry
-        p.geometries.scale=100
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
         p.geometries.add(geometry.Line(1, 0, 0, 2, 0, 0))
 

@@ -15,7 +15,6 @@ class LLG_test(FEMTestCase):
         p = FEMProject(1)
 
         # geometry
-        p.geometries.scale=1e-6
         p.geometries.add(geometry.Line(0, 0, 0, 1e-6, 0, 0))
         p.geometries.add(geometry.Line(1e-6, 0, 0, 2e-6, 0, 0))
         p.mesher.setRefinement(4)
@@ -129,7 +128,6 @@ class LLG_test(FEMTestCase):
         p = FEMProject(1)
 
         # geometry
-        p.geometries.scale=1e-9
         p.geometries.add(geometry.Line(0, 0, 0, 1e-9, 0, 0))
         p.mesher.setRefinement(0)
 
@@ -176,7 +174,6 @@ class LLG_test(FEMTestCase):
         p = FEMProject(1)
 
         # geometry
-        p.geometries.scale=1e-9
         p.geometries.add(geometry.Line(0, 0, 0, 1e-9, 0, 0))
         p.mesher.setRefinement(0)
 
@@ -210,7 +207,6 @@ class LLG_test(FEMTestCase):
         p = FEMProject(3)
 
         # geometry
-        p.geometries.scale=1e-9
         p.geometries.add(geometry.Box(0, 0, 0, 1e-9, 0.1e-9, 0.1e-9))
         p.mesher.setRefinement(0)
 
@@ -253,7 +249,6 @@ class LLG_test(FEMTestCase):
         p = FEMProject(3)
 
         # geometry
-        p.geometries.scale=1e-9
         p.geometries.add(geometry.Box(0, 0, 0, 1e-9, 0.1e-9, 0.1e-9))
         p.mesher.setRefinement(0)
 

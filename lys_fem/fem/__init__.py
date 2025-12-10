@@ -1,5 +1,5 @@
 from .FEM import FEMProject
-from .geometry import FEMGeometry, GeometrySelection
+from .geometry import GeometrySelection
 from .mesh import OccMesher
 from .material import Material, FEMParameter, materialParameters, UserDefinedParameters
 from .model import FEMModel, FEMFixedModel

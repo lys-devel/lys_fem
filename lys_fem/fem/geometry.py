@@ -1,115 +1,6 @@
-import weakref
-import gmsh
 import json
-import numpy as np
-import sympy as sp
 from .base import FEMObject
-
-gmsh.initialize()
-gmsh.option.setNumber("General.Terminal", 0)
-
-
-class GmshGeometry:
-    _index = 0
-
-    def __init__(self, fem, orders):
-        self._fem = fem
-        GmshGeometry._index += 1
-        self._name = "Geometry" + str(GmshGeometry._index)
-        self._model = self.__update(self._name, orders)
-        self._orders = list(orders)
-
-    def update(self, orders):
-        self._model.remove(self._name)
-        self.__update(self._name, orders)
-
-    def __update(self, name, orders):
-        model = gmsh.model()
-        model.add(name)
-        model.setCurrent(name)
-
-        scale = TransGeom(self._fem)
-        for order in orders:
-            order.execute(model, scale)
-        model.occ.removeAllDuplicates()
-        model.occ.synchronize()
-        for i in [1,2,3]:
-            if len(model.getEntities(i))!=0:
-                dim = i
-        for i, obj in enumerate(model.getEntities(3)):
-            model.add_physical_group(dim=3, tags=[obj[1]], tag=i + 1)
-            model.setPhysicalName(dim=3, tag=i+1, name="domain"+str(i+1))
-        for i, obj in enumerate(model.getEntities(2)):
-            model.add_physical_group(dim=2, tags=[obj[1]], tag=i + 1)
-            if dim == 2:
-                model.setPhysicalName(dim=2, tag=i+1, name="domain"+str(i+1))
-            elif dim == 3:
-                model.setPhysicalName(dim=2, tag=i+1, name="boundary"+str(i+1))
-        for i, obj in enumerate(model.getEntities(1)):
-            model.add_physical_group(dim=1, tags=[obj[1]], tag=i + 1)
-            if dim == 1:
-                model.setPhysicalName(dim=1, tag=i+1, name="domain" + str(i+1))
-            elif dim == 2:
-                model.setPhysicalName(dim=1, tag=i+1, name="boundary" + str(i+1))
-            else:
-                model.setPhysicalName(dim=1, tag=i+1, name="edge" + str(i+1))
-        for i, obj in enumerate(model.getEntities(0)):
-            model.add_physical_group(dim=0, tags=[obj[1]], tag=i + 1)
-            if dim == 1:
-                model.setPhysicalName(dim=0, tag=i+1, name="boundary" + str(i+1))
-            else:
-                model.setPhysicalName(dim=0, tag=i+1, name="point" + str(i+1))
-        return model
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def model(self):
-        self._model.setCurrent(self._name)
-        return self._model
-
-    @property
-    def mesh(self):
-        self._model.setCurrent(self._name)
-        return self._model.mesh
-    
-    @property
-    def elementPositions(self):
-        self._model.setCurrent(self._name)
-        mesh = self.mesh
-        dim = self._fem.dimension
-
-        res = {}
-        for etype, etags, enodes in zip(*mesh.getElements(dim=dim)):
-            nnodes = mesh.getElementProperties(etype)[3]
-            enodes = np.array(enodes).reshape(-1, nnodes)
-
-            for elem_id, nodes in zip(etags, enodes):
-                coords = [mesh.getNode(n)[0] for n in nodes]
-                coords = np.array(coords).reshape(-1, 3).mean(axis=0)[:dim]
-                res[elem_id] = coords
-        return res
-
-    def geometryParameters(self):
-        self._model.setCurrent(self._name)
-        result = {}
-        for c in self._orders:
-            result.update(c.generateParameters(self._model, TransGeom(self._fem)))
-        return result
-
-    def geometryAttributes(self, dim):
-        self._model.setCurrent(self._name)
-        return [tag for d, tag  in self._model.getPhysicalGroups(dim)]
-
-    def duplicate(self):
-        return GmshGeometry(self._fem, self._orders)
-
-    def export(self, file):
-        self._model.setCurrent(self._name)
-        gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
-        gmsh.write(file)
+from lys_fem.geometry import FEMGeometry, GmshGeometry
 
 
 class GeometryGenerator(FEMObject):
@@ -127,12 +18,11 @@ class GeometryGenerator(FEMObject):
         for value in groups.values():
             value.setParent(self)
         self._default = None
-        self._partial = None
         self._updated = True
 
     def add(self, command):
         self._order.append(command)
-        command.setParent(self)
+        command.setCallback(self._update)
         self._updated=True
 
     def remove(self, command):
@@ -155,15 +45,11 @@ class GeometryGenerator(FEMObject):
     def generateGeometry(self, n=None):
         if n is None:
             if self._updated or self._default is None:
-                self._default = GmshGeometry(self.fem, self._order)
+                self._default = GmshGeometry(self.fem, self._order, params=self.fem.parameters.getSolved())
             self._updated=False
             return self._default
         else:
-            if self._partial is None:
-                self._partial = GmshGeometry(self.fem, self._order[:n+1])
-            else:
-                self._partial.update(self._order[:n+1])
-            return self._partial
+            return GmshGeometry(self.fem, self._order[:n+1], params=self.fem.parameters.getSolved())
 
     def geometryParameters(self):
         return self.generateGeometry().geometryParameters()
@@ -185,10 +71,6 @@ class GeometryGenerator(FEMObject):
         else:
             return self._scale
         
-    @scale.setter
-    def scale(self, value):
-        self._scale = value
-
     @property
     def commands(self):
         return self._order
@@ -220,53 +102,6 @@ class GeometryGenerator(FEMObject):
         for order in g.commands:
             self.add(order)
 
-
-class TransGeom:
-    def __init__(self, fem):
-        self._fem = fem
-
-    def __call__(self, value, unit="1"):
-        if unit == "m":
-            scale = self._fem.geometries.scale
-        else:
-            scale = 1
-        if isinstance(value, (list, tuple, np.ndarray)):
-            return [self(v, unit) for v in value]
-        elif isinstance(value, (float, int, sp.Float, sp.Integer)):
-            return value/scale
-        else:
-            return value.subs(self._fem.parameters.getSolved())/scale
-
-
-class FEMGeometry(object):
-    def __init__(self, args):
-        self._args = args
-        self._parent = None
-
-    @property
-    def args(self):
-        return self._args
-
-    @args.setter
-    def args(self, value):
-        self._args = value
-        if self._parent is not None:
-            self._parent()._update()
-
-    def setParent(self, parent):
-        self._parent = weakref.ref(parent)
-
-    def saveAsDictionary(self):
-        return {"type": self.type, "args": self.args}
-
-    @staticmethod
-    def loadFromDictionary(d):
-        for t in sum(geometryCommands.values(), []):
-            if t.type == d["type"]:
-                return t(*d["args"])
-
-    def generateParameters(self, model, scale):
-        return {}
 
 
 class GeometrySelection(FEMObject):
@@ -349,5 +184,3 @@ class GeometrySelection(FEMObject):
     def loadFromDictionary(d):
         return GeometrySelection(d["geometryType"], d["selection"])
 
-
-geometryCommands = {}
