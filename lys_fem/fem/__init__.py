@@ -1,3 +1,4 @@
+from .base import Coef
 from .FEM import FEMProject
 from .geometry import GeometrySelection
 from .mesh import OccMesher

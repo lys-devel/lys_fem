@@ -1,60 +1,35 @@
 import itertools
 import numpy as np
 
-from lys_fem import FEMParameter
+from lys_fem import FEMParameter, Coef
 
 
 class ElasticParameters(FEMParameter):
     name = "Elasticity"
 
     def __init__(self, rho=1, C=[1, 1], type="lame", alpha=None, d_e=None, d_h=None):
-        self.rho = rho
-        self.C = C
-        self.alpha = alpha
-        self.d_e = d_e
-        self.d_h = d_h
+        self.rho = Coef(rho, description="Density (kg/m^3)")
+        self.C = _ElasticConstantCoef(C, type)
+        self.alpha = Coef(None if alpha is None else np.array(alpha), shape=(3,3), description="Thermal expansion coef. (1/K)", default=np.eye(3).tolist())
+        self.d_e = Coef(d_e, description="DP coef. for electron (eV)", default=10)
+        self.d_h = Coef(d_h, description="DP coef. for hole (eV)", default=10)
+
+    def saveAsDictionary(self):
+        d = super().saveAsDictionary()
+        d["C"] = self.C.C
+        d["type"] = self.C.type
+        return d
+
+
+class _ElasticConstantCoef(Coef):
+    def __init__(self, expr, type, shape=(3,3,3,3), description="Elastic constant (Pa)", default=None):
+        super().__init__(None, shape=shape, description=description, default=default)
+        self.C = np.array(expr).tolist()
         self.type = type
 
-    def getParameters(self):
-        res = {}
-        if self.rho is not None:
-            res["rho"] = self.rho
-        if self.C is not None:
-            res["C"] = self.__getC(self._constructC())
-        if self.alpha is not None:
-            res["alpha"] = np.array(self.alpha).tolist()
-        if self.d_e is not None:
-            res["d_e"] = self.d_e
-        if self.d_h is not None:
-            res["d_h"] = self.d_h
-        return res
-
     @property
-    def description(self):
-        return {
-            "rho": "Density (kg/m^3)",
-            "C": "Elastic constant (Pa)",
-            "alpha": "Thermal expansion coef. (1/K)",
-            "d_e": "DP coef. for electron (eV)",
-            "d_h": "DP coef. for hole (eV)"
-        }
-
-    @property
-    def default(self):
-        return {
-            "rho": 1,
-            "C": [1e9, 1e9],
-            "alpha": np.eye(3).tolist(),
-            "d_e": 10,
-            "d_h": 10
-        }
-
-    def widget(self, name):
-        from .widgets import ElasticConstWidget
-        if name=="C":
-            return ElasticConstWidget(self)
-        else:
-            return super().widget(name)
+    def expression(self):
+        return self.__getC(self._constructC())
 
     def _constructC(self):
         if self.type in ["lame", "young", "isotropic"]:
@@ -109,5 +84,7 @@ class ElasticParameters(FEMParameter):
         elif i==j:
             return C4
         return 0
-
-
+    
+    def widget(self):
+        from .widgets import ElasticConstWidget
+        return ElasticConstWidget(self)

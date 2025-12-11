@@ -1,8 +1,8 @@
 import numpy as np
 from lys.Qt import QtWidgets, QtCore, QtGui
 
-from ..widgets import FEMTreeItem, GeometrySelector, ScalarFunctionWidget, VectorFunctionWidget, MatrixFunctionWidget
-from ..fem import Material, materialParameters, UserDefinedParameters
+from ..widgets import FEMTreeItem, GeometrySelector, MatrixFunctionWidget
+from ..fem import Material, materialParameters, UserDefinedParameters, Coef
 
 
 class MaterialTree(FEMTreeItem):
@@ -146,15 +146,15 @@ class _ParameterWidget(QtWidgets.QTreeWidget):
 
     def __initLayout(self, param):
         self._widgets = []
-        for key in param.description.keys():
-            if getattr(param, key) is not None:
-                self.__addItem(key)
+        for key, c in param.getParameters().items():
+            if c.valid:
+                self.__addItem(key, c)
 
-    def __addItem(self, key):
+    def __addItem(self, key, coef):
         child = QtWidgets.QTreeWidgetItem(["", ""])
-        parent = QtWidgets.QTreeWidgetItem([key, self._param.description[key]])
+        parent = QtWidgets.QTreeWidgetItem([key, coef.description])
         parent.addChild(child)
-        widget = self._param.widget(key)
+        widget = coef.widget()
         self.addTopLevelItem(parent)
         self.setIndexWidget(self.indexFromItem(child, column=1), widget)
         self._widgets.append(widget)
@@ -163,15 +163,15 @@ class _ParameterWidget(QtWidgets.QTreeWidget):
         self._menu = QtWidgets.QMenu()
         params = self._param.getParameters()
         sub = self._menu.addMenu("Add")
-        for key, desc in self._param.description.items():
-            if key not in params:
-                sub.addAction(QtWidgets.QAction(key+": "+desc, self, triggered=lambda x, y=key: self.__add(y)))
+        for key, coef in params.items():
+            if not coef.valid:
+                sub.addAction(QtWidgets.QAction(key+": "+coef.description, self, triggered=lambda x, y=key,z=coef: self.__add(y,z)))
         self._menu.addAction(QtWidgets.QAction("Remove", self, triggered=self.__remove))
         self._menu.exec_(QtGui.QCursor.pos())
 
-    def __add(self, key):
-        setattr(self._param, key, self._param.default[key])
-        self.__addItem(key)
+    def __add(self, key, coef):
+        coef.setDefault()
+        self.__addItem(key, coef)
 
     def __remove(self):
         index = self.indexFromItem(self.currentItem())
@@ -215,27 +215,17 @@ class _UserDefinedParametersWidget(QtWidgets.QTreeWidget):
         parent.setFlags(QtCore.Qt.ItemIsEditable | parent.flags())
         parent.addChild(child)
         self.addTopLevelItem(parent)
-        if len(np.shape(item))==0:
-            widget = ScalarFunctionWidget(None, item, valueChanged=lambda val, name=key: self.__set(widget, val))
-        elif len(np.shape(item))==1:
-            widget = VectorFunctionWidget(None, item, valueChanged=lambda val, name=key: self.__set(widget, val))
-        elif len(np.shape(item))==2:
-            widget = MatrixFunctionWidget(None, item, valueChanged=lambda val, name=key: self.__set(widget, val))
+        widget = item.widget()
         self.setIndexWidget(self.indexFromItem(child, column=0), widget)
         self._widgets[key] = widget
 
-    def __set(self, widget, item):
-        for key, w in self._widgets.items():
-            if w == widget:
-                setattr(self._param, key, item)
-
     def __add(self, type):
         if type == "scalar":
-            obj = 0
+            obj = Coef(0)
         elif type == "vector":
-            obj = [0,0,0]
+            obj = Coef([0,0,0], shape=(3,))
         elif type == "matrix":
-            obj= np.eye(3).tolist()
+            obj= Coef(np.eye(3), shape=(3,3))
         n = 1
         while hasattr(self._param, type[0]+str(n)):
             n += 1

@@ -15,6 +15,19 @@ class ThermoelasticStress(DomainCondition):
         from .widgets import ThermoelasticWidget
         return ThermoelasticWidget(self, fem, canvas, "Temperature T (K)")
 
+    @property
+    def description(self):
+        return {
+            "T": "Temperature (K)",
+            "alpha": "Thermal expansion coef. (1/K)",
+        }
+
+    @property
+    def default(self):
+        return {
+            "T": 100,
+            "alpha": np.eye(3).tolist(),
+        }
 
 class DeformationPotential(DomainCondition):
     className = "DeformationPotential"

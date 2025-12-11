@@ -1,6 +1,5 @@
 import weakref
 import numpy as np
-import sympy as sp
 
 class FEMObject:
     def __init__(self, objName=None):
@@ -54,3 +53,41 @@ class FEMObjectList(list, FEMObject):
     def append(self, item):
         super().append(item)
         item.setParent(self)
+
+
+class Coef:
+    def __init__(self, expr, shape=(), description="", default=None):
+        if isinstance(expr, np.ndarray):
+            expr = expr.tolist()
+        self._expression = expr
+        self.shape = shape
+        self.description = description
+        self.default = default
+    
+    @property
+    def expression(self):
+        return self._expression
+    
+    @expression.setter
+    def expression(self, expr):
+        self._expression = expr
+
+    def setDefault(self):
+        self._expression = self.default
+
+    @property
+    def valid(self):
+        return self.expression is not None
+
+    def widget(self):
+        from ..widgets import ScalarFunctionWidget, VectorFunctionWidget, MatrixFunctionWidget
+        if len(self.shape)==0:
+            widget = ScalarFunctionWidget(None, self.expression, valueChanged=self.__set)
+        elif len(self.shape)==1:
+            widget = VectorFunctionWidget(None, self.expression, valueChanged=self.__set)
+        elif len(self.shape)==2:
+            widget = MatrixFunctionWidget(None, self.expression, valueChanged=self.__set)
+        return widget
+
+    def __set(self, val):
+        self.expression = val

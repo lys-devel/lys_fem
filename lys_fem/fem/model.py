@@ -16,7 +16,6 @@ class FEMModel(FEMObject):
 
     def __init__(self, nvar, initialConditions=None, boundaryConditions=None, domainConditions=None, objName=None, equation=None, **kwargs):
         super().__init__(objName)
-        self._nvar = nvar
         if initialConditions is None:
             initialConditions = []
         if boundaryConditions is None:
@@ -84,16 +83,6 @@ class FEMModel(FEMObject):
         return res
 
     @property
-    def variableDimension(self):
-        return self._nvar
-    
-    @variableDimension.setter
-    def variableDimension(self, dim):
-        self._nvar = dim
-        for i in self._init:
-            i.setDimension(dim)
-
-    @property
     def geometries(self):
         return self._eq.geometries
             
@@ -115,7 +104,7 @@ class FEMModel(FEMObject):
 
     def saveAsDictionary(self):
         d = {"model": self.className}
-        d["nvar"] = self._nvar
+        d["nvar"] = self.variableDimension
         d["eqs"] = self._eq.saveAsDictionary()
         d["init"] = self.initialConditions.saveAsDictionary()
         d["bdr"] = self.boundaryConditions.saveAsDictionary()

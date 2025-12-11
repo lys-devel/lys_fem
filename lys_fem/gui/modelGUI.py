@@ -239,4 +239,4 @@ class FEMModelWidget(QtWidgets.QWidget):
         self._model.equation.discretization = self._method.currentText()
 
     def __changeDim(self):
-        self._model.variableDimension = self._dim.value()
+        self._model.equation.variableDimension = self._dim.value()

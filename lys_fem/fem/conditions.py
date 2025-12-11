@@ -174,8 +174,8 @@ class InitialCondition(ConditionBase):
 
     @classmethod
     def default(cls, fem, model):
-        return InitialCondition([0]*model.variableDimension())
+        return InitialCondition([0]*model.variableDimension)
 
     def widget(self, fem, canvas, title="Initial Value"):
-        return super().widget(fem, canvas, title, shape=(self.model.variableDimension(),))
+        return super().widget(fem, canvas, title, shape=(self.model.variableDimension,))
 

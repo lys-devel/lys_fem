@@ -5,7 +5,7 @@ class Source(DomainCondition):
 
     @classmethod
     def default(cls, fem, model):
-        return Source([0]*model.variableDimension())
+        return Source([0]*model.variableDimension)
 
 
 class DivSource(DomainCondition):
@@ -13,4 +13,4 @@ class DivSource(DomainCondition):
 
     @classmethod
     def default(cls, fem, model):
-        return DivSource([0]*model.variableDimension())
+        return DivSource([0]*model.variableDimension)

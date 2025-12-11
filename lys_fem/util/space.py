@@ -49,6 +49,7 @@ class FunctionSpace:
 
         fess = []
         for i in range(self.size):
+            print(self.size)
             if self._dirichlet[i] is None:
                 fess.append(space(mesh, **kwargs))
             else:

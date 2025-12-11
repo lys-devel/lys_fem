@@ -1,5 +1,5 @@
 from lys.Qt import QtWidgets
-from lys_fem.widgets import GeometrySelector, VectorFunctionWidget
+from lys_fem.widgets import GeometrySelector
 
 
 class DirichletBoundaryWidget(QtWidgets.QWidget):

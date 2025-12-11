@@ -45,6 +45,7 @@ class ElasticConstWidget(QtWidgets.QWidget):
         self.__changeMode()
 
     def __changeMode(self):
+        self.__set()
         for w in self._widgets:
             w.hide()
         if self._type.currentText() == "Lamé":

@@ -1,72 +1,40 @@
 import numpy as np
-from lys_fem import FEMParameter
+from lys_fem import FEMParameter, Coef
 
 
 class LLGParameters(FEMParameter):
     name = "LLG"
 
     def __init__(self, Ms=1e6, Aex=1e-11, alpha_LLG=0, Ku=None, u_Ku=None, Kc=None, beta_st=None, B1=None, B2=None, **kwargs):
-        self.alpha_LLG = alpha_LLG
-        self.Ms = Ms
-        self.Aex = Aex
-        self.Ku = Ku
-        self.u_Ku = u_Ku
-        self.Kc = Kc
-        self.beta_st = beta_st
-        self.B1 = B1
-        self.B2 = B2
+        self.alpha_LLG = Coef(alpha_LLG, description="Gilbert damping const.")
+        self.Ms = Coef(Ms, description="Saturation magnetization (A/m)")
+        self.Aex = Coef(Aex, description="Exchange constant (J/m)")
+        self.Ku = Coef(Ku, description="Uniaxial anisotropy constant (J/m^3)", default=1e3)
+        self.u_Ku = Coef(u_Ku, shape=(3,), description= "Uniaxial anisotropy direction", default=[0,0,1])
+        self.Kc = CubicAnisotropyCoef(Kc)
+        self.beta_st = Coef(beta_st, description="Nonadiabasity of spin-transfer torque", default=0.1)
+        self.K_MS = CubicMagnetostrictionCoef(B1, B2)
 
-    def getParameters(self):
-        res = {}
-        if self.Ms is not None:
-            res["Ms"] = self.Ms
-        if self.Aex is not None:
-            res["Aex"] = self.Aex
-        if self.alpha_LLG is not None:
-            res["alpha_LLG"] = self.alpha_LLG
-        if self.Ku is not None:
-            res["Ku"] = self.Ku
-        if self.u_Ku is not None:
-            res["u_Ku"] = self.u_Ku
-        if self.Kc is not None:
-            res["Kc"] = self._construct_Kc(self.Kc)
-        if self.beta_st is not None:
-            res["beta_st"] = self.beta_st
-        if self.B1 is not None and self.B2 is not None:
-            res["K_MS"] = self._construct_MS(self.B1, self.B2)
-        return res
+    def saveAsDictionary(self):
+        d = super().saveAsDictionary()
+        d["Kc"] = self.Kc.Kc
+
+        del d["K_MS"]
+        d["B1"] = self.K_MS.B1
+        d["B2"] = self.K_MS.B2
+        return d
+
+class CubicAnisotropyCoef(Coef):
+    def __init__(self, Kc, shape=(3,3,3,3), description="Cubic anisotropy (J/m^3)"):
+        super().__init__(None, shape=shape, description=description)
+        self.Kc = Kc 
 
     @property
-    def description(self):
-        return {
-            "Ms": "Saturation magnetization (A/m)",
-            "Aex": "Exchange constant (J/m)",
-            "alpha_LLG": "Gilbert damping const.",
-            "Ku": "Uniaxial anisotropy (J/m^3)",
-            "u_Ku": "Uniaxial anisotropy direction",
-            "Kc": "Cubic anisotropy (J/m^3)",
-            "beta_st": "Nonadiabasity of spin-transfer torque",
-            "B1": "Cubic magnetostriction coefficient (GPa)",
-            "B2": "Cubic magnetostriction coefficient (GPa)",
-        }
-
-    @property
-    def default(self):
-        return {
-            "Ms": 1e6,
-            "Aex": 1e-11,
-            "alpha_LLG": 0,
-            "Ku": 1e3,
-            "u_Ku": [0,0,1],
-            "Kc": 100,
-            "beta_st": 0.1,
-            "B1": 0,
-            "B2": 0,
-        }
-
-    def _construct_Kc(self, Kc):
+    def expression(self):
+        if self.Kc is None:
+            return None
         res = np.zeros((3,3,3,3), dtype=object)
-        Kc = float(Kc)
+        Kc = float(self.Kc)
         res[0,0,1,1] = Kc/6
         res[0,0,2,2] = Kc/6
         res[0,1,0,1] = Kc/6
@@ -89,9 +57,26 @@ class LLGParameters(FEMParameter):
         res[2,2,1,1] = Kc/6
 
         return res.tolist()
+    
+    def setDefault(self):
+        self.Kc = 100
 
-    def _construct_MS(self, B1, B2):
-        B1, B2 = float(B1), float(B2)
+    def widget(self):
+        from lys_fem.widgets import ScalarFunctionWidget
+        return ScalarFunctionWidget(None, self.Kc, valueChanged=lambda x: setattr(self, "Kc", x))
+
+
+class CubicMagnetostrictionCoef(Coef):
+    def __init__(self, B1, B2, shape=(3,3,3,3), description="Cubic magnetostriction (GPa)"):
+        super().__init__(None, shape=shape, description=description)
+        self.B1 = B1
+        self.B2 = B2
+
+    @property
+    def expression(self):
+        if self.B1 is None or self.B2 is None:
+            return None
+        B1, B2 = float(self.B1), float(self.B2)
         K = np.zeros((3,3,3,3), dtype=object)
         K[0,0,0,0] = B1
         K[0,1,0,1] = B2/4
@@ -108,11 +93,24 @@ class LLGParameters(FEMParameter):
         K[2,1,1,2] = B2/4
         K[2,1,2,1] = B2/4
         K[2,2,2,2] = B1
-        return K
+        return K.tolist()
     
-    def widget(self, name):
+    def setDefault(self):
+        self.B1 = 0.0
+        self.B2 = 0.0
+
+    def widget(self):
+        from lys.Qt import QtWidgets
         from lys_fem.widgets import ScalarFunctionWidget
-        if name in ["Kc", "B1", "B2"]:
-            return ScalarFunctionWidget(None, getattr(self, name), valueChanged=lambda x: setattr(self, name, x))
-        else:
-            return super().widget(name)
+        B1 = ScalarFunctionWidget(None, self.B1, valueChanged=lambda x: setattr(self, "B1", x))
+        B2 = ScalarFunctionWidget(None, self.B2, valueChanged=lambda x: setattr(self, "B2", x))
+
+        w = QtWidgets.QWidget()
+        layout = QtWidgets.QGridLayout(w)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(QtWidgets.QLabel("B1 (GPa)"), 0, 0)
+        layout.addWidget(B1, 0, 1)
+        layout.addWidget(QtWidgets.QLabel("B2 (GPa)"), 1, 0)
+        layout.addWidget(B2, 1, 1)
+
+        return w

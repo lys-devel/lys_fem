@@ -1,7 +1,7 @@
 import numpy as np
 
 from lys_fem import util
-from .base import FEMObject, FEMObjectList
+from .base import FEMObject, FEMObjectList, Coef
 from .geometry import GeometrySelection
 
 materialParameters = {}
@@ -24,6 +24,8 @@ class Materials(FEMObjectList):
         res = {}
         R = self._jacobi()
         for key, value in self._materialDict().items():
+            if len(value) == 0:
+                raise RuntimeError("Parameter " + key + " is defined on null mesh. Probably one of the material is not assigned to any geometry.")
             res[key] = util.eval(value, d, name=key, geom="domain", J=R if key != "R" else None)
         return res
 
@@ -34,7 +36,7 @@ class Materials(FEMObjectList):
             for p in m:
                 if p.name not in groups:
                     groups[p.name] = set()
-                groups[p.name] |= set(p.getParameters().keys())
+                groups[p.name] |= set([key for key, value in p.getParameters().items() if value.valid])
 
         # create coefficient for respective parameter
         res = {}
@@ -62,7 +64,9 @@ class Materials(FEMObjectList):
             p = m[group]
             if p is not None:
                 for d in m.geometries:
-                    coefs[d] = p.getParameters()[pname]
+                    item = p.getParameters()[pname]
+                    if item.valid:
+                        coefs[d] = item.expression
         return coefs 
 
 
@@ -117,10 +121,7 @@ class FEMParameter:
         self._name = name
 
     def saveAsDictionary(self):
-        d = dict(vars(self))
-        for key, item in d.items():
-            if isinstance(item, np.ndarray):
-                d[key] = item.tolist()
+        d = {key: item.expression for key, item in self.getParameters().items()}
         d["paramsName"] = self.name
         return d
 
@@ -137,26 +138,13 @@ class FEMParameter:
         del d["paramsName"]
         return cls(**d)
 
-    def widget(self, name):
-        from lys.Qt import QtWidgets
-        from ..widgets import ScalarFunctionWidget, MatrixFunctionWidget, VectorFunctionWidget
-        param = self.getParameters()[name]
-        if np.shape(param) == ():
-            return ScalarFunctionWidget(None, getattr(self, name), valueChanged=lambda x: setattr(self, name, x))
-        elif len(np.shape(param)) == 1:
-            return VectorFunctionWidget(None, getattr(self, name), valueChanged=lambda x: setattr(self, name, x))
-        elif len(np.shape(param)) == 2:
-            return MatrixFunctionWidget(None, getattr(self, name), valueChanged=lambda x: setattr(self, name, x))
-        else:
-            return QtWidgets.QWidget()
-
 
 class UserDefinedParameters(FEMParameter):
     name = "User Defined"
 
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
-            setattr(self, key, value)
+            setattr(self, key, Coef(value, shape=np.shape(value)))
 
 
 materialParameters["User Defined"] = [UserDefinedParameters]
