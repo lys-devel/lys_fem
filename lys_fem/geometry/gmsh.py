@@ -15,7 +15,10 @@ class GmshGeometry:
         self._params = dict(params)
         GmshGeometry._index += 1
         self._name = "Geometry" + str(GmshGeometry._index)
-        self.scale = self.__scale(scale)
+        if len(orders)==0:
+            self.scale = 1
+        else:
+            self.scale = self.__scale(scale)
         tg = _TransGeom(self.scale, params)
         self._model, self._dim = self.__update(self._name, orders, tg)
         self._geom_params = self.__geometryParameters(tg)
@@ -33,6 +36,7 @@ class GmshGeometry:
             order.execute(model, scale)
         model.occ.removeAllDuplicates()
         model.occ.synchronize()
+        dim = 1
         for i in [1,2,3]:
             if len(model.getEntities(i))!=0:
                 dim = i

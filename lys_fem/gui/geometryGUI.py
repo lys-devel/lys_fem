@@ -1,8 +1,6 @@
 from lys.Qt import QtWidgets
-from lys.widgets import ScientificSpinBox
 
 from lys_fem.geometry import geometryCommands
-from ..fem.geometry import GeometrySelection
 from ..fem import OccMesher
 from ..widgets import FEMTreeItem, TreeStyleEditor, GeometrySelector
 
@@ -37,7 +35,7 @@ class GeometryEditor(QtWidgets.QWidget):
         geom = self._generate()
         with self._canvas.delayUpdate():
             self._canvas.clear()
-            for m in OccMesher().getMeshWave(geom, dim=self._obj.dimension):
+            for m in OccMesher().generate(geom).getMeshWave(dim=self._obj.dimension):
                 obj = self._canvas.append(m)
                 obj.setColor("#cccccc", type="color")
 

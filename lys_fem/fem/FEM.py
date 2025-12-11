@@ -157,7 +157,8 @@ class FEMProject:
             mesher = OccMesher(self)
         else:
             mesher = self._mesher
-        return mesher.getMeshWave(self._geom.generateGeometry(), dim=dim)
+        geom = self._geom.generateGeometry()
+        return mesher.generate(geom).getMeshWave(dim=dim)
 
     def run(self):
         from .run import run
