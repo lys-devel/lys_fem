@@ -30,7 +30,7 @@ class LLG_test(FEMTestCase):
 
         mz = -(x-1e-6)/1e-6
         my = sp.sqrt(1 - mz**2)
-        model.initialConditions.append(llg.InitialCondition([0, my, mz], geometries="all"))
+        model.initialConditions.append(llg.InitialCondition([0, str(my), str(mz)], geometries="all"))
         model.domainConditions.append(llg.UniaxialAnisotropy(geometries="all"))
         model.boundaryConditions.append(llg.DirichletBoundary([True, True, True], geometries=[1,3]))
         p.models.append(model)
@@ -203,7 +203,6 @@ class LLG_test(FEMTestCase):
 
     def test_scalar(self):
         factor = 1
-        z = sp.Symbol("z")
         p = FEMProject()
 
         # geometry
@@ -218,7 +217,7 @@ class LLG_test(FEMTestCase):
         # model: boundary and initial conditions
         model1 = llg.LLGModel(discretization="BackwardEuler", type="H1", order=1)
         model1.initialConditions.append(llg.InitialCondition([1, 0, 0], geometries="all"))
-        model1.domainConditions.append(llg.MagneticScalarPotential(z/1.25663706e-6, geometries="all"))
+        model1.domainConditions.append(llg.MagneticScalarPotential("z/1.25663706e-6", geometries="all"))
         p.models.append(model1)
 
         # solver

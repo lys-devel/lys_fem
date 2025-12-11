@@ -1,6 +1,6 @@
 
 
-from lys_fem import FEMFixedModel, DomainCondition, util
+from lys_fem import FEMFixedModel, DomainCondition, Coef, util
 from lys_fem.util import g_e, e, mu_B, mu_0, dti, k_B, Ve, grad, dx
 from . import DirichletBoundary
 
@@ -59,6 +59,9 @@ class BarnettEffect(DomainCondition):
 
 class MagneticScalarPotential(DomainCondition):
     className = "MagneticScalarPotential"
+    def __init__(self, values, geometries="all", *args, **kwargs):
+        values = Coef(values, description="Magnetic scalar potential (A)")
+        super().__init__(values=values, geometries=geometries, *args, **kwargs)
 
     @classmethod
     def default(cls, fem, model):

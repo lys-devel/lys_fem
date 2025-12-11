@@ -1,4 +1,3 @@
-import sympy as sp
 import numpy as np
 
 from lys_fem import geometry
@@ -116,11 +115,9 @@ class elasticity_test(FEMTestCase):
         mat1 = Material([param], geometries="all")
         p.materials.append(mat1)
 
-        x = sp.symbols("x")
-
         # model: boundary and initial conditions
         model = elasticity.ElasticModel(1)
-        model.initialConditions.append(elasticity.InitialCondition(sp.exp(-(x/0.1)**2), geometries=[1]))
+        model.initialConditions.append(elasticity.InitialCondition("exp(-(x/0.1)**2)", geometries=[1]))
         p.models.append(model)
 
         # solver
@@ -251,11 +248,9 @@ class elasticity_test(FEMTestCase):
         mat1 = Material([param], geometries="all", coord=R)
         p.materials.append(mat1)
 
-        x = sp.symbols("x")
-
         # model: boundary and initial conditions
         model = elasticity.ElasticModel(1)
-        model.initialConditions.append(elasticity.InitialCondition(sp.exp(-(x/0.1)**2), geometries=[1]))
+        model.initialConditions.append(elasticity.InitialCondition("exp(-(x/0.1)**2)", geometries=[1]))
         p.models.append(model)
 
         # solver

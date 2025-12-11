@@ -1,6 +1,6 @@
 import numpy as np
 
-from lys_fem import FEMModel, DomainCondition
+from lys_fem import FEMModel, DomainCondition, Coef
 from lys_fem.util import grad, dx
 from . import InitialCondition, DirichletBoundary
 
@@ -9,35 +9,22 @@ class ThermoelasticStress(DomainCondition):
     className = "ThermoelasticStress"
 
     def __init__(self, T="T", alpha="alpha", geometries="all", **kwargs):
+        T = Coef(T, description="Temperature (K)")
+        alpha = Coef(alpha, shape=(3,3), description="Thermal expansion coef. (1/K)")
         super().__init__(geometries = geometries, T=T, alpha=alpha, **kwargs)
 
     def widget(self, fem, canvas):
         from .widgets import ThermoelasticWidget
         return ThermoelasticWidget(self, fem, canvas, "Temperature T (K)")
 
-    @property
-    def description(self):
-        return {
-            "T": "Temperature (K)",
-            "alpha": "Thermal expansion coef. (1/K)",
-        }
-
-    @property
-    def default(self):
-        return {
-            "T": 100,
-            "alpha": np.eye(3).tolist(),
-        }
 
 class DeformationPotential(DomainCondition):
     className = "DeformationPotential"
 
-    def __init__(self, values=["n_e", "n_h"], *args, **kwargs):
-        super().__init__(n_e=values[0], n_h=values[1], *args, **kwargs)
-
-    def widget(self, fem, canvas):
-        from .widgets import DeformationPotentialWidget
-        return DeformationPotentialWidget(self, fem, canvas)
+    def __init__(self, n_e="n_e", n_h="n_h", *args, **kwargs):
+        n_e = Coef(n_e, description="Electron carrier density (1/m3)")
+        n_h = Coef(n_h, description="Hole carrier density (1/m3)")
+        super().__init__(n_e=n_e, n_h=n_h, *args, **kwargs)
 
 
 class ElasticModel(FEMModel):

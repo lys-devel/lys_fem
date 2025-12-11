@@ -311,7 +311,7 @@ class testProblems_test(FEMTestCase):
         # model: boundary and initial conditions
         model = test.LinearTestModel()
         model.boundaryConditions.append(test.DirichletBoundary(True, geometries=[1]))
-        model.initialConditions.append(test.InitialCondition(sp.Symbol("x0"), geometries="all"))
+        model.initialConditions.append(test.InitialCondition("x0", geometries="all"))
         p.models.append(model)
 
         # solver

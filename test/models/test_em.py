@@ -65,7 +65,7 @@ class magnetostatistics_test(FEMTestCase):
         model = em.MagnetostaticsModel(J="J")
         model.initialConditions.append(em.InitialCondition(0, geometries="all"))
         model.boundaryConditions.append(em.DirichletBoundary(True, geometries=infBdr))
-        model.domainConditions.append(em.DivSource(np.array([0,0,"M"]), geometries=domain))
+        model.domainConditions.append(em.DivSource([0,0,"M"], geometries=domain))
         p.models.append(model)
 
         # solver

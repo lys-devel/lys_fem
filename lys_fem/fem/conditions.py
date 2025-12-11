@@ -1,6 +1,4 @@
-import numpy as np
-
-from .base import FEMObject, FEMObjectList
+from .base import FEMObject, FEMObjectList, Coef
 from .geometry import GeometrySelection
 
 
@@ -107,21 +105,17 @@ class ConditionBase(FEMObject):
         super().__init__(objName)
         self._geomType = geomType
         self._geom = GeometrySelection(self._geomType, geometries, parent=self)
-        self._values = {key: self.__parseValues(v) for key, v in kwargs.items()}
+        self._values = {key: v for key, v in kwargs.items()}
         if values is not None:
-            self._values["values"] = self.__parseValues(values)
-
-    def __parseValues(self, value):
-        if isinstance(value, (list, tuple, np.ndarray)):
-            return [self.__parseValues(v) for v in value]
-        if isinstance(value, (bool, int, float, complex)):
-            return value
-        else:
-            return str(value)
+            self._values["values"] = values
      
     def __getattr__(self, key):
-        return self._values.get(key, None)
-    
+        res = self._values.get(key, None)
+        if res is not None:
+            if isinstance(res, Coef):
+                return res.expression
+            return res
+
     def __setattr__(self, key, value):
         if "_values" in self.__dict__:
             if key in self._values:
@@ -138,7 +132,8 @@ class ConditionBase(FEMObject):
         self._geom = GeometrySelection(self._geomType, value, parent=self)
 
     def saveAsDictionary(self):
-        return {"type": self.className, "objName": self.objName, "values": self._values, "geometries": self.geometries.saveAsDictionary()}
+        values = {key: value.expression if isinstance(value, Coef) else value for key, value in self._values.items()}
+        return {"type": self.className, "objName": self.objName, "values": values, "geometries": self.geometries.saveAsDictionary()}
 
     @classmethod
     def loadFromDictionary(cls, d):
@@ -169,8 +164,8 @@ class BoundaryCondition(ConditionBase):
 
 class InitialCondition(ConditionBase):
     className="Initial Condition"
-    def __init__(self, *args, **kwargs):
-        super().__init__("Domain", *args, **kwargs)
+    def __init__(self, values, *args, **kwargs):
+        super().__init__("Domain", values=Coef(values), *args, **kwargs)
 
     @classmethod
     def default(cls, fem, model):

@@ -316,7 +316,8 @@ class _Div(_BinaryOper):
         return self(self._obj[0].eval(fes), self._obj[1].eval(fes))
 
     def grad(self, fes):
-        raise RuntimeError("grad not implenented")
+        v1 = self._obj[1].eval(fes)
+        return (self._obj[0].grad(fes)*v1 - self._obj[0].eval(fes)*self._obj[1].grad(fes))/(v1*v1)
 
     def __str__(self):
         if isinstance(self._obj[0], _Mul) or isinstance(self._obj[1], _Mul):
