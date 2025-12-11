@@ -9,7 +9,7 @@ from ..base import FEMTestCase
 
 class poisson_test(FEMTestCase):
     def test_dirichlet_1d(self):
-        p = FEMProject(1)
+        p = FEMProject()
 
         r0 = 3
         a = 1
@@ -46,7 +46,7 @@ class poisson_test(FEMTestCase):
             self.assert_allclose(w.data, solution(r), atol=1e-6, rtol=0)
        
     def test_dirichlet_2d(self):
-        p = FEMProject(2)
+        p = FEMProject()
 
         r0 = 3
         a = 1
@@ -83,7 +83,7 @@ class poisson_test(FEMTestCase):
 
     def test_amr_2d(self):
         return
-        p = FEMProject(2)
+        p = FEMProject()
 
         r0 = 3
         a = 1
@@ -119,7 +119,7 @@ class poisson_test(FEMTestCase):
             self.assert_allclose(w.data, solution(r), atol=1e-3, rtol=0)
 
     def test_dirichlet_3d(self):
-        p = FEMProject(3)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Sphere(0, 0, 0, 1))
@@ -151,7 +151,7 @@ class poisson_test(FEMTestCase):
 
     def test_infinite_3d(self):
         r2 = 2
-        p = FEMProject(3)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Sphere(0, 0, 0, 0.8))

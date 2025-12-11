@@ -9,7 +9,7 @@ from ..base import FEMTestCase
 
 class elasticity_test(FEMTestCase):
     def test_dirichlet_1d(self):
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
@@ -41,7 +41,7 @@ class elasticity_test(FEMTestCase):
             self.assert_array_almost_equal(w.data, w.x[:, 0])
 
     def test_dirichlet_2d(self):
-        p = FEMProject(2)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Rect(0, 0, 0, 1, 1))
@@ -73,7 +73,7 @@ class elasticity_test(FEMTestCase):
             self.assert_array_almost_equal(w.data, w.x[:, 0])
 
     def test_dirichlet_3d(self):
-        p = FEMProject(3)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Box(0, 0, 0, 1, 1, 1))
@@ -105,7 +105,7 @@ class elasticity_test(FEMTestCase):
             self.assert_array_almost_equal(w.data, w.x[:, 0])
 
     def test_tdep_1d(self):
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 2, 0, 0))
@@ -141,7 +141,7 @@ class elasticity_test(FEMTestCase):
             self.assert_array_almost_equal(w.data, np.exp(-((w.x[:, 0]-np.sqrt(3)/2)/0.1)**2)/2, decimal=2)
 
     def test_thermoelasticity_1d(self):
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 0.1e-6, 0, 0))
@@ -175,7 +175,7 @@ class elasticity_test(FEMTestCase):
         self.assertAlmostEqual(sol.eval("u[0]", data_number=400, coords=0), 0, places=11)
 
     def test_thermoelasticity_2d(self):
-        p = FEMProject(2)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Rect(0, 0, 0, 0.1e-6, 1e-6))
@@ -205,7 +205,7 @@ class elasticity_test(FEMTestCase):
         p.run()
 
     def test_thermoelasticity_time(self):
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 0.1e-6, 0, 0))
@@ -235,7 +235,7 @@ class elasticity_test(FEMTestCase):
         self.assertAlmostEqual(sol.eval("u[0]", data_number=420, coords=0), 0, places=11)
 
     def test_rotation_1d(self):
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 2, 0, 0))

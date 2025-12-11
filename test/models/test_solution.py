@@ -7,7 +7,7 @@ from ..base import FEMTestCase
 
 class solution_test(FEMTestCase):
     def test_solution(self):
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))

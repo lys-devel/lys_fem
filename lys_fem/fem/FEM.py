@@ -11,11 +11,10 @@ from .solution import SolutionFields
 
 
 class FEMProject:
-    def __init__(self, dim):
-        self.reset(dim)
+    def __init__(self):
+        self.reset()
 
-    def reset(self, dim=3):
-        self._dim = dim
+    def reset(self):
         self._parallel = False
         self._params = Parameters()
         self._geom = GeometryGenerator()
@@ -29,7 +28,7 @@ class FEMProject:
         self._submit = {"nthreads": 4}
 
     def saveAsDictionary(self, parallel=False):
-        d = {"dimension": self._dim, "parallel": parallel}
+        d = {"parallel": parallel}
         d["parameters"] = self._params.saveAsDictionary()
         d["geometries"] = self._geom.saveAsDictionary()
         d["mesh"] = self._mesher.saveAsDictionary()
@@ -42,7 +41,6 @@ class FEMProject:
         return d
 
     def loadFromDictionary(self, d):
-        self._dim = d.get("dimension", 3)
         self._parallel = d.get("parallel", False)
         if "parameters" in d:
             self._params = Parameters.loadFromDictionary(d["parameters"])
@@ -67,7 +65,7 @@ class FEMProject:
 
     @classmethod
     def fromFile(cls, file):
-        res = FEMProject(2)
+        res = FEMProject()
         with open(file) as f:
             d = eval(f.read())
         res.loadFromDictionary(d)
@@ -75,7 +73,7 @@ class FEMProject:
 
     @property
     def dimension(self):
-        return self._dim
+        return self.geometries.generateGeometry().dimension
 
     @property
     def parallel(self):
@@ -144,15 +142,15 @@ class FEMProject:
 
     @property
     def domainAttributes(self):
-        return self.geometries.geometryAttributes(self._dim)
+        return self.geometries.geometryAttributes(self.dimension)
 
     @property
     def boundaryAttributes(self):
-        return self.geometries.geometryAttributes(self._dim-1)
+        return self.geometries.geometryAttributes(self.dimension-1)
 
     def getMeshWave(self, dim=None, nomesh=False):
         if dim is None:
-            dim = self._dim
+            dim = self.dimension
         if nomesh:
             mesher = OccMesher(self)
         else:

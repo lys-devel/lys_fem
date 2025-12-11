@@ -8,7 +8,7 @@ from ..base import FEMTestCase
 
 class heat_test(FEMTestCase):     
     def test_dirichlet_1d(self):
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
@@ -41,7 +41,7 @@ class heat_test(FEMTestCase):
             self.assert_array_almost_equal(w.data, w.x[:, 0])
 
     def test_neumann_1d(self):
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
@@ -76,7 +76,7 @@ class heat_test(FEMTestCase):
         def calc_temp(x, t, kappa=1, DT=1, T_0=0):
             return T_0 + DT * special.erfc(-x / np.sqrt(4 * kappa * t)) / 2
 
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
@@ -117,7 +117,7 @@ class heat_test(FEMTestCase):
         def calc_temp(x, t, kappa=1, DT=1, T_0=0):
             return T_0 + DT * special.erfc(-x / np.sqrt(4 * kappa * t)) / 2
 
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
@@ -158,7 +158,7 @@ class heat_test(FEMTestCase):
         def calc_temp(x, t, kappa=1, DT=1, T_0=0):
             return T_0 + DT * special.erfc(-x / np.sqrt(4 * kappa * t)) / 2
 
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))

@@ -9,7 +9,7 @@ from ..base import FEMTestCase
 
 class magnetostatistics_test(FEMTestCase):
     def test_dirichlet_2d(self):
-        p = FEMProject(2)
+        p = FEMProject()
 
         r0 = 3
         a = 1
@@ -45,7 +45,7 @@ class magnetostatistics_test(FEMTestCase):
 
     def test_demagnetization(self):
         r2 = 2
-        p = FEMProject(3)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Sphere(0, 0, 0, 0.8))

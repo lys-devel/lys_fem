@@ -1,6 +1,5 @@
 import numpy as np
 
-from lys_fem import util
 from .base import FEMObject, FEMObjectList
 from .geometry import GeometrySelection
 

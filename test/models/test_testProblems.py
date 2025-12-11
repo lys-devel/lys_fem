@@ -12,7 +12,7 @@ from ..base import FEMTestCase
 
 class testProblems_test(FEMTestCase):
     def test_linear(self):
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
@@ -39,7 +39,7 @@ class testProblems_test(FEMTestCase):
             self.assert_array_almost_equal(w.data, w.x[:, 0])
 
     def test_cond(self):
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
@@ -66,7 +66,7 @@ class testProblems_test(FEMTestCase):
             self.assert_array_almost_equal(w.data, w.x[:, 0])
 
     def test_nonlinear(self):
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
@@ -96,7 +96,7 @@ class testProblems_test(FEMTestCase):
         assert_array_almost_equal(sol.eval("X", data_number=1, coords=c), np.sqrt(2*c))
 
     def test_smallGeom(self):
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1e-9, 0, 0))
@@ -123,7 +123,7 @@ class testProblems_test(FEMTestCase):
             self.assert_array_almost_equal(w.data*1e-9, w.x[:, 0])
 
     def test_twoVars1(self):
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
@@ -149,7 +149,7 @@ class testProblems_test(FEMTestCase):
         self.assert_array_almost_equal(y, (1-np.exp(-2*t))/2, decimal=4)
 
     def test_twoVars_step(self):
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
@@ -176,7 +176,7 @@ class testProblems_test(FEMTestCase):
         self.assert_array_almost_equal(y, (1-np.exp(-2*t))/2, decimal=4)
 
     def test_twoVars_fix(self):
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
@@ -204,7 +204,7 @@ class testProblems_test(FEMTestCase):
         self.assert_array_almost_equal(y, -0.5*t, decimal=4)
 
     def test_consts(self):
-        p = FEMProject(1)
+        p = FEMProject()
         p.parameters["a"] = 1
         p.parameters["b"] = "a+1"
 
@@ -233,7 +233,7 @@ class testProblems_test(FEMTestCase):
             self.assert_array_almost_equal(w.data, w.x[:, 0])
 
     def test_fields(self):
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
@@ -271,7 +271,7 @@ class testProblems_test(FEMTestCase):
         mpi.wait()
         os.chdir("run1")
 
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
@@ -299,7 +299,7 @@ class testProblems_test(FEMTestCase):
 
         # second calculation
         os.chdir("../run2")
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 2, 0, 0))
@@ -334,7 +334,7 @@ class testProblems_test(FEMTestCase):
         mpi.wait()
         os.chdir("run1")
 
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
@@ -359,7 +359,7 @@ class testProblems_test(FEMTestCase):
 
         # second calculation
         os.chdir("../run2")
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
@@ -385,7 +385,7 @@ class testProblems_test(FEMTestCase):
         self.assert_array_almost_equal(y, np.exp(-t)-1, decimal=4)
 
     def test_twoVars_grad(self):
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
@@ -434,7 +434,7 @@ class testProblems_test(FEMTestCase):
         self.solver("cg", "sor")
 
     def solver(self, solver, prec, cond=False):
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
@@ -462,7 +462,7 @@ class testProblems_test(FEMTestCase):
             self.assert_array_almost_equal(w.data, w.x[:, 0], decimal=2)
 
     def test_error(self):
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
@@ -489,7 +489,7 @@ class testProblems_test(FEMTestCase):
             assert_array_almost_equal(w.data, np.sqrt(w.x[:, 0]), decimal=2)
     
     def test_random(self):
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
@@ -516,7 +516,7 @@ class testProblems_test(FEMTestCase):
         self.assertTrue(80 < np.var(w.data) < 120)
 
     def test_group(self):
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))

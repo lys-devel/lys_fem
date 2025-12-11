@@ -12,7 +12,7 @@ T = 2*np.pi/g
 
 class LLG_test(FEMTestCase):
     def test_domainWall(self, discretization="BackwardEuler"):
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1e-6, 0, 0))
@@ -58,7 +58,7 @@ class LLG_test(FEMTestCase):
             self.assert_array_almost_equal(w.data, -np.sin(solution(w.x[:,0]-1e-6, 1e-11, 1e3)), decimal=2)
 
     def test_anisU(self, discretization="BackwardEuler"):
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1e-6, 0, 0))
@@ -91,7 +91,7 @@ class LLG_test(FEMTestCase):
             self.assert_array_almost_equal(w.data, -np.ones(w.data.shape)/np.sqrt(2), decimal=2)
 
     def test_anisC(self):
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1e-6, 0, 0))
@@ -125,7 +125,7 @@ class LLG_test(FEMTestCase):
 
     def test_precession(self, discretization="BackwardEuler"):
         factor = 10
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1e-9, 0, 0))
@@ -171,7 +171,7 @@ class LLG_test(FEMTestCase):
             self.assert_array_almost_equal(w.data, np.zeros(w.data.shape), decimal=2)
 
     def test_damping(self):
-        p = FEMProject(1)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Line(0, 0, 0, 1e-9, 0, 0))
@@ -204,7 +204,7 @@ class LLG_test(FEMTestCase):
     def test_scalar(self):
         factor = 1
         z = sp.Symbol("z")
-        p = FEMProject(3)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Box(0, 0, 0, 1e-9, 0.1e-9, 0.1e-9))
@@ -245,8 +245,7 @@ class LLG_test(FEMTestCase):
 
     def test_scalar_em(self):
         factor = 1
-        z = sp.Symbol("z")
-        p = FEMProject(3)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Box(0, 0, 0, 1e-9, 0.1e-9, 0.1e-9))
@@ -297,7 +296,7 @@ class LLG_test(FEMTestCase):
 
     def test_demagnetization_em(self):
         r2 = 2
-        p = FEMProject(3)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Sphere(0, 0, 0, 0.8))
@@ -375,7 +374,7 @@ class LLG_test(FEMTestCase):
         plt.show()
         
     def test_magnetoStriction(self):
-        p = FEMProject(3)
+        p = FEMProject()
 
         C1, C2, C4 = 100e9, 40e9, 20e9
         Ms = 1e5
@@ -418,7 +417,7 @@ class LLG_test(FEMTestCase):
         self.assert_allclose(r1, s[1]/s[0], rtol=1e-4)
 
     def test_magnetoRotation(self):
-        p = FEMProject(3)
+        p = FEMProject()
 
         # geometry
         p.geometries.add(geometry.Box(0, 0, 0, 1e-6, 1e-6, 1e-7))

@@ -10,7 +10,7 @@ from ..base import FEMTestCase
 
 class semiconductor_test(FEMTestCase):
     def test_stationary(self):
-        p = FEMProject(1)
+        p = FEMProject()
         scale = 20
 
         ni = 1e16

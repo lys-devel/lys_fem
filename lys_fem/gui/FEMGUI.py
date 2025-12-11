@@ -26,7 +26,7 @@ class FEMGUI(LysSubWindow):
         self.closed.connect(lambda x: self.__save())
 
     def __initProj(self):
-        self._obj = FEMProject(2)
+        self._obj = FEMProject()
         if os.path.exists(self._tmpPath):
             self.__load(self._tmpPath)
 
@@ -108,9 +108,14 @@ class FEMGUI(LysSubWindow):
         self._obj.loadFromDictionary(d)
 
     def __new(self):
-        dim, ok = QtWidgets.QInputDialog.getInt(self, "Dimension", "Enter the dimension of simulation.", value=3, min=1, max=3)
-        if ok:
-            self._obj.reset(dim)
+        msg = QtWidgets.QMessageBox(parent=self)
+        msg.setIcon(QtWidgets.QMessageBox.Warning)
+        msg.setWindowTitle("Caution")
+        msg.setText("All present settings will be cleared. Do you really want to proceed?")
+        msg.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.Cancel)
+        ok = msg.exec_()
+        if ok == QtWidgets.QMessageBox.Yes:
+            self._obj.reset()
             self._refresh()
 
     def __submit(self):
@@ -123,7 +128,7 @@ class FEMGUI(LysSubWindow):
             ncore = 1 if sub["type"] == "Serial" else sub["ncore"]
             self.__save(parallel=ncore>1)
             self.__save(path=path + "/input.dic", parallel=ncore>1)
-            command = "python -m lys_fem.ngs -nt "+str(sub["nthreads"])
+            command = "python -m lys_fem -nt "+str(sub["nthreads"])
             if sub["type"] in ["Serial", "Parallel"]:
                 qsub.execute(command, path, ncore=ncore)
             elif sub["type"] == "qsub":

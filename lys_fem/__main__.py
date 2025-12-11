@@ -12,10 +12,7 @@ args = parser.parse_args()
 def run_ngs(file):
     from .fem import FEMProject
     from lys_fem.fem.run import run
-    with open(file, "r") as f:
-        d = eval(f.read())
-    fem = FEMProject(2)
-    fem.loadFromDictionary(d)
+    fem = FEMProject.fromFile(file)
     run(fem, save=False, nthreads=args.numThreads)
 
 
