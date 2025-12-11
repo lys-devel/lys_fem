@@ -96,7 +96,7 @@ class FEMSolution:
         mpath = self._dirname+"/ngs"+str(index)+"_mesh.msh"
         if os.path.exists(mpath):
             if index!=self._index:
-                m = util.Mesh(mpath, self._fem.dimension, self._fem.geometries.scale)
+                m = util.Mesh(mpath, self._fem.geometries.generateGeometry().scale)
                 self.__generate(m)
         else:
             if self._index is None:

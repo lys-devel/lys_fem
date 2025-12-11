@@ -53,35 +53,12 @@ class FEMEngine:
         self._data.save(self._index+1)
         return diff
 
-    def updateMesh(self, mesh):
+    def refineMesh(self, error):
+        mesh = self._fes.mesh.refinedMesh(error, self._obj.adaptive_mesh)
         self._fes = util.FiniteElementSpace(self._model.variables, mesh)
         self._sols = Solution(self._fes, old=self._sols)
         self._ops = _MultiStepSolver(self._fes, self._model, self._mat, self._sols, self._obj.steps)
         self._data.update(self._sols, True)
-
-    def refineMesh(self, error):
-        def get_error(x=None):
-            x = mpi.bcast(np.array(x))
-            res = np.nan_to_num(error(x), 0)
-            return mpi.allreduce(res)
-
-        fem = self._obj.fem
-        if not hasattr(self, "_geom"):
-            self._geom = fem.geometries.generateGeometry()            
-
-        if mpi.isRoot:
-            pos = self._geom.elementPositions#/self._fem.geometries.scale
-            err = get_error(list(pos.values()))
-            size = 0.2*(err/np.median(err) + 1e-6)**(-0.4)
-            self._geom = fem.mesher.refinedMesh(self._geom, list(pos.keys()), np.array([size]).T, self._obj.adaptive_mesh)
-            mesh_new = self._geom.model
-        else:
-            err = get_error()
-            mesh_new = None
-        m = util.Mesh(mesh_new, fem.dimension, fem.geometries.scale)
-        self.updateMesh(m)
-        mpi.print_("\t[AMR]: Error (max,min,mean) = {:.3e}, {:.3e}, {:.3e}".format(np.max(err), np.min(err), np.mean(err)))
-        return m
 
     @property
     def solutions(self):

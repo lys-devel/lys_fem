@@ -10,8 +10,7 @@ gmsh.option.setNumber("General.Terminal", 0)
 class GmshGeometry:
     _index = 0
 
-    def __init__(self, fem, orders, params={}, scale="auto"):
-        self._fem = fem
+    def __init__(self, orders, params={}, scale="auto"):
         self._orders = list(orders)
         self._params = dict(params)
         GmshGeometry._index += 1
@@ -20,6 +19,10 @@ class GmshGeometry:
         tg = _TransGeom(self.scale, params)
         self._model, self._dim = self.__update(self._name, orders, tg)
         self._geom_params = self.__geometryParameters(tg)
+
+    def __del__(self):
+        self._model.setCurrent(self._name)
+        self._model.remove()
 
     def __update(self, name, orders, scale):
         model = gmsh.model()
@@ -93,21 +96,8 @@ class GmshGeometry:
         return self._model.mesh
 
     @property
-    def elementPositions(self):
-        self._model.setCurrent(self._name)
-        mesh = self.mesh
-        dim = self._dim
-
-        res = {}
-        for etype, etags, enodes in zip(*mesh.getElements(dim=dim)):
-            nnodes = mesh.getElementProperties(etype)[3]
-            enodes = np.array(enodes).reshape(-1, nnodes)
-
-            for elem_id, nodes in zip(etags, enodes):
-                coords = [mesh.getNode(n)[0] for n in nodes]
-                coords = np.array(coords).reshape(-1, 3).mean(axis=0)[:dim]
-                res[elem_id] = coords
-        return res
+    def dimension(self):
+        return self._dim
 
     def geometryParameters(self):
         return self._geom_params
@@ -117,7 +107,7 @@ class GmshGeometry:
         return [tag for d, tag  in self._model.getPhysicalGroups(dim)]
 
     def duplicate(self):
-        return GmshGeometry(self._fem, self._orders, params=self._params)
+        return GmshGeometry(self._orders, params=self._params)
 
     def export(self, file):
         self._model.setCurrent(self._name)

@@ -1,4 +1,5 @@
 import weakref
+import gmsh
 import numpy as np
 import sympy as sp
 from lys_fem import util
@@ -307,6 +308,19 @@ class Line(FEMGeometry):
         return LineGUI(self)
 
 
+class ImportGmsh(FEMGeometry):
+    type = "gmsh(.msh)"
+    def __init__(self, file):
+        super().__init__([])
+        self._file = file
+
+    def execute(self, model, trans):
+        gmsh.merge(self._file)
+
+    def widget(self):
+        from .geometryGUI import BoxGUI
+        return BoxGUI(self)
+
 addGeometry("Add 3D", Box)
 addGeometry("Add 3D", Sphere)
 addGeometry("Add 3D", RectFrustum)
@@ -316,3 +330,4 @@ addGeometry("Add 2D", Disk)
 addGeometry("Add 2D", Quad)
 addGeometry("Add 2D", InfinitePlane)
 addGeometry("Add 1D", Line)
+addGeometry("Import", ImportGmsh)

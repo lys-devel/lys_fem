@@ -3,6 +3,7 @@ import numpy as np
 import gmsh
 from .base import FEMObject, FEMObjectList
 from .geometry import GeometrySelection
+from lys_fem.geometry import GmshMesh
 
 
 class OccMesher(FEMObject):
@@ -77,75 +78,7 @@ class OccMesher(FEMObject):
         return self._periodicity
 
     def generate(self, model):
-        model = model.model
-        model.mesh.clear()
-        
-        if self._file is not None:
-            gmsh.merge(self._file)
-            return
-   
-        self.__setTransfinite(model)
-        self.__setPeriodicity(model)
-        self.__setSize(model)
-
-        model.mesh.generate()
-        for _ in range(self._refine):
-            model.mesh.refine()
-
-        model.mesh.optimize()
-
-    def __setTransfinite(self, model):
-        # prepare partial refinement
-        for geom in self._transfinite:
-            dim = {"Volume": 3, "Surface": 2, "Edge": 1, "Point": 0}[geom.geometryType]
-            for tag in geom:
-                if dim == 2:
-                    surf = model.getEntitiesForPhysicalGroup(2, tag)[0]
-                    model.mesh.setTransfiniteSurface(surf)
-                    model.mesh.setRecombine(2, surf)
-                if dim == 3:
-                    domain = model.getEntitiesForPhysicalGroup(3, tag)[0]
-                    _, surfs = model.getAdjacencies(3, domain)
-                    for v in surfs:
-                        model.mesh.setTransfiniteSurface(v)
-                        model.mesh.setRecombine(2, v)
-                    model.mesh.setTransfiniteVolume(domain)
-
-    def __setPeriodicity(self, model):
-        if len(self._periodicity) == 0:
-            return
-        if len(model.getPhysicalGroups(3)) != 0:
-            sdim = 2
-        else:
-            sdim = 1
-        ent = [tag for dim, tag in model.getEntities(sdim)]
-        for pair in self._periodicity:
-            for p1, p2 in zip(pair[0].getSelection(), pair[1].getSelection()):
-                t = self.__getTransform(model, sdim, ent[p1 - 1], ent[p2 - 1])
-                model.mesh.setPeriodic(sdim, [ent[p1 - 1]], [ent[p2 - 1]], t)
-
-    def __getTransform(self, model, sdim, e1, e2):
-        """
-        Consider only parallel shift.
-        """
-        c1 = np.array([model.getValue(*obj, []) for obj in model.getBoundary([(sdim, e1)], recursive=True)])
-        c2 = np.array([model.getValue(*obj, []) for obj in model.getBoundary([(sdim, e2)], recursive=True)])
-        for c in c2:
-            shift = c1[0] - c
-            dist = max([min(np.linalg.norm(c2 - (d - shift), axis=1)) for d in c1])
-            if dist < 1e-3:
-                return [1, 0, 0, shift[0], 0, 1, 0, shift[1], 0, 0, 1, shift[2], 0, 0, 0, 1]
-
-    def __setSize(self, model):
-        # size constraint
-        for geom in sorted(self._size, key=lambda x: 1/x.size):
-            dim = {"Volume": 3, "Surface": 2, "Edge": 1, "Point": 0}[geom.geometryType]
-            for tag in geom:
-                ents = [(dim, t) for t in model.getEntitiesForPhysicalGroup(dim, tag)]
-                if dim == 0:
-                    model.mesh.setSize(ents, geom.size/self.fem.geometries.scale)
-                else:
-                    model.mesh.setSize(model.getBoundary(ents, recursive=True), geom.size/self.fem.geometries.scale)
+        return GmshMesh(model, self._transfinite, self._periodicity, self._size, self._refine)
 
     def getMeshWave(self, model, dim=3):
         from lys import Wave
@@ -180,50 +113,6 @@ class OccMesher(FEMObject):
             nodetag = np.reshape(nodetag, (-1, nNodes))
             elem[type] = nodetag
         return np.reshape(coords, (-1, 3)), elem, nodes
-
-    def refinedMesh(self, model, elems, size, amr):
-        self.__setGmsh(amr)
-        if self._duplicated_model is None:
-            duplicated_model = model.duplicate()
-        else:
-            duplicated_model = self._duplicated_model
-        alpha, nodes, size = self.__refine(duplicated_model, model, elems, size, amr, 1.5)
-
-        n = 0
-        while nodes < amr.nodes*0.95 or nodes > amr.nodes*1.05:
-            alpha, nodes, size = self.__refine(duplicated_model, model, elems, size, amr, alpha)
-            n += 1
-            if n > 50:
-                break
-        self._duplicated_model = model
-
-        gmsh.option.restoreDefaults()
-        return duplicated_model
-
-    def __setGmsh(self, amr):
-        gmsh.option.setNumber("Mesh.MeshSizeMin", amr.range[0]/self.fem.geometries.scale)
-        gmsh.option.setNumber("Mesh.MeshSizeMax", amr.range[1]/self.fem.geometries.scale)
-        gmsh.option.setNumber("Mesh.MeshSizeFromPoints", 0)
-        gmsh.option.setNumber("Mesh.MeshSizeFromCurvature", 0)
-        gmsh.option.setNumber("Mesh.MeshSizeExtendFromBoundary", 0)
-
-    def __refine(self, model_new, model_old, elems, size, amr, alpha):
-        size *= alpha
-        view = gmsh.view.add("refinement")
-        gmsh.view.addModelData(view, 0, model_old.name, "ElementData", elems, size)
-
-        mesh = model_new.mesh
-        mesh.clear()
-        field = mesh.field.add("PostView")
-        mesh.field.setNumber(field, "ViewTag", view)
-        mesh.field.setAsBackgroundMesh(field)
-        mesh.generate()
-        mesh.optimize()
-        mesh.field.remove(field)
-        nodes = len(mesh.getNodes()[0])
-        gmsh.view.remove(view)
-
-        return (nodes/amr.nodes)**(1/self.fem.dimension), nodes, size
 
     def saveAsDictionary(self):
         pairs = [(p[0].saveAsDictionary(), p[1].saveAsDictionary()) for p in self._periodicity]

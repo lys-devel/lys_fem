@@ -45,11 +45,11 @@ class GeometryGenerator(FEMObject):
     def generateGeometry(self, n=None):
         if n is None:
             if self._updated or self._default is None:
-                self._default = GmshGeometry(self.fem, self._order, params=self.fem.parameters.getSolved())
+                self._default = GmshGeometry(self._order, params=self.fem.parameters.getSolved())
             self._updated=False
             return self._default
         else:
-            return GmshGeometry(self.fem, self._order[:n+1], params=self.fem.parameters.getSolved())
+            return GmshGeometry(self._order[:n+1], params=self.fem.parameters.getSolved())
 
     def geometryParameters(self):
         return self.generateGeometry().geometryParameters()

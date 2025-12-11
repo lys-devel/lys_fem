@@ -1,24 +1,22 @@
-import shutil
 import numpy as np
 import ngsolve
-import gmsh
 
 from netgen.meshing import Element0D, Element1D, Element2D, Element3D, FaceDescriptor, Pnt, MeshPoint
 from netgen.meshing import Mesh as netgenMesh
+from lys_fem.geometry import GmshMesh
 from . import mpi
 
 class Mesh(ngsolve.Mesh):
-    def __init__(self, model, dimension, scale=1.0):
+    def __init__(self, model, scale=None):
+        if isinstance(model, str):
+            model = GmshMesh.fromFile(model, scale)
         self._model = model
         if mpi.isRoot:
-            if isinstance(model, str):
-                gmesh, _ = ReadGmshFile(model, dimension) # from file
-            else:
-                gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
-                gmsh.write("tmp.msh")
+            scale = model.geometry.scale
+            dimension = model.geometry.dimension
 
-                self._name = self._model.getCurrent()
-                gmesh, _ = ReadGmshFile("tmp.msh", dimension) # from python model
+            model.export("tmp.msh")
+            gmesh, _ = ReadGmshFile("tmp.msh", dimension) # from python model
 
             gmesh.Scale(scale)
             self._nodes = len(gmesh.Coordinates())
@@ -53,15 +51,26 @@ class Mesh(ngsolve.Mesh):
             return self._nodes
         else:
             return 0
+            
+    def refinedMesh(self, error, amr):
+        def get_error(x=None):
+            x = mpi.bcast(np.array(x))
+            res = np.nan_to_num(error(x), 0)
+            return mpi.allreduce(res)
+
+        if mpi.isRoot:
+            pos = self._model.elementPositions
+            err = get_error(list(pos.values()))
+            size = 0.2*(err/np.median(err) + 1e-6)**(-0.4)
+            mesh_new = self._model.refinedMesh(list(pos.keys()), np.array([size]).T, amr)
+        else:
+            err = get_error()
+            mesh_new = None
+        return Mesh(mesh_new, self._model.geometry.scale)
 
     def save(self, path):
         if mpi.isRoot:
-            if isinstance(self._model, str):
-                shutil.copy(self._model, path)  
-            else:
-                self._model.setCurrent(self._name)
-                gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
-                gmsh.write(path)
+            self._model.export(path)
 
 
 def ReadGmshModel(geom, meshdim): #from netgen.read_gmsh import ReadGmsh
