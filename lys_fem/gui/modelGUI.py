@@ -191,78 +191,52 @@ class _InitialCondition(FEMTreeItem):
 
 
 class FEMModelWidget(QtWidgets.QWidget):
-    def __init__(self, model, fem, canvas):
+    def __init__(self, model, fem, canvas, varDim=True, discretization=True, order=True):
         super().__init__()
-        self.__model = model
-        self.__initlayout(model, fem, canvas)
+        self._model = model
+        self.__initLayout(model, fem, canvas, varDim, order, discretization)
 
-    def __initlayout(self, model, fem, canvas):
+    def __initLayout(self, model, fem, canvas, dim, order, disc):
         self._geom = GeometrySelector(canvas, fem, model.geometries)
-        self._method = MethodComboBox(model)
-        self._dim = QtWidgets.QSpinBox()
-        self._dim.setRange(1, 3)
-        self._dim.setValue(model.variableDimension())
-        self._dim.valueChanged.connect(self.__changeDim)
-        self._order = QtWidgets.QSpinBox()
-        self._order.setValue(model.order)
-        self._order.setRange(0,100)
-        self._order.valueChanged.connect(self.__change)
-
         layout = QtWidgets.QGridLayout()
-        layout.addWidget(QtWidgets.QLabel("Variable dimension"), 0, 0)
-        layout.addWidget(QtWidgets.QLabel("Element Order"), 1, 0)
-        layout.addWidget(QtWidgets.QLabel("Discretization"), 2, 0)
-        layout.addWidget(self._dim, 0, 1)
-        layout.addWidget(self._order, 1, 1)
-        layout.addWidget(self._method, 2, 1)
+
+        i = 0
+        if dim:
+            self._dim = QtWidgets.QSpinBox()
+            self._dim.setRange(1, 3)
+            self._dim.setValue(model.variableDimension)
+            self._dim.valueChanged.connect(self.__changeDim)
+            layout.addWidget(QtWidgets.QLabel("Variable dimension"), i, 0)
+            layout.addWidget(self._dim, i, 1)
+            i += 1
+        
+        if order:
+            self._order = QtWidgets.QSpinBox()
+            self._order.setValue(model.order)
+            self._order.setRange(0,100)
+            self._order.valueChanged.connect(self.__changeOrder)
+            layout.addWidget(QtWidgets.QLabel("Element Order"), i, 0)
+            layout.addWidget(self._order, i, 1)
+            i += 1
+
+        if disc:
+            self._method = QtWidgets.QComboBox()
+            self._method.addItems(model.discretizationTypes)
+            self._method.setCurrentText(self._model.discretization)
+            self._method.currentIndexChanged.connect(self.__changeDisc)
+            layout.addWidget(QtWidgets.QLabel("Discretization"), i, 0)
+            layout.addWidget(self._method, i, 1)
 
         v1 = QtWidgets.QVBoxLayout()
         v1.addWidget(self._geom)
         v1.addLayout(layout)
         self.setLayout(v1)
 
-    def __changeDim(self, value):
-        self.__model.setVariableDimension(self._dim.value())
+    def __changeOrder(self):
+        self._model.equation.order = self._order.value()
 
-    def __change(self):
-        self.__model.order = self._order.value()
+    def __changeDisc(self):
+        self._model.equation.discretization = self._method.currentText()
 
-
-class FEMFixedModelWidget(QtWidgets.QWidget):
-    def __init__(self, model, fem, canvas):
-        super().__init__()
-        self.__initLayout(model, fem, canvas)
-        self._model = model
-
-    def __initlayout(self, model, fem, canvas):
-        self._geom = GeometrySelector(canvas, fem, model.geometries)
-        self._method = MethodComboBox(model)
-        self._order = QtWidgets.QSpinBox()
-        self._order.setValue(model.order)
-        self._order.setRange(0,100)
-        self._order.valueChanged.connect(self.__change)
-        layout = QtWidgets.QGridLayout()
-        layout.addWidget(QtWidgets.QLabel("Discretization"), 0, 0)
-        layout.addWidget(QtWidgets.QLabel("Element Order"), 1, 0)
-        layout.addWidget(self._method, 0, 1)
-        layout.addWidget(self._order, 1, 1)
-
-        v1 = QtWidgets.QVBoxLayout()
-        v1.addWidget(self._geom)
-        v1.addLayout(layout)
-        self.setLayout(v1)
-
-    def __change(self):
-        self._model.order = self._order.value()
-
-
-class MethodComboBox(QtWidgets.QComboBox):
-    def __init__(self, model):
-        super().__init__()
-        self._model = model
-        self.addItems(model.discretizationTypes)
-        self.setCurrentText(self._model.discretization)
-        self.currentIndexChanged.connect(self.__change)
-
-    def __change(self):
-        self._model._disc = self.currentText()
+    def __changeDim(self):
+        self._model.variableDimension = self._dim.value()

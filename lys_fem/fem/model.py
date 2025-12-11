@@ -14,7 +14,7 @@ class FEMModel(FEMObject):
     initialConditionTypes = [InitialCondition]
     discretizationTypes = ["BackwardEuler", "BDF2", "NewmarkBeta", "ForwardEuler"]
 
-    def __init__(self, nvar, discretization="BackwardEuler", initialConditions=None, boundaryConditions=None, domainConditions=None, objName=None, equation=None, **kwargs):
+    def __init__(self, nvar, initialConditions=None, boundaryConditions=None, domainConditions=None, objName=None, equation=None, **kwargs):
         super().__init__(objName)
         self._nvar = nvar
         if initialConditions is None:
@@ -31,11 +31,10 @@ class FEMModel(FEMObject):
         self._init = InitialConditions(self, initialConditions)
         self._bdrs = BoundaryConditions(self, boundaryConditions)
         self._dcs = DomainConditions(self, domainConditions)
-        self._disc = discretization
 
     def __getattr__(self, key):
-        return self._eq.__getattr__(key)
-
+        return getattr(self._eq, key)
+    
     def functionSpaces(self):
         return [self._eq.functionSpaces(self.boundaryConditions.dirichlet)]
 
@@ -84,34 +83,20 @@ class FEMModel(FEMObject):
                 res[trial.tt] = d[trial.tt]
         return res
 
-    def setVariableDimension(self, dim):
+    @property
+    def variableDimension(self):
+        return self._nvar
+    
+    @variableDimension.setter
+    def variableDimension(self, dim):
         self._nvar = dim
         for i in self._init:
             i.setDimension(dim)
 
-    def variableDimension(self):
-        return self._nvar
-
     @property
     def geometries(self):
         return self._eq.geometries
-    
-    @property
-    def size(self):
-        return self._eq.size
-    
-    @property
-    def order(self):
-        return self._eq.order
-    
-    @property
-    def fetype(self):
-        return self._eq.fetype
-
-    @property
-    def variableName(self):
-        return self._eq.variableName
-
+            
     @property
     def domainConditions(self):
         return self._dcs
@@ -123,10 +108,10 @@ class FEMModel(FEMObject):
     @property
     def initialConditions(self):
         return self._init
-
+    
     @property
-    def discretization(self):
-        return self._disc
+    def equation(self):
+        return self._eq
 
     def saveAsDictionary(self):
         d = {"model": self.className}
@@ -162,7 +147,7 @@ class FEMModel(FEMObject):
 
 
 class Equation(FEMObject):
-    def __init__(self, varName, varDim=None, geometries="all", geometryType="Domain", order=2, type="H1", isScalar=False, valType="x", **kwargs):
+    def __init__(self, varName, varDim=None, geometries="all", geometryType="Domain", discretization="BackwardEuler", order=2, type="H1", isScalar=False, valType="x", **kwargs):
         super().__init__()
         self._varName = varName
         self._varDim = varDim
@@ -170,6 +155,7 @@ class Equation(FEMObject):
         self._type = type
         self._isScalar = isScalar
         self._valType = valType
+        self._disc = discretization
         self._geometries = GeometrySelection(geometryType, geometries, parent=self)
         self._values = {key: self.__parseValues(v) for key, v in kwargs.items()}
 
@@ -202,6 +188,10 @@ class Equation(FEMObject):
     def order(self):
         return self._order
     
+    @order.setter
+    def order(self, value):
+        self._order = value
+
     @property
     def fetype(self):
         return self._type
@@ -210,16 +200,25 @@ class Equation(FEMObject):
     def variableName(self):
         return self._varName
     
+    @property
+    def discretization(self):
+        return self._disc
+
+    @discretization.setter
+    def discretization(self, value):
+        self._disc = value
+    
     @variableName.setter
     def variableName(self, value):
         self._varName = value
 
     @property
     def variableDimension(self):
-        if self._varDim is None:
-            return self.parent.parent.variableDimension()
-        else:
-            return self._varDim
+        return self._varDim
+    
+    @variableDimension.setter
+    def variableDimension(self, value):
+        self._varDim = value
 
     @property
     def geometries(self):
@@ -230,12 +229,12 @@ class Equation(FEMObject):
         self._geometries = GeometrySelection(value.geometryType, value, parent=self)
 
     def saveAsDictionary(self):
-        return {"type": self._type, "objName": self.objName, "varName": self._varName, "dim": self._varDim, "geometries": self.geometries.saveAsDictionary(), "values": self._values, "order": self._order, "valType": self._valType, "isScalar": self._isScalar}
+        return {"type": self._type, "objName": self.objName, "varName": self._varName, "dim": self._varDim, "geometries": self.geometries.saveAsDictionary(), "values": self._values, "order": self._order, "valType": self._valType, "isScalar": self._isScalar, "discretization": self._disc}
 
     @classmethod
     def loadFromDictionary(cls, d):
         geometries = GeometrySelection.loadFromDictionary(d["geometries"])
-        return cls(d["varName"], varDim = d["dim"], geometries=geometries, type=d["type"], order=d["order"], valType=d["valType"], isScalar=d["isScalar"], **d.get("values", {}))
+        return cls(d["varName"], varDim = d["dim"], geometries=geometries, type=d["type"], order=d["order"], valType=d["valType"], isScalar=d["isScalar"], discretization=d.get("discretization", "BackwardEuler"), **d.get("values", {}))
 
     
 class FEMFixedModel(FEMModel):
@@ -244,8 +243,8 @@ class FEMFixedModel(FEMModel):
         return cls(**cls._loadConditions(d))
 
     def widget(self, fem, canvas):
-        from ..gui import FEMFixedModelWidget
-        return FEMFixedModelWidget(self, fem, canvas)
+        from ..gui import FEMModelWidget
+        return FEMModelWidget(self, fem, canvas, varDim=False)
 
 
 def loadModel(d):

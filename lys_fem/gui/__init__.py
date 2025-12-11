@@ -1,6 +1,6 @@
 from .FEMGUI import FEMGUI
 from .conditionGUI import ConditionWidget
-from .modelGUI import FEMModelWidget, FEMFixedModelWidget, MethodComboBox
+from .modelGUI import FEMModelWidget
 from .solverGUI import StationarySolverWidget, TimeDependentSolverWidget, RelaxationSolverWidget
 
 def _makeMenu():

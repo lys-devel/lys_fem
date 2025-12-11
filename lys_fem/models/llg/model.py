@@ -207,14 +207,10 @@ class LLGModel(FEMFixedModel):
             wf += -(m.cross(w) + beta*w).dot(test_m)*dx(st.geometries)
 
         for th in self.domainConditions.get(ThermalFluctuation):
-            T, R, Ve = mat[th.T], mat[th.R], Ve
-            D = alpha*kB*T*dti/(Ms*g_e*Ve)
+            T, R = mat[th.T], mat[th.R]
+            D = alpha*k_B*T*dti/(Ms*g_e*Ve)
             B = util.sqrt(2*D)*R
             wf += -g_e*B.dot(test_m)*dx(th.geometries)
 
         return wf
-
-    def widget(self, fem, canvas):
-        from .widgets import LLGModelWidget
-        return LLGModelWidget(self)
 

@@ -56,6 +56,5 @@ class PoissonModel(FEMFixedModel):
         return wf
     
     def widget(self, fem, canvas):
-        raise RuntimeError("Widget for poisson should be reimplemented.")
         from .widgets import PoissonEquationWidget
         return PoissonEquationWidget(self, fem, canvas)
