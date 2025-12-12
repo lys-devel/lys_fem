@@ -82,7 +82,7 @@ class Material(FEMObjectList):
                 if p.name == i:
                     return p
         else:
-            return self._params.__getitem__(i)
+            return super().__getitem__(i)
            
     @property
     def coordinate(self):

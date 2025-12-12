@@ -11,11 +11,11 @@ class DirichletBoundaryWidget(QtWidgets.QWidget):
 
     def __initlayout(self, fem, canvas):
         self._selector = GeometrySelector(canvas, fem, self._cond.geometries)
-        self._fix = [QtWidgets.QCheckBox(axis, toggled=self.__toggled) for axis in ["x", "y", "z"][:len(self._cond.values.expression)]]
+        self._fix = [QtWidgets.QCheckBox(axis, toggled=self.__toggled) for axis in ["x", "y", "z"][:len(self._cond.value.expression)]]
 
         h = QtWidgets.QHBoxLayout()
         h.addWidget(QtWidgets.QLabel("Constrain"))
-        for w, b in zip(self._fix, self._cond.values.expression):
+        for w, b in zip(self._fix, self._cond.value.expression):
             w.setChecked(b)
             h.addWidget(w)
         layout = QtWidgets.QVBoxLayout()

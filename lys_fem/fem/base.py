@@ -91,8 +91,11 @@ class Coef(FEMObject):
     def expression(self, expr):
         self._expression = expr
 
-    def setDefault(self):
-        self._expression = self.default
+    def setValid(self, b=True):
+        if b:
+            self._expression = self.default
+        else:
+            self._expression = None
 
     @property
     def valid(self):
@@ -100,13 +103,25 @@ class Coef(FEMObject):
 
     def widget(self):
         from ..widgets import ScalarFunctionWidget, VectorFunctionWidget, MatrixFunctionWidget
-        if len(self.shape)==0:
+        shape = self._evalShape(self.shape)
+        if len(shape)==0:
             widget = ScalarFunctionWidget(self.expression, valueChanged=self.__set)
-        elif len(self.shape)==1:
-            widget = VectorFunctionWidget(self.expression, valueChanged=self.__set, shape=self.shape)
-        elif len(self.shape)==2:
-            widget = MatrixFunctionWidget(self.expression, valueChanged=self.__set, shape=self.shape)
+        elif len(shape)==1:
+            widget = VectorFunctionWidget(self.expression, valueChanged=self.__set, shape=shape)
+        elif len(shape)==2:
+            widget = MatrixFunctionWidget(self.expression, valueChanged=self.__set, shape=shape)
         return widget
+    
+    def _evalShape(self, shape):
+        res = []
+        for s in shape:
+            if s == "V":
+                res.append(self.model.variableDimension)
+            elif s == "D":
+                res.append(self.fem.dimension)
+            else:
+                res.append(s)
+        return tuple(res)
 
     def __set(self, val):
         self.expression = val

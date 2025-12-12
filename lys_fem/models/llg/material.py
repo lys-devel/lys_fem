@@ -58,8 +58,8 @@ class CubicAnisotropyCoef(Coef):
 
         return res.tolist()
     
-    def setDefault(self):
-        self.Kc = 100
+    def setValid(self, b=True):
+        self.Kc = 100 if b else None
 
     def widget(self):
         from lys_fem.widgets import ScalarFunctionWidget
@@ -95,9 +95,9 @@ class CubicMagnetostrictionCoef(Coef):
         K[2,2,2,2] = B1
         return K.tolist()
     
-    def setDefault(self):
-        self.B1 = 0.0
-        self.B2 = 0.0
+    def setValid(self, b=True):
+        self.B1 = 0.0 if b else None
+        self.B2 = 0.0 if b else None
 
     def widget(self):
         from lys.Qt import QtWidgets

@@ -1,6 +1,5 @@
 from lys.Qt import QtWidgets
-from lys_fem.widgets import GeometrySelector
-from .materialGUI import _ParameterWidget
+from lys_fem.widgets import GeometrySelector, ParameterEditor
 
 
 class ConditionWidget(QtWidgets.QWidget):
@@ -11,13 +10,11 @@ class ConditionWidget(QtWidgets.QWidget):
 
     def __initlayout(self, fem, canvas):
         self._selector = GeometrySelector(canvas, fem, self._cond.geometries)
-        self._params = _ParameterWidget(self._cond)
+        self._params = ParameterEditor(self._cond)
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._selector)
-        layout.addWidget(self._params)
-
-
-
+        if len(self._cond) > 0:
+            layout.addWidget(self._params)
 

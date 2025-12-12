@@ -1,4 +1,3 @@
-import numpy as np
 from .base import FEMObjectDict, FEMObjectList, Coef
 from .geometry import GeometrySelection
 
@@ -138,9 +137,9 @@ class ConditionBase(FEMObjectDict):
     def default(cls, fem, model):
         return cls()
 
-    def widget(self, fem, canvas, title="Value", shape=None):
+    def widget(self, fem, canvas):
         from lys_fem.gui import ConditionWidget
-        return ConditionWidget(self, fem, canvas, title=title, shape=shape)
+        return ConditionWidget(self, fem, canvas)
 
 
 class DomainCondition(ConditionBase):
@@ -157,12 +156,9 @@ class InitialCondition(ConditionBase):
     className="Initial Condition"
     def __init__(self, value, geometries="all", *args, **kwargs):
         super().__init__("Domain", geometries=geometries, *args, **kwargs)
-        self["value"] = Coef(value, shape=np.shape(value), description="Initial value")
+        self["value"] = Coef(value, shape=("V",), description="Initial value")
 
     @classmethod
     def default(cls, fem, model):
         return InitialCondition([0]*model.variableDimension)
-
-    def widget(self, fem, canvas, title="Initial Value"):
-        return super().widget(fem, canvas, title, shape=(self.model.variableDimension,))
 

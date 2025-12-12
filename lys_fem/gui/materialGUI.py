@@ -1,7 +1,7 @@
 import numpy as np
 from lys.Qt import QtWidgets, QtCore, QtGui
 
-from ..widgets import FEMTreeItem, GeometrySelector, MatrixFunctionWidget
+from ..widgets import FEMTreeItem, GeometrySelector, MatrixFunctionWidget, ParameterEditor
 from ..fem import Material, materialParameters, UserDefinedParameters, Coef
 
 
@@ -47,12 +47,12 @@ class _MaterialGUI(FEMTreeItem):
         self._default = b
 
     def append(self, p):
-        self._material.parameters.append(p)
+        self._material.append(p)
         super().append(_ParameterGUI(self, p))
 
     def remove(self, param):
         i = super().remove(param)
-        self._material.parameters.remove(self._material[i])
+        self._material.remove(self._material[i])
 
     @property
     def name(self):
@@ -95,7 +95,7 @@ class _ParameterGUI(FEMTreeItem):
         if isinstance(self._param, UserDefinedParameters):
             return _UserDefinedParametersWidget(self._param)
         else:
-            return _ParameterWidget(self._param)
+            return ParameterEditor(self._param)
 
 
 class _MaterialWidget(QtWidgets.QWidget):
@@ -134,55 +134,6 @@ class _MaterialWidget(QtWidgets.QWidget):
             self._material.coordinate = None
 
 
-class _ParameterWidget(QtWidgets.QTreeWidget):
-    def __init__(self, param, parent=None):
-        super().__init__(parent)
-        self._param = param
-        self.setColumnCount(2)
-        self.setHeaderLabels(["Symbol", "Description"])
-        self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        self.customContextMenuRequested.connect(self._buildContextMenu)
-        self.__initLayout(param)
-
-    def __initLayout(self, param):
-        self._widgets = []
-        for key, c in param.items():
-            if c.valid:
-                self.__addItem(key, c)
-
-    def __addItem(self, key, coef):
-        child = QtWidgets.QTreeWidgetItem(["", ""])
-        parent = QtWidgets.QTreeWidgetItem([key, coef.description])
-        parent.addChild(child)
-        widget = coef.widget()
-        self.addTopLevelItem(parent)
-        self.setIndexWidget(self.indexFromItem(child, column=1), widget)
-        self._widgets.append(widget)
-
-    def _buildContextMenu(self):
-        self._menu = QtWidgets.QMenu()
-        sub = self._menu.addMenu("Add")
-        for key, coef in self._param.items():
-            if not coef.valid:
-                sub.addAction(QtWidgets.QAction(key+": "+coef.description, self, triggered=lambda x, y=key,z=coef: self.__add(y,z)))
-        self._menu.addAction(QtWidgets.QAction("Remove", self, triggered=self.__remove))
-        self._menu.exec_(QtGui.QCursor.pos())
-
-    def __add(self, key, coef):
-        coef.setDefault()
-        self.__addItem(key, coef)
-
-    def __remove(self):
-        index = self.indexFromItem(self.currentItem())
-        if not index.isValid():
-            return
-        if index.parent().isValid():
-            index=index.parent()
-        key = index.data(QtCore.Qt.DisplayRole)
-        setattr(self._param, key, None)
-        self.takeTopLevelItem(index.row())
-
-
 class _UserDefinedParametersWidget(QtWidgets.QTreeWidget):
     def __init__(self, param, parent=None):
         super().__init__(parent)
@@ -195,9 +146,10 @@ class _UserDefinedParametersWidget(QtWidgets.QTreeWidget):
         self.__initLayout()
         self.itemClicked.connect(self.__selected)
         self.itemChanged.connect(self.__changed)
+        self.expandAll()
 
     def __initLayout(self):
-        for key, item in vars(self._param).items():
+        for key, item in self._param.items():
             self.__addItem(key, item)
 
     def _buildContextMenu(self):
@@ -216,7 +168,14 @@ class _UserDefinedParametersWidget(QtWidgets.QTreeWidget):
         self.addTopLevelItem(parent)
         widget = item.widget()
         self.setIndexWidget(self.indexFromItem(child, column=0), widget)
+        widget.installEventFilter(self)
         self._widgets[key] = widget
+
+    def eventFilter(self, obj, ev):
+        if ev.type() in (QtCore.QEvent.Resize, QtCore.QEvent.LayoutRequest, QtCore.QEvent.Show):
+            self.doItemsLayout()
+            self.updateGeometries()        
+        return False
 
     def __add(self, type):
         if type == "scalar":
@@ -229,7 +188,7 @@ class _UserDefinedParametersWidget(QtWidgets.QTreeWidget):
         while hasattr(self._param, type[0]+str(n)):
             n += 1
         name = type[0] + str(n)
-        setattr(self._param, name, obj)
+        self._param[name] = obj
         self.__addItem(name, obj)
 
     def __remove(self):
@@ -239,7 +198,7 @@ class _UserDefinedParametersWidget(QtWidgets.QTreeWidget):
         if index.parent().isValid():
             index=index.parent()
         key = index.data(QtCore.Qt.DisplayRole)
-        delattr(self._param, key)
+        del self._param[key]
         del self._widgets[key]
         self.takeTopLevelItem(index.row())
 
@@ -250,12 +209,12 @@ class _UserDefinedParametersWidget(QtWidgets.QTreeWidget):
         symbol = self.indexFromItem(item).data(QtCore.Qt.DisplayRole)
         if symbol == self._sel:
             return
-        elif hasattr(self._param, symbol):
+        elif symbol in self._param:
             QtWidgets.QMessageBox.warning(self, "Warning", "You cannot specify a symbol name that is already used.")
             item.setData(0, QtCore.Qt.DisplayRole, self._sel)
         else:
-            setattr(self._param, symbol, getattr(self._param, self._sel))
-            delattr(self._param, self._sel)
+            self._param[symbol] = self._param[self._sel]
+            del self._param[self._sel]
             w = self._widgets[self._sel]
             del self._widgets[self._sel]
             self._widgets[symbol] = w
