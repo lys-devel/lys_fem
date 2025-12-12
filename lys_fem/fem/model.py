@@ -1,21 +1,21 @@
 import numpy as np
 from lys_fem import util
 from . import time
-from .base import FEMObject
+from .base import FEMObject, FEMObjectDict
 from .conditions import DomainConditions, BoundaryConditions, InitialConditions, InitialCondition
 from .geometry import GeometrySelection
 
 models = {}
 
 
-class FEMModel(FEMObject):
+class FEMModel(FEMObjectDict):
     domainConditionTypes = []
     boundaryConditionTypes = []
     initialConditionTypes = [InitialCondition]
     discretizationTypes = ["BackwardEuler", "BDF2", "NewmarkBeta", "ForwardEuler"]
 
     def __init__(self, nvar, initialConditions=None, boundaryConditions=None, domainConditions=None, objName=None, equation=None, **kwargs):
-        super().__init__(objName)
+        super().__init__(objName=objName)
         if initialConditions is None:
             initialConditions = []
         if boundaryConditions is None:
@@ -32,6 +32,8 @@ class FEMModel(FEMObject):
         self._dcs = DomainConditions(domainConditions, parent=self)
 
     def __getattr__(self, key):
+        if key in self:
+            return self[key]
         return getattr(self._eq, key)
     
     def functionSpaces(self):

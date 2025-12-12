@@ -110,6 +110,8 @@ class Coef(FEMObject):
             widget = VectorFunctionWidget(self.expression, valueChanged=self.__set, shape=shape)
         elif len(shape)==2:
             widget = MatrixFunctionWidget(self.expression, valueChanged=self.__set, shape=shape)
+        else:
+            widget = ScalarFunctionWidget(self.expression, valueChanged=self.__set)
         return widget
     
     def _evalShape(self, shape):

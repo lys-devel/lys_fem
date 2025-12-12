@@ -30,7 +30,9 @@ class ElasticModel(FEMModel):
     initialConditionTypes = [InitialCondition]
 
     def __init__(self, nvar=3, discretization="NewmarkBeta", C="C", rho="rho", *args, **kwargs):
-        super().__init__(nvar, *args, varName="u", C=C, rho=rho, discretization=discretization, **kwargs)
+        super().__init__(nvar, *args, varName="u", discretization=discretization, **kwargs)
+        self["rho"] = Coef(rho, description="Density (kg/m3)")
+        self["C"] = Coef(C, shape=(3,3,3,3), description="Elastic Constant (Pa)")
 
     def weakform(self, vars, mat):
         C, rho = mat[self.C], mat[self.rho]

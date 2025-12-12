@@ -1,6 +1,6 @@
 from lys.Qt import QtWidgets
 from ..fem.model import models
-from ..widgets import FEMTreeItem, GeometrySelector
+from ..widgets import FEMTreeItem, GeometrySelector, ParameterEditor
 
 
 class ModelTree(FEMTreeItem):
@@ -198,6 +198,7 @@ class FEMModelWidget(QtWidgets.QWidget):
 
     def __initLayout(self, model, fem, canvas, dim, order, disc):
         self._geom = GeometrySelector(canvas, fem, model.geometries)
+        self._params = ParameterEditor(model)
         layout = QtWidgets.QGridLayout()
 
         i = 0
@@ -230,6 +231,8 @@ class FEMModelWidget(QtWidgets.QWidget):
         v1 = QtWidgets.QVBoxLayout()
         v1.addWidget(self._geom)
         v1.addLayout(layout)
+        if len(model) > 0:
+            v1.addWidget(self._params)
         self.setLayout(v1)
 
     def __changeOrder(self):
