@@ -43,9 +43,11 @@ class FEMObject:
 
 
 class FEMObjectList(list, FEMObject):
-    def __init__(self, parent, items=[]):
+    def __init__(self, items=[], parent=None, objName=None):
         super().__init__(items)
-        self.setParent(parent)
+        FEMObject.__init__(self, objName)
+        if parent is not None:
+            self.setParent(parent)
         for item in items:
             if isinstance(item, FEMObject):
                 item.setParent(self)
@@ -55,8 +57,25 @@ class FEMObjectList(list, FEMObject):
         item.setParent(self)
 
 
-class Coef:
+class FEMObjectDict(dict, FEMObject):
+    def __init__(self, items={}, parent=None, objName=None):
+        super().__init__(items)
+        FEMObject.__init__(self, objName)
+        if parent is not None:
+            self.setParent(parent)
+        for item in items.values():
+            if isinstance(item, FEMObject):
+                item.setParent(self)
+
+    def __setitem__(self, key, item):
+        super().__setitem__(key, item)
+        if isinstance(item, FEMObject):
+            item.setParent(self)
+
+
+class Coef(FEMObject):
     def __init__(self, expr, shape=(), description="", default=None):
+        super().__init__()
         if isinstance(expr, np.ndarray):
             expr = expr.tolist()
         self._expression = expr
@@ -82,11 +101,11 @@ class Coef:
     def widget(self):
         from ..widgets import ScalarFunctionWidget, VectorFunctionWidget, MatrixFunctionWidget
         if len(self.shape)==0:
-            widget = ScalarFunctionWidget(None, self.expression, valueChanged=self.__set)
+            widget = ScalarFunctionWidget(self.expression, valueChanged=self.__set)
         elif len(self.shape)==1:
-            widget = VectorFunctionWidget(None, self.expression, valueChanged=self.__set)
+            widget = VectorFunctionWidget(self.expression, valueChanged=self.__set, shape=self.shape)
         elif len(self.shape)==2:
-            widget = MatrixFunctionWidget(None, self.expression, valueChanged=self.__set)
+            widget = MatrixFunctionWidget(self.expression, valueChanged=self.__set, shape=self.shape)
         return widget
 
     def __set(self, val):

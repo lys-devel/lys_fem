@@ -42,11 +42,11 @@ class PoissonModel(FEMFixedModel):
             wf += gu.dot(gv)/d * dx
 
             for s in self.domainConditions.get(Source):
-                f = mat[s.values]
+                f = mat[s.value]
                 wf += f*v*dx(s.geometries)
             
             for s in self.domainConditions.get(DivSource):
-                f = mat[s.values]
+                f = mat[s.value]
                 wf += -f.dot(grad(v))*dx(s.geometries)
         else:
             gu = grad(u)

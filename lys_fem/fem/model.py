@@ -27,9 +27,9 @@ class FEMModel(FEMObject):
         else:
             self._eq= Equation(varDim=nvar, **kwargs)
         self._eq.setParent(self)
-        self._init = InitialConditions(self, initialConditions)
-        self._bdrs = BoundaryConditions(self, boundaryConditions)
-        self._dcs = DomainConditions(self, domainConditions)
+        self._init = InitialConditions(initialConditions, parent=self)
+        self._bdrs = BoundaryConditions(boundaryConditions, parent=self)
+        self._dcs = DomainConditions(domainConditions, parent=self)
 
     def __getattr__(self, key):
         return getattr(self._eq, key)

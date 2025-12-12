@@ -8,16 +8,16 @@ class ElasticParameters(FEMParameter):
     name = "Elasticity"
 
     def __init__(self, rho=1, C=[1, 1], type="lame", alpha=None, d_e=None, d_h=None):
-        self.rho = Coef(rho, description="Density (kg/m^3)")
-        self.C = _ElasticConstantCoef(C, type)
-        self.alpha = Coef(None if alpha is None else np.array(alpha), shape=(3,3), description="Thermal expansion coef. (1/K)", default=np.eye(3).tolist())
-        self.d_e = Coef(d_e, description="DP coef. for electron (eV)", default=10)
-        self.d_h = Coef(d_h, description="DP coef. for hole (eV)", default=10)
+        self["rho"] = Coef(rho, description="Density (kg/m^3)")
+        self["C"] = _ElasticConstantCoef(C, type)
+        self["alpha"] = Coef(None if alpha is None else np.array(alpha), shape=(3,3), description="Thermal expansion coef. (1/K)", default=np.eye(3).tolist())
+        self["d_e"] = Coef(d_e, description="DP coef. for electron (eV)", default=10)
+        self["d_h"] = Coef(d_h, description="DP coef. for hole (eV)", default=10)
 
     def saveAsDictionary(self):
         d = super().saveAsDictionary()
-        d["C"] = self.C.C
-        d["type"] = self.C.type
+        d["C"] = self["C"].C
+        d["type"] = self["C"].type
         return d
 
 

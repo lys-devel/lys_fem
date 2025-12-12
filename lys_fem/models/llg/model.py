@@ -7,13 +7,9 @@ from . import DirichletBoundary
 
 class ExternalMagneticField(DomainCondition):
     className = "External Magnetic Field"
-
-    @classmethod
-    def default(cls, fem, model):
-        return ExternalMagneticField([0,0,0])
-
-    def widget(self, fem, canvas):
-        return super().widget(fem, canvas, title="Magnetic Field (T)")
+    def __init__(self, B_ex=[0,0,0], geometries="all", *args, **kwargs):
+        super().__init__(geometries=geometries, *args, **kwargs)
+        self["B_ex"] = Coef(B_ex, shape=(3,), description="External Magnetic Field (T)")
 
 
 class UniaxialAnisotropy(DomainCondition):
@@ -26,72 +22,45 @@ class CubicAnisotropy(DomainCondition):
 
 class CubicMagnetoStriction(DomainCondition):
     className = "CubicMagnetoStriction"
-
-    @classmethod
-    def default(cls, fem, model):
-        return CubicMagnetoStriction("u")
-
-    def widget(self, fem, canvas):
-        return super().widget(fem, canvas, title="Displacement field (m)")
+    def __init__(self, u="u", geometries="all", *args, **kwargs):
+        super().__init__(geometries=geometries, *args, **kwargs)
+        self["u"] = Coef(u, shape=(3,), description="Displacement field (m)")
 
 
 class CubicMagnetoRotationCoupling(DomainCondition):
     className = "CubicMagnetoRotationCoupling"
-
-    @classmethod
-    def default(cls, fem, model):
-        return CubicMagnetoRotationCoupling("u")
-
-    def widget(self, fem, canvas):
-        return super().widget(fem, canvas, title="Displacement field (m)")
+    def __init__(self, u="u", geometries="all", *args, **kwargs):
+        super().__init__(geometries=geometries, *args, **kwargs)
+        self["u"] = Coef(u, shape=(3,), description="Displacement field (m)")
 
 
 class BarnettEffect(DomainCondition):
     className = "BarnettEffect"
-
-    @classmethod
-    def default(cls, fem, model):
-        return BarnettEffect("u")
-
-    def widget(self, fem, canvas):
-        return super().widget(fem, canvas, title="Displacement field (m)")
+    def __init__(self, u="u", geometries="all", *args, **kwargs):
+        super().__init__(geometries=geometries, *args, **kwargs)
+        self["u"] = Coef(u, shape=(3,), description="Displacement field (m)")
 
 
 class MagneticScalarPotential(DomainCondition):
     className = "MagneticScalarPotential"
-    def __init__(self, values, geometries="all", *args, **kwargs):
-        values = Coef(values, description="Magnetic scalar potential (A)")
-        super().__init__(values=values, geometries=geometries, *args, **kwargs)
-
-    @classmethod
-    def default(cls, fem, model):
-        return MagneticScalarPotential(0)
-
-    def widget(self, fem, canvas):
-        return super().widget(fem, canvas, title="Magnetic scalar potential (A)")
+    def __init__(self, phi=0, geometries="all", *args, **kwargs):
+        super().__init__(geometries=geometries, *args, **kwargs)
+        self["phi"] = Coef(phi, description="Magnetic scalar potential (A)")
 
 
 class SpinTransferTorque(DomainCondition):
     className = "SpinTransferTorque"
-
-    @classmethod
-    def default(cls, fem, model):
-        return cls([0]*fem.dimension)
-
-    def widget(self, fem, canvas):
-        return super().widget(fem, canvas, title="Spin polarized current (A/m^2)")
+    def __init__(self, j=[0,0,0], geometries="all", *args, **kwargs):
+        super().__init__(geometries=geometries, *args, **kwargs)
+        self["j"] = Coef(j, shape=(3,), description="Spin polarized current (A/m^2)")
 
 
 class ThermalFluctuation(DomainCondition):
     className = "ThermalFluctuation"
-
-    @classmethod
-    def default(cls, fem, model):
-        return cls(T=0, R=[0,0,0])
-
-    def widget(self, fem, canvas):
-        from .widgets import ThermalFluctuationWidget
-        return ThermalFluctuationWidget(self)
+    def __init__(self, T=0, R="R", geometries="all", *args, **kwargs):
+        super().__init__(geometries=geometries, *args, **kwargs)
+        self["T"] = Coef(T, description="Temperature (K)")
+        self["R"] = Coef(R, shape=(3,), description="Random Field Variable")
 
 
 class LLGModel(FEMFixedModel):
@@ -160,7 +129,7 @@ class LLGModel(FEMFixedModel):
         wf += A*grad(m).ddot(grad(m))*m.t.dot(test_m)*theta/dti*dx
 
         for ex in self.domainConditions.get(ExternalMagneticField):
-            B = mat[ex.values]
+            B = mat[ex.B_ex]
             wf += -g_e*B.dot(test_m)*dx(ex.geometries)
             wf += g_e*m.dot(B)*m.t.dot(test_m)*theta/dti*dx(ex.geometries)
 
@@ -177,7 +146,7 @@ class LLGModel(FEMFixedModel):
 
         for cms in self.domainConditions.get(CubicMagnetoStriction):
             Ks = mat["K_MS"]
-            du = util.grad(mat[cms.values])
+            du = util.grad(mat[cms.u])
             e = (du + du.T)/2
             B = -2/Ms*util.einsum("ijkl,j,kl->i", Ks, m, e)
             wf += -g_e*B.dot(test_m)*dx(cms.geometries)
@@ -185,7 +154,7 @@ class LLGModel(FEMFixedModel):
 
         for cms in self.domainConditions.get(CubicMagnetoRotationCoupling):
             Kc = mat["Kc"]
-            du = util.grad(mat[cms.values])
+            du = util.grad(mat[cms.u])
             w = (du.T-du)/2
             K = util.einsum("ijkl,Ii->Ijkl", Kc, w) + util.einsum("ijkl,Jj->iJkl", Kc, w) + util.einsum("ijkl,Kk->ijKl", Kc, w) + util.einsum("ijkl,Ll->ijkL", Kc, w)
             B = -4/Ms*util.einsum("ijkl,j,k,l->i", K, m, m, m)
@@ -198,14 +167,14 @@ class LLGModel(FEMFixedModel):
             #wf += g*m.dot(B)*m.t.dot(test_m)*theta/dti*dx(bar.geometries)
 
         for sc in self.domainConditions.get(MagneticScalarPotential):
-            phi = mat[sc.values]
+            phi = mat[sc.phi]
             B = -mu_0*grad(phi)
             wf += -g_e*B.dot(test_m)*dx(sc.geometries)
             #wf += g*m.dot(B)*m.t.dot(test_m)*theta/dti*dx(sc.geometries)
 
         for st in self.domainConditions.get(SpinTransferTorque):
-            beta = mat["beta_st"]
-            u = -mu_B/e/Ms*mat[st.values]/(1+beta**2)
+            beta, j = mat["beta_st"], mat[st.j]
+            u = -mu_B/e/Ms*j/(1+beta**2)
             w = u.dot(grad(m))
             wf += -(m.cross(w) + beta*w).dot(test_m)*dx(st.geometries)
 

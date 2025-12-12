@@ -13,10 +13,10 @@ class OccMesher(FEMObject):
         self._refine = refinement
         if transfinite is None:
             transfinite=[]
-        self._transfinite = FEMObjectList(self, transfinite)
+        self._transfinite = FEMObjectList(transfinite, parent=self)
         if size is None:
             size = []
-        self._size = FEMObjectList(self, size)
+        self._size = FEMObjectList(size, parent=self)
         if periodicity is None:
             periodicity = []
         self._periodicity = periodicity

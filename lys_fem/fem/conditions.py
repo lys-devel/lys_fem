@@ -1,4 +1,5 @@
-from .base import FEMObject, FEMObjectList, Coef
+import numpy as np
+from .base import FEMObjectDict, FEMObjectList, Coef
 from .geometry import GeometrySelection
 
 
@@ -15,8 +16,8 @@ class ModelConditionBase(FEMObjectList):
         coefs = {}
         for c in self.get(cls):
             for d in c.geometries:
-                coefs[d] = c.values
-        return coefs
+                coefs[d] = c.value.expression
+        return coefs        
 
     def saveAsDictionary(self):
         return [item.saveAsDictionary() for item in self]
@@ -91,7 +92,7 @@ class InitialConditions(ModelConditionBase):
         super().append(condition)
 
 
-class ConditionBase(FEMObject):
+class ConditionBase(FEMObjectDict):
     """
     Base class for conditions in FEM.
 
@@ -101,38 +102,28 @@ class ConditionBase(FEMObject):
     Even if the single condition requires several parameters (such as temperature and electric field), it is recommended to put all these values into single vector.
     """
 
-    def __init__(self, geomType, values=None, objName=None, geometries=None, **kwargs):
-        super().__init__(objName)
-        self._geomType = geomType
-        self._geom = GeometrySelection(self._geomType, geometries, parent=self)
-        self._values = {key: v for key, v in kwargs.items()}
-        if values is not None:
-            self._values["values"] = values
+    def __init__(self, geomType, value=None, objName=None, geometries=None):
+        super().__init__(objName=objName)
+        self._geom = GeometrySelection(geomType, geometries, parent=self)
+        if value is not None:
+            self["value"] = Coef(value)
      
     def __getattr__(self, key):
-        res = self._values.get(key, None)
-        if res is not None:
-            if isinstance(res, Coef):
-                return res.expression
-            return res
-
-    def __setattr__(self, key, value):
-        if "_values" in self.__dict__:
-            if key in self._values:
-                self._values[key] = value
-                return
-        super().__setattr__(key, value)
-
+        if key in self:
+            return self[key]
+        else:
+            raise AttributeError
+        
     @property
     def geometries(self):
         return self._geom
 
     @geometries.setter
     def geometries(self, value):
-        self._geom = GeometrySelection(self._geomType, value, parent=self)
+        self._geom = GeometrySelection(self._geom.selectionType(), value, parent=self)
 
     def saveAsDictionary(self):
-        values = {key: value.expression if isinstance(value, Coef) else value for key, value in self._values.items()}
+        values = {key: value.expression if isinstance(value, Coef) else value for key, value in self.items()}
         return {"type": self.className, "objName": self.objName, "values": values, "geometries": self.geometries.saveAsDictionary()}
 
     @classmethod
@@ -164,8 +155,9 @@ class BoundaryCondition(ConditionBase):
 
 class InitialCondition(ConditionBase):
     className="Initial Condition"
-    def __init__(self, values, *args, **kwargs):
-        super().__init__("Domain", values=Coef(values), *args, **kwargs)
+    def __init__(self, value, geometries="all", *args, **kwargs):
+        super().__init__("Domain", geometries=geometries, *args, **kwargs)
+        self["value"] = Coef(value, shape=np.shape(value), description="Initial value")
 
     @classmethod
     def default(cls, fem, model):

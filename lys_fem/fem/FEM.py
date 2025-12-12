@@ -1,6 +1,6 @@
 from lys_fem import util
 
-from .base import FEMObjectList
+from .base import FEMObjectList, Coef
 from .parameters import Parameters, RandomFields
 from .geometry import GeometryGenerator
 from .mesh import OccMesher
@@ -20,9 +20,9 @@ class FEMProject:
         self._geom = GeometryGenerator()
         self._geom.setParent(self)
         self._mesher = OccMesher(self)
-        self._materials = Materials(self, [Material(objName="Material1")])
-        self._models = FEMObjectList(self)
-        self._solvers = FEMObjectList(self)
+        self._materials = Materials([Material(objName="Material1")], parent=self)
+        self._models = FEMObjectList(parent=self)
+        self._solvers = FEMObjectList(parent=self)
         self._solutions = SolutionFields()
         self._randoms = RandomFields()
         self._submit = {"nthreads": 4}
@@ -51,11 +51,11 @@ class FEMProject:
             self._mesher = OccMesher.loadFromDictionary(d["mesh"])
             self._mesher.setParent(self)
         if "materials" in d:
-            self._materials = Materials(self, [Material.loadFromDictionary(dic) for dic in d["materials"]])
+            self._materials = Materials([Material.loadFromDictionary(dic) for dic in d["materials"]], parent=self)
         if "models" in d:
-            self._models = FEMObjectList(self, [loadModel(dic) for dic in d["models"]])
+            self._models = FEMObjectList([loadModel(dic) for dic in d["models"]], parent=self)
         if "solvers" in d:
-            self._solvers = FEMObjectList(self, [FEMSolver.loadFromDictionary(dic) for dic in d["solvers"]])
+            self._solvers = FEMObjectList([FEMSolver.loadFromDictionary(dic) for dic in d["solvers"]], parent=self)
         if "solutionFields" in d:
             self._solutions = SolutionFields.loadFromDictionary(d["solutionFields"])
         if "randomFields" in d:
@@ -118,6 +118,8 @@ class FEMProject:
     def evaluator(self, solutions=True):
         class FEMParameters(dict):
             def __getitem__(self, expr):
+                if isinstance(expr, Coef):
+                    expr = expr.expression
                 return util.eval(expr, dict(self), name=str(expr))
 
         d = FEMParameters(util.consts.asdict())

@@ -9,22 +9,18 @@ class ThermoelasticStress(DomainCondition):
     className = "ThermoelasticStress"
 
     def __init__(self, T="T", alpha="alpha", geometries="all", **kwargs):
-        T = Coef(T, description="Temperature (K)")
-        alpha = Coef(alpha, shape=(3,3), description="Thermal expansion coef. (1/K)")
-        super().__init__(geometries = geometries, T=T, alpha=alpha, **kwargs)
-
-    def widget(self, fem, canvas):
-        from .widgets import ThermoelasticWidget
-        return ThermoelasticWidget(self, fem, canvas, "Temperature T (K)")
+        super().__init__(geometries = geometries, **kwargs)
+        self["T"] = Coef(T, description="Temperature (K)")
+        self["alpha"] = Coef(alpha, shape=(3,3), description="Thermal expansion coef. (1/K)")
 
 
 class DeformationPotential(DomainCondition):
     className = "DeformationPotential"
 
-    def __init__(self, n_e="n_e", n_h="n_h", *args, **kwargs):
-        n_e = Coef(n_e, description="Electron carrier density (1/m3)")
-        n_h = Coef(n_h, description="Hole carrier density (1/m3)")
-        super().__init__(n_e=n_e, n_h=n_h, *args, **kwargs)
+    def __init__(self, n_e="n_e", n_h="n_h", geometries="all", *args, **kwargs):
+        super().__init__(geometries=geometries, *args, **kwargs)
+        self["n_e"] = Coef(n_e, description="Electron carrier density (1/m3)")
+        self["n_h"] = Coef(n_h, description="Hole carrier density (1/m3)")
 
 
 class ElasticModel(FEMModel):

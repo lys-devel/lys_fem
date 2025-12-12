@@ -6,22 +6,22 @@ class LLGParameters(FEMParameter):
     name = "LLG"
 
     def __init__(self, Ms=1e6, Aex=1e-11, alpha_LLG=0, Ku=None, u_Ku=None, Kc=None, beta_st=None, B1=None, B2=None, **kwargs):
-        self.alpha_LLG = Coef(alpha_LLG, description="Gilbert damping const.")
-        self.Ms = Coef(Ms, description="Saturation magnetization (A/m)")
-        self.Aex = Coef(Aex, description="Exchange constant (J/m)")
-        self.Ku = Coef(Ku, description="Uniaxial anisotropy constant (J/m^3)", default=1e3)
-        self.u_Ku = Coef(u_Ku, shape=(3,), description= "Uniaxial anisotropy direction", default=[0,0,1])
-        self.Kc = CubicAnisotropyCoef(Kc)
-        self.beta_st = Coef(beta_st, description="Nonadiabasity of spin-transfer torque", default=0.1)
-        self.K_MS = CubicMagnetostrictionCoef(B1, B2)
+        self["alpha_LLG"] = Coef(alpha_LLG, description="Gilbert damping const.")
+        self["Ms"] = Coef(Ms, description="Saturation magnetization (A/m)")
+        self["Aex"] = Coef(Aex, description="Exchange constant (J/m)")
+        self["Ku"] = Coef(Ku, description="Uniaxial anisotropy constant (J/m^3)", default=1e3)
+        self["u_Ku"] = Coef(u_Ku, shape=(3,), description= "Uniaxial anisotropy direction", default=[0,0,1])
+        self["Kc"] = CubicAnisotropyCoef(Kc)
+        self["beta_st"] = Coef(beta_st, description="Nonadiabasity of spin-transfer torque", default=0.1)
+        self["K_MS"] = CubicMagnetostrictionCoef(B1, B2)
 
     def saveAsDictionary(self):
         d = super().saveAsDictionary()
-        d["Kc"] = self.Kc.Kc
+        d["Kc"] = self["Kc"].Kc
 
         del d["K_MS"]
-        d["B1"] = self.K_MS.B1
-        d["B2"] = self.K_MS.B2
+        d["B1"] = self["K_MS"].B1
+        d["B2"] = self["K_MS"].B2
         return d
 
 class CubicAnisotropyCoef(Coef):
@@ -63,7 +63,7 @@ class CubicAnisotropyCoef(Coef):
 
     def widget(self):
         from lys_fem.widgets import ScalarFunctionWidget
-        return ScalarFunctionWidget(None, self.Kc, valueChanged=lambda x: setattr(self, "Kc", x))
+        return ScalarFunctionWidget(self.Kc, valueChanged=lambda x: setattr(self, "Kc", x))
 
 
 class CubicMagnetostrictionCoef(Coef):
@@ -102,8 +102,8 @@ class CubicMagnetostrictionCoef(Coef):
     def widget(self):
         from lys.Qt import QtWidgets
         from lys_fem.widgets import ScalarFunctionWidget
-        B1 = ScalarFunctionWidget(None, self.B1, valueChanged=lambda x: setattr(self, "B1", x))
-        B2 = ScalarFunctionWidget(None, self.B2, valueChanged=lambda x: setattr(self, "B2", x))
+        B1 = ScalarFunctionWidget(self.B1, valueChanged=lambda x: setattr(self, "B1", x))
+        B2 = ScalarFunctionWidget(self.B2, valueChanged=lambda x: setattr(self, "B2", x))
 
         w = QtWidgets.QWidget()
         layout = QtWidgets.QGridLayout(w)

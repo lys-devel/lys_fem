@@ -1,10 +1,14 @@
-from lys_fem import FEMFixedModel, util
+from lys_fem import FEMFixedModel, Coef, util
 from lys_fem.util import grad, dx
 from . import DirichletBoundary, DomainCondition, InitialCondition
 
 
 class RandomForce(DomainCondition):
     className="Random Force"
+
+    def __init__(self, value, geometries="all", *args, **kwargs):
+        super().__init__(geometries=geometries, *args, **kwargs)
+        self["value"] = Coef(value)
 
 
 class LinearTestModel(FEMFixedModel):
@@ -154,6 +158,6 @@ class RandomWalkModel(FEMFixedModel):
         u,v = vars[self.variableName]
 
         for f in self.domainConditions.get(RandomForce):
-            R = mat[f.values]*util.sqrt(util.dti) # Euler-Maruyama formula
+            R = mat[f.value]*util.sqrt(util.dti) # Euler-Maruyama formula
             wf += (u.t.dot(v) - R.dot(v)) * dx(f.geometries)
         return wf

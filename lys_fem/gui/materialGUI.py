@@ -115,7 +115,7 @@ class _MaterialWidget(QtWidgets.QWidget):
             m = np.eye(3)
             self._grp.setChecked(False)
         self._grp.toggled.connect(self.__changed)
-        self._xyz = MatrixFunctionWidget("Material coordinate XYZ", m)
+        self._xyz = MatrixFunctionWidget(m, label="Material coordinate XYZ")
         self._xyz.valueChanged.connect(self.__changed)
         l1 = QtWidgets.QHBoxLayout()
         l1.addWidget(self._xyz)
@@ -146,7 +146,7 @@ class _ParameterWidget(QtWidgets.QTreeWidget):
 
     def __initLayout(self, param):
         self._widgets = []
-        for key, c in param.getParameters().items():
+        for key, c in param.items():
             if c.valid:
                 self.__addItem(key, c)
 
@@ -161,9 +161,8 @@ class _ParameterWidget(QtWidgets.QTreeWidget):
 
     def _buildContextMenu(self):
         self._menu = QtWidgets.QMenu()
-        params = self._param.getParameters()
         sub = self._menu.addMenu("Add")
-        for key, coef in params.items():
+        for key, coef in self._param.items():
             if not coef.valid:
                 sub.addAction(QtWidgets.QAction(key+": "+coef.description, self, triggered=lambda x, y=key,z=coef: self.__add(y,z)))
         self._menu.addAction(QtWidgets.QAction("Remove", self, triggered=self.__remove))

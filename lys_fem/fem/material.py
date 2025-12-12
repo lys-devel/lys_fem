@@ -1,15 +1,15 @@
 import numpy as np
 
 from lys_fem import util
-from .base import FEMObject, FEMObjectList, Coef
+from .base import FEMObjectList, FEMObjectDict, Coef
 from .geometry import GeometrySelection
 
 materialParameters = {}
 
 
 class Materials(FEMObjectList):
-    def __init__(self, parent, materials):
-        super().__init__(parent, materials)
+    def __init__(self, materials, parent=None):
+        super().__init__(materials, parent=parent)
 
     def append(self, material):
         if material.objName is None:
@@ -36,7 +36,7 @@ class Materials(FEMObjectList):
             for p in m:
                 if p.name not in groups:
                     groups[p.name] = set()
-                groups[p.name] |= set([key for key, value in p.getParameters().items() if value.valid])
+                groups[p.name] |= set([key for key, value in p.items() if value.valid])
 
         # create coefficient for respective parameter
         res = {}
@@ -64,37 +64,26 @@ class Materials(FEMObjectList):
             p = m[group]
             if p is not None:
                 for d in m.geometries:
-                    item = p.getParameters()[pname]
+                    item = p[pname]
                     if item.valid:
                         coefs[d] = item.expression
         return coefs 
 
 
-class Material(FEMObject):
-    def __init__(self, params=None, geometries=None, objName=None, coord=None):
-        super().__init__(objName)
+class Material(FEMObjectList):
+    def __init__(self, params=[], geometries=None, objName=None, coord=None):
+        super().__init__(params, objName=objName)
         self._geometries = GeometrySelection("Domain", geometries, parent=self)
-        if params is None:
-            params = []
-        self._params = params
         self._coord = coord
 
     def __getitem__(self, i):
         if isinstance(i, str):
-            for p in self._params:
+            for p in self:
                 if p.name == i:
                     return p
         else:
             return self._params.__getitem__(i)
-        
-    @property
-    def parameters(self):
-        return self._params
-
-    @property
-    def geometries(self):
-        return self._geometries
-    
+           
     @property
     def coordinate(self):
         return self._coord
@@ -102,6 +91,10 @@ class Material(FEMObject):
     @coordinate.setter
     def coordinate(self, value):
         self._coord = value
+
+    @property
+    def geometries(self):
+        return self._geometries
 
     @geometries.setter
     def geometries(self, value):
@@ -116,17 +109,15 @@ class Material(FEMObject):
         return Material(params, GeometrySelection.loadFromDictionary(d["geometries"]), objName=d["name"], coord=d.get("coord"))
 
 
-class FEMParameter:
+class FEMParameter(FEMObjectDict):
     def __init__(self, name):
+        super().__init__()
         self._name = name
 
     def saveAsDictionary(self):
-        d = {key: item.expression for key, item in self.getParameters().items()}
+        d = {key: item.expression for key, item in self.items()}
         d["paramsName"] = self.name
         return d
-
-    def getParameters(self):
-        return {key: value for key, value in vars(self).items() if key[0] != "_" and value is not None}
 
     @staticmethod
     def loadFromDictionary(d):
@@ -144,7 +135,7 @@ class UserDefinedParameters(FEMParameter):
 
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
-            setattr(self, key, Coef(value, shape=np.shape(value)))
+            self[key] = Coef(value, shape=np.shape(value))
 
 
 materialParameters["User Defined"] = [UserDefinedParameters]

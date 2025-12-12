@@ -9,9 +9,9 @@ class ThermalFluctuationWidget(QtWidgets.QWidget):
         self.__initLayout(cond)
 
     def __initLayout(self, cond):
-        self._T = ScalarFunctionWidget("Temperature (K)", cond.T)
+        self._T = ScalarFunctionWidget(cond.T, label="Temperature (K)")
         self._T.valueChanged.connect(self.__change)
-        self._R = VectorFunctionWidget("Random Field", cond.R)
+        self._R = VectorFunctionWidget(cond.R, label="Random Field")
         self._R.valueChanged.connect(self.__change)
         g = QtWidgets.QVBoxLayout()
         g.addWidget(self._T)

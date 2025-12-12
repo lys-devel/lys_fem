@@ -18,7 +18,7 @@ class HeatConductionModel(FEMFixedModel):
         wf += Cv * u.t * v * dx + grad(u).dot(k.dot(grad(v))) * dx
 
         for n in self.boundaryConditions.get(NeumannBoundary):
-            f = mat[n.values]
+            f = mat[n.value]
             wf -= f * v * ds(n.geometries)
 
         return wf

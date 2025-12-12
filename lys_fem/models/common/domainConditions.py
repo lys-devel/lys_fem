@@ -1,7 +1,11 @@
-from lys_fem.fem import DomainCondition
+import numpy as np
+from lys_fem.fem import DomainCondition, Coef
 
 class Source(DomainCondition):
     className = "Source Term"
+    def __init__(self, value, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self["value"] = Coef(value, shape=np.shape(value), description = "Source")
 
     @classmethod
     def default(cls, fem, model):
@@ -10,6 +14,9 @@ class Source(DomainCondition):
 
 class DivSource(DomainCondition):
     className = "Div Source"
+    def __init__(self, value, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self["value"] = Coef(value, shape=np.shape(value), description = "Div source")
 
     @classmethod
     def default(cls, fem, model):
