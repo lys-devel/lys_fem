@@ -3,7 +3,7 @@ from lys.Qt import QtCore, QtWidgets, QtGui
 
 
 class GeometrySelector(QtWidgets.QWidget):
-    def __init__(self, canvas, fem, selected, acceptedTypes=["All", "Selected"], autoStart=True):
+    def __init__(self, canvas, fem, selected, acceptedTypes=["All", "Selected", "Group"], autoStart=True):
         super().__init__()
         dimDict = {"Domain": fem.dimension, "Boundary": fem.dimension-1, "Volume": 3, "Surface": 2, "Edge": 1, "Point": 0}
         self._dim = dimDict[selected.geometryType]
@@ -11,21 +11,21 @@ class GeometrySelector(QtWidgets.QWidget):
         self._selected = selected
         self._canvas = canvas
         self._fem = fem
-        self.__initlayout(selected.geometryType, selected, acceptedTypes)
+        self.__initlayout(selected.geometryType, selected, acceptedTypes, dimDict)
         if autoStart:
             if selected.selectionType() == "all":
                 self.__showGeometry()
             else:
                 self.startSelection()
 
-    def __initlayout(self, title, selected, acceptedTypes):
+    def __initlayout(self, title, selected, acceptedTypes, dimDict):
         self._type = QtWidgets.QComboBox()
         self._type.addItems(acceptedTypes)
         self._type.setCurrentText(selected.selectionType())
         self._type.currentTextChanged.connect(self.__typeChanged)
 
         h = QtWidgets.QHBoxLayout()
-        h.addWidget(QtWidgets.QLabel("Target"))
+        h.addWidget(QtWidgets.QLabel("Type"))
         h.addWidget(self._type)
 
         self._model = _SelectionModel(selected, title)
@@ -33,15 +33,25 @@ class GeometrySelector(QtWidgets.QWidget):
         self._tree.setModel(self._model)
         self._tree.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self._tree.customContextMenuRequested.connect(self._buildContextMenu)
-
         self._selectBtn = QtWidgets.QPushButton("Start Selection", clicked=self.__start)
         self._selectBtn.setCheckable(True)
+
+        self._groups = QtWidgets.QTreeWidget()
+        self._groups.setHeaderLabels(["Group"])
+        for key, grp in self._fem.geometries.groups.items():
+            if dimDict[grp.geometryType] == self._dim:
+                item = QtWidgets.QTreeWidgetItem(self._groups)
+                item.setText(0, key)
+                item.setFlags(item.flags() | QtCore.Qt.ItemIsUserCheckable)
+                item.setCheckState(0, QtCore.Qt.Checked if key in selected.getSelection() else QtCore.Qt.Unchecked)
+        self._groups.itemChanged.connect(self._groupChanged)
 
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addLayout(h)
         layout.addWidget(self._tree)
         layout.addWidget(self._selectBtn)
+        layout.addWidget(self._groups)
         self.setLayout(layout)
         self.__setEnabled()
 
@@ -66,19 +76,35 @@ class GeometrySelector(QtWidgets.QWidget):
         if text == "All":
             self._selected.setSelection("all")
             self.__showGeometry()
-        else:
+        elif text=="Selected":
             self._selected.setSelection([])
             self.startSelection()
+        else:
+            self._selected.setSelection([])
+            self.__showGeometry()
         self._model.layoutChanged.emit()
         self.__setEnabled()
+
+    def _groupChanged(self, item, column):
+        if item.checkState(column):
+            self._selected.append(item.text(column))
+        else:
+            self._selected.remove(item.text(column))
+        self.__showGeometry()
 
     def __setEnabled(self):
         if self._type.currentText() == "All":
             self._tree.hide()
             self._selectBtn.hide()
-        else:
+            self._groups.hide()
+        elif self._type.currentText() == "Selected":
             self._tree.show()
             self._selectBtn.show()
+            self._groups.hide()
+        else:
+            self._tree.hide()
+            self._selectBtn.hide()
+            self._groups.show()
 
     def __showGeometry(self):
         mesh = self._fem.getMeshWave(self._dim, nomesh=True)

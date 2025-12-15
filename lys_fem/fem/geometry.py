@@ -112,8 +112,10 @@ class GeometrySelection(FEMObject):
         if selection is None:
             selection = []
         self._geom = geometryType
-        if isinstance(selection, str):
-            self._selection = selection
+        if selection == "all":
+            self._selection = "all"
+        elif isinstance(selection, str):
+            self._selection = [selection]
         else:
             self._selection = list(selection)
         if parent is not None:
@@ -143,7 +145,12 @@ class GeometrySelection(FEMObject):
         if self._selection == "all":
             return "All"
         else:
-            return "Selected"
+            if len(self._selection) == 0:
+                return "Group"
+            elif isinstance(self._selection[0], str):
+                return "Group"
+            else:
+                return "Selected"
 
     def __iter__(self):
         return self.geometryAttributes.__iter__()
@@ -167,9 +174,10 @@ class GeometrySelection(FEMObject):
     def check(self, item):
         if self._selection == "all":
             return True
-        elif isinstance(self._selection, str):
-            grp =  self.fem.geometries.groups[self._selection]
-            return item in self.fem.geometries.groups[self._selection]
+        if len(self._selection) == 0:
+            return False
+        if isinstance(self._selection[0], str):
+            return any([item in self.fem.geometries.groups[s] for s in self._selection])
         else:
             return item in self._selection
 
