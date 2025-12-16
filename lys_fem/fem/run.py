@@ -1,0 +1,72 @@
+import time
+import ngsolve
+from lys_fem.fem import mpi
+
+
+def run(fem, run=True, save=True, output=True, nthreads=16):
+    first = time.time()
+    initialize(fem, save, output, nthreads)
+    solvers = createSolver(fem)
+ 
+    if run:
+        for i, s in enumerate(solvers):
+            mpi.print_("------------Solver " + str(i+1) + ": " + s.name + " started --------------------")
+            start = time.time()
+            if i > 0:
+                s.solution.update(solvers[i].solution[0])
+            with ngsolve.TaskManager():
+                s.execute()
+            mpi.print_("Calc. time for Solver", str(i+1), ":{:.2f}".format(time.time()-start), " seconds")
+            mpi.print_()
+    else:
+        return solvers
+    mpi.print_("Total calculation time: {:.2f}".format(time.time()-first), " seconds")
+    mpi.wait()
+
+
+def initialize(fem, save, output, nthreads):
+    mpi.print_("\n----------------------------NGS started ---------------------------")
+    mpi.print_()
+    mpi.info()
+
+    if save:
+        d = fem.saveAsDictionary(parallel=mpi.isParallel())
+        with open("input.dic", "w") as f:
+            f.write(str(d))
+
+    if output:
+        mpi.setOutputFile("output")
+
+    ngsolve.SetNumThreads(nthreads)
+    mpi.print_("Number of threads:", nthreads)
+    mpi.print_()
+
+
+def createSolver(fem):
+    start = time.time()
+    mesh = fem.mesh
+    mpi.print_("NGS Mesh generated in", '{:.2f}'.format(time.time()-start) ,"seconds : ", mesh.elements, "elements, ", mesh.nodes, "nodes,", len(mesh.GetMaterials()), "domains, ", len(mesh.GetBoundaries()), "boundaries.")
+    mpi.print_()
+
+    start = time.time()
+    mats = fem.evaluator()
+    mpi.print_("NGS Variables generated in", '{:.2f}'.format(time.time()-start), "seconds :")
+    mpi.print_("\tParameters:", {key: value.shape if len(value.shape)>0 else "scalar" for key, value in mats.items()})
+    mpi.print_()
+
+    start = time.time()
+    model = fem.compositeModel
+    mpi.print_("NGS Models generated in ", '{:.2f}'.format(time.time()-start), "seconds :")
+    for m in model.models:
+        mpi.print_(m)
+    mpi.print_()
+
+    start = time.time()
+    solvers = [s.solver(mesh, model, mats, dirname="Solver" + str(i)) for i, s in enumerate(fem.solvers)]
+    mpi.print_("NGS Solvers generated in ", '{:.2f}'.format(time.time()-start), "seconds :")
+    for i, s in enumerate(solvers):
+        mpi.print_("\tSolver", i+1, "(",s.name,"):")
+        mpi.print_(s)
+    mpi.print_()
+
+    return solvers

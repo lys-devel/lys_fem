@@ -1,0 +1,432 @@
+import builtins
+import numpy as np
+import ngsolve
+
+from .operators import NGSFunctionBase
+from .coef import NGSFunction
+from .trials import TrialFunction, TestFunction
+
+
+def grad(f):
+    """
+    Calculate gradient of a function f.
+    The output shape is in the form of (dimension, original shpae). 
+    
+    """
+    return _Grad(f)
+
+
+def rot(f):
+    """
+    Calculate rotation of a function f.
+    f should be a 3-dimensional vector field.
+    """
+    return _Rot(f)
+
+
+def prev(x, n=0):
+    return _Prev(x, n)
+
+
+def exp(x):
+    return _Func(x, "exp")
+
+
+def sin(x):
+    return _Func(x, "sin")
+
+
+def cos(x):
+    return _Func(x, "cos")
+
+
+def tan(x):
+    return _Func(x, "tan")
+
+
+def step(x):
+    return _Func(x, "step")
+
+
+def sqrt(x):
+    return _Func(x, "sqrt")
+
+
+def norm(x):
+    return _Func(x, "norm")
+
+
+def min(x,y):
+    return _MinMax(x, y, "min")
+
+
+def max(x,y):
+    return _MinMax(x, y, "max")
+
+
+def einsum(sign, *args):
+    return _Einsum(sign, *args)
+
+
+def diag(m):
+    M = np.zeros(m.shape, dtype=object)
+    for i in range(builtins.min(*m.shape)):
+        M[i,i] = m[i,i]
+    return NGSFunction(M.tolist())
+
+
+def offdiag(m):
+    M = np.zeros(m.shape, dtype=object)
+    for i in range(m.shape[0]):
+        for j in range(m.shape[1]):
+            if i != j:
+                M[i,j] = m[i,j]
+    return NGSFunction(M.tolist())
+
+
+def det(J):
+    if J.shape[0] == 3:
+        return J[0,0]*J[1,1]*J[2,2] + J[0,1]*J[1,2]*J[2,0] + J[0,2]*J[1,0]*J[2,1] - J[0,2]*J[1,1]*J[2,0] - J[0,1]*J[1,0]*J[2,2] - J[0,0]*J[1,2]*J[2,1]
+    elif J.shape[0] == 2:
+        return J[0,0]*J[1,1] - J[0,1]*J[1,0]
+    elif J.shape[0] == 1:
+        return J[0,0]
+    
+def inv(m):
+    if m.shape[0] == 3:
+        return NGSFunction([
+            [m[1,1]*m[2,2]-m[1,2]*m[2,1], m[0,2]*m[2,1]-m[0,1]*m[2,2], m[0,1]*m[1,2]-m[0,2]*m[1,1]],
+            [m[1,2]*m[2,0]-m[1,0]*m[2,2], m[0,0]*m[2,2]-m[0,2]*m[2,0], m[0,2]*m[1,0]-m[0,0]*m[1,2]],
+            [m[1,0]*m[2,1]-m[1,1]*m[2,0], m[0,1]*m[2,0]-m[0,0]*m[2,1], m[0,0]*m[1,1]-m[0,1]*m[1,0]]])/m.det()
+    elif m.shape[0] == 2:
+        return NGSFunction([[m[1,1], -m[0,1]], [-m[1,0], m[0,0]]])/m.det()
+    else:
+        return 1/m
+
+
+class _Func(NGSFunctionBase):
+    def __init__(self, obj, type):
+        if not isinstance(obj, NGSFunctionBase):
+            obj = NGSFunction(obj, str(obj))
+        self._obj = obj
+        self._type = type
+
+    def replace(self, d):
+        if self in d:
+            return d.get(self)
+        replaced = self._obj.replace(d)
+        if replaced == 0:
+            replaced = NGSFunction()
+        return self(replaced)
+    
+    def __contains__(self, item):
+        return item in self._obj
+    
+    @property
+    def isTimeDependent(self):
+        return self._obj.isTimeDependent
+
+    def __call__(self, obj1):
+        return _Func(obj1, self._type)
+    
+    @property
+    def valid(self):
+        return True
+
+    @property
+    def rhs(self):
+        if self.hasTrial:
+            return NGSFunction()
+        else:
+            return self
+
+    @property
+    def lhs(self):
+        if self.hasTrial:
+            return self
+        else:
+            return NGSFunction()
+
+    @property
+    def hasTrial(self):
+        return self._obj.hasTrial
+
+    @property
+    def isNonlinear(self):
+        return self._obj.hasTrial
+
+    @property
+    def shape(self):
+        return self._obj.shape
+    
+    def __hash__(self):
+        return super().__hash__()
+
+    def __eq__(self, other):
+        return hash(self) == hash(other)
+
+    def eval(self, fes):
+        if self._type == "exp":
+            return ngsolve.exp(self._obj.eval(fes))
+        if self._type == "sin":
+            return ngsolve.sin(self._obj.eval(fes))
+        if self._type == "cos":
+            return ngsolve.cos(self._obj.eval(fes))
+        if self._type == "tan":
+            return ngsolve.tan(self._obj.eval(fes))
+        if self._type == "step":
+            return ngsolve.IfPos(self._obj.eval(fes), 1, 0)
+        if self._type == "sqrt":
+            return ngsolve.sqrt(self._obj.eval(fes))    
+        if self._type == "norm":
+            v = self._obj.eval(fes)
+            return ngsolve.sqrt(v*v) 
+        
+    def __str__(self):
+        return self._type + "(" + str(self._obj) + ")"
+
+
+class _Grad(_Func):
+    def __init__(self, obj):
+        if not isinstance(obj, NGSFunctionBase):
+            obj = NGSFunction(obj, str(obj))
+        self._obj = obj
+
+    def __call__(self, obj1):
+        return _Grad(obj1)
+    
+    @property
+    def isNonlinear(self):
+        return self._obj.isNonlinear
+
+    @property
+    def shape(self):
+        return tuple([3]+list(self._obj.shape))
+
+    def __hash__(self):
+        if isinstance(self._obj, (TrialFunction, TestFunction)):
+            return hash(str(self._obj)+"__grad")
+        return super().__hash__()
+    
+    def eval(self, fes):
+        if hasattr(self._obj, "grad"):
+            return self._obj.grad(fes)
+        raise RuntimeError("grad is not implemented for " + str(type(self._obj)))
+    
+    def __str__(self):
+        return "grad(" + str(self._obj) + ")"
+
+
+class _Rot(_Func):
+    def __init__(self, obj):
+        if not isinstance(obj, NGSFunctionBase):
+            obj = NGSFunction(obj, str(obj))
+        self._obj = obj
+
+    def __call__(self, obj1):
+        return _Rot(obj1)
+    
+    @property
+    def isNonlinear(self):
+        return self._obj.isNonlinear
+
+    @property
+    def shape(self):
+        return tuple(list(self._obj.shape))
+   
+    def eval(self, fes):
+        grad = self._obj.grad(fes)
+        # Levi Civita symbol
+        eijk = np.zeros((3, 3, 3))
+        eijk[0, 1, 2] = eijk[1, 2, 0] = eijk[2, 0, 1] = 1
+        eijk[0, 2, 1] = eijk[2, 1, 0] = eijk[1, 0, 2] = -1
+        eijk = tuple([tuple([tuple(ek) for ek in ejk]) for ejk in eijk])
+        eijk = ngsolve.CoefficientFunction(eijk, dims=(3,3,3))
+
+        return ngsolve.fem.Einsum("ijk,jk->i", eijk, grad)
+
+    def __str__(self):
+        return "rot(" + str(self._obj) + ")"
+
+
+class _MinMax(_Func):
+    def __init__(self, obj1, obj2, type="min"):
+        if not isinstance(obj1, NGSFunctionBase):
+            obj1 = NGSFunction(obj1, str(obj1))
+        if not isinstance(obj2, NGSFunctionBase):
+            obj2 = NGSFunction(obj2, str(obj2))
+
+        self._obj = [obj1, obj2]
+        self._type = type
+
+    def __call__(self, obj1, obj2):
+        if isinstance(obj1, (int,float)) and isinstance(obj2, (int,float)):
+            if self._type == "min":
+                return builtins.min([obj1, obj2])
+            else:
+                return builtins.max([obj1, obj2])
+        return _MinMax(obj1, obj2, self._type)
+
+    @property
+    def shape(self):
+        return self._obj[0].shape
+
+    @property
+    def rhs(self):
+        return self(self._obj[0].rhs, self._obj[1].rhs)
+
+    @property
+    def lhs(self):
+        return self(self._obj[0].lhs, self._obj[1].lhs)
+
+    @property
+    def hasTrial(self):
+        return self._obj[0].hasTrial or self._obj[1].hasTrial
+
+    @property
+    def isNonlinear(self):
+        return self._obj[0].hasTrial or self._obj[1].hasTrial
+
+    @property
+    def isTimeDependent(self):
+        return self._obj[0].isTimeDependent or self._obj[1].isTimeDependent
+
+    def replace(self, d):
+        if self in d:
+            return d.get(self)
+        objs = []
+        for i in range(2):
+            obj = self._obj[i]
+            replaced = obj.replace(d)
+            if replaced == 0:
+                replaced = NGSFunction()
+            objs.append(replaced)
+        return self(*objs)
+    
+    def eval(self, fes):
+        e1, e2 = self._obj[0].eval(fes), self._obj[1].eval(fes)
+        if self._type == "max":
+            return ngsolve.IfPos(e1-e2, e1, e2)
+        else:
+            return ngsolve.IfPos(e1-e2, e2, e1)
+    
+    def __str__(self):
+        return self._type + "(" + str(self._obj[0]) + ", " + str(self._obj[1]) + ")"
+
+
+class _Einsum(NGSFunctionBase):
+    def __init__(self, sign, *kwargs):
+        self._sign = sign
+        self._objs = [obj if isinstance(obj, NGSFunctionBase) else NGSFunction(obj, str(obj)) for obj in kwargs]
+
+    @property
+    def valid(self):
+        return any([obj.valid for obj in self._objs])
+
+    def replace(self, d):
+        objs = []
+        for obj in self._objs:
+            replaced = obj.replace(d)
+            if replaced == 0:
+                replaced = NGSFunction()
+            objs.append(replaced)
+        return _Einsum(self._sign, *objs)
+    
+    def __contains__(self, item):
+        return any([item in obj for obj in self._objs])
+
+    @property
+    def isNonlinear(self):
+        return any([obj.isNonlinear for obj in self._objs])
+    
+    @property
+    def isTimeDependent(self):
+        return any([obj.isTimeDependent for obj in self._objs])
+        
+    @property
+    def hasTrial(self):
+        return any([obj.hasTrial for obj in self._objs])
+
+    @property
+    def shape(self):
+        pass
+
+    def eval(self, fes):
+        objs = [obj.eval(fes) for obj in self._objs]
+        return ngsolve.fem.Einsum(self._sign, *objs)
+
+    def __str__(self):
+        objs = [str(obj) for obj in self._objs]
+        return "einsum("+self._sign+","+ ",".join(objs) +")"
+
+    @property
+    def rhs(self):
+        if self.hasTrial:
+            return NGSFunction()
+        else:
+            return self
+
+    @property
+    def lhs(self):
+        if self.hasTrial:
+            return self
+        else:
+            return NGSFunction()
+
+
+class _Prev(NGSFunctionBase):
+    def __init__(self, x, n):
+        self._x = x
+        self._n = n
+
+    def replace(self, d):
+        return d.get(self, self)
+    
+    def eval(self, fes):
+        raise RuntimeError("Implementation Error: prev function should be replaced by SolutionFunction.")
+        
+    def grad(self, fes):
+        raise RuntimeError("Implementation Error: prev function should be replaced by SolutionFunction.")
+
+    def __contains__(self, item):
+        return self == item
+    
+    def __hash__(self):
+        return hash(str(self._x)+"__prev"+str(self._n))
+    
+    def __eq__(self, other):
+        return hash(self) == hash(other)
+        
+    @property
+    def shape(self):
+        return self._x.shape
+        
+    @property
+    def isNonlinear(self):
+        return False
+
+    @property
+    def isTimeDependent(self):
+        return True
+
+    @property
+    def valid(self):
+        return True
+
+    @property
+    def hasTrial(self):
+        return False
+    
+    @property
+    def rhs(self):
+        return self
+
+    @property
+    def lhs(self):
+        return NGSFunction()
+               
+    def __str__(self):
+        res = "prev(" + str(self._x)
+        if self._n != 0:
+            res += "," + str(self._n)
+        return  res + ")"

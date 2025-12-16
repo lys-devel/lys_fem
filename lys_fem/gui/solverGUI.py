@@ -1,0 +1,416 @@
+from lys.Qt import QtWidgets
+from lys.widgets import ScientificSpinBox
+
+from ..widgets import FEMTreeItem
+from ..fem.solver import solvers, SolverStep
+
+
+class SolverTree(FEMTreeItem):
+    def __init__(self, obj, canvas):
+        super().__init__(fem=obj, canvas=canvas)
+        self.setSolvers(obj.solvers)
+
+    def setSolvers(self, solvers):
+        self.clear()
+        self._solvers = solvers
+        for s in solvers:
+            super().append(_SolverGUI(s, self))
+
+    def remove(self, init):
+        i = super().remove(init)
+        self._solvers.remove(self._solvers[i])
+
+    @property
+    def menu(self):
+        self._menu = QtWidgets.QMenu()
+        for group, sols in solvers.items():
+            sub = self._menu.addMenu(group)
+            for s in sols:
+                sub.addAction(QtWidgets.QAction("Add " + s.className, self.treeWidget(), triggered=lambda x, y=s: self.__add(y())))
+        return self._menu
+
+    def __add(self, s):
+        self._solvers.append(s)
+        super().append(_SolverGUI(s, self))
+
+
+class _SolverGUI(FEMTreeItem):
+    def __init__(self, solver, parent):
+        super().__init__(parent)
+        self._solver = solver
+        self.setSteps(solver)
+
+    def setSteps(self, solver):
+        self.clear()
+        for step in solver.steps:
+            super().append(_SolverStepGUI(solver, step, self))
+
+    def __add(self):
+        step = SolverStep()
+        self._solver.steps.append(step)
+        super().append(_SolverStepGUI(self._solver, step, self))
+
+    def remove(self, item):
+        i = super().remove(item)
+        self._solver.steps.remove(self._solver.steps[i])
+
+    @property
+    def name(self):
+        return self._solver.className
+
+    @property
+    def widget(self):
+        return self._solver.widget(self.fem())
+
+    @property
+    def menu(self):
+        self._menu = QtWidgets.QMenu()
+        self._menu.addAction(QtWidgets.QAction("Add Step", self.treeWidget(), triggered=self.__add))
+        self._menu.addAction(QtWidgets.QAction("Remove", self.treeWidget(), triggered=lambda: self.parent.remove(self)))
+        return self._menu
+
+
+class _SolverStepGUI(FEMTreeItem):
+    def __init__(self, solver, step, parent):
+        super().__init__(parent)
+        self._solver = solver
+        self._step = step
+
+    @property
+    def name(self):
+        return "Step " + str(self._solver.steps.index(self._step)+1)
+
+    @property
+    def widget(self):
+        return _SolverStepWidget(self._step)
+    
+    @property
+    def menu(self):
+        self._menu = QtWidgets.QMenu()
+        self._menu.addAction(QtWidgets.QAction("Remove", self.treeWidget(), triggered=lambda: self.parent.remove(self)))
+        return self._menu
+
+
+class StationarySolverWidget(QtWidgets.QWidget):
+    def __init__(self, fem, solver):
+        super().__init__()
+
+        self._amr = _AdaptiveMeshRefinementWidget(solver)
+        layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(self._amr)
+        self.setLayout(layout)
+
+
+class RelaxationSolverWidget(QtWidgets.QWidget):
+    def __init__(self, fem, solver):
+        super().__init__()
+        self._fem = fem
+        self._solver = solver
+        self.__initlayout(solver)
+
+    def __initlayout(self, solver):
+        self._expr = QtWidgets.QLineEdit()
+        self._expr.setText(self._solver.diff_expr)
+        self._expr.setPlaceholderText("Auto if blank")
+        self._expr.textChanged.connect(self.__change)
+
+        self._dx = ScientificSpinBox()
+        self._dx.setValue(self._solver._dx)
+        self._dx.valueChanged.connect(self.__change)
+
+        self._tol = ScientificSpinBox()
+        self._tol.setValue(self._solver._tolerance)
+        self._tol.valueChanged.connect(self.__change)
+
+        self._dt0 = ScientificSpinBox()
+        self._dt0.setValue(self._solver._dt0)
+        self._dt0.valueChanged.connect(self.__change)
+
+        self._maxstep = ScientificSpinBox()
+        self._maxstep.setValue(self._solver._maxStep)
+        self._maxstep.valueChanged.connect(self.__change)
+
+        self._dt_max = ScientificSpinBox()
+        self._dt_max.setValue(self._solver._dt_max)
+        self._dt_max.valueChanged.connect(self.__change)
+
+        self._maxiter = QtWidgets.QSpinBox()
+        self._maxiter.setRange(1,100000)
+        self._maxiter.setValue(self._solver._maxiter)
+        self._maxiter.valueChanged.connect(self.__change)
+
+        grid = QtWidgets.QGridLayout()
+        grid.addWidget(QtWidgets.QLabel("Expression of x"), 0, 0)
+        grid.addWidget(QtWidgets.QLabel("Target (dx/x)"), 1, 0)
+        grid.addWidget(QtWidgets.QLabel("Tolerance (dx/x)"), 2, 0)
+        grid.addWidget(QtWidgets.QLabel("Initial step (s)"), 3, 0)
+        grid.addWidget(QtWidgets.QLabel("Final step (s)"), 4, 0)
+        grid.addWidget(QtWidgets.QLabel("Max step factor"), 5, 0)
+        grid.addWidget(QtWidgets.QLabel("Max Iteration"), 6, 0)
+        grid.addWidget(self._expr, 0, 1)
+        grid.addWidget(self._dx, 1, 1)
+        grid.addWidget(self._tol, 2, 1)
+        grid.addWidget(self._dt0, 3, 1)
+        grid.addWidget(self._dt_max, 4, 1)
+        grid.addWidget(self._maxstep, 5, 1)
+        grid.addWidget(self._maxiter, 6, 1)
+
+        self._amr = _AdaptiveMeshRefinementWidget(solver)
+
+        v = QtWidgets.QVBoxLayout()
+        v.addLayout(grid)
+        v.addWidget(self._amr)
+
+        self.setLayout(v)
+
+    def __change(self):
+        self._solver._diff_expr = self._expr.text()
+        self._solver._dt0 = self._dt0.value()
+        self._solver._dt_max = self._dt_max.value()
+        self._solver._dx = self._dx.value()
+        self._solver._tolerance = self._tol.value()
+        self._solver._maxStep = self._maxstep.value()
+        self._solver._maxiter = self._maxiter.value()
+
+
+class TimeDependentSolverWidget(QtWidgets.QWidget):
+    def __init__(self, fem, solver):
+        super().__init__()
+        self._fem = fem
+        self._solver = solver
+        self.__initlayout()
+
+    def __initlayout(self):
+        self._step = ScientificSpinBox()
+        self._step.setValue(self._solver._step)
+        self._step.valueChanged.connect(self.__change)
+        self._stop = ScientificSpinBox()
+        self._stop.setValue(self._solver._stop)
+        self._stop.valueChanged.connect(self.__change)
+
+        grid = QtWidgets.QGridLayout()
+        grid.addWidget(QtWidgets.QLabel("Step"), 0, 0)
+        grid.addWidget(self._step, 0, 1)
+        grid.addWidget(QtWidgets.QLabel("Stop"), 1, 0)
+        grid.addWidget(self._stop, 1, 1)
+
+        self.setLayout(grid)
+
+    def __change(self):
+        self._solver._step = self._step.value()
+        self._solver._stop = self._stop.value()
+
+
+class _SolverStepWidget(QtWidgets.QWidget):
+    _dirs = {"PARDISO": "pardiso", "Sparse cholesky": "sparsecholesky", "Master inverse": "masterinverse", "UMFPACK": "umfpack", "MUMPS": "mumps"}
+    _iters = {"GMRES: General minimal residual": "gmres", "CG: Conjugate gradient": "cg", "MINRES: Minimal residual": "minres", "SYMMLQ: Sparse Symmetric Equations": "symmlq", "BCGS: BiCGStab": "bcgs"}
+    _precs = {"Jacobi": "jacobi", "Block Jacobi": "bjacobi", "ILU: Incomplete LU (Serial only)": "ilu", "ICC: Incomplete Cholesky (Serial only)": "icc", "GAMG: Geometric algebraic multigrid": "gamg", "GS: Gauss-Seidel": "sor"}
+
+    def __init__(self, step):
+        super().__init__()
+        self._step = step
+        self.__initLayout(step)
+
+    def __initLayout(self, step):
+        g0 = self.__initSolvers(step)
+        g1 = self.__initVars(step)
+        g2 = self.__initNewton(step)
+
+        layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(g1)
+        layout.addWidget(g0)
+        layout.addWidget(g2)
+
+        self.setLayout(layout)
+
+    def __initNewton(self, step):
+        self._maxiter = QtWidgets.QSpinBox()
+        self._maxiter.setRange(1, 100000)
+        self._maxiter.setValue(step.newton_maxiter)
+        self._maxiter.valueChanged.connect(self.__changeNewton)
+        self._eps = ScientificSpinBox()
+        self._eps.setValue(step.newton_eps)
+        self._eps.valueChanged.connect(self.__changeNewton)
+        self._damp = ScientificSpinBox()
+        self._damp.setValue(step.newton_damping)
+        self._damp.valueChanged.connect(self.__changeNewton)
+
+        g = QtWidgets.QGridLayout()
+        g.addWidget(QtWidgets.QLabel("Damping factor"), 0, 0)
+        g.addWidget(QtWidgets.QLabel("Maximum iteration"), 1, 0)
+        g.addWidget(QtWidgets.QLabel("Relative tolerance"), 2, 0)
+        g.addWidget(self._damp, 0, 1)
+        g.addWidget(self._maxiter, 1, 1)
+        g.addWidget(self._eps, 2, 1)
+
+        g1 = QtWidgets.QGroupBox("Newton nonlinear solver")
+        g1.setLayout(g)
+        return g1
+
+    def __changeNewton(self):
+        self._step._damping = self._damp.value()
+        self._step._eps = self._eps.value()
+        self._step._maxiter = self._maxiter.value()
+
+    def __initSolvers(self, step):
+        self._prec = QtWidgets.QComboBox()
+        self._prec.addItems(self._precs.keys())
+        for key, item in self._precs.items():
+            if step.preconditioner == item:
+                self._prec.setCurrentText(key)
+
+        self._rtol = ScientificSpinBox()
+        self._rtol.setValue(step.linear_rtol)
+        self._rtol.valueChanged.connect(self.__changeSolvers)
+        self._iter = QtWidgets.QSpinBox()
+        self._iter.setRange(1,10000000)
+        self._iter.setValue(step.linear_maxiter)
+        self._iter.valueChanged.connect(self.__changeSolvers)
+
+        self._sol = QtWidgets.QComboBox()
+        self._sol.addItems(self._dirs.keys())
+        self._sol.addItems(self._iters.keys())
+        for key, item in self._dirs.items():
+            if step.solver == item:
+                self._sol.setCurrentText(key)
+                self._prec.setEnabled(False)
+                self._rtol.setEnabled(False)
+                self._iter.setEnabled(False)
+        for key, item in self._iters.items():
+            if step.solver == item:
+                self._sol.setCurrentText(key)
+                self._prec.setEnabled(True)
+                self._rtol.setEnabled(True)
+                self._iter.setEnabled(True)
+        self._sol.currentTextChanged.connect(self.__changeSolvers)        
+        self._prec.currentTextChanged.connect(self.__changeSolvers)
+
+        self._sym = QtWidgets.QCheckBox("Symmetric")
+        self._sym.setChecked(step.symmetric)
+        self._sym.toggled.connect(self.__changeSolvers)
+        self._cond = QtWidgets.QCheckBox("Static condensation")
+        self._cond.setChecked(step.condensation)
+        self._cond.toggled.connect(self.__changeSolvers)
+
+        g = QtWidgets.QGridLayout()
+        g.addWidget(self._sym, 0, 0)
+        g.addWidget(self._cond, 0, 1)
+        g.addWidget(QtWidgets.QLabel("Linear solver"), 1, 0)
+        g.addWidget(QtWidgets.QLabel("Preconditioner"), 2, 0)
+        g.addWidget(QtWidgets.QLabel("Max iteration"), 3, 0)
+        g.addWidget(QtWidgets.QLabel("Relative torelance"), 4, 0)
+        g.addWidget(self._sol, 1, 1)
+        g.addWidget(self._prec, 2, 1)
+        g.addWidget(self._iter, 3, 1)
+        g.addWidget(self._rtol, 4, 1)
+
+        g1 = QtWidgets.QGroupBox("Linear solver")
+        g1.setLayout(g)
+        return g1
+
+    def __changeSolvers(self):
+        if self._sol.currentText() in self._dirs.keys():
+            self._step._solver = self._dirs[self._sol.currentText()]
+            self._step._prec = None
+            self._prec.setEnabled(False)
+            self._iter.setEnabled(False)
+            self._rtol.setEnabled(False)
+        else:
+            self._step._solver = self._iters[self._sol.currentText()]
+            self._step._prec = self._precs[self._prec.currentText()]
+            self._prec.setEnabled(True)
+            self._iter.setEnabled(True)
+            self._rtol.setEnabled(True)
+        self._step._sym = self._sym.isChecked()
+        self._step._cond = self._cond.isChecked()
+        self._step._rtol = self._rtol.value()
+        self._step._iter = self._iter.value()
+
+    def __initVars(self, step):
+        self._varType = QtWidgets.QComboBox()
+        self._varType.addItems(["All", "Custom"])
+        self._vars = QtWidgets.QLineEdit()
+        self._vars.setPlaceholderText("u,T,E")
+        if step.variables is not None:
+            self._varType.setCurrentText("Custom")
+            self._vars.setText(", ".join(step.variables))
+        else:
+            self._vars.setEnabled(False)
+        self._varType.currentIndexChanged.connect(self.__changeVars)
+        self._vars.textChanged.connect(self.__changeVars)
+
+        h1 = QtWidgets.QHBoxLayout()
+        h1.addWidget(QtWidgets.QLabel("Variable names"))
+        h1.addWidget(self._vars)
+
+        v1 = QtWidgets.QVBoxLayout()
+        v1.addWidget(self._varType)
+        v1.addLayout(h1)
+
+        g1 = QtWidgets.QGroupBox("Variables to be solved")
+        g1.setLayout(v1)
+        return g1
+
+    def __changeVars(self):
+        self._vars.setEnabled(self._varType.currentText() != "All")
+        if self._varType.currentText() == "all":
+            self._step._vars = None
+        else:
+            self._step._vars = self._vars.text().replace(" ", "").split(",")
+
+
+class _AdaptiveMeshRefinementWidget(QtWidgets.QGroupBox):
+    def __init__(self, solver):
+        super().__init__(title="Adaptive Mesh Refinement", checkable=True)
+        self._solver = solver
+        self.__initLayout()
+        amr = solver.adaptive_mesh
+        if amr is not None:
+            self.setChecked(True)
+            self._var.setText(amr.varName)
+            self._iter.setValue(amr.maxiter)
+            self._nodes.setValue(amr.nodes)
+            self._min.setValue(amr.range[0])
+            self._max.setValue(amr.range[1])
+        else:
+            self.setChecked(False)
+        self.toggled.connect(self.__change)
+
+    def __initLayout(self):
+        self._var = QtWidgets.QLineEdit()
+        self._var.textChanged.connect(self.__change)
+        self._iter = QtWidgets.QSpinBox()
+        self._iter.setRange(1, 1000000)
+        self._iter.setValue(3)
+        self._iter.valueChanged.connect(self.__change)
+        self._nodes = QtWidgets.QSpinBox()
+        self._nodes.setRange(1, 100000000)
+        self._nodes.setValue(1000)
+        self._nodes.valueChanged.connect(self.__change)
+        self._min = ScientificSpinBox()
+        self._min.setValue(0)
+        self._min.valueChanged.connect(self.__change)
+        self._max = ScientificSpinBox()
+        self._max.setValue(1e5)
+        self._max.valueChanged.connect(self.__change)
+
+        grid = QtWidgets.QGridLayout()
+        grid.addWidget(QtWidgets.QLabel("Variable"), 0, 0)
+        grid.addWidget(QtWidgets.QLabel("Number of nodes"), 1, 0)
+        grid.addWidget(QtWidgets.QLabel("Max iteration"), 2, 0)
+        grid.addWidget(QtWidgets.QLabel("Min size"), 3, 0)
+        grid.addWidget(QtWidgets.QLabel("Max size"), 4, 0)
+
+        grid.addWidget(self._var, 0, 1)
+        grid.addWidget(self._nodes, 1, 1)
+        grid.addWidget(self._iter, 2, 1)
+        grid.addWidget(self._min, 3, 1)
+        grid.addWidget(self._max, 4, 1)
+
+        self.setLayout(grid)
+
+    def __change(self):
+        if self.isChecked():
+            self._solver.setAdaptiveMeshRefinement(self._var.text(), self._nodes.value(), maxiter=self._iter.value(), range=(self._min.value(), self._max.value()))
+        else:
+            self._solver.setAdaptiveMeshRefinement(None)

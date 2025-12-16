@@ -1,0 +1,15 @@
+
+------------ Session start at 2025-12-10 12:12:15.476213 -------------
+An error detected. This is the full error report:
+Traceback (most recent call last):
+  File "/home/asuka/src/python/lys_fem/lys_fem/gui/geometryGUI.py", line 210, in <lambda>
+    menu.addAction(QtWidgets.QAction("Remove", self.treeWidget(), triggered=lambda: self.parent.remove(self, self._name, self._type)))
+                                                                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/asuka/src/python/lys_fem/lys_fem/gui/geometryGUI.py", line 189, in remove
+    self.fem().geometries.removeGroup(name)
+  File "/home/asuka/src/python/lys_fem/lys_fem/fem/geometry.py", line 150, in removeGroup
+    del self._groups[name]
+        ~~~~~~~~~~~~^^^^^^
+KeyError: 'Domain'
+
+------------ Session start at 2025-12-10 12:13:48.013596 -------------
