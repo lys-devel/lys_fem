@@ -21,6 +21,10 @@ class GeometryGenerator(FEMObject):
         self._updated = True
 
     def add(self, command):
+        if hasattr(command, "__iter__"):
+            for c in command:
+                self.add(c)
+            return
         self._order.append(command)
         command.setCallback(self._update)
         self._updated=True

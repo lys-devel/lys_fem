@@ -19,13 +19,6 @@ class Mesh(ngsolve.Mesh):
             gmesh, _ = ReadGmshFile("tmp.msh", dimension) # from python model
 
             gmesh.Scale(scale)
-            self._nodes = len(gmesh.Coordinates())
-            if dimension == 1:
-                self._elems = len(gmesh.Elements1D())
-            if dimension == 2:
-                self._elems = len(gmesh.Elements2D())
-            if dimension == 3:
-                self._elems = len(gmesh.Elements3D())
 
         if mpi.isParallel():
             comm = ngsolve.MPI_Init()
@@ -41,14 +34,14 @@ class Mesh(ngsolve.Mesh):
     @property
     def elements(self):
         if mpi.isRoot:
-            return self._elems
+            return self._model.elements
         else:
             return 0
 
     @property
     def nodes(self):
         if mpi.isRoot:
-            return self._nodes
+            return self._model.nodes
         else:
             return 0
             
@@ -71,6 +64,12 @@ class Mesh(ngsolve.Mesh):
     def save(self, path):
         if mpi.isRoot:
             self._model.export(path)
+
+    def __str__(self):
+        res = "Mesh object: "
+        res += str(self.nodes) + " nodes, "
+        res += str(self.elements) + " elements."
+        return res
 
 
 def ReadGmshModel(geom, meshdim): #from netgen.read_gmsh import ReadGmsh

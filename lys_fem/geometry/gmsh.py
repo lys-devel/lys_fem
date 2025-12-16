@@ -118,6 +118,14 @@ class GmshGeometry:
         gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
         gmsh.write(file)
 
+    def __str__(self):
+        res = "Gmsh geometry: name = " + self.name + ", "
+        res += str(len(self.geometryAttributes(0))) + " points, "
+        res += str(len(self.geometryAttributes(1))) + " edges, "
+        res += str(len(self.geometryAttributes(2))) + " surfaces, " 
+        res += str(len(self.geometryAttributes(3))) + " volumes"
+        return res
+
 
 class _TransGeom:
     def __init__(self, scale, params):

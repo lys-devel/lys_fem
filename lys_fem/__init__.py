@@ -1,5 +1,5 @@
 from . import util
-from .fem import Coef, FEMParameter, FEMModel, FEMFixedModel, GeometrySelection, FEMSolver, FEMSolution, DomainCondition, BoundaryCondition, InitialCondition
+from .fem import Coef, FEMParameter, FEMModel, FEMFixedModel, GeometrySelection, FEMSolver, FEMSolution, DomainCondition, BoundaryCondition, InitialCondition, FEMProject, Material, StationarySolver, FEMSolution
 from .functions import addMaterialParameter, addModel, addSolver
 from . import geometry
 from . import models

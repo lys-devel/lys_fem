@@ -8,7 +8,9 @@ from .geometry import ImportGmsh
 class GmshMesh:
     _keys = {15: "point", 1: "line", 2: "triangle", 3: "quad", 4: "tetra", 5: "hexa", 6: "prism", 7: "pyramid"}
 
-    def __init__(self, geom, transfinite=None, periodicity=None, size=None, refine=None, generate=True, duplicate=True):
+    def __init__(self, geom, transfinite=None, periodicity=None, size=None, refine=0, generate=True, duplicate=True):
+        if not isinstance(geom, GmshGeometry):
+            geom = GmshGeometry(geom)
         if duplicate:
             self._geom = geom.duplicate()
         else:
@@ -21,9 +23,12 @@ class GmshMesh:
         model.setCurrent(geom.name)
         model.mesh.clear()
            
-        self.__setTransfinite(model, transfinite)
-        self.__setPeriodicity(model, periodicity)
-        self.__setSize(model, size, geom.scale)
+        if transfinite is not None:
+            self.__setTransfinite(model, transfinite)
+        if periodicity is not None:
+            self.__setPeriodicity(model, periodicity)
+        if size is not None:
+            self.__setSize(model, size, geom.scale)
         model.setCurrent(geom.name)
 
         model.mesh.generate()
@@ -88,6 +93,16 @@ class GmshMesh:
     @property
     def geometry(self):
         return self._geom
+
+    @property
+    def elements(self):
+        elem_types, elem_tags, elem_node_tags = self.geometry.mesh.getElements()
+        return sum(len(tags) for tags in elem_tags)
+
+    @property
+    def nodes(self):
+        node_tags, node_coords, _ = self.geometry.mesh.getNodes()
+        return len(node_tags)
 
     @property
     def elementPositions(self):
@@ -186,3 +201,9 @@ class GmshMesh:
 
     def export(self, file):
         self._geom.export(file)
+
+    def __str__(self):
+        res = "Gmsh mesh object, "
+        res += str(self.nodes) + " nodes, "
+        res += str(self.elements) + " elements"
+        return res

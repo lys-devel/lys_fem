@@ -1,5 +1,6 @@
 import ngsolve
 from .trials import TestFunction, TrialFunction
+from .operators import NGSFunctionBase
 
 def prod(args):
     res = args[0]
@@ -285,6 +286,8 @@ class GridFunction(ngsolve.GridFunction):
     def __init__(self, fes, value=None):
         super().__init__(fes._fes)
         self._fes = fes
+        if isinstance(value, NGSFunctionBase):
+            value = [value]
         if value is not None:
             self._set(value)
 

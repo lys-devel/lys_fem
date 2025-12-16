@@ -14,6 +14,9 @@ def addGeometry(group, geom):
 
 
 class FEMGeometry(object):
+    type = "invalid"
+    """:meta private:"""
+
     def __init__(self, args):
         self._args = args
         self._method = None
@@ -44,8 +47,29 @@ class FEMGeometry(object):
     def generateParameters(self, model, scale):
         return {}
 
+    def execute(self, model, trans):
+        """
+        :meta private:
+        Execute occ mesher command. This method should be overwritten by the inherited class.
+        """
+        raise NotImplementedError("[execute] method should be implemented.")
+
+    def widget(self):
+        """
+        :meta private:
+        Return a widget for this geometry component.
+        """
+        raise NotImplementedError("[widget] method should be implemented.")
+
 
 class Box(FEMGeometry):
+    """
+    Three-dimensional box geometry.
+
+    Args:
+        x,y,z (float): The origin of the box.
+        dx, dy, dz (float): The size of the box.
+    """
     type = "box"
     def __init__(self, x=0, y=0, z=0, dx=1, dy=1, dz=1):
         super().__init__([x, y, z, dx, dy, dz])
@@ -60,6 +84,13 @@ class Box(FEMGeometry):
 
 
 class Sphere(FEMGeometry):
+    """
+    Three-dimensional sphere geometry.
+
+    Args:
+        x,y,z (float): The origin of the sphere.
+        r (float): The radius of the sphere.
+    """
     type = "sphere"
     def __init__(self, x=0, y=0, z=0, r=1):
         super().__init__([x, y, z, r])
