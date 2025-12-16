@@ -63,6 +63,7 @@ class _ParentTree(FEMTreeItem):
 
     def setGeometry(self, *args, **kwargs):
         self._geom.setGeometry(*args, **kwargs)
+        self._group.update()
 
     @ property
     def actions(self):
@@ -156,7 +157,11 @@ class GeometryTreeItem(FEMTreeItem):
 class GroupTree(FEMTreeItem):
     def __init__(self, parent):
         super().__init__(parent)
+        self.update()
+
+    def update(self):
         for name, geom in self.fem().geometries.groups.items():
+            print(name, geom)
             super().append(GroupTreeItem(name, geom.geometryType, self))
 
     @property
