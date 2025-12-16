@@ -101,7 +101,7 @@ class GeometryGenerator(FEMObject):
         self.clear()
         with open(path) as f:
             g = GeometryGenerator.loadFromDictionary(json.load(f))
-        self.scale = g._scale
+        self._scale = g._scale
         self._groups = g._groups
         for order in g.commands:
             self.add(order)

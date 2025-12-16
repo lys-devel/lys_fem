@@ -65,6 +65,7 @@ class GmshMesh:
         for pair in periodicity:
             for p1, p2 in zip(pair[0].getSelection(), pair[1].getSelection()):
                 t = self.__getTransform(model, sdim, ent[p1 - 1], ent[p2 - 1])
+                model.setCurrent(self._geom.name)
                 model.mesh.setPeriodic(sdim, [ent[p1 - 1]], [ent[p2 - 1]], t)
 
     def __getTransform(self, model, sdim, e1, e2):
@@ -85,6 +86,7 @@ class GmshMesh:
             dim = {"Volume": 3, "Surface": 2, "Edge": 1, "Point": 0}[geom.geometryType]
             for tag in list(geom):
                 ents = [(dim, t) for t in model.getEntitiesForPhysicalGroup(dim, tag)]
+                model.setCurrent(self._geom.name)
                 if dim == 0:
                     model.mesh.setSize(ents, geom.size/scale)
                 else:
