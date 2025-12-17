@@ -125,7 +125,7 @@ class FEMGUI(LysSubWindow):
             self._obj.submitSetting.update(sub)
             path = d.getPath()
             os.makedirs(path, exist_ok=True)
-            ncore = 1 if sub["type"] == "Serial" else sub["ncore"]
+            ncore = 1 if sub["type"] in ["Serial", "Save"] else sub["ncore"]
             self.__save(parallel=ncore>1)
             self.__save(path=path + "/input.dic", parallel=ncore>1)
             command = "python -m lys_fem -nt "+str(sub["nthreads"])
@@ -154,7 +154,7 @@ class _SubmitDialog(QtWidgets.QDialog):
         self._view = FEMFileSystemView(filter=False)
         self._name = QtWidgets.QLineEdit()
         self._type = QtWidgets.QComboBox()
-        self._type.addItems(["Serial", "Parallel", "qsub"])
+        self._type.addItems(["Serial", "Parallel", "qsub", "Save"])
         self._np = QtWidgets.QSpinBox()
         self._np.setRange(1, 100000000)
         self._np.setEnabled(False)
@@ -201,14 +201,22 @@ class _SubmitDialog(QtWidgets.QDialog):
             self._np.setEnabled(False)
             self._nodes.setEnabled(False)
             self._queue.setEnabled(False)
+            self._threads.setEnabled(True)
         elif type == "Parallel":
             self._np.setEnabled(True)
             self._nodes.setEnabled(False)
             self._queue.setEnabled(False)
+            self._threads.setEnabled(True)
         elif type == "qsub":
             self._np.setEnabled(True)
             self._nodes.setEnabled(True)
             self._queue.setEnabled(True)
+            self._threads.setEnabled(True)
+        elif type == "Save":
+            self._np.setEnabled(False)
+            self._nodes.setEnabled(False)
+            self._queue.setEnabled(False)
+            self._threads.setEnabled(False)
 
     def getPath(self):
         return "FEM/" + self._view.getCurrentPath() + "/" + self._name.text()
