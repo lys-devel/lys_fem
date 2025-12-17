@@ -161,7 +161,6 @@ class GroupTree(FEMTreeItem):
 
     def update(self):
         for name, geom in self.fem().geometries.groups.items():
-            print(name, geom)
             super().append(GroupTreeItem(name, geom.geometryType, self))
 
     @property
@@ -194,7 +193,7 @@ class GroupTree(FEMTreeItem):
 
     def clear(self):
         self.fem().geometries.groups.clear()
-        for item in self.children:
+        for item in reversed(self.children):
             super().remove(item)
 
 
