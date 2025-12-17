@@ -132,6 +132,26 @@ class RectFrustum(FEMGeometry):
         
         model.occ.addVolume([model.occ.addSurfaceLoop([s1, s3, s4, s5, s6, s2])])
 
+    def isInside(self, r):
+        v = self.args
+        c = np.mean(v, axis=0)
+        np1 = self._normalVector(v[0], v[1], v[2], c)
+        np2 = self._normalVector(v[4], v[5], v[6], c)
+        np3 = self._normalVector(v[0], v[1], v[4], c)
+        np4 = self._normalVector(v[1], v[2], v[5], c)
+        np5 = self._normalVector(v[2], v[3], v[6], c)
+        np6 = self._normalVector(v[0], v[3], v[4], c)
+        return all(np.dot(n, r - p) < 0 for n, p in [np1, np2, np3, np4, np5, np6])
+    
+    def _normalVector(self, a, b, c, center):
+        a,b,c,center = np.array([a,b,c,center])
+        n = np.cross(b-a, c-a)
+        n = n/np.linalg.norm(n)
+        p = np.mean([a,b,c], axis=0)
+        if np.dot(n, center - p) > 0:
+            n = -n
+        return n, p
+
     def widget(self):
         from .geometryGUI import RectFrustumGUI
         return RectFrustumGUI(self)
@@ -141,44 +161,47 @@ class InfiniteVolume(FEMGeometry):
     type = "infinite volume"
     def __init__(self, a=1, b=1, c=1, A=2, B=2, C=2):
         super().__init__([a,b,c,A,B,C])
+        self._rf_zp = RectFrustum((a,b,c), (-a,b,c), (-a,-b,c),(a,-b,c),(A,B,C), (-A,B,C), (-A,-B,C),(A,-B,C))
+        self._rf_zn = RectFrustum((a,b,-c), (-a,b,-c), (-a,-b,-c),(a,-b,-c),(A,B,-C), (-A,B,-C), (-A,-B,-C),(A,-B,-C))
+        self._rf_yp = RectFrustum((a,b,c), (-a,b,c), (-a,b,-c),(a,b,-c),(A,B,C), (-A,B,C), (-A,B,-C),(A,B,-C))
+        self._rf_yn = RectFrustum((a,-b,c), (-a,-b,c), (-a,-b,-c),(a,-b,-c),(A,-B,C), (-A,-B,C), (-A,-B,-C),(A,-B,-C))
+        self._rf_xp = RectFrustum((a,b,c), (a,-b,c), (a,-b,-c),(a,b,-c),(A,B,C), (A,-B,C), (A,-B,-C),(A,B,-C))
+        self._rf_xn = RectFrustum((-a,b,c), (-a,-b,c), (-a,-b,-c),(-a,b,-c),(-A,B,C), (-A,-B,C), (-A,-B,-C),(-A,B,-C))
 
     def execute(self, model, trans):
-        a,b,c,A,B,C = self.args
-        RectFrustum((a,b,c), (-a,b,c), (-a,-b,c),(a,-b,c),(A,B,C), (-A,B,C), (-A,-B,C),(A,-B,C)).execute(model, trans)
-        RectFrustum((a,b,-c), (-a,b,-c), (-a,-b,-c),(a,-b,-c),(A,B,-C), (-A,B,-C), (-A,-B,-C),(A,-B,-C)).execute(model, trans)
-        RectFrustum((a,b,c), (-a,b,c), (-a,b,-c),(a,b,-c),(A,B,C), (-A,B,C), (-A,B,-C),(A,B,-C)).execute(model, trans)
-        RectFrustum((a,-b,c), (-a,-b,c), (-a,-b,-c),(a,-b,-c),(A,-B,C), (-A,-B,C), (-A,-B,-C),(A,-B,-C)).execute(model, trans)
-        RectFrustum((a,b,c), (a,-b,c), (a,-b,-c),(a,b,-c),(A,B,C), (A,-B,C), (A,-B,-C),(A,B,-C)).execute(model, trans)
-        RectFrustum((-a,b,c), (-a,-b,c), (-a,-b,-c),(-a,b,-c),(-A,B,C), (-A,-B,C), (-A,-B,-C),(-A,B,-C)).execute(model, trans)
+        self._rf_zp.execute(model, trans)
+        self._rf_zn.execute(model, trans)
+        self._rf_yp.execute(model, trans)
+        self._rf_yn.execute(model, trans)
+        self._rf_xp.execute(model, trans)
+        self._rf_xn.execute(model, trans)
 
     def widget(self):
         from .geometryGUI import InfiniteVolumeGUI
         return InfiniteVolumeGUI(self)
 
     def generateParameters(self, model, trans):
-        a,b,c,A,B,C = trans(self.args, unit="m")
-        ids = [-1, -1, -1, -1, -1, -1]
+        J = {"default": np.eye(3)}
         for dim, grp in model.getPhysicalGroups(3):
             for tag in model.getEntitiesForPhysicalGroup(dim, grp):
-                if model.isInside(dim, tag, [(a+A)/2, 0, 0]):
-                    ids[0] = grp
-                if model.isInside(dim, tag, [-(a+A)/2, 0, 0]):
-                    ids[1] = grp
-                if model.isInside(dim, tag, [0, (b+B)/2, 0]):
-                    ids[2] = grp
-                if model.isInside(dim, tag, [0, -(b+B)/2, 0]):
-                    ids[3] = grp
-                if model.isInside(dim, tag, [0, 0, (c+C)/2]):
-                    ids[4] = grp
-                if model.isInside(dim, tag, [0, 0, -(c+C)/2]):
-                    ids[5] = grp
-        J = {ids[i]: self._constructJ(i) for i in range(6)}
-        J["default"] = np.eye(3)
+                p = trans.inv(model.occ.getCenterOfMass(dim, tag), unit="m")
+                if self._rf_xp.isInside(p):
+                    J[grp] = self._constructJ(0)
+                if self._rf_xn.isInside(p):
+                    J[grp] = self._constructJ(1)
+                if self._rf_yp.isInside(p):
+                    J[grp] = self._constructJ(2)
+                if self._rf_yn.isInside(p):
+                    J[grp] = self._constructJ(3)
+                if self._rf_zp.isInside(p):
+                    J[grp] = self._constructJ(4)
+                if self._rf_zn.isInside(p):
+                    J[grp] = self._constructJ(5)
         return {"J": util.eval(J, name="J", geom="domain")}
-
+    
     def _constructJ(self, domain):
         a,b,c,A,B,C = np.array(self.args)
-        alpha = sp.Integer(1)
+        alpha = sp.Integer(2)
 
         Cx = np.array([0, b-a*(B-b)/(A-a), c-a*(C-c)/(A-a)])
         Cy = np.array([a-b*(A-a)/(B-b), 0, c-b*(C-c)/(B-b)])
@@ -275,21 +298,37 @@ class InfinitePlane(FEMGeometry):
         Quad((-a,b,0), (-a,-b,0), (-A,-B,0),(-A,B,0)).execute(model, trans)
 
     def generateParameters(self, model, trans):
-        a,b,A,B = trans(self.args)
-        ids = [-1, -1, -1, -1]
+        a,b,A,B = trans(self.args, unit="m")
+
+        J = {"default": np.eye(2)}
         for dim, grp in model.getPhysicalGroups(2):
             for tag in model.getEntitiesForPhysicalGroup(dim, grp):
-                if model.isInside(dim, tag, [(a+A)/2, 0, 0]):
-                    ids[0] = grp
-                if model.isInside(dim, tag, [-(a+A)/2, 0, 0]):
-                    ids[1] = grp
-                if model.isInside(dim, tag, [0, (b+B)/2, 0]):
-                    ids[2] = grp
-                if model.isInside(dim, tag, [0, -(b+B)/2, 0]):
-                    ids[3] = grp
-        J = {ids[i]: self._constructJ(i) for i in range(4)}
-        J["default"] = np.eye(2)
+                p = model.occ.getCenterOfMass(dim, tag)
+                if self._checkInside(p, (a,b,0), (a,-b,0), (A,-B,0),(A,B,0)):
+                    J[grp] = self._constructJ(0)
+                if self._checkInside(p, (-a,b,0), (-a,-b,0), (-A,-B,0),(-A,B,0)):
+                    J[grp] = self._constructJ(1)
+                if self._checkInside(p, (a,b,0), (-a,b,0), (-A,B,0),(A,B,0)):
+                    J[grp] = self._constructJ(2)
+                if self._checkInside(p, (a,-b,0), (-a,-b,0), (-A,-B,0),(A,-B,0)):
+                    J[grp] = self._constructJ(3)
         return {"J": util.eval(J, name="J", geom="domain")}
+    
+    def _checkInside(self, p, a, b, c, d):
+        verts = np.array([a, b, c, d])
+        c = np.mean(verts, axis=0)
+        verts = sorted(verts, key=lambda p: np.arctan2(p[1] - c[1], p[0] - c[0]))
+
+        s = []
+        for i in range(4):
+            v0 = verts[i]
+            v1 = verts[(i+1) % 4]
+            s.append(np.cross(v1 - v0, p - v0)[2])
+
+        # allow boundary: treat near-zero as zero
+        pos = any(x > 0 for x in s)
+        neg = any(x < 0 for x in s)
+        return not (pos and neg)  # not both signs => inside or on edge
 
     def _constructJ(self, domain):
         a,b,A,B = self.args

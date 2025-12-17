@@ -143,3 +143,15 @@ class _TransGeom:
             return value/scale
         else:
             return value.subs(self._params)/scale
+
+    def inv(self, value, unit="1"):
+        if unit == "m":
+            scale = self._scale
+        else:
+            scale = 1
+        if isinstance(value, (list, tuple, np.ndarray)):
+            return [self.inv(v, unit) for v in value]
+        elif isinstance(value, (float, int, sp.Float, sp.Integer)):
+            return value*scale
+        else:
+            return value.subs(self._params)*scale
