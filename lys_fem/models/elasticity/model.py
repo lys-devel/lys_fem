@@ -23,10 +23,18 @@ class DeformationPotential(DomainCondition):
         self["n_h"] = Coef(n_h, description="Hole carrier density (1/m3)")
 
 
+class InversePiezoelectricity(DomainCondition):
+    className = "InversePiezoelectricity"
+
+    def __init__(self, E="E", geometries="all", *args, **kwargs):
+        super().__init__(geometries=geometries, *args, **kwargs)
+        self["E"] = Coef(E, (3,), description="Electric field (V/m)")
+
+
 class ElasticModel(FEMModel):
     className = "Elasticity"
     boundaryConditionTypes = [DirichletBoundary]
-    domainConditionTypes = [ThermoelasticStress, DeformationPotential]
+    domainConditionTypes = [ThermoelasticStress, DeformationPotential, InversePiezoelectricity]
     initialConditionTypes = [InitialCondition]
 
     def __init__(self, nvar=3, discretization="NewmarkBeta", C="C", rho="rho", *args, **kwargs):
@@ -53,4 +61,8 @@ class ElasticModel(FEMModel):
             n,p = mat[df.n_e], mat[df.n_h]
             I = mat[np.eye(3)]
             wf += (d_n*n - d_p*p)*gv.ddot(I)*dx(df.geometries)
+        
+        for pe in self.domainConditions.get(InversePiezoelectricity):
+            e, E = mat["e_piezo"], mat[pe.E]
+            wf -= -E.dot(e).ddot(gv)*dx(pe.geometries)
         return wf

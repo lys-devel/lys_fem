@@ -270,5 +270,53 @@ class VolumeField(NGSFunctionBase):
         return self._name
     
 
-class SolutionFieldFunction(NGSFunction):
-    pass
+class SolutionFieldFunction(NGSFunctionBase):
+    def __init__(self, obj, tdep):
+        self._obj = obj
+        self._tdep = tdep
+
+    @property
+    def shape(self):
+        return self._obj.shape
+
+    @property
+    def valid(self):
+        return self._obj.valid
+
+    def eval(self, fes):
+        return self._obj.eval(fes)
+
+    def integrate(self, fes, **kwargs):
+        return self._obj.integrate(fes, **kwargs)
+            
+    def grad(self, fes):
+        return self._obj.grad(fes)
+    
+    def replace(self, d):
+        return SolutionFieldFunction(self._obj.replace(d), self._tdep)
+
+    def __contains__(self, item):
+        return item in self._obj
+
+    @property
+    def hasTrial(self):
+        return self._obj.hasTrial
+    
+    @property
+    def rhs(self):
+        return self._obj.rhs
+
+    @property
+    def lhs(self):
+        return self._obj.lhs
+        
+    @property
+    def isNonlinear(self):
+        return self._obj.isNonlinear
+        
+    @property
+    def isTimeDependent(self):
+        return self._tdep
+
+    def __str__(self):
+        return str(self._obj)

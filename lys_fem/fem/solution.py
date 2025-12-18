@@ -43,9 +43,9 @@ class SolutionField:
 
     def get(self):
         if self._index is None:
-            return self.solution.coef(self.expression, -1)
+            return self.solution.coef(self.expression, -1, eval=False)
         else:
-            return self.solution.coef(self.expression, self.index)
+            return self.solution.coef(self.expression, self.index, eval=False)
 
     def update(self, step):
         self.solution.update(step)
@@ -82,7 +82,7 @@ class FEMSolution:
         self._fem = FEMProject.fromFile(path + "/input.dic")
         self._dirname = path+"/Solutions/"+solver
         self._index = None
-        self._mats = self._fem.evaluator(solutions=False)
+        self._mats = self._fem.evaluator(solutions=True)
         self._model = self._fem.compositeModel
         self._last = (None, None, None)
 
@@ -113,10 +113,13 @@ class FEMSolution:
         self._fes = util.FiniteElementSpace(self._model.variables, self._mesh)
         self._sol = Solution(self._fes, nlog=1)
 
-    def coef(self, expression, index=-1):
+    def coef(self, expression, index=-1, eval=True):
         self.update(index)
         d = self._sol.replaceDict()
-        return self._mats[expression].replace(d).eval(self._fes)
+        res = self._mats[expression].replace(d)
+        if eval:
+            res = res.eval(self._fes)
+        return res
 
     def eval(self, expression, data_number, coords=None):
         if self._last[1] != expression or self._last[2] != data_number:

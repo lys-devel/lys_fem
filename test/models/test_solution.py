@@ -42,3 +42,8 @@ class solution_test(FEMTestCase):
         # multi dimensional array
         res = sol.eval("X", data_number=1, coords=[[0,1,2], [2,1,0]])
         self.assert_array_almost_equal(res, [[0,1,2], [2,1,0]])
+
+        # grad
+        res = sol.eval("grad(X)[0]", data_number=1, coords=[0,1,2])
+        for w in res:
+            self.assert_array_almost_equal(w.data, [1]*3)
