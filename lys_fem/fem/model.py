@@ -164,7 +164,7 @@ class Equation(FEMObject):
     def functionSpaces(self, dirichlet):
         kwargs = {"fetype": self._type, "isScalar": self._isScalar, "order": self._order, "size": self._varDim, "valtype": self._valType, "dirichlet": dirichlet}
         if self._geometries is not None:
-            if self._geometries.selectionType() == "Selected":
+            if self._geometries.selectionType() in ["Selected", "Group"]:
                 kwargs["geometries"] = list(self._geometries)
         return util.FunctionSpace(self._varName, **kwargs)
 
