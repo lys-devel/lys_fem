@@ -30,14 +30,20 @@ class GridField(NGSFunctionBase):
         if self._var.isScalar:
             return self._value()
         else:
-            return ngsolve.CoefficientFunction(tuple(self._value() + [0] * (3-self._var.size)), dims=self.shape)
+            value = np.array(self._value(), dtype=object)
+            pad_width = [(0, t - s) for s, t in zip(value.shape, self.shape)]
+            value = np.pad(value, pad_width, mode="constant").flatten().tolist()
+            return ngsolve.CoefficientFunction(tuple(value), dims=self.shape)
         
     def grad(self, fes):
         if self._var.isScalar:
             return self._grad(fes, self._value())
         else:
-            v = self._value() + [0] * (3-self._var.size)
-            return ngsolve.CoefficientFunction(tuple([self._grad(fes, t) for t in v]), dims=(3, 3)).TensorTranspose((1,0))
+            value = np.array(self._value(), dtype=object)
+            pad_width = [(0, t - s) for s, t in zip(value.shape, self.shape)]
+            value = np.pad(value, pad_width, mode="constant").flatten().tolist()
+            shape = tuple([len(self.shape)] + [i for i in range(len(self.shape))])
+            return ngsolve.CoefficientFunction(tuple([self._grad(fes, t) for t in value]),dims=tuple([3] + list(self.shape))).TensorTranspose(shape)
         
     def error(self):
         val = grad(self)
@@ -71,7 +77,7 @@ class GridField(NGSFunctionBase):
         if self._var.isScalar:
             return ()
         else:
-            return (3,)
+            return tuple([3] * len(self._var.shape))
         
     @property
     def isNonlinear(self):
@@ -101,7 +107,7 @@ class GridField(NGSFunctionBase):
         if self._var.isScalar:
             return self._grid.components[self._n]
         else:
-            return list(self._grid.components[self._n:self._n+self._var.size])
+            return list(np.reshape(self._grid.components[self._n:self._n+self._var.size], self._var.shape))
 
     def __str__(self):
         return self._var.name + "_grid"

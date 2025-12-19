@@ -11,7 +11,16 @@ class test_util(FEMTestCase):
     def _make_mesh(self, refine=0):
         mesh = geometry.GmshMesh([geometry.Line(0,0,0,1,0,0), geometry.Line(1,0,0,2,0,0)], refine=refine)
         return util.Mesh(mesh)
-    
+
+    def _fes3d(self, refine=0, size=1, isScalar=True):
+        mesh = geometry.GmshMesh([geometry.Box(0,0,0,1,1,1)])
+        m = util.Mesh(mesh)
+
+        fs = util.H1("H1", size=size, isScalar=isScalar)
+        u, v = fs.trial, fs.test
+        wf = util.grad(u).dot(util.grad(v))*util.dx
+        return util.FiniteElementSpace(fs, m), u
+
     def test_space(self):
         m = self._make_mesh()
 
@@ -71,6 +80,51 @@ class test_util(FEMTestCase):
         res = g2(fes2, x_list)
 
         assert_almost_equal(res, x_list**2)
+
+    def test_grid_scalar(self):
+        fes, u = self._fes3d()
+        var = fes.variables[0]
+        p = [0.1,0.2,0.3]
+
+        x,y = util.x, util.y
+        f = fes.gridFunction(x)
+        g = util.GridField(f, var)
+
+        self.assertTrue(f.isSingle)
+        self.assertAlmostEqual(g(fes, p), 0.1)
+
+        f.setComponent(var, y)
+        self.assertAlmostEqual(g(fes, p), 0.2)
+
+    def test_grid_vector(self):
+        fes, u = self._fes3d(size=2)
+        var = fes.variables[0]
+        p = [0.1,0.2,0.3]
+
+        x,y = util.x, util.y
+        f = fes.gridFunction(util.eval(["x","y"]))
+        g = util.GridField(f, var)
+
+        self.assertFalse(f.isSingle)
+        self.assert_array_almost_equal(g(fes, p), [0.1, 0.2, 0])
+
+        f.setComponent(var, util.eval(["y","x"]))
+        self.assert_array_almost_equal(g(fes, p), [0.2, 0.1, 0])
+
+    def test_grid_matrix(self):
+        fes, u = self._fes3d(size=(2,2))
+        var = fes.variables[0]
+        p = [0.1,0.2,0.3]
+
+        x,y = util.x, util.y
+        f = fes.gridFunction(util.eval([["x","y"], ["z", 4]]))
+        g = util.GridField(f, var)
+
+        self.assertFalse(f.isSingle)
+        self.assert_array_almost_equal(g(fes, p), [[0.1, 0.2, 0], [0.3, 4, 0], [0,0,0]])
+
+        f.setComponent(var, util.eval([["y","x"], [4, "z"]]))
+        self.assert_array_almost_equal(g(fes, p), [[0.2, 0.1, 0], [4, 0.3, 0], [0,0,0]])
 
     def test_poisson(self):
         m = self._make_mesh()

@@ -1,3 +1,4 @@
+import numpy as np
 import ngsolve
 from .operators import NGSFunctionBase
 from .coef import NGSFunction
@@ -8,8 +9,7 @@ class _TnTBase(NGSFunctionBase):
     def shape(self):
         if self._var.isScalar:
             return ()
-        else:
-            return (3,)
+        return tuple([3] * len(self._var.shape))
         
     @property
     def isNonlinear(self):
@@ -30,14 +30,20 @@ class _TnTBase(NGSFunctionBase):
         if self._var.isScalar:
             return self.value(fes)
         else:
-            return ngsolve.CoefficientFunction(tuple(self.value(fes) + [0] * (3-self._var.size)), dims=self.shape)
+            value = np.array(self.value(fes), dtype=object)
+            pad_width = [(0, t - s) for s, t in zip(value.shape, self.shape)]
+            value = np.pad(value, pad_width, mode="constant").flatten().tolist()
+            return ngsolve.CoefficientFunction(tuple(value), dims=self.shape)
         
     def grad(self, fes):
         if self._var.isScalar:
             return self._grad(fes, self.value(fes))
         else:
-            v = self.value(fes) + [0] * (3-self._var.size)
-            return ngsolve.CoefficientFunction(tuple([self._grad(fes, t) for t in v]), dims=(3, 3)).TensorTranspose((1,0))
+            value = np.array(self.value(fes), dtype=object)
+            pad_width = [(0, t - s) for s, t in zip(value.shape, self.shape)]
+            value = np.pad(value, pad_width, mode="constant").flatten().tolist()
+            shape = tuple([len(self.shape)] + [i for i in range(len(self.shape))])
+            return ngsolve.CoefficientFunction(tuple([self._grad(fes, t) for t in value]), dims=tuple([3] + list(self.shape))).TensorTranspose(shape)
 
     def _grad(self, fes, x):
         if x == 0:

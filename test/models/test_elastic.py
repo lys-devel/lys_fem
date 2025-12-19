@@ -270,7 +270,7 @@ class elasticity_test(FEMTestCase):
         for w in res:
             self.assert_array_almost_equal(w.data, np.exp(-((w.x[:, 0]-1)/0.1)**2)/2, decimal=2)
 
-    def test_pml_1d(self):
+    def test_pml_1d(self, show=True):
         p = FEMProject()
 
         # geometry
@@ -302,5 +302,14 @@ class elasticity_test(FEMTestCase):
         sol = FEMSolution()
 
         x = np.linspace(0,2,300)
+        res = sol.eval("u[0]", data_number=0, coords=x)
+        self.assert_array_almost_equal(res, np.exp(-(x/0.05)**2), decimal=2)
         res = sol.eval("u[0]", data_number=-1, coords=x)
         self.assert_array_almost_equal(res, 0, decimal=2)
+
+        if show:
+            import matplotlib.pyplot as plt
+            for i in range(10):
+                res = sol.eval("u[0]", data_number=30*i, coords=x)
+                plt.plot(res)
+            plt.show()

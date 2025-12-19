@@ -55,26 +55,23 @@ class ElasticModel(FEMModel):
         res = super().functionSpaces()
 
         # define PML spaces
-        kwargs = {"fetype": "H1", "order": 1, "isScalar": False, "size": self._varDim}
+        kwargs = {"fetype": "H1", "order": 1, "isScalar": False}
         for pml in self.domainConditions.get(PerfectlyMatchedLayer):
-            for d in range(self.fem.dimension):
-                res.append(util.FunctionSpace(self._varName+"_w"+str(d), geometries=pml.geometries, **kwargs))
-            res.append(util.FunctionSpace(self._varName+"_U", geometries=pml.geometries, **kwargs))
+            res.append(util.FunctionSpace(self._varName+"_w", geometries=pml.geometries, size=(self._varDim, self.fem.dimension), **kwargs))
+            res.append(util.FunctionSpace(self._varName+"_U", geometries=pml.geometries, size=self._varDim, **kwargs))
         return res
 
     def initialValues(self, params):
         res = super().initialValues(params)
         for pml in self.domainConditions.get(PerfectlyMatchedLayer):
-            for d in range(self.fem.dimension):
-                res.append(util.NGSFunction([0]*self.variableDimension))
+            res.append(util.NGSFunction(np.zeros(self.shape)))
             res.append(util.NGSFunction([0]*self.variableDimension))
         return res
 
     def _initialVelocities(self, params):
         res = super().initialVelocities(params)
         for pml in self.domainConditions.get(PerfectlyMatchedLayer):
-            for d in range(self.fem.dimension):
-                res.append(util.NGSFunction([0]*self.variableDimension))
+            res.append(util.NGSFunction(np.zeros(self.shape)))
             res.append(util.NGSFunction([0]*self.variableDimension))
         return res
 
@@ -123,22 +120,10 @@ class ElasticModel(FEMModel):
             C2 = util.einsum("l,ijkl->ijkl", cb, C)
 
             U, U_test = vars[self._varName+"_U"]
-            w = util.NGSFunction([self._tnt(vars, i, 0) for i in range(3)], name="w")
-            wt = util.NGSFunction([self._tnt(vars, i, 0, True) for i in range(3)], name="w")
-            w_test = util.NGSFunction([self._tnt(vars, i, 1) for i in range(3)], name="w")
+            w, w_test = vars[self._varName+"_w"]
 
             wf += (U.t - u).dot(U_test)*dx(pml.geometries)
-            wf += (wt + util.einsum("j,ij->ij", sigma, w) - C1.ddot(grad(u)) - C2.ddot(grad(U))).ddot(w_test)*dx(pml.geometries)
+            wf += (w.t + util.einsum("j,ij->ij", sigma, w) - C1.ddot(grad(u)) - C2.ddot(grad(U))).ddot(w_test)*dx(pml.geometries)
             wf += rho * (a*u.t + b*u + c*U).dot(v)*dx(pml.geometries) + w.ddot(grad(v))*dx(pml.geometries)
 
         return wf
-    
-    def _tnt(self, vars, d, index, deriv=False):
-        if d < self.fem.dimension:
-            res= vars[self._varName+"_w"+str(d)][index]
-            if deriv:
-                return res.t
-            else:
-                return res
-        else:
-            return util.NGSFunction((0,0,0), name="zero")

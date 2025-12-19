@@ -1,3 +1,5 @@
+import itertools
+import numpy as np
 import ngsolve
 from .trials import TestFunction, TrialFunction
 from .operators import NGSFunctionBase
@@ -16,7 +18,7 @@ class FunctionSpace:
         self._size = size
         self._scalar = isScalar
         if dirichlet is None:
-            dirichlet = [None] * size
+            dirichlet = [None] * self.size
         self._dirichlet = dirichlet
         self._valtype = valtype
         self._geom = geometries
@@ -28,6 +30,16 @@ class FunctionSpace:
 
     @property
     def size(self):
+        if isinstance(self._size, int):
+            return self._size
+        return prod(self._size)
+    
+    @property
+    def shape(self):
+        if self.isScalar:
+            return ()
+        elif isinstance(self._size, int):
+            return (self._size,)
         return self._size
     
     @property
@@ -48,13 +60,14 @@ class FunctionSpace:
         if self._geom is not None:
             kwargs["definedon"] = "|".join(["domain" + str(r) for r in self._geom])
 
-        fess = []
-        for i in range(self.size):
-            if self._dirichlet[i] is None:
-                fess.append(space(mesh, **kwargs))
+        def get_space(d):
+            if d is None:
+                return space(mesh, **kwargs)
             else:
-                dirichlet = "|".join(["boundary" + str(r) for r in self._dirichlet[i]])
-                fess.append(space(mesh, dirichlet=dirichlet, **kwargs))
+                dirichlet = "|".join(["boundary" + str(r) for r in d])
+                return space(mesh, dirichlet=dirichlet, **kwargs)
+
+        fess = [get_space(d) for d in self._dirichlet]
         return prod(fess)
     
     @property
@@ -113,8 +126,10 @@ class FiniteElementSpace:
         for var in vars:
             if var.isScalar:
                 trial, test = trials[n], tests[n]
-            else:
+            elif len(var.shape) == 1:
                 trial, test = trials[n:n+var.size], tests[n:n+var.size]
+            else:
+                trial, test = np.reshape(trials[n:n+var.size], var.shape), np.reshape(tests[n:n+var.size], var.shape)
             res[var] = (trial, test)
             n+=var.size
         return res
@@ -295,8 +310,15 @@ class GridFunction(ngsolve.GridFunction):
         if self.isSingle:
             self.Set(*[v.eval(self._fes) for v in value])
         else:
-            value = [val if v.isScalar else val[i] for v, val in zip(self._fes.variables, value) for i in range(v.size)]
-            for ui, i in zip(self.components, value):
+            res = []
+            for v, val in zip(self._fes.variables, value):
+                if v.isScalar:
+                    res.extend([val])
+                elif isinstance(v.shape, int):
+                    res.extend([val[i] for i in range(v.size)])
+                else:
+                    res.extend([val[idx] for idx in itertools.product(*(range(s) for s in v.shape))])
+            for ui, i in zip(self.components, res):
                 ui.Set(i.eval(self._fes))
 
     def setComponent(self, var, value):
