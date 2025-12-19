@@ -410,7 +410,18 @@ class _TensorDot(_BinaryOper):
         sym1, sym2 = "abcdef"[0:len(v1.shape)-s]+"ijklmn"[:s], "ijklmn"[:s]+"opqrst"[0:len(v2.shape)-s]
         expr = sym1+","+sym2+"->"+sym1[0:-s]+sym2[s:]
         return ngsolve.fem.Einsum(expr, v1, v2)
+    
+    def grad(self, fes):
+        g1, g2 = self._obj[0].grad(fes), self._obj[1].grad(fes)
+        v1, v2 = self._obj[0].eval(fes), self._obj[1].eval(fes)
 
+        s = self._axes
+        sym1, sym2 = "abcdef"[0:len(self._obj[0].shape)-s]+"ijklmn"[:s], "ijklmn"[:s]+"opqrst"[0:len(self._obj[1].shape)-s]
+        expr1 = "z"+sym1+","+sym2+"->"+"z"+sym1[0:-s]+sym2[s:]
+        expr2 = sym1+","+"z"+sym2+"->"+"z"+sym1[0:-s]+sym2[s:]
+
+        return ngsolve.fem.Einsum(expr1, g1, v2) + ngsolve.fem.Einsum(expr2, v1, g2)
+    
     def __str__(self):
         if self._axes == 1:
             return "(" + str(self._obj[0]) + "." + str(self._obj[1]) + ")"

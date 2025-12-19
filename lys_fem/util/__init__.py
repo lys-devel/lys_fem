@@ -34,9 +34,9 @@ def eval(expr, dic={}, name=None, geom=None, J=None):
     if expr is None:
         return None
     elif isinstance(expr, (list, tuple, np.ndarray)):
-        return NGSFunction([eval(c, dic=dic) for c in expr], name=name, J=J)
+        return NGSFunction([eval(c, dic=dic) for c in expr], name=name if name is not None else str(expr), J=J)
     elif isinstance(expr, (int, float, complex)):
-        return NGSFunction(expr, name=name)
+        return NGSFunction(expr, name=name if name is not None else str(expr))
     if isinstance(expr, dict):
         if geom is None:
             raise ValueError("Geometry type is required for dictionary input.")

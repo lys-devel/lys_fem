@@ -57,9 +57,9 @@ class NGSFunction(NGSFunctionBase):
 
     def grad(self, fes):
         if self._obj is None:
-            return ngsolve.CoefficientFunction(tuple([0]*fes.dimension))
+            return ngsolve.CoefficientFunction(tuple([0]*3))
         if isinstance(self._obj, list):
-            return ngsolve.CoefficientFunction(tuple([obj.grad(fes) for obj in self._obj]), dims=self.shape+(fes.dimension,)).TensorTranspose((1,0))
+            return ngsolve.CoefficientFunction(tuple([obj.grad(fes) for obj in self._obj]), dims=self.shape+(3,)).TensorTranspose((1,0))
         if isinstance(self._obj, ngsolve.CoefficientFunction):
             g = [self._obj.Diff(symbol) for symbol in [ngsolve.x, ngsolve.y, ngsolve.z]]
             return ngsolve.CoefficientFunction(tuple(g), dims=(3,))
@@ -96,7 +96,7 @@ class NGSFunction(NGSFunctionBase):
     @property
     def lhs(self):
         if not self.hasTrial:
-            return NGSFunction()
+            return NGSFunction() if len(self.shape)==0 else NGSFunction(np.zeros(self.shape).tolist())
         if isinstance(self._obj, list):
             return NGSFunction([obj.lhs for obj in self._obj])
         else:

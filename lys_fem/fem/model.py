@@ -161,11 +161,13 @@ class Equation(FEMObject):
     def __getattr__(self, key):
         return self._values.get(key, None)
     
-    def functionSpaces(self, dirichlet):
+    def functionSpaces(self, dirichlet, geometries=None):
         kwargs = {"fetype": self._type, "isScalar": self._isScalar, "order": self._order, "size": self._varDim, "valtype": self._valType, "dirichlet": dirichlet}
-        if self._geometries is not None:
-            if self._geometries.selectionType() in ["Selected", "Group"]:
-                kwargs["geometries"] = list(self._geometries)
+        if geometries is None and self._geometries is not None:
+            geometries = self._geometries
+        if geometries is not None:
+            if geometries.selectionType() in ["Selected", "Group"]:
+                kwargs["geometries"] = list(geometries)
         return util.FunctionSpace(self._varName, **kwargs)
 
     def set(self, name, value):
