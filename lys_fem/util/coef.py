@@ -59,7 +59,8 @@ class NGSFunction(NGSFunctionBase):
         if self._obj is None:
             return ngsolve.CoefficientFunction(tuple([0]*3))
         if isinstance(self._obj, list):
-            return ngsolve.CoefficientFunction(tuple([obj.grad(fes) for obj in self._obj]), dims=self.shape+(3,)).TensorTranspose((1,0))
+            shape = tuple([len(self.shape)] + [i for i in range(len(self.shape))])
+            return ngsolve.CoefficientFunction(tuple([obj.grad(fes) for obj in self._obj]), dims=self.shape+(3,)).TensorTranspose(shape)
         if isinstance(self._obj, ngsolve.CoefficientFunction):
             g = [self._obj.Diff(symbol) for symbol in [ngsolve.x, ngsolve.y, ngsolve.z]]
             return ngsolve.CoefficientFunction(tuple(g), dims=(3,))

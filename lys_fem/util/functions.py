@@ -117,7 +117,7 @@ class _Func(NGSFunctionBase):
         replaced = self._obj.replace(d)
         if replaced == 0:
             replaced = NGSFunction()
-        return self(replaced)
+        return self.apply(replaced)
     
     def __contains__(self, item):
         return item in self._obj
@@ -125,9 +125,6 @@ class _Func(NGSFunctionBase):
     @property
     def isTimeDependent(self):
         return self._obj.isTimeDependent
-
-    def __call__(self, obj1):
-        return _Func(obj1, self._type)
     
     @property
     def valid(self):
@@ -191,9 +188,6 @@ class _Grad(_Func):
         if not isinstance(obj, NGSFunctionBase):
             obj = NGSFunction(obj, str(obj))
         self._obj = obj
-
-    def __call__(self, obj1):
-        return _Grad(obj1)
     
     @property
     def isNonlinear(self):
@@ -202,6 +196,9 @@ class _Grad(_Func):
     @property
     def shape(self):
         return tuple([3]+list(self._obj.shape))
+    
+    def apply(self, value):
+        return _Grad(value)
 
     def __hash__(self):
         if isinstance(self._obj, (TrialFunction, TestFunction)):
@@ -223,7 +220,7 @@ class _Rot(_Func):
             obj = NGSFunction(obj, str(obj))
         self._obj = obj
 
-    def __call__(self, obj1):
+    def apply(self, obj1):
         return _Rot(obj1)
     
     @property
@@ -259,7 +256,7 @@ class _MinMax(_Func):
         self._obj = [obj1, obj2]
         self._type = type
 
-    def __call__(self, obj1, obj2):
+    def apply(self, obj1, obj2):
         if isinstance(obj1, (int,float)) and isinstance(obj2, (int,float)):
             if self._type == "min":
                 return builtins.min([obj1, obj2])
@@ -273,11 +270,11 @@ class _MinMax(_Func):
 
     @property
     def rhs(self):
-        return self(self._obj[0].rhs, self._obj[1].rhs)
+        return self.apply(self._obj[0].rhs, self._obj[1].rhs)
 
     @property
     def lhs(self):
-        return self(self._obj[0].lhs, self._obj[1].lhs)
+        return self.apply(self._obj[0].lhs, self._obj[1].lhs)
 
     @property
     def hasTrial(self):
@@ -301,7 +298,7 @@ class _MinMax(_Func):
             if replaced == 0:
                 replaced = NGSFunction()
             objs.append(replaced)
-        return self(*objs)
+        return self.apply(*objs)
     
     def eval(self, fes):
         e1, e2 = self._obj[0].eval(fes), self._obj[1].eval(fes)
@@ -349,7 +346,12 @@ class _Einsum(NGSFunctionBase):
 
     @property
     def shape(self):
-        pass
+        input, output = self._sign.split("->")
+        d = {}
+        for inp, obj in zip(input.split(","), self._objs):
+            for i, s in zip(inp, obj.shape):
+                d[i] = s
+        return tuple([d[out] for out in output])
 
     def eval(self, fes):
         objs = [obj.eval(fes) for obj in self._objs]

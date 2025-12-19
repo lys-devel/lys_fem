@@ -1,24 +1,16 @@
 import numpy as np
-from netgen.geom2d import unit_square
 
 import ngsolve
 from numpy.testing import assert_almost_equal
 from lys_fem import geometry
-from lys_fem.fem import FEMProject
 from lys_fem import util
 
 from ..base import FEMTestCase
 
 class test_util(FEMTestCase):
     def _make_mesh(self, refine=0):
-        p = FEMProject(1)
-        p.mesher.setRefinement(refine)
-
-        # geometry
-        p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
-        p.geometries.add(geometry.Line(1, 0, 0, 2, 0, 0))
-
-        return p.mesh
+        mesh = geometry.GmshMesh([geometry.Line(0,0,0,1,0,0), geometry.Line(1,0,0,2,0,0)], refine=refine)
+        return util.Mesh(mesh)
     
     def test_space(self):
         m = self._make_mesh()
@@ -41,9 +33,7 @@ class test_util(FEMTestCase):
 
     def test_grid(self):
         import numpy as np
-        p = FEMProject(1)
-        p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
-        m = p.mesh
+        m = self._make_mesh()
 
         sp = util.H1("u", size = 1, order = 2, isScalar=True)
         fes = util.FiniteElementSpace(sp, m)
@@ -96,22 +86,4 @@ class test_util(FEMTestCase):
 
         # Solve Poisson equation on given finite element space.
         util.Solver(fes, wf, linear={"solver": "pardiso"}).solve(g)
-
-    def test_NGSFunction(self):
-        return
-        m = mesh.NGSMesh(unit_square.GenerateMesh(maxh=0.2), None)
-        mp = m(0,0)
-        util.dimension = 2
-
-        f = util.NGSFunction(1)
-        self.assertEqual(f.shape, ())
-        self.assertTrue(f.valid)
-        self.assertFalse(f.hasTrial)
-        self.assertFalse(f.isNonlinear)
-        self.assertFalse(f.isTimeDependent)
-        self.assertAlmostEqual(f.eval(m)(mp), 1)
-        self.assertEqual(f.grad(m)(mp), (0,0))
-        self.assertEqual(f.replace({}).eval(m)(mp), 1)
-        self.assertEqual(f.rhs.eval(m)(mp), 1)
-        self.assertEqual(f.lhs.eval(m)(mp), 0)
 

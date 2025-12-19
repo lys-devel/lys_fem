@@ -1,23 +1,15 @@
 import numpy as np
-from netgen.geom2d import unit_square
 
-import ngsolve
 from numpy.testing import assert_almost_equal
 from lys_fem import geometry
-from lys_fem.fem import FEMProject
 from lys_fem import util
 
 from ..base import FEMTestCase
 
 class test_util(FEMTestCase):
-    def _make_mesh(self):
-        p = FEMProject(1)
-
-        # geometry
-        p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
-        p.geometries.add(geometry.Line(1, 0, 0, 2, 0, 0))
-
-        return p.mesh
+    def _make_mesh(self, refine=0):
+        mesh = geometry.GmshMesh([geometry.Line(0,0,0,1,0,0), geometry.Line(1,0,0,2,0,0)], refine=refine)
+        return util.Mesh(mesh)
     
     def test_error(self):
         m = self._make_mesh()

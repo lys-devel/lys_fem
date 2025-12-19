@@ -146,9 +146,12 @@ class NGSFunctionBase(Base):
     
     def __call__(self, fes, coords):
         f = self.eval(fes)
-        g = lambda x: f(x) if x is not None else np.nan
+        g = lambda x: np.array(f(x)).reshape(f.shape) if x is not None else np.nan
         mip = self.__coordsToMIP(fes.dimension-1, fes.mesh, np.array(coords))
-        return np.array(np.vectorize(g)(mip)).squeeze()
+        res = np.array(np.vectorize(g)(mip)).squeeze()
+        if res.shape == ():
+            res = res.item()
+        return res
 
     def __coordsToMIP(self, dim, mesh, coords):
         if len(coords.shape) > dim:
@@ -185,7 +188,7 @@ class _BinaryOper(NGSFunctionBase):
             if replaced == 0:
                 replaced = NGSFunction()
             objs.append(replaced)
-        return self(*objs)
+        return self.apply(*objs)
     
     def __contains__(self, item):
         return any([item in self._obj[i] for i in range(2)])
@@ -204,7 +207,7 @@ class _Add(_BinaryOper):
         super().__init__(obj1, obj2)
         self._type = type
 
-    def __call__(self, v1, v2):
+    def apply(self, v1, v2):
         if self._type == "+":
             return v1+v2
         else:
@@ -216,18 +219,18 @@ class _Add(_BinaryOper):
 
     @property
     def rhs(self):
-        return self(self._obj[0].rhs, self._obj[1].rhs)
+        return self.apply(self._obj[0].rhs, self._obj[1].rhs)
 
     @property
     def lhs(self):
-        return self(self._obj[0].lhs, self._obj[1].lhs)
+        return self.apply(self._obj[0].lhs, self._obj[1].lhs)
 
     @property
     def hasTrial(self):
         return self._obj[0].hasTrial or self._obj[1].hasTrial
 
     def eval(self, fes):
-        return self(self._obj[0].eval(fes), self._obj[1].eval(fes))
+        return self.apply(self._obj[0].eval(fes), self._obj[1].eval(fes))
     
     def grad(self, fes):
         return self._obj[0].grad(fes) + self._obj[1].grad(fes)
@@ -240,7 +243,7 @@ class _Mul(_BinaryOper):
     def __init__(self, obj1, obj2):
         super().__init__(obj1, obj2)
 
-    def __call__(self, x, y):
+    def apply(self, x, y):
         from .trials import _MultDiffSimbol
         if isinstance(y, _MultDiffSimbol):
             return y * x
@@ -265,7 +268,7 @@ class _Mul(_BinaryOper):
         return self._obj[0].hasTrial or self._obj[1].hasTrial
 
     def eval(self, fes):
-        return self(self._obj[0].eval(fes), self._obj[1].eval(fes))
+        return self.apply(self._obj[0].eval(fes), self._obj[1].eval(fes))
 
     def grad(self, fes):
         return self._obj[0].eval(fes)*self._obj[1].grad(fes)+self._obj[1].eval(fes)*self._obj[0].grad(fes)
@@ -292,7 +295,7 @@ class _Mul(_BinaryOper):
 
 
 class _Div(_BinaryOper):
-    def __call__(self, x, y):
+    def apply(self, x, y):
         if isinstance(x, ngsolve.CoefficientFunction) and isinstance(y, ngsolve.CoefficientFunction):
             if (len(x.shape) == 0 and y.shape == (1,)) or (x.shape==(1,) and len(y.shape)==0):
                 return ngsolve.CoefficientFunction(x/y, dims=(1,))
@@ -313,7 +316,7 @@ class _Div(_BinaryOper):
         return self._obj[0].hasTrial or self._obj[1].hasTrial
 
     def eval(self, fes):
-        return self(self._obj[0].eval(fes), self._obj[1].eval(fes))
+        return self.apply(self._obj[0].eval(fes), self._obj[1].eval(fes))
 
     def grad(self, fes):
         v1 = self._obj[1].eval(fes)
@@ -350,7 +353,7 @@ class _Pow(_BinaryOper):
         super().__init__(v1, v2)
         self._pow = v2
 
-    def __call__(self, v1, v2):
+    def apply(self, v1, v2):
         return v1 ** self._pow
     
     @property
@@ -359,18 +362,18 @@ class _Pow(_BinaryOper):
 
     @property
     def rhs(self):
-        return self(self._obj[0].rhs, self._pow)
+        return self.apply(self._obj[0].rhs, self._pow)
 
     @property
     def lhs(self):
-        return self(self._obj[0].lhs, self._pow)
+        return self.apply(self._obj[0].lhs, self._pow)
 
     @property
     def hasTrial(self):
         return self._obj[0].hasTrial
 
     def eval(self, fes):
-        return self(self._obj[0].eval(fes), self._pow)
+        return self.apply(self._obj[0].eval(fes), self._pow)
     
     def __str__(self):
         return str(self._obj[0]) + "**" + str(self._pow)
@@ -385,7 +388,7 @@ class _TensorDot(_BinaryOper):
         super().__init__(obj1, obj2)
         self._axes = axes
 
-    def __call__(self, a, b):
+    def apply(self, a, b):
         if self._axes == 1:
             return a.dot(b)
         else:
@@ -430,11 +433,11 @@ class _TensorDot(_BinaryOper):
 
     @property
     def rhs(self):
-        return self(self._obj[0].rhs, self._obj[1].rhs)
+        return self.apply(self._obj[0].rhs, self._obj[1].rhs)
 
     @property
     def lhs(self):
-        return self(self._obj[0].lhs, self._obj[1].lhs) + self(self._obj[0].lhs, self._obj[1].rhs) + self(self._obj[0].rhs, self._obj[1].lhs)
+        return self.apply(self._obj[0].lhs, self._obj[1].lhs) + self.apply(self._obj[0].lhs, self._obj[1].rhs) + self.apply(self._obj[0].rhs, self._obj[1].lhs)
 
     @property
     def isNonlinear(self):
@@ -445,7 +448,7 @@ class _TensorDot(_BinaryOper):
 
 
 class _Cross(_BinaryOper):
-    def __call__(self, v1, v2):
+    def apply(self, v1, v2):
         return v1.cross(v2)
 
     @property
@@ -499,7 +502,7 @@ class _Index(NGSFunctionBase):
         self._obj = obj
         self._index = index
 
-    def __call__(self, obj1):
+    def apply(self, obj1):
         return _Index(obj1, self._index)
     
     def __contains__(self, item):
@@ -544,6 +547,13 @@ class _Index(NGSFunctionBase):
             return self._obj.eval(fes)[tuple(sl)]
         else:
             return self._obj.eval(fes)[self._index]
+        
+    def grad(self, fes):
+        if isinstance(self._index, int):
+            sl = [slice(None)] + [int(self._index)] + [slice(None)]*(len(self.shape))
+            return self._obj.grad(fes)[tuple(sl)]
+        else:
+            return self._obj.grad(fes)[[slice(None)]+list(self._index)]
 
     def replace(self, d):
         return self._obj.replace(d)[self._index]
@@ -560,7 +570,7 @@ class _Transpose(NGSFunctionBase):
     def __init__(self, obj):
         self._obj = obj
 
-    def __call__(self, obj):
+    def apply(self, obj):
         return _Transpose(obj)
     
     def __contains__(self, item):
