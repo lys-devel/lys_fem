@@ -269,3 +269,43 @@ class elasticity_test(FEMTestCase):
         res = sol.eval("u[0]", data_number=-1)
         for w in res:
             self.assert_array_almost_equal(w.data, np.exp(-((w.x[:, 0]-1)/0.1)**2)/2, decimal=2)
+
+    def test_pml_1d(self):
+        return
+        p = FEMProject()
+
+        # geometry
+        p.geometries.add(geometry.Line(0, 0, 0, 1, 0, 0))
+        p.geometries.add(geometry.Line(1, 0, 0, 2, 0, 0))
+
+        # mesh
+        p.mesher.setRefinement(5)
+
+        # material
+        param = elasticity.ElasticParameters()
+        mat1 = Material([param], geometries="all")
+        p.materials.append(mat1)
+
+        # model: boundary and initial conditions
+        model = elasticity.ElasticModel(1)
+        model.initialConditions.append(elasticity.InitialCondition(["exp(-(x/3)**2)"], geometries="all"))
+        model.domainConditions.append(elasticity.PerfectlyMatchedLayer(sigma="0*(x-1)**3", geometries=[2]))
+        p.models.append(model)
+
+        # solver
+        solver = TimeDependentSolver(0.002, 1.5/100)
+        p.solvers.append(solver)
+
+        # solve
+        p.run()
+
+        # solution
+        sol = FEMSolution()
+
+        import matplotlib.pyplot as plt
+
+        x = np.linspace(0,2,300)
+        for i in range(10):
+            res = sol.eval("u[0]+u_u0[0]", data_number=i*75, coords=x)
+            plt.plot(res)
+        plt.show()
