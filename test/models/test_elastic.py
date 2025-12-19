@@ -271,7 +271,6 @@ class elasticity_test(FEMTestCase):
             self.assert_array_almost_equal(w.data, np.exp(-((w.x[:, 0]-1)/0.1)**2)/2, decimal=2)
 
     def test_pml_1d(self):
-        return
         p = FEMProject()
 
         # geometry
@@ -288,12 +287,12 @@ class elasticity_test(FEMTestCase):
 
         # model: boundary and initial conditions
         model = elasticity.ElasticModel(1)
-        model.initialConditions.append(elasticity.InitialCondition(["exp(-(x/3)**2)"], geometries="all"))
-        model.domainConditions.append(elasticity.PerfectlyMatchedLayer(sigma="0*(x-1)**3", geometries=[2]))
+        model.initialConditions.append(elasticity.InitialCondition(["exp(-(x/0.05)**2)"], geometries="all"))
+        model.domainConditions.append(elasticity.PerfectlyMatchedLayer(sigma=["100*(x-1)**3", 0, 0], geometries=[2]))
         p.models.append(model)
 
         # solver
-        solver = TimeDependentSolver(0.002, 1.5/100)
+        solver = TimeDependentSolver(0.005, 1.5)
         p.solvers.append(solver)
 
         # solve
@@ -302,10 +301,6 @@ class elasticity_test(FEMTestCase):
         # solution
         sol = FEMSolution()
 
-        import matplotlib.pyplot as plt
-
         x = np.linspace(0,2,300)
-        for i in range(10):
-            res = sol.eval("u[0]+u_u0[0]", data_number=i*75, coords=x)
-            plt.plot(res)
-        plt.show()
+        res = sol.eval("u[0]", data_number=-1, coords=x)
+        self.assert_array_almost_equal(res, 0, decimal=2)

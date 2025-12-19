@@ -119,6 +119,9 @@ class _Func(NGSFunctionBase):
             replaced = NGSFunction()
         return self.apply(replaced)
     
+    def apply(self, obj):
+        return _Func(obj, self._type)
+    
     def __contains__(self, item):
         return item in self._obj
     
