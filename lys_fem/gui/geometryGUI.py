@@ -63,6 +63,7 @@ class _ParentTree(FEMTreeItem):
 
     def setGeometry(self, *args, **kwargs):
         self._geom.setGeometry(*args, **kwargs)
+        self._group.clear()
         self._group.update()
 
     @ property

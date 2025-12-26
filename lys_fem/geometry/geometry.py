@@ -182,21 +182,28 @@ class InfiniteVolume(FEMGeometry):
 
     def generateParameters(self, model, trans):
         J = {"default": np.eye(3)}
+        d = {}
         for dim, grp in model.getPhysicalGroups(3):
             for tag in model.getEntitiesForPhysicalGroup(dim, grp):
                 p = trans.inv(model.occ.getCenterOfMass(dim, tag), unit="m")
                 if self._rf_xp.isInside(p):
                     J[grp] = self._constructJ(0)
+                    d[grp] = self._constructD(0)
                 if self._rf_xn.isInside(p):
                     J[grp] = self._constructJ(1)
+                    d[grp] = self._constructD(1)
                 if self._rf_yp.isInside(p):
                     J[grp] = self._constructJ(2)
+                    d[grp] = self._constructD(2)
                 if self._rf_yn.isInside(p):
                     J[grp] = self._constructJ(3)
+                    d[grp] = self._constructD(3)
                 if self._rf_zp.isInside(p):
                     J[grp] = self._constructJ(4)
+                    d[grp] = self._constructD(4)
                 if self._rf_zn.isInside(p):
                     J[grp] = self._constructJ(5)
+                    d[grp] = self._constructD(5)
         return {"J": util.eval(J, name="J", geom="domain")}
     
     def _constructJ(self, domain):
@@ -240,7 +247,22 @@ class InfiniteVolume(FEMGeometry):
             [m[1,2]*m[2,0]-m[1,0]*m[2,2], m[0,0]*m[2,2]-m[0,2]*m[2,0], m[0,2]*m[1,0]-m[0,0]*m[1,2]],
             [m[1,0]*m[2,1]-m[1,1]*m[2,0], m[0,1]*m[2,0]-m[0,0]*m[2,1], m[0,0]*m[1,1]-m[0,1]*m[1,0]]])/det
         return [[str(J[i,j]) for j in range(3)] for i in range(3)]
-    
+
+    def _constructD(self, domain):
+        a,b,c,A,B,C = self.args
+        x,y,z = sp.symbols("x,y,z")
+        if domain == 0:
+            return str(x-a/(A-a))
+        if domain == 1:
+            return str(-x-a/(A-a))
+        if domain == 2:
+            return str(y-b/(B-b))
+        if domain == 3:
+            return str(-y-b/(B-b))    
+        if domain == 4:
+            return str(z-c/(C-c))
+        if domain == 5:
+            return str(-z-c/(C-c))
 
 class Rect(FEMGeometry):
     type = "rectangle"
@@ -301,18 +323,23 @@ class InfinitePlane(FEMGeometry):
         a,b,A,B = trans(self.args, unit="m")
 
         J = {"default": np.eye(2)}
+        d = {}
         for dim, grp in model.getPhysicalGroups(2):
             for tag in model.getEntitiesForPhysicalGroup(dim, grp):
                 p = model.occ.getCenterOfMass(dim, tag)
                 if self._checkInside(p, (a,b,0), (a,-b,0), (A,-B,0),(A,B,0)):
                     J[grp] = self._constructJ(0)
+                    d[grp] = self._constructD(0)
                 if self._checkInside(p, (-a,b,0), (-a,-b,0), (-A,-B,0),(-A,B,0)):
                     J[grp] = self._constructJ(1)
+                    d[grp] = self._constructD(1)
                 if self._checkInside(p, (a,b,0), (-a,b,0), (-A,B,0),(A,B,0)):
                     J[grp] = self._constructJ(2)
+                    d[grp] = self._constructD(2)
                 if self._checkInside(p, (a,-b,0), (-a,-b,0), (-A,-B,0),(A,-B,0)):
                     J[grp] = self._constructJ(3)
-        return {"J": util.eval(J, name="J", geom="domain")}
+                    d[grp] = self._constructD(3)
+        return {"J": util.eval(J, name="J", geom="domain"), "d_PML": util.eval(d, name="d_PML", geom="domain")}
     
     def _checkInside(self, p, a, b, c, d):
         verts = np.array([a, b, c, d])
@@ -355,6 +382,18 @@ class InfinitePlane(FEMGeometry):
         det = m[0,0]*m[1,1]-m[0,1]*m[1,0]
         J = sp.Matrix([[m[1,1], -m[0,1]], [-m[1,0], m[0,0]]])/det
         return [[str(J[i,j]) for j in range(2)] for i in range(2)]
+
+    def _constructD(self, domain):
+        a,b,A,B = self.args
+        x,y = sp.symbols("x,y")
+        if domain == 0:
+            return str(x-a/(A-a))
+        if domain == 1:
+            return str(-x-a/(A-a))
+        if domain == 2:
+            return str(y-b/(B-b))
+        if domain == 3:
+            return str(-y-b/(B-b))
 
     def widget(self):
         from .geometryGUI import InfinitePlaneGUI

@@ -32,9 +32,9 @@ class InversePiezoelectricity(DomainCondition):
 
 
 class PerfectlyMatchedLayer(DomainCondition):
-    className = "PML_elasticity"
+    className = "PerfectlyMatchedLayer"
 
-    def __init__(self, sigma="sigma_PML", geometries="all", *args, **kwargs):
+    def __init__(self, sigma=["100*d_PML**3", "150*d_PML**3", "200*d_PML**3"], geometries="all", *args, **kwargs):
         super().__init__(geometries=geometries, *args, **kwargs)
         self["sigma"] = Coef(sigma, (3,), description="sigma for PML")
 
