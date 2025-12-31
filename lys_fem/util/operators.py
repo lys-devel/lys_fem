@@ -144,26 +144,25 @@ class NGSFunctionBase(Base):
     def T(self):
         return _Transpose(self)
     
-    def __call__(self, fes, coords):
-        f = self.eval(fes)
-        g = lambda x: np.array(f(x)).reshape(f.shape) if x is not None else np.nan
-        mip = self.__coordsToMIP(fes.dimension-1, fes.mesh, np.array(coords))
-        res = np.array(np.vectorize(g)(mip)).squeeze()
-        if res.shape == ():
-            res = res.item()
-        return res
-
-    def __coordsToMIP(self, dim, mesh, coords):
-        if len(coords.shape) > dim:
-            return [self.__coordsToMIP(dim, mesh, c) for c in coords]
+    def __call__(self, fes, coords, check=True):
+        if hasattr(self, "_f_cache"):
+            f = self._f_cache
         else:
-            if dim == 0:
-                if mesh.Contains(coords):
-                    return mesh(coords)
-            else:
-                if mesh.Contains(*coords):
-                    return mesh(*coords)
-            return None
+            f = self.eval(fes).Compile()
+            self._f_cache=f
+        coords = np.array(coords)
+        if fes.dimension == 1:
+            coords = coords[..., np.newaxis]
+        flat = coords.reshape(-1, coords.shape[-1]).T
+        if check:
+            valid = np.array([fes.mesh.Contains(*c) for c in flat], dtype=bool)
+            flat[~valid] = [0]*fes.dimension
+        mip = fes.mesh(*flat)
+        res = f(mip)
+        if check:
+            res[~valid] = np.full((int(np.prod(f.shape)),), np.nan)
+        res = res.reshape(tuple(list(coords.shape[:-1]) + list(f.shape)))
+        return res.squeeze()
 
 
 class _BinaryOper(NGSFunctionBase):

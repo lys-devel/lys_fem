@@ -270,7 +270,7 @@ class elasticity_test(FEMTestCase):
         for w in res:
             self.assert_array_almost_equal(w.data, np.exp(-((w.x[:, 0]-1)/0.1)**2)/2, decimal=2)
 
-    def test_pml_1d(self, show=True):
+    def test_pml_1d(self, show=False):
         p = FEMProject()
 
         # geometry

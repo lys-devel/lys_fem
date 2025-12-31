@@ -16,6 +16,14 @@ class test_coef(FEMTestCase):
         wf = util.grad(u).dot(util.grad(v))*util.dx
         return util.FiniteElementSpace(fs, m), u
 
+    def _fes2d(self, refine=0):
+        mesh = geometry.GmshMesh([geometry.Rect(0,0,0,1,1)])
+        m = util.Mesh(mesh)
+        fs = util.H1("H1")
+        u, v = fs.trial, fs.test
+        wf = util.grad(u).dot(util.grad(v))*util.dx
+        return util.FiniteElementSpace(fs, m), u
+
     def _fes3d(self, refine=0):
         mesh = geometry.GmshMesh([geometry.Box(0,0,0,1,1,1)])
         m = util.Mesh(mesh)
@@ -92,3 +100,20 @@ class test_coef(FEMTestCase):
         assert_array_almost_equal(f.rhs(fes,p), value)
         assert_array_almost_equal(f.lhs(fes,p), np.array(value)*0)
         self.assertFalse(u in f)
+
+    def test_NGSFunction_call(self):
+        fes1, u1 = self._fes1d()
+
+        f = util.x
+        self.assertAlmostEqual(f(fes1, 0.3), 0.3)
+        self.assert_array_almost_equal(f(fes1, [0.3]), 0.3)
+        self.assert_array_almost_equal(f(fes1, [0.3, 0.1]), [0.3, 0.1])
+        self.assert_array_almost_equal(f(fes1, [0.3, -0.1]), [0.3, np.nan])
+        self.assert_array_almost_equal(f(fes1, [[0.1, 0.2], [0.3, 0.4]]), [[0.1, 0.2], [0.3, 0.4]])
+
+        v = util.eval(["x", "2"])
+        self.assert_array_almost_equal(v(fes1, 0.3), [0.3, 2])
+        self.assert_array_almost_equal(v(fes1, [0.3]), [0.3, 2])
+        self.assert_array_almost_equal(v(fes1, [0.3, 0.1]), [[0.3, 2], [0.1,2]])
+        self.assert_array_almost_equal(v(fes1, [0.3, -0.1]), [[0.3, 2], [np.nan, np.nan]])
+        self.assert_array_almost_equal(v(fes1, [[0.1, 0.2], [0.3, 0.4]]), [[[0.1,2], [0.2,2]], [[0.3,2], [0.4,2]]])

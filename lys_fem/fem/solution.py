@@ -121,20 +121,15 @@ class FEMSolution:
             res = res.eval(self._fes)
         return res
 
-    def eval(self, expression, data_number, coords=None):
+    def eval(self, expression, data_number, coords=None, check=True):
         if self._last[1] != expression or self._last[2] != data_number:
-            f = self.coef(expression, data_number)
+            f = self.coef(expression, data_number, eval=False)
             self._last = (f, expression, data_number)
         f = self._last[0]
         if coords is None:
             return self.__getDomainValues(f)
         else:
-            if not hasattr(coords, "__iter__"):
-                mip = self.__coordsToMIP(np.array([coords]))
-                return np.vectorize(f)(mip)[0].squeeze()
-            else:
-                mip = self.__coordsToMIP(np.array(coords))
-                return np.array(np.vectorize(f)(mip)).squeeze()
+            return f(self._fes, coords, check=check)
             
     def integrate(self, expression, data_number, **kwargs):
         f = self.coef(expression, data_number)
@@ -148,8 +143,7 @@ class FEMSolution:
         if self._meshInfo is None:
             self._meshInfo = self.__exportMesh(self._mesh)
         domains, coords = self._meshInfo
-        mip = [self._mesh(*c) for c in coords]
-        data=np.array([f(mi) for mi in mip])
+        data=f(self._fes, coords)
         res = []
         if coords.shape[1] < 3:
             coords = np.hstack([coords, np.zeros((coords.shape[0], 3-coords.shape[1]))])
@@ -180,18 +174,7 @@ class FEMSolution:
                     elements[t].append(tuple([v.nr for v in e.vertices]))
             result.append(elements)
 
-        return result, np.array(gmesh.Coordinates())
-
-    def __coordsToMIP(self, coords):
-        dim = 0 if self._fem.dimension == 1 else 1
-        if len(coords.shape) > dim:
-            return [self.__coordsToMIP(c) for c in coords]
-        else:
-            if self._fem.dimension == 1:
-                return self._mesh(coords)
-            else:
-                return self._mesh(*coords)
-            
+        return result, np.array(gmesh.Coordinates())            
 
 class Solution:
     """
