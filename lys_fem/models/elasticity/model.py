@@ -1,7 +1,7 @@
 import numpy as np
 
 from lys_fem import FEMModel, DomainCondition, Coef, GeometrySelection, util, time
-from lys_fem.util import grad, dx
+from lys_fem.util import grad, dx, ds
 from . import InitialCondition, DirichletBoundary, NeumannBoundary
 
 
@@ -125,5 +125,9 @@ class ElasticModel(FEMModel):
             wf += (U.t - u).dot(U_test)*dx(pml.geometries)
             wf += (w.t + util.einsum("j,ij->ij", sigma, w) - C1.ddot(grad(u)) - C2.ddot(grad(U))).ddot(w_test)*dx(pml.geometries)
             wf += rho * (a*u.t + b*u + c*U).dot(v)*dx(pml.geometries) + w.ddot(grad(v))*dx(pml.geometries)
+        
+        for neu in self.boundaryConditions.get(NeumannBoundary):
+            f = mat[neu.value]
+            wf -= f.dot(v)*ds(neu.geometries)
 
         return wf
