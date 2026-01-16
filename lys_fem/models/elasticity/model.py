@@ -2,7 +2,7 @@ import numpy as np
 
 from lys_fem import FEMModel, DomainCondition, Coef, GeometrySelection, util, time
 from lys_fem.util import grad, dx
-from . import InitialCondition, DirichletBoundary
+from . import InitialCondition, DirichletBoundary, NeumannBoundary
 
 
 class ThermoelasticStress(DomainCondition):
@@ -41,7 +41,7 @@ class PerfectlyMatchedLayer(DomainCondition):
 
 class ElasticModel(FEMModel):
     className = "Elasticity"
-    boundaryConditionTypes = [DirichletBoundary]
+    boundaryConditionTypes = [DirichletBoundary, NeumannBoundary]
     domainConditionTypes = [ThermoelasticStress, DeformationPotential, InversePiezoelectricity, PerfectlyMatchedLayer]
     initialConditionTypes = [InitialCondition]
 

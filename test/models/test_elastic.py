@@ -313,3 +313,38 @@ class elasticity_test(FEMTestCase):
                 res = sol.eval("u[0]", data_number=30*i, coords=x)
                 plt.plot(res)
             plt.show()
+
+    def test_inversePiezoelectricity_1d(self):
+        p = FEMProject()
+
+        # geometry
+        p.geometries.add(geometry.Box(0, 0, 0, 1, 1, 1))
+
+        # material
+        C = np.random.rand(6,6)
+        C = (C + C.T)*1e11
+        e_piezo = np.random.rand(3,6)
+        E = np.random.rand(3)
+
+        param = elasticity.ElasticParameters(rho=1000, C=C, e_piezo=e_piezo, type="triclinic", piezo_type="triclinic")
+        mat1 = Material([param], geometries="all")
+        p.materials.append(mat1)
+
+        # model: boundary and initial conditions
+        model = elasticity.ElasticModel(3)
+        model.initialConditions.append(elasticity.InitialCondition([0,0,0], geometries="all"))
+        model.domainConditions.append(elasticity.InversePiezoelectricity(E=E, geometries="all"))
+        p.models.append(model)
+
+        # solver
+        solver = StationarySolver()
+        p.solvers.append(solver)
+
+        # solve
+        p.run()
+
+        # solution
+        ans = np.linalg.inv(C).dot(E.dot(e_piezo))
+        ans = [ans[0], ans[3], ans[5]], [ans[3], ans[1], ans[4]], [ans[5], ans[4], ans[2]]
+        sol = FEMSolution()
+        self.assert_array_almost_equal(sol.eval("(grad(u)+grad(u).T)/2", data_number=-1, coords=[0.5,0.5,0.5], check=False), ans)
