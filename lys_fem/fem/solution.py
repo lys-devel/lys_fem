@@ -143,7 +143,7 @@ class FEMSolution:
         if self._meshInfo is None:
             self._meshInfo = self.__exportMesh(self._mesh)
         domains, coords = self._meshInfo
-        data=f(self._fes, coords)
+        data=f(self._fes, coords, check=False)
         res = []
         if coords.shape[1] < 3:
             coords = np.hstack([coords, np.zeros((coords.shape[0], 3-coords.shape[1]))])
