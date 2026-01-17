@@ -153,11 +153,11 @@ class NGSFunctionBase(Base):
         coords = np.array(coords)
         if fes.dimension == 1:
             coords = coords[..., np.newaxis]
-        flat = coords.reshape(-1, coords.shape[-1]).T
+        flat = coords.reshape(-1, coords.shape[-1])
         if check:
             valid = np.array([fes.mesh.Contains(*c) for c in flat], dtype=bool)
             flat[~valid] = [0]*fes.dimension
-        mip = fes.mesh(*flat)
+        mip = fes.mesh(*flat.T)
         res = f(mip)
         if check:
             res[~valid] = np.full((int(np.prod(f.shape)),), np.nan)
