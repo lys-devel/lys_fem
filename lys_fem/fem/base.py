@@ -54,7 +54,8 @@ class FEMObjectList(list, FEMObject):
 
     def append(self, item):
         super().append(item)
-        item.setParent(self)
+        if isinstance(item, FEMObject):
+            item.setParent(self)
 
 
 class FEMObjectDict(dict, FEMObject):

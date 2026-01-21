@@ -1,8 +1,8 @@
 import numpy as np
 
 from lys_fem import util
+from lys_fem.geometry import GeometrySelection
 from .base import FEMObjectList, FEMObjectDict, Coef
-from .geometry import GeometrySelection
 
 materialParameters = {}
 
@@ -51,7 +51,7 @@ class Materials(FEMObjectList):
             R =  m.coordinate
             if R is not None:
                 R = np.array([[float(rr) for rr in r] for r in R])
-                for d in m.geometries:
+                for d in m.geometries.get(self.fem.geometries.generateGeometry()):
                     J[d] = np.array([R[0]/np.linalg.norm(R[0]), R[1]/np.linalg.norm(R[1]), R[2]/np.linalg.norm(R[2])])
         if len(J) > 1:
             return util.eval(J, name="R", geom="domain")
@@ -63,7 +63,7 @@ class Materials(FEMObjectList):
         for m in self:
             p = m[group]
             if p is not None:
-                for d in m.geometries:
+                for d in m.geometries.get(self.fem.geometries.generateGeometry()):
                     item = p[pname]
                     if item.valid:
                         coefs[d] = item.expression
@@ -73,7 +73,7 @@ class Materials(FEMObjectList):
 class Material(FEMObjectList):
     def __init__(self, params=[], geometries=None, objName=None, coord=None):
         super().__init__(params, objName=objName)
-        self._geometries = GeometrySelection("Domain", geometries, parent=self)
+        self._geometries = GeometrySelection("Domain", geometries)
         self._coord = coord
 
     def __getitem__(self, i):

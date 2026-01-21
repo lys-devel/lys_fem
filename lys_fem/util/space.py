@@ -1,6 +1,7 @@
 import itertools
 import numpy as np
 import ngsolve
+from lys_fem.geometry import GeometrySelection
 from .trials import TestFunction, TrialFunction
 from .operators import NGSFunctionBase
 
@@ -21,7 +22,7 @@ class FunctionSpace:
             dirichlet = [None] * self.size
         self._dirichlet = dirichlet
         self._valtype = valtype
-        self._geom = geometries
+        self._geom = None if geometries is None else GeometrySelection("Domain", geometries)
         self._order = order
 
     @property
@@ -58,7 +59,7 @@ class FunctionSpace:
 
         kwargs = {"order": self._order}
         if self._geom is not None:
-            kwargs["definedon"] = "|".join(["domain" + str(r) for r in self._geom])
+            kwargs["definedon"] = "|".join(["domain" + str(r) for r in self._geom.get(mesh.geometry)])
 
         def get_space(d):
             if d is None:

@@ -142,14 +142,6 @@ class FEMProject:
         mesh = self.mesher.generate(geom)
         return util.Mesh(mesh)
 
-    @property
-    def domainAttributes(self):
-        return self.geometries.geometryAttributes(self.dimension)
-
-    @property
-    def boundaryAttributes(self):
-        return self.geometries.geometryAttributes(self.dimension-1)
-
     def getMeshWave(self, dim=None, nomesh=False):
         if dim is None:
             dim = self.dimension

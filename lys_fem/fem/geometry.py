@@ -1,6 +1,6 @@
 import json
+from lys_fem.geometry import FEMGeometry, GmshGeometry, GeometrySelection
 from .base import FEMObject
-from lys_fem.geometry import FEMGeometry, GmshGeometry
 
 
 class GeometryGenerator(FEMObject):
@@ -15,8 +15,6 @@ class GeometryGenerator(FEMObject):
         if groups is None:
             groups = {}
         self._groups = groups
-        for value in groups.values():
-            value.setParent(self)
         self._default = None
         self._updated = True
 
@@ -38,7 +36,7 @@ class GeometryGenerator(FEMObject):
             self.remove(ord)
 
     def addGroup(self, type, name, value=[]):
-        self._groups[name] = GeometrySelection(type, value, parent=self)
+        self._groups[name] = GeometrySelection(type, value)
 
     def removeGroup(self, name):
         del self._groups[name]
@@ -49,11 +47,11 @@ class GeometryGenerator(FEMObject):
     def generateGeometry(self, n=None):
         if n is None:
             if self._updated or self._default is None:
-                self._default = GmshGeometry(self._order, params=self.fem.parameters.getSolved())
+                self._default = GmshGeometry(self._order, groups=self._groups, params=self.fem.parameters.getSolved())
             self._updated=False
             return self._default
         else:
-            return GmshGeometry(self._order[:n+1], params=self.fem.parameters.getSolved())
+            return GmshGeometry(self._order[:n+1], groups=self._groups, params=self.fem.parameters.getSolved())
 
     def geometryParameters(self):
         return self.generateGeometry().geometryParameters()
@@ -105,94 +103,4 @@ class GeometryGenerator(FEMObject):
         self._groups = g._groups
         for order in g.commands:
             self.add(order)
-
-
-
-class GeometrySelection(FEMObject):
-    def __init__(self, geometryType="Domain", selection=None, parent=None):
-        if isinstance(selection, GeometrySelection):
-            geometryType = selection.geometryType
-            selection = selection.getSelection()
-        if selection is None:
-            selection = []
-        self._geom = geometryType
-        if selection == "all":
-            self._selection = "all"
-        elif isinstance(selection, str):
-            self._selection = [selection]
-        else:
-            self._selection = list(selection)
-        if parent is not None:
-            self.setParent(parent)
-        
-    def __getitem__(self, index):
-        return self._selection[index]
-
-    def getSelection(self, geom=None):
-        if geom is None:
-            return self._selection
-
-    def setSelection(self, value):
-        self._selection = value
-
-    def append(self, value):
-        self._selection.append(value)
-        self._selection = sorted(self._selection)
-
-    def remove(self, value):
-        self._selection.remove(value)
-
-    def clear(self):
-        self._selection.clear()
-
-    def selectionType(self):
-        if self._selection == "all":
-            return "All"
-        else:
-            if len(self._selection) == 0:
-                return "Group"
-            elif isinstance(self._selection[0], str):
-                return "Group"
-            else:
-                return "Selected"
-
-    def __iter__(self):
-        return self.geometryAttributes.__iter__()
-        
-    @property
-    def geometryAttributes(self):
-        if self._geom == "Domain":
-            attrs = self.fem.domainAttributes
-        elif self._geom == "Boundary":
-            attrs = self.fem.boundaryAttributes
-        elif self._geom == "Volume":
-            attrs = self.fem.geometries.geometryAttributes(3)
-        elif self._geom == "Surface":
-            attrs = self.fem.geometries.geometryAttributes(2)
-        elif self._geom == "Edge":
-            attrs = self.fem.geometries.geometryAttributes(1)
-        elif self._geom == "Point":
-            attrs = self.fem.geometries.geometryAttributes(0)
-        return [attr for attr in attrs if self.check(attr)]
-
-    def check(self, item):
-        if self._selection == "all":
-            return True
-        if len(self._selection) == 0:
-            return False
-        if isinstance(self._selection[0], str):
-            return any([item in self.fem.geometries.groups[s] for s in self._selection])
-        else:
-            return item in self._selection
-
-    @property
-    def geometryType(self):
-        return self._geom
-
-    def saveAsDictionary(self):
-        return {"selection": self._selection, "geometryType": self._geom}
-
-    @staticmethod
-    def loadFromDictionary(d):
-        return GeometrySelection(d["geometryType"], d["selection"])
 

@@ -1,5 +1,5 @@
+from lys_fem.geometry import GeometrySelection
 from .base import FEMObjectDict, FEMObjectList, Coef
-from .geometry import GeometrySelection
 
 
 class ModelConditionBase(FEMObjectList):
@@ -14,7 +14,7 @@ class ModelConditionBase(FEMObjectList):
             return None
         coefs = {}
         for c in self.get(cls):
-            for d in c.geometries:
+            for d in c.geometries.get(self.fem.geometries.generateGeometry()):
                 coefs[d] = c.value.expression
         return coefs        
 
@@ -103,7 +103,7 @@ class ConditionBase(FEMObjectDict):
 
     def __init__(self, geomType, value=None, objName=None, geometries=None):
         super().__init__(objName=objName)
-        self._geom = GeometrySelection(geomType, geometries, parent=self)
+        self._geom = GeometrySelection(geomType, geometries)
         if value is not None:
             self["value"] = Coef(value)
      

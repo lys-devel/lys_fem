@@ -10,8 +10,9 @@ gmsh.option.setNumber("General.Terminal", 0)
 class GmshGeometry:
     _index = 0
 
-    def __init__(self, orders, params={}, scale="auto"):
+    def __init__(self, orders, groups={}, params={}, scale="auto"):
         self._orders = list(orders)
+        self._groups = dict(groups)
         self._params = dict(params)
         GmshGeometry._index += 1
         self._name = "Geometry" + str(GmshGeometry._index)
@@ -102,6 +103,10 @@ class GmshGeometry:
     @property
     def dimension(self):
         return self._dim
+    
+    @property
+    def groups(self):
+        return self._groups
 
     def geometryParameters(self):
         return self._geom_params
@@ -111,7 +116,7 @@ class GmshGeometry:
         return [tag for d, tag  in self._model.getPhysicalGroups(dim)]
 
     def duplicate(self):
-        return GmshGeometry(self._orders, params=self._params)
+        return GmshGeometry(self._orders, groups=self._groups, params=self._params)
 
     def export(self, file):
         self._model.setCurrent(self._name)

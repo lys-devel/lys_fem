@@ -139,10 +139,11 @@ class DifferentialSymbol(NGSFunctionBase):
         if self._geom is None:
             return _MultDiffSimbol(self._obj, None)
         else:
+            geom = "|".join([self._geom.geometryType.lower() + str(r) for r in self._geom.get(fes.mesh.geometry)])
             if self._obj == ngsolve.dx:
-                g = fes.mesh.Materials(self._geom)
+                g = fes.mesh.Materials(geom)
             else:
-                g = fes.mesh.Boundaries(self._geom)
+                g = fes.mesh.Boundaries(geom)
             return _MultDiffSimbol(self._obj(definedon=g), None)
 
     @property
@@ -183,8 +184,7 @@ class DifferentialSymbol(NGSFunctionBase):
     def isTimeDependent(self):
         return False
 
-    def __call__(self, region):
-        geom = "|".join([region.geometryType.lower() + str(r) for r in region])
+    def __call__(self, geom):
         return DifferentialSymbol(self._obj, geom, name=str(self))
     
     def __str__(self):

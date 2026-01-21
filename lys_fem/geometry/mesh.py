@@ -84,7 +84,7 @@ class GmshMesh:
         # size constraint
         for geom in sorted(size, key=lambda x: 1/x.size):
             dim = {"Volume": 3, "Surface": 2, "Edge": 1, "Point": 0}[geom.geometryType]
-            for tag in list(geom):
+            for tag in geom.get(self.geometry):
                 ents = [(dim, t) for t in model.getEntitiesForPhysicalGroup(dim, tag)]
                 model.setCurrent(self._geom.name)
                 if dim == 0:

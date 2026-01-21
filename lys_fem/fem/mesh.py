@@ -1,7 +1,6 @@
 
-from lys_fem.geometry import GmshMesh
+from lys_fem.geometry import GmshMesh, GeometrySelection
 from .base import FEMObject, FEMObjectList
-from .geometry import GeometrySelection
 
 
 class OccMesher(FEMObject):

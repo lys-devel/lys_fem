@@ -44,6 +44,10 @@ class Mesh(ngsolve.Mesh):
             return self._model.nodes
         else:
             return 0
+
+    @property
+    def geometry(self):
+        return self._model.geometry
             
     def refinedMesh(self, error, amr):
         def get_error(x=None):

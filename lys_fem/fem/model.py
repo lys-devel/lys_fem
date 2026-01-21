@@ -1,9 +1,10 @@
 import numpy as np
 from lys_fem import util
+from lys_fem.geometry import GeometrySelection
+
 from . import time
 from .base import FEMObject, FEMObjectDict
 from .conditions import DomainConditions, BoundaryConditions, InitialConditions, InitialCondition
-from .geometry import GeometrySelection
 
 models = {}
 
@@ -147,7 +148,7 @@ class Equation(FEMObject):
         self._isScalar = isScalar
         self._valType = valType
         self._disc = discretization
-        self._geometries = GeometrySelection(geometryType, geometries, parent=self)
+        self._geometries = GeometrySelection(geometryType, geometries)
         self._values = {key: self.__parseValues(v) for key, v in kwargs.items()}
 
     def __parseValues(self, value):
@@ -167,7 +168,7 @@ class Equation(FEMObject):
             geometries = self._geometries
         if geometries is not None:
             if geometries.selectionType() in ["Selected", "Group"]:
-                kwargs["geometries"] = list(geometries)
+                kwargs["geometries"] = geometries
         return util.FunctionSpace(self._varName, **kwargs)
 
     def set(self, name, value):
