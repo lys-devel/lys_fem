@@ -54,7 +54,7 @@ class FEMGeometry(object):
         """
         raise NotImplementedError("[execute] method should be implemented.")
 
-    def widget(self):
+    def widget(self, canvas, geom):
         """
         :meta private:
         Return a widget for this geometry component.
@@ -78,7 +78,7 @@ class Box(FEMGeometry):
         args = trans(self.args, unit="m")
         model.occ.addBox(*args)
 
-    def widget(self):
+    def widget(self, canvas, geom):
         from .geometryGUI import BoxGUI
         return BoxGUI(self)
 
@@ -106,7 +106,7 @@ class Sphere(FEMGeometry):
         model.occ.addSphere(*args, angle1=0, angle3=3*np.pi/2)
         model.occ.addSphere(*args, angle1=0, angle3=2*np.pi)
 
-    def widget(self):
+    def widget(self, canvas, geom):
         from .geometryGUI import SphereGUI
         return SphereGUI(self)
     
@@ -152,7 +152,7 @@ class RectFrustum(FEMGeometry):
             n = -n
         return n, p
 
-    def widget(self):
+    def widget(self, canvas, geom):
         from .geometryGUI import RectFrustumGUI
         return RectFrustumGUI(self)
     
@@ -176,7 +176,7 @@ class InfiniteVolume(FEMGeometry):
         self._rf_xp.execute(model, trans)
         self._rf_xn.execute(model, trans)
 
-    def widget(self):
+    def widget(self, canvas, geom):
         from .geometryGUI import InfiniteVolumeGUI
         return InfiniteVolumeGUI(self)
 
@@ -264,6 +264,7 @@ class InfiniteVolume(FEMGeometry):
         if domain == 5:
             return str(-z-c/(C-c))
 
+
 class Rect(FEMGeometry):
     type = "rectangle"
     def __init__(self, x=0, y=0, z=0, dx=1, dy=1):
@@ -273,7 +274,7 @@ class Rect(FEMGeometry):
         args = trans(self.args, unit="m")
         model.occ.addRectangle(*args)
 
-    def widget(self):
+    def widget(self, canvas, geom):
         from .geometryGUI import RectGUI
         return RectGUI(self)
 
@@ -287,7 +288,7 @@ class Disk(FEMGeometry):
         args = trans(self.args, unit="m")
         model.occ.addDisk(*args)
 
-    def widget(self):
+    def widget(self, canvas, geom):
         from .geometryGUI import DiskGUI
         return DiskGUI(self)
 
@@ -302,7 +303,7 @@ class Quad(FEMGeometry):
         lines = [model.occ.addLine(pts[0], pts[1]), model.occ.addLine(pts[1], pts[2]), model.occ.addLine(pts[2], pts[3]), model.occ.addLine(pts[3], pts[0])]
         model.occ.addPlaneSurface([model.occ.addCurveLoop([lines[0], lines[1], lines[2], lines[3]])])
 
-    def widget(self):
+    def widget(self, canvas, geom):
         from .geometryGUI import QuadGUI
         return QuadGUI(self)
 
@@ -314,12 +315,12 @@ class Fillet2D(FEMGeometry):
 
     def execute(self, model, trans):
         R = trans(self.args[0], unit="m")
-        print(*self.args[1:], R)
-        model.occ.fillet2D(*self.args[1:], R)
-
-    def widget(self):
+        e1, e2 = self.args[1:]
+        model.occ.fillet2D(e1, e2, R)
+        
+    def widget(self, canvas, geom):
         from .geometryGUI import Fillet2DGUI
-        return Fillet2DGUI(self)
+        return Fillet2DGUI(self, canvas, geom)
 
 
 class InfinitePlane(FEMGeometry):
@@ -410,7 +411,7 @@ class InfinitePlane(FEMGeometry):
         if domain == 3:
             return str(-y-b/(B-b))
 
-    def widget(self):
+    def widget(self, canvas, geom):
         from .geometryGUI import InfinitePlaneGUI
         return InfinitePlaneGUI(self)
     
@@ -427,7 +428,7 @@ class Line(FEMGeometry):
         p2t = model.occ.addPoint(*arg2)
         model.occ.addLine(p1t, p2t)
 
-    def widget(self):
+    def widget(self, canvas, geom):
         from .geometryGUI import LineGUI
         return LineGUI(self)
 
@@ -441,9 +442,10 @@ class ImportGmsh(FEMGeometry):
     def execute(self, model, trans):
         gmsh.merge(self._file)
 
-    def widget(self):
+    def widget(self, canvas, geom):
         from .geometryGUI import BoxGUI
         return BoxGUI(self)
+
 
 addGeometry("Add 3D", Box)
 addGeometry("Add 3D", Sphere)

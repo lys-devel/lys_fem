@@ -105,7 +105,7 @@ class _MaterialWidget(QtWidgets.QWidget):
         self.__initlayout(canvas, fem, mat)
 
     def __initlayout(self, canvas, fem, mat):
-        domain = GeometrySelector(canvas, fem, mat.geometries)
+        domain = GeometrySelector(canvas, fem.geometries.generateGeometry(), mat.geometries)
 
         self._grp = QtWidgets.QGroupBox("Define parameters on material coordinate", checkable=True)
         if mat.coordinate is not None:

@@ -197,7 +197,7 @@ class FEMModelWidget(QtWidgets.QWidget):
         self.__initLayout(model, fem, canvas, varDim, order, discretization)
 
     def __initLayout(self, model, fem, canvas, dim, order, disc):
-        self._geom = GeometrySelector(canvas, fem, model.geometries)
+        self._geom = GeometrySelector(canvas, fem.geometries.generateGeometry(), model.geometries)
         self._params = ParameterEditor(model)
         layout = QtWidgets.QGridLayout()
 

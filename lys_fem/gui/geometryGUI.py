@@ -152,7 +152,8 @@ class GeometryTreeItem(FEMTreeItem):
 
     @ property
     def widget(self):
-        return self._item.widget()
+        index = self.parent.children.index(self)
+        return self._item.widget(self.canvas(), self.fem().geometries.generateGeometry(n=index-1))
 
 
 class GroupTree(FEMTreeItem):
@@ -217,7 +218,7 @@ class GroupTreeItem(FEMTreeItem):
 
     @ property
     def widget(self):
-        return GeometrySelector(self.canvas(), self.fem(), self.fem().geometries.groups[self._name], acceptedTypes=["Selected"], autoStart=True)
+        return GeometrySelector(self.canvas(), self.fem().geometries.generateGeometry(), self.fem().geometries.groups[self._name], acceptedTypes=["Selected"], autoStart=True)
 
 
 class _NewGroupDialog(QtWidgets.QDialog):

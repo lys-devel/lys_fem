@@ -142,16 +142,6 @@ class FEMProject:
         mesh = self.mesher.generate(geom)
         return util.Mesh(mesh)
 
-    def getMeshWave(self, dim=None, nomesh=False):
-        if dim is None:
-            dim = self.dimension
-        if nomesh:
-            mesher = OccMesher(self)
-        else:
-            mesher = self._mesher
-        geom = self._geom.generateGeometry()
-        return mesher.generate(geom).getMeshWave(dim=dim)
-
     def run(self):
         from .run import run
         run(self)

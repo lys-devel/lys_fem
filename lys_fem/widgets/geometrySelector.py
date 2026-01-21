@@ -1,16 +1,17 @@
 import weakref
 from lys.Qt import QtCore, QtWidgets, QtGui
+from ..fem import OccMesher
 
 
 class GeometrySelector(QtWidgets.QWidget):
-    def __init__(self, canvas, fem, selected, acceptedTypes=["All", "Selected", "Group"], autoStart=True):
+    def __init__(self, canvas, geom, selected, acceptedTypes=["All", "Selected", "Group"], autoStart=True):
         super().__init__()
-        dimDict = {"Domain": fem.dimension, "Boundary": fem.dimension-1, "Volume": 3, "Surface": 2, "Edge": 1, "Point": 0}
+        dimDict = {"Domain": geom.dimension, "Boundary": geom.dimension-1, "Volume": 3, "Surface": 2, "Edge": 1, "Point": 0}
         self._dim = dimDict[selected.geometryType]
         self._geomType = selected.geometryType
         self._selected = selected
         self._canvas = canvas
-        self._fem = fem
+        self._geom = geom
         self.__initlayout(selected.geometryType, selected, acceptedTypes, dimDict)
         if autoStart:
             if selected.selectionType() == "all":
@@ -38,7 +39,7 @@ class GeometrySelector(QtWidgets.QWidget):
 
         self._groups = QtWidgets.QTreeWidget()
         self._groups.setHeaderLabels(["Group"])
-        for key, grp in self._fem.geometries.groups.items():
+        for key, grp in self._geom.groups.items():
             if dimDict[grp.geometryType] == self._dim:
                 item = QtWidgets.QTreeWidgetItem(self._groups)
                 item.setText(0, key)
@@ -107,17 +108,21 @@ class GeometrySelector(QtWidgets.QWidget):
             self._groups.show()
 
     def __showGeometry(self):
-        mesh = self._fem.getMeshWave(self._dim, nomesh=True)
+        mesh = self._getMeshWave(self._dim)
         with self._canvas.delayUpdate():
             self._canvas.clear()
             objs = self._canvas.append(mesh)
+            selected = self._selected.get(self._geom)
             for obj, m in zip(objs, mesh):
-                self.__setColor(obj, self._selected.check(m.note["tag"]))
+                self.__setColor(obj, m.note["tag"] in selected)
             if self._geomType == "Surface" and self._dim != 2:
-                mesh = self._fem.getMeshWave(self._dim + 1, nomesh=True)
+                mesh = self._getMeshWave(self._dim + 1)
                 objs = self._canvas.append(mesh)
                 for obj, m in zip(objs, mesh):
                     self.__setColor(obj, False)
+
+    def _getMeshWave(self, dim):
+        return OccMesher().generate(self._geom).getMeshWave(dim=dim)
 
     def startSelection(self):
         self._selectBtn.setChecked(True)
@@ -140,7 +145,7 @@ class GeometrySelector(QtWidgets.QWidget):
 
     def __picked(self, item):
         tag = item.getWave().note["tag"]
-        if self._selected.check(tag):
+        if tag in self._selected.get(self._geom):
             self._selected.remove(tag)
             self.__setColor(item, False)
         else:

@@ -3,7 +3,7 @@ import numpy as np
 from lys.Qt import QtWidgets
 from lys.widgets import ScientificSpinBox
 
-from ..fem import GeometrySelection
+from lys_fem.geometry import GeometrySelection
 from ..widgets import FEMTreeItem, GeometrySelector, TreeStyleEditor
 
 
@@ -27,7 +27,8 @@ class MeshEditor(QtWidgets.QWidget):
         self.setLayout(layout)
 
     def _showMesh(self):
-        mesh = self._obj.getMeshWave()
+        geom = self._obj.geometries.generateGeometry()
+        mesh = self._mesher.generate(geom).getMeshWave(dim=geom.dimension)
         elements, nodes = 0, 0
         for m in mesh:
             elements += sum([len(value) for value in m.note["elements"].values()])
@@ -155,7 +156,7 @@ class _SizeConstraintWidget(QtWidgets.QWidget):
         self._refine.setValue(geom.size)
         self._refine.valueChanged.connect(self._setFactor)
 
-        self._sel = GeometrySelector(canvas, fem, geom)
+        self._sel = GeometrySelector(canvas, fem.geometries.generateGeometry(), geom)
 
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -220,7 +221,7 @@ class _TransfiniteWidget(QtWidgets.QWidget):
         self.__initlayout(canvas, fem, geom)
 
     def __initlayout(self, canvas, fem, geom):
-        self._sel = GeometrySelector(canvas, fem, geom)
+        self._sel = GeometrySelector(canvas, fem.geometries.generateGeometry(), geom)
 
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -280,8 +281,8 @@ class _PeriodicWidget(QtWidgets.QWidget):
         self.__initlayout(canvas, fem, pair)
 
     def __initlayout(self, canvas, fem, pair):
-        self._src = GeometrySelector(canvas, fem, pair[0], acceptedTypes=["Selected"])
-        self._dst = GeometrySelector(canvas, fem, pair[1], acceptedTypes=["Selected"], autoStart=False)
+        self._src = GeometrySelector(canvas, fem.geometries.generateGeometry(), pair[0], acceptedTypes=["Selected"])
+        self._dst = GeometrySelector(canvas, fem.geometries.generateGeometry(), pair[1], acceptedTypes=["Selected"], autoStart=False)
 
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)

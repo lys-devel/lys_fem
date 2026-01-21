@@ -1,5 +1,7 @@
 from lys.Qt import QtWidgets
 from lys.widgets import ScientificSpinBox
+from lys_fem.geometry import GeometrySelection
+from lys_fem.widgets import GeometrySelector
 
 
 class BoxGUI(QtWidgets.QWidget):
@@ -55,6 +57,7 @@ class SphereGUI(QtWidgets.QWidget):
     def __changed(self):
         self._obj.args = [w.value() for w in self._values]
 
+
 class RectFrustumGUI(QtWidgets.QWidget):
     def __init__(self, obj):
         super().__init__()
@@ -79,6 +82,7 @@ class RectFrustumGUI(QtWidgets.QWidget):
 
     def __changed(self):
         self._obj.args = [[w.value() for w in value_node] for value_node in self._values]
+
 
 class InfiniteVolumeGUI(QtWidgets.QWidget):
     def __init__(self, obj):
@@ -190,15 +194,20 @@ class QuadGUI(QtWidgets.QWidget):
 
 
 class Fillet2DGUI(QtWidgets.QWidget):
-    def __init__(self, obj):
+    def __init__(self, obj, canvas, geom):
         super().__init__()
         self._obj = obj
-        self.__initlayout()
+        self._geom = geom
+        if obj.args[1] == -1:
+            self._edges = GeometrySelection("Edge")
+        else:
+            self._edges = GeometrySelection("Edge", obj.args[1:])
+        self.__initlayout(canvas, geom)
+        self._R.setValue(obj.args[0])
 
-    def __initlayout(self):
+    def __initlayout(self, canvas, geom):
         self._R = ScientificSpinBox(valueChanged=self.__changed)
-        self._e1 = QtWidgets.QSpinBox(valueChanged=self.__changed)
-        self._e2 = QtWidgets.QSpinBox(valueChanged=self.__changed)
+        self._e = GeometrySelector(canvas, geom, selected=self._edges, acceptedTypes=["Selected"])
 
         h1 = QtWidgets.QHBoxLayout()
         h1.addWidget(QtWidgets.QLabel("R"))
@@ -206,13 +215,12 @@ class Fillet2DGUI(QtWidgets.QWidget):
 
         layout = QtWidgets.QVBoxLayout()
         layout.addLayout(h1)
-        layout.addWidget(self._e1)
-        layout.addWidget(self._e2)
+        layout.addWidget(self._e)
 
         self.setLayout(layout)
 
     def __changed(self):
-        self._obj.args = [self._R.value(), self._e1.value(), self._e2.value()]
+        self._obj.args = [self._R.value(), *self._edges.get(self._geom)]
 
 
 class InfinitePlaneGUI(QtWidgets.QWidget):

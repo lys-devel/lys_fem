@@ -9,7 +9,7 @@ class ConditionWidget(QtWidgets.QWidget):
         self.__initlayout(fem, canvas)
 
     def __initlayout(self, fem, canvas):
-        self._selector = GeometrySelector(canvas, fem, self._cond.geometries)
+        self._selector = GeometrySelector(canvas, fem.geometries.generateGeometry(), self._cond.geometries)
         self._params = ParameterEditor(self._cond)
 
         layout = QtWidgets.QVBoxLayout(self)
