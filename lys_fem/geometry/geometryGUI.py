@@ -189,6 +189,32 @@ class QuadGUI(QtWidgets.QWidget):
         self._obj.args = [[w.value() for w in value_node] for value_node in self._values]
 
 
+class Fillet2DGUI(QtWidgets.QWidget):
+    def __init__(self, obj):
+        super().__init__()
+        self._obj = obj
+        self.__initlayout()
+
+    def __initlayout(self):
+        self._R = ScientificSpinBox(valueChanged=self.__changed)
+        self._e1 = QtWidgets.QSpinBox(valueChanged=self.__changed)
+        self._e2 = QtWidgets.QSpinBox(valueChanged=self.__changed)
+
+        h1 = QtWidgets.QHBoxLayout()
+        h1.addWidget(QtWidgets.QLabel("R"))
+        h1.addWidget(self._R)
+
+        layout = QtWidgets.QVBoxLayout()
+        layout.addLayout(h1)
+        layout.addWidget(self._e1)
+        layout.addWidget(self._e2)
+
+        self.setLayout(layout)
+
+    def __changed(self):
+        self._obj.args = [self._R.value(), self._e1.value(), self._e2.value()]
+
+
 class InfinitePlaneGUI(QtWidgets.QWidget):
     def __init__(self, obj):
         super().__init__()

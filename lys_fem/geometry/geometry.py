@@ -307,6 +307,21 @@ class Quad(FEMGeometry):
         return QuadGUI(self)
 
 
+class Fillet2D(FEMGeometry):
+    type = "fillet 2D"
+    def __init__(self, R=1, edge1=-1, edge2=-1):
+        super().__init__([R, edge1, edge2])
+
+    def execute(self, model, trans):
+        R = trans(self.args[0], unit="m")
+        print(*self.args[1:], R)
+        model.occ.fillet2D(*self.args[1:], R)
+
+    def widget(self):
+        from .geometryGUI import Fillet2DGUI
+        return Fillet2DGUI(self)
+
+
 class InfinitePlane(FEMGeometry):
     type = "infinite plane"
     def __init__(self, a=1, b=1, A=2, B=2):
@@ -438,5 +453,6 @@ addGeometry("Add 2D", Rect)
 addGeometry("Add 2D", Disk)
 addGeometry("Add 2D", Quad)
 addGeometry("Add 2D", InfinitePlane)
+addGeometry("Add 2D", Fillet2D)
 addGeometry("Add 1D", Line)
 addGeometry("Import", ImportGmsh)
