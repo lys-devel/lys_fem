@@ -198,16 +198,12 @@ class Fillet2DGUI(QtWidgets.QWidget):
         super().__init__()
         self._obj = obj
         self._geom = geom
-        if obj.args[1] == -1:
-            self._edges = GeometrySelection("Edge")
-        else:
-            self._edges = GeometrySelection("Edge", obj.args[1:])
         self.__initlayout(canvas, geom)
         self._R.setValue(obj.args[0])
 
     def __initlayout(self, canvas, geom):
         self._R = ScientificSpinBox(valueChanged=self.__changed)
-        self._e = GeometrySelector(canvas, geom, selected=self._edges, acceptedTypes=["Selected"])
+        self._e = GeometrySelector(canvas, geom, selected=self._obj.geometries, acceptedTypes=["Selected"])
 
         h1 = QtWidgets.QHBoxLayout()
         h1.addWidget(QtWidgets.QLabel("R"))
@@ -220,7 +216,7 @@ class Fillet2DGUI(QtWidgets.QWidget):
         self.setLayout(layout)
 
     def __changed(self):
-        self._obj.args = [self._R.value(), *self._edges.get(self._geom)]
+        self._obj.args = [self._R.value()]
 
 
 class InfinitePlaneGUI(QtWidgets.QWidget):

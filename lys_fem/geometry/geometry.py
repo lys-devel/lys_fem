@@ -1,8 +1,8 @@
-import weakref
 import gmsh
 import numpy as np
 import sympy as sp
 from lys_fem import util
+from lys_fem.geometry import GeometrySelection
 
 geometryCommands = {}
 
@@ -17,9 +17,9 @@ class FEMGeometry(object):
     type = "invalid"
     """:meta private:"""
 
-    def __init__(self, args):
+    def __init__(self, args, geom=[]):
         self._args = args
-        self._method = None
+        self._geom = geom
 
     @property
     def args(self):
@@ -28,20 +28,20 @@ class FEMGeometry(object):
     @args.setter
     def args(self, value):
         self._args = value
-        if self._method is not None:
-            if self._method() is not None:
-                self._method()()
 
-    def setCallback(self, method):
-        self._method = weakref.ref(method)
+    @property
+    def geometries(self):
+        return self._geom
 
     def saveAsDictionary(self):
-        return {"type": self.type, "args": self.args}
+        geom = [g.saveAsDictionary for g in self._geom]
+        return {"type": self.type, "args": self.args, "geom": geom}
 
     @staticmethod
     def loadFromDictionary(d):
         for t in sum(geometryCommands.values(), []):
             if t.type == d["type"]:
+                geom = [GeometrySelection.loadFromDictionary(g) for g in d.get("geom", [])]
                 return t(*d["args"])
 
     def generateParameters(self, model, scale):
@@ -310,13 +310,14 @@ class Quad(FEMGeometry):
 
 class Fillet2D(FEMGeometry):
     type = "fillet 2D"
-    def __init__(self, R=1, edge1=-1, edge2=-1):
-        super().__init__([R, edge1, edge2])
+    def __init__(self, R=1, edges=[]):
+        super().__init__([R], geom=GeometrySelection("Edge", edges))
 
     def execute(self, model, trans):
         R = trans(self.args[0], unit="m")
-        e1, e2 = self.args[1:]
-        model.occ.fillet2D(e1, e2, R)
+        e = self.geometries.getSelection()
+        ents = model.occ.getEntities(1)
+        model.occ.fillet2D(ents[e[0]-1][1], ents[e[1]-1][1], R)
         
     def widget(self, canvas, geom):
         from .geometryGUI import Fillet2DGUI

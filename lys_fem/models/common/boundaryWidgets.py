@@ -10,7 +10,7 @@ class DirichletBoundaryWidget(QtWidgets.QWidget):
         self.__initlayout(fem, canvas)
 
     def __initlayout(self, fem, canvas):
-        self._selector = GeometrySelector(canvas, fem, self._cond.geometries)
+        self._selector = GeometrySelector(canvas, fem.geometries.generateGeometry(), self._cond.geometries)
         self._fix = [QtWidgets.QCheckBox(axis, toggled=self.__toggled) for axis in ["x", "y", "z"][:len(self._cond.value.expression)]]
 
         h = QtWidgets.QHBoxLayout()

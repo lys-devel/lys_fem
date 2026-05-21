@@ -15,8 +15,6 @@ class GeometryGenerator(FEMObject):
         if groups is None:
             groups = {}
         self._groups = groups
-        self._default = None
-        self._updated = True
 
     def add(self, command):
         if hasattr(command, "__iter__"):
@@ -24,12 +22,9 @@ class GeometryGenerator(FEMObject):
                 self.add(c)
             return
         self._order.append(command)
-        command.setCallback(self._update)
-        self._updated=True
 
     def remove(self, command):
         self._order.remove(command)
-        self._updated=True
 
     def clear(self):
         for ord in self._order:
@@ -41,17 +36,9 @@ class GeometryGenerator(FEMObject):
     def removeGroup(self, name):
         del self._groups[name]
 
-    def _update(self):
-        self._updated=True
-
     def generateGeometry(self, n=None):
-        if n is None:
-            if self._updated or self._default is None:
-                self._default = GmshGeometry(self._order, groups=self._groups, params=self.fem.parameters.getSolved())
-            self._updated=False
-            return self._default
-        else:
-            return GmshGeometry(self._order[:n+1], groups=self._groups, params=self.fem.parameters.getSolved())
+        order = self._order if n is None else self._order[:n+1]
+        return GmshGeometry(order, groups=self._groups, params=self.fem.parameters.getSolved())
 
     def geometryParameters(self):
         return self.generateGeometry().geometryParameters()
